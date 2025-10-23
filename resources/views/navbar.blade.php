@@ -23,13 +23,14 @@
     <a href="{{route ('animal:main') }}" class="text-purple-100 hover:text-white transition duration-300 font-medium">
      Animal
     </a>
-    @endauth
     <a href="#" class="text-purple-100 hover:text-white transition duration-300 font-medium">
      Adoption
     </a>
     <a href="#" class="text-purple-100 hover:text-white transition duration-300 font-medium">
      Shelter
     </a>
+    @endauth
+    
     <a href="#" class="text-purple-100 hover:text-white transition duration-300 font-medium">
      Contact
     </a>
@@ -46,9 +47,7 @@
      </div>
     </a>
     @else
-    <a href="#" class="text-purple-100 hover:text-white transition duration-300 font-medium">
-     Login
-    </a>
+    
     @endauth
    </div>
 
