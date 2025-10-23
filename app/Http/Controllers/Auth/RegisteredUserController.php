@@ -33,14 +33,21 @@ class RegisteredUserController extends Controller
         $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users'],
-            'password' => ['required', 'string', 'min:8', 'confirmed'],
+            'password' => ['required', 'confirmed', Rules\Password::defaults()],
+            'city' => ['required', 'string', 'max:100'],
+            'state' => ['required', 'string', 'max:100'],
+            'address' => ['required', 'string', 'max:255'],
+            'phoneNum' => ['required', 'string', 'max:20'],
         ]);
 
-        // Create the user
         $user = User::create([
             'name' => $request->name,
             'email' => $request->email,
             'password' => Hash::make($request->password),
+            'city' => $request->city,
+            'state' => $request->state,
+            'address' => $request->address,
+            'phoneNum' => $request->phoneNum,
         ]);
 
         // Assign the "public user" role to the newly created user

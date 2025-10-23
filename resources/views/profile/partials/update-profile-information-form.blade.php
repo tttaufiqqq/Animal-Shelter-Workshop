@@ -1,7 +1,7 @@
 <section>
     <header class="mb-6">
         <p class="text-gray-600 leading-relaxed">
-            {{ __("Update your account's profile information and email address.") }}
+            {{ __("Update your account's profile information and details.") }}
         </p>
     </header>
 
@@ -13,6 +13,7 @@
         @csrf
         @method('patch')
 
+        <!-- Name -->
         <div>
             <label for="name" class="block text-sm font-semibold text-gray-800 mb-2">
                 {{ __('Name') }}
@@ -32,6 +33,7 @@
             @enderror
         </div>
 
+        <!-- Email -->
         <div>
             <label for="email" class="block text-sm font-semibold text-gray-800 mb-2">
                 {{ __('Email') }}
@@ -49,34 +51,88 @@
                 <p class="mt-2 text-sm text-red-600">{{ $message }}</p>
             @enderror
 
-            @if ($user instanceof \Illuminate\Contracts\Auth\MustVerifyEmail && ! $user->hasVerifiedEmail())
-                <div class="mt-3 p-4 bg-yellow-50 border-l-4 border-yellow-400 rounded">
-                    <p class="text-sm text-gray-800">
-                        {{ __('Your email address is unverified.') }}
-                    </p>
-                    <button 
-                        form="send-verification" 
-                        class="mt-2 text-sm text-purple-600 hover:text-purple-800 font-semibold underline focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 rounded"
-                    >
-                        {{ __('Click here to re-send the verification email.') }}
-                    </button>
-
-                    @if (session('status') === 'verification-link-sent')
-                        <p class="mt-3 text-sm font-medium text-green-600 flex items-center">
-                            <span class="inline-block w-5 h-5 bg-green-500 rounded-full mr-2 text-white text-center leading-5">✓</span>
-                            {{ __('A new verification link has been sent to your email address.') }}
-                        </p>
-                    @endif
-                </div>
-            @endif
+            
         </div>
 
+        <!-- Phone Number -->
+        <div>
+            <label for="phoneNum" class="block text-sm font-semibold text-gray-800 mb-2">
+                {{ __('Phone Number') }}
+            </label>
+            <input 
+                id="phoneNum" 
+                name="phoneNum" 
+                type="text" 
+                class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-purple-600 focus:ring-2 focus:ring-purple-200 transition duration-200 outline-none" 
+                value="{{ old('phoneNum', $user->phoneNum) }}" 
+                required 
+            />
+            @error('phoneNum')
+                <p class="mt-2 text-sm text-red-600">{{ $message }}</p>
+            @enderror
+        </div>
+
+        <!-- Address -->
+        <div>
+            <label for="address" class="block text-sm font-semibold text-gray-800 mb-2">
+                {{ __('Address') }}
+            </label>
+            <input 
+                id="address" 
+                name="address" 
+                type="text" 
+                class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-purple-600 focus:ring-2 focus:ring-purple-200 transition duration-200 outline-none" 
+                value="{{ old('address', $user->address) }}" 
+                required 
+            />
+            @error('address')
+                <p class="mt-2 text-sm text-red-600">{{ $message }}</p>
+            @enderror
+        </div>
+
+        <!-- City -->
+        <div>
+            <label for="city" class="block text-sm font-semibold text-gray-800 mb-2">
+                {{ __('City') }}
+            </label>
+            <input 
+                id="city" 
+                name="city" 
+                type="text" 
+                class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-purple-600 focus:ring-2 focus:ring-purple-200 transition duration-200 outline-none" 
+                value="{{ old('city', $user->city) }}" 
+                required 
+            />
+            @error('city')
+                <p class="mt-2 text-sm text-red-600">{{ $message }}</p>
+            @enderror
+        </div>
+
+        <!-- State -->
+        <div>
+            <label for="state" class="block text-sm font-semibold text-gray-800 mb-2">
+                {{ __('State') }}
+            </label>
+            <input 
+                id="state" 
+                name="state" 
+                type="text" 
+                class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-purple-600 focus:ring-2 focus:ring-purple-200 transition duration-200 outline-none" 
+                value="{{ old('state', $user->state) }}" 
+                required 
+            />
+            @error('state')
+                <p class="mt-2 text-sm text-red-600">{{ $message }}</p>
+            @enderror
+        </div>
+
+        <!-- Save Button -->
         <div class="flex items-center gap-4 pt-4">
             <button 
                 type="submit" 
                 class="bg-gradient-to-r from-purple-600 to-purple-700 text-white font-bold py-3 px-8 rounded-lg hover:from-purple-700 hover:to-purple-800 transition duration-300 shadow-lg focus:outline-none focus:ring-4 focus:ring-purple-300"
             >
-                {{ __('Save') }}
+                {{ __('Save Changes') }}
             </button>
 
             @if (session('status') === 'profile-updated')

@@ -21,6 +21,11 @@ Route::middleware('auth')->group(function () {
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
 
+Route::get('/about', function () {
+    return view('contact');
+})->name('contact');
+
+
 //Stray-Reporting
 Route::middleware('auth')->group(function () {
     Route::get('/report:main', [StrayReportingManagementController::class, 'home'])->name('report:main');

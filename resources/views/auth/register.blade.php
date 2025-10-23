@@ -60,17 +60,59 @@
                         <!-- Name -->
                         <div>
                             <label for="name" class="block text-sm font-medium text-gray-700">Name</label>
-                            <input id="name" class="block mt-1 w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-600 focus:border-transparent @error('name') border-red-500 @enderror" type="text" name="name" value="{{ old('name') }}" required autofocus autocomplete="name" />
+                            <input id="name" name="name" type="text" value="{{ old('name') }}" required autofocus autocomplete="name"
+                                class="block mt-1 w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-600 focus:border-transparent @error('name') border-red-500 @enderror">
                             @error('name')
                                 <p class="mt-2 text-sm text-red-600">{{ $message }}</p>
                             @enderror
                         </div>
 
-                        <!-- Email Address -->
+                        <!-- Email -->
                         <div>
                             <label for="email" class="block text-sm font-medium text-gray-700">Email</label>
-                            <input id="email" class="block mt-1 w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-600 focus:border-transparent @error('email') border-red-500 @enderror" type="email" name="email" value="{{ old('email') }}" required autocomplete="username" />
+                            <input id="email" name="email" type="email" value="{{ old('email') }}" required autocomplete="username"
+                                class="block mt-1 w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-600 focus:border-transparent @error('email') border-red-500 @enderror">
                             @error('email')
+                                <p class="mt-2 text-sm text-red-600">{{ $message }}</p>
+                            @enderror
+                        </div>
+
+                        <!-- Phone Number -->
+                        <div>
+                            <label for="phoneNum" class="block text-sm font-medium text-gray-700">Phone Number</label>
+                            <input id="phoneNum" name="phoneNum" type="text" value="{{ old('phoneNum') }}" required
+                                class="block mt-1 w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-600 focus:border-transparent @error('phoneNum') border-red-500 @enderror">
+                            @error('phoneNum')
+                                <p class="mt-2 text-sm text-red-600">{{ $message }}</p>
+                            @enderror
+                        </div>
+
+                        <!-- Address -->
+                        <div>
+                            <label for="address" class="block text-sm font-medium text-gray-700">Address</label>
+                            <input id="address" name="address" type="text" value="{{ old('address') }}" required
+                                class="block mt-1 w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-600 focus:border-transparent @error('address') border-red-500 @enderror">
+                            @error('address')
+                                <p class="mt-2 text-sm text-red-600">{{ $message }}</p>
+                            @enderror
+                        </div>
+
+                        <!-- City -->
+                        <div>
+                            <label for="city" class="block text-sm font-medium text-gray-700">City</label>
+                            <input id="city" name="city" type="text" value="{{ old('city') }}" required
+                                class="block mt-1 w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-600 focus:border-transparent @error('city') border-red-500 @enderror">
+                            @error('city')
+                                <p class="mt-2 text-sm text-red-600">{{ $message }}</p>
+                            @enderror
+                        </div>
+
+                        <!-- State -->
+                        <div>
+                            <label for="state" class="block text-sm font-medium text-gray-700">State</label>
+                            <input id="state" name="state" type="text" value="{{ old('state') }}" required
+                                class="block mt-1 w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-600 focus:border-transparent @error('state') border-red-500 @enderror">
+                            @error('state')
                                 <p class="mt-2 text-sm text-red-600">{{ $message }}</p>
                             @enderror
                         </div>
@@ -78,7 +120,8 @@
                         <!-- Password -->
                         <div>
                             <label for="password" class="block text-sm font-medium text-gray-700">Password</label>
-                            <input id="password" class="block mt-1 w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-600 focus:border-transparent @error('password') border-red-500 @enderror" type="password" name="password" required autocomplete="new-password" />
+                            <input id="password" name="password" type="password" required autocomplete="new-password"
+                                class="block mt-1 w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-600 focus:border-transparent @error('password') border-red-500 @enderror">
                             @error('password')
                                 <p class="mt-2 text-sm text-red-600">{{ $message }}</p>
                             @enderror
@@ -87,15 +130,17 @@
                         <!-- Confirm Password -->
                         <div>
                             <label for="password_confirmation" class="block text-sm font-medium text-gray-700">Confirm Password</label>
-                            <input id="password_confirmation" class="block mt-1 w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-600 focus:border-transparent @error('password_confirmation') border-red-500 @enderror" type="password" name="password_confirmation" required autocomplete="new-password" />
+                            <input id="password_confirmation" name="password_confirmation" type="password" required autocomplete="new-password"
+                                class="block mt-1 w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-600 focus:border-transparent @error('password_confirmation') border-red-500 @enderror">
                             @error('password_confirmation')
                                 <p class="mt-2 text-sm text-red-600">{{ $message }}</p>
                             @enderror
                         </div>
 
-                        <!-- Submit Button -->
+                        <!-- Submit -->
                         <div class="flex flex-col items-center justify-center mt-8 space-y-3">
-                            <button type="submit" class="w-full bg-gradient-to-r from-purple-600 to-purple-700 text-white font-bold py-3 px-6 rounded-lg hover:from-purple-700 hover:to-purple-800 transition duration-300 shadow-lg">
+                            <button type="submit"
+                                class="w-full bg-gradient-to-r from-purple-600 to-purple-700 text-white font-bold py-3 px-6 rounded-lg hover:from-purple-700 hover:to-purple-800 transition duration-300 shadow-lg">
                                 Create Account
                             </button>
 
