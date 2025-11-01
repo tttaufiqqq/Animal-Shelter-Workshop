@@ -3,12 +3,24 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Foundation\Auth\User as Authenticatable;
-use Illuminate\Notifications\Notifiable;
-use Spatie\Permission\Traits\HasRoles;
 
 class Booking extends Model
 {
-    //
+    protected $fillable = ['appointment_date', 'status', 'animalID', 'userID'];
+
+    public function user()
+    {
+        return $this->belongsTo(User::class, 'userID');
+    }
+
+    public function animals()
+    {
+        return $this->belongsToMany(Animal::class, 'animal_booking', 'bookingID', 'animalID');
+    }
+
+    public function adoption()
+    {
+        return $this->hasOne(Adoption::class, 'bookingID');
+    }
 }
+

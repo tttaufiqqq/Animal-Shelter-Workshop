@@ -15,15 +15,15 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // User::factory(10)->create();
-
-        // User::factory()->create([
-        //     'name' => 'Test User',
-        //     'email' => 'test@example.com',
-        // ]);
+        // ... (User factory comments remain optional)
 
         $this->call([
-           CreateStaffUserSeeder::class,
-       ]);
+            // 1. RoleSeeder must be called first
+            RoleSeeder::class,
+            
+            // 2. CreateStaffUserSeeder will be called second, 
+            //    and can now rely on roles being present
+            CreateStaffUserSeeder::class,
+        ]);
     }
 }

@@ -3,12 +3,23 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Foundation\Auth\User as Authenticatable;
-use Illuminate\Notifications\Notifiable;
-use Spatie\Permission\Traits\HasRoles;
 
 class Rescue extends Model
 {
-    //
+    protected $fillable = ['date', 'status', 'reportID', 'caretakerID'];
+
+    public function report()
+    {
+        return $this->belongsTo(Report::class, 'reportID');
+    }
+
+    public function caretaker()
+    {
+        return $this->belongsTo(User::class, 'caretakerID');
+    }
+
+    public function animals()
+    {
+        return $this->hasMany(Animal::class, 'rescueID');
+    }
 }
