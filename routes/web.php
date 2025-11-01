@@ -38,7 +38,7 @@ Route::middleware('auth')->group(function () {
 
 //Shelter-Management
 Route::middleware('auth')->group(function () {
-    Route::get('/shelter:main', [ShelterManagementController::class, 'home'])->name('shelter:main');
+    Route::get('/slot:main', [ShelterManagementController::class, 'home'])->name('slot:main');
 });
 
 //Booking-Adoption

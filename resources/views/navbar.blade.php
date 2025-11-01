@@ -14,22 +14,29 @@
    <!-- Navigation Links -->
    <div class="hidden md:flex space-x-8">
     @auth
-    <a href="{{ route('dashboard') }}" class="text-purple-100 hover:text-white transition duration-300 font-medium">
-     Dashboard
-    </a>
-    <a href="{{route ('report:main') }}" class="text-purple-100 hover:text-white transition duration-300 font-medium">
-     Report
-    </a>
-    <a href="{{route ('animal:main') }}" class="text-purple-100 hover:text-white transition duration-300 font-medium">
-     Animal
-    </a>
-    <a href="{{route ('booking:main') }}" class="text-purple-100 hover:text-white transition duration-300 font-medium">
-     Adoption
-    </a>
-    <a href="{{route ('shelter:main') }}" class="text-purple-100 hover:text-white transition duration-300 font-medium">
-     Shelter
-    </a>
+        @role('admin')
+            <a href="{{ route('dashboard') }}" class="text-purple-100 hover:text-white transition duration-300 font-medium">
+                Dashboard
+            </a>
+        @endrole
+
+        <a href="{{ route('report:main') }}" class="text-purple-100 hover:text-white transition duration-300 font-medium">
+            Report
+        </a>
+
+        <a href="{{ route('animal:main') }}" class="text-purple-100 hover:text-white transition duration-300 font-medium">
+            Animal
+        </a>
+
+        <a href="{{ route('booking:main') }}" class="text-purple-100 hover:text-white transition duration-300 font-medium">
+            Adoption
+        </a>
+
+        <a href="{{ route('slot:main') }}" class="text-purple-100 hover:text-white transition duration-300 font-medium">
+            Slot
+        </a>
     @endauth
+
     
     <a href="{{route ('contact')}}" class="text-purple-100 hover:text-white transition duration-300 font-medium">
      Contact Us

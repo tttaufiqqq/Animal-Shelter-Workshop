@@ -13,18 +13,19 @@ class CreateStaffUserSeeder extends Seeder
      */
     public function run(): void
     {
-        // Ensure the 'staff' role exists
-        $role = Role::firstOrCreate(['name' => 'staff']);
+        $role = Role::firstOrCreate(['name' => 'admin']);
 
-        // Create a staff user
         $user = User::create([
-            'name' => 'Danish Staff',
+            'name' => 'Danish Admin',
             'email' => 'danishIrwan@staff.com',
-            'password' => bcrypt('password'), // Change this!
-            'email_verified_at' => now(),
+            'password' => bcrypt('password'),
+            'phoneNum' => '0137121612',
+            'address' => '29, Jalan Sejahtera 9',
+            'city' => 'Ayer Keroh',
+            'state' => 'Melaka',
+            
         ]);
 
-        // Assign the staff role to the user
         $user->assignRole($role);
     }
 }
