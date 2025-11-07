@@ -86,7 +86,7 @@
                     @else
                     <!-- Not Logged In Section -->
                     <div class="text-center">
-                        <h2 class="text-3xl font-bold text-gray-800 mb-4">Welcome to Pawfect Buddy</h2>
+                        <h2 class="text-3xl font-bold text-gray-800 mb-4">Welcome to Animal Shelter System</h2>
                         <p class="text-gray-600 mb-8 text-lg">
                             Join us in our mission to care for stray animals in our community. Log in to get started.
                         </p>
