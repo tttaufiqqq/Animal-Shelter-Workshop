@@ -16,8 +16,8 @@ class CreateStaffUserSeeder extends Seeder
         $role = Role::firstOrCreate(['name' => 'admin']);
 
         $user = User::create([
-            'name' => 'Danish Admin',
-            'email' => 'danishIrwan@staff.com',
+            'name' => 'Admin',
+            'email' => 'admin@gmail.com',
             'password' => bcrypt('password'),
             'phoneNum' => '0137121612',
             'address' => '29, Jalan Sejahtera 9',
