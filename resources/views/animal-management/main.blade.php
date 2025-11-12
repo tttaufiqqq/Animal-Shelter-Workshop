@@ -188,7 +188,7 @@
                         <span class="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">Adopted</span>
                     </div>
                     <div class="space-y-2 text-sm text-gray-600 mb-4">
-                        <p><span class="font-semibold">Species:</span> Dog (Husky)</p>
+                        <p><span class="font-semibold">Species:</span> Dogs (Husky)</p>
                         <p><span class="font-semibold">Age:</span> 1 year</p>
                         <p><span class="font-semibold">Gender:</span> Female</p>
                         <p><span class="font-semibold">Location:</span> Adopted Home</p>
