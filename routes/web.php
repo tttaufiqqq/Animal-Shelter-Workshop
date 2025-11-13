@@ -31,6 +31,9 @@ Route::middleware('auth')->group(function () {
     Route::get('/report:main', [StrayReportingManagementController::class, 'home'])->name('report:main');
 });
 
+Route::get('/reports/create', [StrayReportingManagementController::class, 'create'])->name('reports.create');
+Route::post('/reports', [StrayReportingManagementController::class, 'store'])->name('reports.store');
+
 //Animal-Management
 Route::middleware('auth')->group(function () {
     Route::get('/animal:main', [AnimalManagementController::class, 'home'])->name('animal:main');

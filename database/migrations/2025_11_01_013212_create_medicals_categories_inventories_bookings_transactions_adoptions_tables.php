@@ -189,7 +189,7 @@ return new class extends Migration {
         Schema::dropIfExists('animal_booking');
         Schema::dropIfExists('adoption');
         Schema::dropIfExists('transaction');
-        Schema::dropIfExists('bookins');
+        Schema::dropIfExists('booking');
         Schema::dropIfExists('inventory');
         Schema::dropIfExists('category');
         Schema::dropIfExists('medical');
