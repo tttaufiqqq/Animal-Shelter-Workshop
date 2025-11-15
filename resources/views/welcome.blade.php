@@ -62,8 +62,8 @@
                                 <span class="font-semibold text-gray-800">Email:</span>
                                 <span>{{ Auth::user()->email }}</span>
                             </p>
-                            <div>
-                                <div class="mt-2">
+                            <div class="flex items-center justify-between flex-wrap gap-3">
+                                <div>
                                     @php
                                         $userRole = Auth::user()->getRoleNames()->first() ?? 'user';
                                         $badgeColors = [
@@ -80,6 +80,23 @@
                                         {{ $userRole }}
                                     </span>
                                 </div>
+                                @role('public user')
+                                <div>
+                                    <a href="{{ route('reports.create') }}" class="inline-flex items-center gap-2 bg-gradient-to-r from-purple-600 to-purple-700 text-white font-semibold px-5 py-2 rounded-lg hover:from-purple-700 hover:to-purple-800 transition duration-300 shadow-lg">
+                                        <span class="text-lg">📝</span>
+                                        <span>Submit Stray Animal Report</span>
+                                    </a>
+                                </div>
+                                @endrole
+                                @role('caretaker')
+                                    <div>
+                                        <a href="{{ route('caretaker.rescues') }}" 
+                                        class="inline-flex items-center gap-2 bg-gradient-to-r from-green-600 to-green-700 text-white font-semibold px-5 py-2 rounded-lg hover:from-green-700 hover:to-green-800 transition duration-300 shadow-lg">
+                                            <span class="text-lg">🐾</span>
+                                            <span>View Assigned Rescue Reports</span>
+                                        </a>
+                                    </div>
+                                @endrole
                             </div>
                         </div>
                     </div>

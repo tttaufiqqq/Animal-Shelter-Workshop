@@ -18,9 +18,9 @@
             <a href="{{ route('dashboard') }}" class="text-purple-100 hover:text-white transition duration-300 font-medium">
                 Dashboard
             </a>
-        @endrole
+        
 
-        <a href="{{ route('report:main') }}" class="text-purple-100 hover:text-white transition duration-300 font-medium">
+        <a href="{{ route('reports.index') }}" class="text-purple-100 hover:text-white transition duration-300 font-medium">
             Report
         </a>
 
@@ -35,6 +35,7 @@
         <a href="{{ route('slot:main') }}" class="text-purple-100 hover:text-white transition duration-300 font-medium">
             Slot
         </a>
+        @endrole
     @endauth
 
     

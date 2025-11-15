@@ -31,8 +31,15 @@ Route::middleware('auth')->group(function () {
     Route::get('/report:main', [StrayReportingManagementController::class, 'home'])->name('report:main');
 });
 
-Route::get('/reports/create', [StrayReportingManagementController::class, 'create'])->name('reports.create');
-Route::post('/reports', [StrayReportingManagementController::class, 'store'])->name('reports.store');
+Route::middleware(['auth'])->group(function () {
+    Route::get('/reports/all', [StrayReportingManagementController::class, 'index'])->name('reports.index');
+    Route::get('/reports/create', [StrayReportingManagementController::class, 'create'])->name('reports.create');
+    Route::post('/reports', [StrayReportingManagementController::class, 'store'])->name('reports.store');
+    Route::get('/reports/{id}', [StrayReportingManagementController::class, 'show'])->name('reports.show');
+    Route::get('/reports/{id}/edit', [StrayReportingManagementController::class, 'edit'])->name('reports.edit');
+    Route::delete('/reports/{id}', [StrayReportingManagementController::class, 'destroy'])->name('reports.destroy');
+    Route::patch('/reports/{id}/status', [StrayReportingManagementController::class, 'updateStatus'])->name('reports.update-status');
+});
 
 //Animal-Management
 Route::middleware('auth')->group(function () {
