@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clinics & Vets - Stray Animal Shelter</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+</head>
+<body class="bg-gray-50">
+    @include('navbar')
+
+    <!-- Page Header -->
+    <div class="bg-gradient-to-r from-purple-600 to-purple-800 text-white py-12">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <h1 class="text-4xl font-bold mb-2">Clinics & Veterinarians</h1>
+            <p class="text-purple-100">Our trusted medical partners for animal care</p>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        @if (session('success'))
+            <div class="bg-green-50 border-l-4 border-green-600 text-green-700 p-4 rounded-lg mb-6">
+                <p class="font-semibold">{{ session('success') }}</p>
+            </div>
+        @endif
+        <!-- Add New Clinic/Vet Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            <!-- Add Clinic Card -->
+            <div class="bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-xl transition duration-300">
+                <div class="bg-gradient-to-r from-blue-500 to-blue-600 p-8 text-white">
+                    <div class="flex items-center mb-2">
+                        <span class="text-4xl mr-4">🏥</span>
+                        <h2 class="text-2xl font-bold">Add New Clinic</h2>
+                    </div>
+                    <p class="text-blue-100">Register a new veterinary clinic</p>
+                </div>
+                <div class="p-6">
+                    <p class="text-gray-600 mb-4">Add clinics that provide medical services for our shelter animals.</p>
+                    <button onclick="openModal('clinic')" class="w-full bg-gradient-to-r from-blue-500 to-blue-600 text-white py-3 rounded-lg font-semibold hover:from-blue-600 hover:to-blue-700 transition duration-300 shadow-lg">
+                        <i class="fas fa-plus mr-2"></i>Add Clinic
+                    </button>
+                </div>
+            </div>
+
+            <!-- Add Vet Card -->
+            <div class="bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-xl transition duration-300">
+                <div class="bg-gradient-to-r from-green-500 to-green-600 p-8 text-white">
+                    <div class="flex items-center mb-2">
+                        <span class="text-4xl mr-4">👨‍⚕️</span>
+                        <h2 class="text-2xl font-bold">Add New Veterinarian</h2>
+                    </div>
+                    <p class="text-green-100">Register a new veterinarian</p>
+                </div>
+                <div class="p-6">
+                    <p class="text-gray-600 mb-4">Add veterinarians who provide care for our animals.</p>
+                    <button onclick="openModal('vet')" class="w-full bg-gradient-to-r from-green-500 to-green-600 text-white py-3 rounded-lg font-semibold hover:from-green-600 hover:to-green-700 transition duration-300 shadow-lg">
+                        <i class="fas fa-plus mr-2"></i>Add Veterinarian
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Clinics Section -->
+        <div class="mb-12">
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="text-3xl font-bold text-gray-800 flex items-center">
+                    <i class="fas fa-hospital text-blue-600 mr-3"></i>
+                    Veterinary Clinics
+                </h2>
+                <span class="text-gray-600">{{ $clinics->count() }} Clinics</span>
+            </div>
+
+            @if($clinics->count() > 0)
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    @php
+                        $colors = ['blue', 'cyan', 'teal', 'indigo', 'sky', 'violet', 'purple', 'fuchsia'];
+                    @endphp
+
+                    @foreach($clinics as $index => $clinic)
+                        @php
+                            $color = $colors[$index % count($colors)];
+                        @endphp
+                        
+                        <!-- Clinic Card -->
+                        <div class="bg-white rounded-lg shadow overflow-hidden hover:shadow-xl transition duration-300">
+                            <div class="h-32 bg-gradient-to-br from-{{ $color }}-400 to-{{ $color }}-500 flex items-center justify-center">
+                                <span class="text-6xl">🏥</span>
+                            </div>
+                            <div class="p-6">
+                                <h3 class="text-xl font-bold text-gray-800 mb-2">{{ $clinic->name }}</h3>
+                                <div class="space-y-2 text-sm text-gray-600 mb-4">
+                                    <p class="flex items-start">
+                                        <i class="fas fa-map-marker-alt text-{{ $color }}-600 mt-1 mr-2 flex-shrink-0"></i>
+                                        <span>{{ $clinic->address }}</span>
+                                    </p>
+                                    <p class="flex items-center">
+                                        <i class="fas fa-phone text-{{ $color }}-600 mr-2"></i>
+                                        <span>{{ $clinic->contactNum }}</span>
+                                    </p>
+                                    @if($clinic->latitude && $clinic->longitude)
+                                        <p class="flex items-center">
+                                            <i class="fas fa-location-dot text-{{ $color }}-600 mr-2"></i>
+                                            <span class="text-xs">{{ number_format($clinic->latitude, 4) }}, {{ number_format($clinic->longitude, 4) }}</span>
+                                        </p>
+                                    @endif
+                                </div>
+                                <div class="flex space-x-2">
+                                    <button onclick="viewClinicDetails({{ $clinic->id }})" class="flex-1 bg-{{ $color }}-600 hover:bg-{{ $color }}-700 text-white py-2 rounded-lg font-medium transition duration-300">
+                                        <i class="fas fa-info-circle mr-1"></i>Details
+                                    </button>
+                                    <button onclick="editClinic({{ $clinic->id }})" class="px-4 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg transition duration-300">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    <button onclick="deleteClinic({{ $clinic->id }})" class="px-4 bg-red-100 hover:bg-red-200 text-red-600 rounded-lg transition duration-300">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+            @else
+                <!-- Empty State -->
+                <div class="bg-white rounded-lg shadow p-12 text-center">
+                    <div class="text-6xl mb-4">🏥</div>
+                    <h3 class="text-2xl font-bold text-gray-800 mb-2">No Clinics Yet</h3>
+                    <p class="text-gray-600 mb-6">Start by adding your first veterinary clinic</p>
+                    <button onclick="openModal('clinic')" class="px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-semibold rounded-lg hover:from-blue-600 hover:to-blue-700 transition duration-300">
+                        <i class="fas fa-plus mr-2"></i>Add First Clinic
+                    </button>
+                </div>
+            @endif
+        </div>
+
+        <!-- Veterinarians Section -->
+        <div>
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="text-3xl font-bold text-gray-800 flex items-center">
+                    <i class="fas fa-user-md text-green-600 mr-3"></i>
+                    Vets
+                </h2>
+                <span class="text-gray-600">{{ $vets->count() }} Veterinarian{{ $vets->count() != 1 ? 's' : '' }}</span>
+            </div>
+
+            @if($vets->count() > 0)
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    @php
+                        // Array of gradient colors for variety
+                        $colors = ['green', 'emerald', 'lime', 'teal', 'cyan'];
+                    @endphp
+
+                    @foreach($vets as $index => $vet)
+                        @php
+                            // Cycle through colors
+                            $color = $colors[$index % count($colors)];
+                        @endphp
+
+                        <div class="bg-white rounded-lg shadow overflow-hidden hover:shadow-xl transition duration-300">
+                            <div class="h-32 bg-gradient-to-br from-{{ $color }}-400 to-{{ $color }}-500 flex items-center justify-center">
+                                <span class="text-6xl">{{ $index % 2 == 0 ? '👨‍⚕️' : '👩‍⚕️' }}</span>
+                            </div>
+                            <div class="p-6">
+                                <div class="mb-2">
+                                    <h3 class="text-xl font-bold text-gray-800">{{ $vet->name }}</h3>
+                                    <p class="text-sm text-{{ $color }}-600 font-semibold">DVM, {{ $vet->specialization }}</p>
+                                </div>
+                                <div class="space-y-2 text-sm text-gray-600 mb-4">
+                                    <!-- Clinic Name -->
+                                    <p class="flex items-center">
+                                        <i class="fas fa-hospital text-{{ $color }}-600 mr-2"></i>
+                                        <span>{{ $vet->clinic ? $vet->clinic->name : 'No clinic assigned' }}</span>
+                                    </p>
+                                    
+                                    <!-- Phone -->
+                                    <p class="flex items-center">
+                                        <i class="fas fa-phone text-{{ $color }}-600 mr-2"></i>
+                                        <span>{{ $vet->contactNum }}</span>
+                                    </p>
+                                    
+                                    <!-- Email -->
+                                    <p class="flex items-center">
+                                        <i class="fas fa-envelope text-{{ $color }}-600 mr-2"></i>
+                                        <span>{{ $vet->email }}</span>
+                                    </p>
+                                    
+                                    <!-- License Number -->
+                                    <p class="flex items-center">
+                                        <i class="fas fa-id-card text-{{ $color }}-600 mr-2"></i>
+                                        <span>License: {{ $vet->license_no }}</span>
+                                    </p>
+                                    
+                                    <!-- Years of Experience (if available) -->
+                                    @if(isset($vet->years_of_experience))
+                                        <p class="flex items-center">
+                                            <i class="fas fa-graduation-cap text-{{ $color }}-600 mr-2"></i>
+                                            <span>{{ $vet->years_of_experience }} years experience</span>
+                                        </p>
+                                    @endif
+                                </div>
+                                <div class="flex space-x-2">
+                                    <button class="flex-1 bg-{{ $color }}-600 hover:bg-{{ $color }}-700 text-white py-2 rounded-lg font-medium transition duration-300">
+                                        <i class="fas fa-info-circle mr-1"></i>Details
+                                    </button>
+                                    <button class="px-4 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg transition duration-300">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+            @else
+                <!-- Empty State -->
+                <div class="bg-white rounded-lg shadow p-12 text-center">
+                    <div class="text-6xl mb-4">👨‍⚕️</div>
+                    <h3 class="text-xl font-bold text-gray-800 mb-2">No Veterinarians Yet</h3>
+                    <p class="text-gray-600 mb-6">Start by adding your first veterinarian to the system.</p>
+                    <button onclick="openModal('vet')" class="px-6 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white font-semibold rounded-lg hover:from-green-600 hover:to-green-700 transition duration-300 shadow-lg">
+                        <i class="fas fa-plus mr-2"></i>Add First Veterinarian
+                    </button>
+                </div>
+            @endif
+        </div>
+
+    <!-- Modal for Add Clinics (Hidden by default) -->
+    <div id="clinicModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div class="bg-gradient-to-r from-blue-500 to-blue-600 text-white p-6">
+                <div class="flex items-center justify-between">
+                    <h2 class="text-2xl font-bold">Add New Clinic</h2>
+                    <button onclick="closeModal('clinic')" class="text-white hover:text-gray-200">
+                        <i class="fas fa-times text-2xl"></i>
+                    </button>
+                </div>
+            </div>
+            <form method="POST" action="{{ route('animal-management.store-clinics') }}" class="p-6 space-y-4">
+                @csrf
+                @method('POST')
+                <div>
+                    <label class="block text-gray-800 font-semibold mb-2">Clinic Name <span class="text-red-600">*</span></label>
+                    <input type="text" name="clinic_name" class="w-full border-gray-300 rounded-lg shadow-sm px-4 py-3 border focus:border-blue-500 focus:ring focus:ring-blue-200 transition" placeholder="Enter clinic name" required>
+                </div>
+                
+                <!-- Address Search -->
+                <div>
+                    <label class="block text-gray-800 font-semibold mb-2">Search Address</label>
+                    <div class="flex gap-2">
+                        <input type="text" id="clinicAddressSearch" placeholder="Enter address to search..." 
+                            class="flex-1 border-gray-300 rounded-lg shadow-sm px-4 py-3 border focus:border-blue-500 focus:ring focus:ring-blue-200 transition">
+                        <button type="button" id="clinicSearchBtn" 
+                                class="px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-semibold rounded-lg hover:from-blue-600 hover:to-blue-700 transition duration-300">
+                            <i class="fas fa-search mr-1"></i>Search
+                        </button>
+                    </div>
+                    <p class="text-sm text-gray-600 mt-2">Search for an address or click on the map to pin a location</p>
+                </div>
+
+                <!-- Map -->
+                <div>
+                    <label class="block text-gray-800 font-semibold mb-2">
+                        Select Location on Map <span class="text-red-600">*</span>
+                    </label>
+                    <div id="clinicMap" class="w-full h-64 rounded-lg border border-gray-300"></div>
+                    <p class="text-sm text-red-600 mt-2 hidden" id="clinicMapError">Please select a location on the map</p>
+                </div>
+
+                <!-- Latitude & Longitude -->
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-gray-800 font-semibold mb-2">Latitude <span class="text-red-600">*</span></label>
+                        <input type="text" id="clinicLatitude" name="latitude" class="w-full border-gray-300 rounded-lg shadow-sm px-4 py-3 border bg-gray-50 focus:border-blue-500 focus:ring focus:ring-blue-200 transition" placeholder="Auto-filled" readonly required>
+                    </div>
+                    <div>
+                        <label class="block text-gray-800 font-semibold mb-2">Longitude <span class="text-red-600">*</span></label>
+                        <input type="text" id="clinicLongitude" name="longitude" class="w-full border-gray-300 rounded-lg shadow-sm px-4 py-3 border bg-gray-50 focus:border-blue-500 focus:ring focus:ring-blue-200 transition" placeholder="Auto-filled" readonly required>
+                    </div>
+                </div>
+
+                <!-- Address -->
+                <div>
+                    <label class="block text-gray-800 font-semibold mb-2">Address <span class="text-red-600">*</span></label>
+                    <textarea id="clinicAddress" name="address" class="w-full border-gray-300 rounded-lg shadow-sm px-4 py-3 border focus:border-blue-500 focus:ring focus:ring-blue-200 transition" rows="3" placeholder="Full address will be auto-filled" required></textarea>
+                </div>
+
+                <!-- Phone -->
+                <div>
+                    <label class="block text-gray-800 font-semibold mb-2">Phone <span class="text-red-600">*</span></label>
+                    <input type="tel" name="phone" class="w-full border-gray-300 rounded-lg shadow-sm px-4 py-3 border focus:border-blue-500 focus:ring focus:ring-blue-200 transition" placeholder="+60 3-1234 5678" required>
+                </div>
+
+                <div class="flex justify-end gap-3 pt-4">
+                    <button type="button" onclick="closeModal('clinic')" class="px-6 py-3 bg-gray-200 text-gray-700 font-semibold rounded-lg hover:bg-gray-300 transition duration-300">
+                        Cancel
+                    </button>
+                    <button type="submit" class="px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-semibold rounded-lg hover:from-blue-600 hover:to-blue-700 transition duration-300">
+                        <i class="fas fa-plus mr-2"></i>Add Clinic
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal for Add Vet -->
+    <div id="vetModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div class="bg-gradient-to-r from-green-500 to-green-600 text-white p-6">
+                <div class="flex items-center justify-between">
+                    <h2 class="text-2xl font-bold">Add New Vet</h2>
+                    <button onclick="closeModal('vet')" class="text-white hover:text-gray-200">
+                        <i class="fas fa-times text-2xl"></i>
+                    </button>
+                </div>
+            </div>
+            <form method="POST" action="{{ route('animal-management.store-vets') }}" class="p-6 space-y-4">
+                @csrf
+                @method('POST')
+                <div>
+                    <label class="block text-gray-800 font-semibold mb-2">Full Name <span class="text-red-600">*</span></label>
+                    <input type="text" name="full_name" class="w-full border-gray-300 rounded-lg shadow-sm px-4 py-3 border focus:border-green-500 focus:ring focus:ring-green-200 transition" placeholder="Dr. Name" required>
+                </div>
+                <div>
+                    <label class="block text-gray-800 font-semibold mb-2">Specialization <span class="text-red-600">*</span></label>
+                    <input type="text" name="specialization" class="w-full border-gray-300 rounded-lg shadow-sm px-4 py-3 border focus:border-green-500 focus:ring focus:ring-green-200 transition" placeholder="e.g., Small Animals, Surgery" required>
+                </div>
+                <div>
+                    <label class="block text-gray-800 font-semibold mb-2">License Number <span class="text-red-600">*</span></label>
+                    <input type="text" name="license_no" class="w-full border-gray-300 rounded-lg shadow-sm px-4 py-3 border focus:border-green-500 focus:ring focus:ring-green-200 transition" placeholder="e.g., 408688" required>
+                </div>
+                <div>
+                    <label class="block text-gray-800 font-semibold mb-2">Clinic <span class="text-red-600">*</span></label>
+                    <select name="clinicID" class="w-full border-gray-300 rounded-lg shadow-sm px-4 py-3 border bg-white">
+                        @if($clinics->count() > 0)
+                            <option value="">Select Clinic</option>
+                            @foreach($clinics as $clinic)
+                                <option value="{{ $clinic->id }}">{{ $clinic->name }}</option>
+                            @endforeach
+                        @else
+                            <option disabled>No clinics available — please add one first.</option>
+                        @endif
+                    </select>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-gray-800 font-semibold mb-2">Phone <span class="text-red-600">*</span></label>
+                        <input type="tel" name="phone" class="w-full border-gray-300 rounded-lg shadow-sm px-4 py-3 border focus:border-green-500 focus:ring focus:ring-green-200 transition" placeholder="+60 12-345 6789" required>
+                    </div>
+                    <div>
+                        <label class="block text-gray-800 font-semibold mb-2">Email <span class="text-red-600">*</span></label>
+                        <input type="email" name="email" class="w-full border-gray-300 rounded-lg shadow-sm px-4 py-3 border focus:border-green-500 focus:ring focus:ring-green-200 transition" placeholder="dr.name@example.com" required>
+                    </div>
+                </div>
+                <div class="flex justify-end gap-3 pt-4">
+                    <button type="button" onclick="closeModal('vet')" class="px-6 py-3 bg-gray-200 text-gray-700 font-semibold rounded-lg hover:bg-gray-300 transition duration-300">
+                        Cancel
+                    </button>
+                    <button type="submit" class="px-6 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white font-semibold rounded-lg hover:from-green-600 hover:to-green-700 transition duration-300">
+                        <i class="fas fa-plus mr-2"></i>Add Veterinarian
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        let clinicMap;
+        let clinicMarker;
+
+        // Open modal function
+        function openModal(type) {
+            if (type === 'clinic') {
+                document.getElementById('clinicModal').classList.remove('hidden');
+                document.body.style.overflow = 'hidden';
+                // Initialize map after modal is visible
+                setTimeout(() => {
+                    initClinicMap();
+                }, 100);
+            } else if (type === 'vet') {
+                document.getElementById('vetModal').classList.remove('hidden');
+                document.body.style.overflow = 'hidden';
+            }
+        }
+
+        // Close modal function - FIXED
+        function closeModal(type) {
+            if (type === 'clinic') {
+                document.getElementById('clinicModal').classList.add('hidden');
+                document.body.style.overflow = 'auto';
+                // Reset map
+                if (clinicMap) {
+                    clinicMap.remove();
+                    clinicMap = null;
+                    clinicMarker = null;
+                }
+                // Reset form fields
+                document.getElementById('clinicLatitude').value = '';
+                document.getElementById('clinicLongitude').value = '';
+                document.getElementById('clinicAddress').value = '';
+                document.getElementById('clinicAddressSearch').value = '';
+                document.getElementById('clinicMapError').classList.add('hidden');
+            } else if (type === 'vet') {
+                document.getElementById('vetModal').classList.add('hidden');
+                document.body.style.overflow = 'auto';
+            }
+        }
+
+        // Close modal when clicking outside
+        document.getElementById('clinicModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeModal('clinic');
+            }
+        });
+
+        document.getElementById('vetModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeModal('vet');
+            }
+        });
+
+        // Initialize map when modal opens
+        function initClinicMap() {
+            if (!clinicMap) {
+                // Default center to Malaysia (Seremban, Negeri Sembilan)
+                clinicMap = L.map('clinicMap').setView([2.7258, 101.9424], 13);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '© OpenStreetMap contributors',
+                    maxZoom: 19
+                }).addTo(clinicMap);
+                
+                // Fix map display issue
+                setTimeout(() => {
+                    clinicMap.invalidateSize();
+                }, 200);
+
+                // Click on map to pin location
+                clinicMap.on('click', function (e) {
+                    const { lat, lng } = e.latlng;
+                    updateClinicLocation(lat, lng);
+                    
+                    // Reverse geocode to get address when clicking on map
+                    reverseGeocodeClinic(lat, lng);
+                });
+            }
+        }
+
+        // Function to update marker and form fields
+        function updateClinicLocation(lat, lng, address = '') {
+            if (clinicMarker) {
+                clinicMarker.setLatLng([lat, lng]);
+            } else {
+                clinicMarker = L.marker([lat, lng]).addTo(clinicMap);
+            }
+
+            document.getElementById('clinicLatitude').value = lat.toFixed(6);
+            document.getElementById('clinicLongitude').value = lng.toFixed(6);
+
+            if (address) {
+                document.getElementById('clinicAddress').value = address;
+            }
+
+            clinicMap.setView([lat, lng], 15);
+            
+            // Hide map error when location is selected
+            document.getElementById('clinicMapError').classList.add('hidden');
+        }
+
+        // Reverse geocode function
+        function reverseGeocodeClinic(lat, lng) {
+            fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&addressdetails=1`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data && data.display_name) {
+                        document.getElementById('clinicAddress').value = data.display_name;
+                    }
+                })
+                .catch(error => {
+                    console.error('Reverse geocoding error:', error);
+                });
+        }
+
+        // Search address functionality
+        function searchClinicAddress() {
+            const query = document.getElementById('clinicAddressSearch').value.trim();
+            const searchBtn = document.getElementById('clinicSearchBtn');
+            
+            if (!query) {
+                alert('Please enter an address to search');
+                return;
+            }
+
+            // Show loading state
+            searchBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Searching...';
+            searchBtn.disabled = true;
+
+            // Try first search with Malaysia country code
+            fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5&countrycodes=my`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data && data.length > 0) {
+                        const result = data[0];
+                        const lat = parseFloat(result.lat);
+                        const lng = parseFloat(result.lon);
+                        const address = result.display_name;
+
+                        updateClinicLocation(lat, lng, address);
+                    } else {
+                        // If no results with country code, try without it but add "Malaysia" to query
+                        return fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query + ', Malaysia')}&limit=5`)
+                            .then(response => response.json())
+                            .then(data => {
+                                if (data && data.length > 0) {
+                                    const result = data[0];
+                                    const lat = parseFloat(result.lat);
+                                    const lng = parseFloat(result.lon);
+                                    const address = result.display_name;
+
+                                    updateClinicLocation(lat, lng, address);
+                                } else {
+                                    alert('Address not found. Please try:\n\n1. A more specific address (include area/city)\n2. Click directly on the map instead\n3. Use a well-known landmark nearby');
+                                }
+                            });
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Error searching address. Please try again or click on the map to select location manually.');
+                })
+                .finally(() => {
+                    searchBtn.innerHTML = '<i class="fas fa-search mr-1"></i>Search';
+                    searchBtn.disabled = false;
+                });
+        }
+
+        // Add event listeners when document is ready
+        document.addEventListener('DOMContentLoaded', function() {
+            // Search on button click
+            const searchBtn = document.getElementById('clinicSearchBtn');
+            if (searchBtn) {
+                searchBtn.addEventListener('click', searchClinicAddress);
+            }
+
+            // Search on Enter key
+            const addressSearch = document.getElementById('clinicAddressSearch');
+            if (addressSearch) {
+                addressSearch.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        searchClinicAddress();
+                    }
+                });
+            }
+
+            // Form validation
+            const clinicForm = document.querySelector('#clinicModal form');
+            if (clinicForm) {
+                clinicForm.addEventListener('submit', function(e) {
+                    const latitude = document.getElementById('clinicLatitude').value;
+                    const longitude = document.getElementById('clinicLongitude').value;
+                    
+                    if (!latitude || !longitude) {
+                        e.preventDefault();
+                        document.getElementById('clinicMapError').classList.remove('hidden');
+                        document.getElementById('clinicMap').scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        
+                        alert('Please select a location on the map before submitting the form.');
+                        return false;
+                    }
+                });
+            }
+        });
+        
+    </script>
+</body>
+</html>

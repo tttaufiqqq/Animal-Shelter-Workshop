@@ -21,6 +21,9 @@
         <a href="{{ route('reports.index') }}" class="text-purple-100 hover:text-white transition duration-300 font-medium">
             Report
         </a>
+            <a href="{{ route('animal-management.clinic-index') }}" class="text-purple-100 hover:text-white transition duration-300 font-medium">
+            Manage clinics and vets
+        </a>
         
         <a href="{{ route('booking:main') }}" class="text-purple-100 hover:text-white transition duration-300 font-medium">
             Adoption

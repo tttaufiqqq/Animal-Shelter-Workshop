@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class Vet extends Model
 {
+    protected $table = 'vet';
     protected $fillable = [
         'name', 'email', 'contactNum', 'specialization', 'license_no', 'clinicID'
     ];

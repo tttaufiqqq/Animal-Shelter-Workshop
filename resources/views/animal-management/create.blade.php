@@ -208,7 +208,7 @@
                     <div class="flex justify-end pt-4">
                         <button type="submit" 
                                 class="px-8 py-3 bg-gradient-to-r from-purple-600 to-purple-700 text-white font-bold rounded-lg hover:from-purple-700 hover:to-purple-800 transition duration-300 shadow-lg">
-                            <i class="fas fa-plus mr-2"></i>Submit Report
+                            <i class="fas fa-plus mr-2"></i>Add Animal
                         </button>
                     </div>
                 </form>

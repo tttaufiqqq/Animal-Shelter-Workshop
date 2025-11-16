@@ -129,10 +129,12 @@
                                    class="flex-1 bg-purple-700 hover:bg-purple-800 text-white py-2 rounded-lg font-medium transition duration-300 text-center">
                                     View Details
                                 </a>
+                                @role('caretaker')
                                 <a href="{{ route('animal-management.edit', $animal->id) }}" 
                                    class="px-4 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg transition duration-300 flex items-center justify-center">
                                     <i class="fas fa-edit"></i>
                                 </a>
+                                @endrole
                             </div>
                         </div>
                     </div>

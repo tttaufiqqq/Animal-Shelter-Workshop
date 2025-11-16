@@ -97,6 +97,63 @@
                     <p class="text-gray-700 leading-relaxed whitespace-pre-line">{{ $animal->health_details }}</p>
                 </div>
 
+                 <div class="bg-white rounded-lg shadow-lg p-6 mt-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-2xl font-bold text-gray-800 flex items-center">
+                            <i class="fas fa-syringe text-purple-600 mr-3"></i>
+                            Medical & Vaccination Records
+                        </h2>
+                        @role('admin|caretaker')
+                        <a href="{{ route('medical-records.create', ['animal_id' => $animal->id]) }}" 
+                           class="bg-purple-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-purple-700 transition duration-300 text-sm">
+                            <i class="fas fa-plus mr-2"></i>Add Record
+                        </a>
+                        @endrole
+                    </div>
+
+                    @if($animal->medicalRecords && $animal->medicalRecords->count() > 0)
+                        <div class="space-y-4">
+                            @foreach($animal->medicalRecords->sortByDesc('record_date') as $record)
+                                <div class="border border-gray-200 rounded-lg p-4 hover:border-purple-300 transition-colors">
+                                    <div class="flex items-start justify-between mb-2">
+                                        <div>
+                                            <span class="inline-block px-3 py-1 rounded-full text-xs font-semibold
+                                                @if($record->record_type == 'Vaccination') bg-green-100 text-green-700
+                                                @elseif($record->record_type == 'Treatment') bg-blue-100 text-blue-700
+                                                @elseif($record->record_type == 'Checkup') bg-purple-100 text-purple-700
+                                                @else bg-gray-100 text-gray-700
+                                                @endif">
+                                                {{ $record->record_type }}
+                                            </span>
+                                        </div>
+                                        <span class="text-sm text-gray-500">{{ \Carbon\Carbon::parse($record->record_date)->format('M d, Y') }}</span>
+                                    </div>
+                                    <h4 class="font-semibold text-gray-800 mb-1">{{ $record->title }}</h4>
+                                    <p class="text-gray-600 text-sm mb-2">{{ $record->description }}</p>
+                                    @if($record->veterinarian)
+                                        <div class="flex items-center text-sm text-gray-500">
+                                            <i class="fas fa-user-md mr-2"></i>
+                                            <span>{{ $record->veterinarian }}</span>
+                                        </div>
+                                    @endif
+                                    @if($record->next_due_date)
+                                        <div class="flex items-center text-sm text-gray-500 mt-1">
+                                            <i class="fas fa-calendar-alt mr-2"></i>
+                                            <span>Next due: {{ \Carbon\Carbon::parse($record->next_due_date)->format('M d, Y') }}</span>
+                                        </div>
+                                    @endif
+                                </div>
+                            @endforeach
+                        </div>
+                    @else
+                        <div class="bg-gray-50 rounded-lg p-6 text-center text-gray-600">
+                            <i class="fas fa-clipboard-list text-4xl mb-3 text-gray-400"></i>
+                            <p class="font-medium">No medical records yet</p>
+                            <p class="text-sm text-gray-500 mt-1">Medical and vaccination records will appear here</p>
+                        </div>
+                    @endif
+                </div>
+
                 <!-- Rescue Information -->
                 @if($animal->rescue)
                     <div class="bg-white rounded-lg shadow-lg p-6 mt-6">

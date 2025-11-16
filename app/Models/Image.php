@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class Image extends Model
 {
     protected $table = 'image';
-    protected $fillable = ['image_path', 'animalID', 'reportID'];
+    protected $fillable = ['image_path', 'animalID', 'reportID', 'clinicID'];
 
     public function animal()
     {

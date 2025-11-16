@@ -7,6 +7,8 @@ use App\Models\Animal;
 use App\Models\Slot;  
 use App\Models\Image;  
 use App\Models\Rescue; 
+use App\Models\Clinic; 
+use App\Models\Vet; 
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
@@ -219,4 +221,104 @@ class AnimalManagementController extends Controller
         }
     }
 
+    public function indexClinic(){
+        $clinics = Clinic::all();
+        $vets = Vet::with('clinic')->get(); 
+        return view('animal-management.main-manage-cv', ['clinics' => $clinics, 'vets' => $vets]);
+    }
+
+     public function storeClinic(Request $request)
+    {
+        try {
+            // Validate the incoming request
+            $validated = $request->validate([
+                'clinic_name' => 'required|string|max:255',
+                'address' => 'required|string|max:500',
+                'phone' => 'required|string|max:20',
+                'latitude' => 'required|numeric|between:-90,90',
+                'longitude' => 'required|numeric|between:-180,180',
+            ]);
+
+            // Create new clinic record
+            $clinic = Clinic::create([
+                'name' => $validated['clinic_name'],
+                'address' => $validated['address'],
+                'contactNum' => $validated['phone'],
+                'latitude' => $validated['latitude'],
+                'longitude' => $validated['longitude'],
+            ]);
+
+            // Redirect back with success message
+            return redirect()->back()->with('success', 'Clinic added successfully!');
+            
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            // Handle validation errors
+            return redirect()->back()
+                ->withErrors($e->errors())
+                ->withInput()
+                ->with('error', 'Please check the form and try again.');
+        } catch (\Exception $e) {
+            // Handle any other errors
+            return redirect()->back()
+                ->withInput()
+                ->with('error', 'Failed to add clinic: ' . $e->getMessage());
+        }
+    }
+
+    public function storeVet(Request $request)
+    {
+       
+        try {
+            // Validate the incoming request
+            $validated = $request->validate([
+                'full_name' => 'required|string|max:255',
+                'specialization' => 'required|string|max:255',
+                'license_no' => 'required|string|max:50',
+                'clinicID' => 'nullable|exists:clinic,id',
+                'phone' => 'required|string|max:20',
+                'email' => 'required|email|max:255|unique:vet,email',
+            ]);
+
+            
+
+            $dataToInsert = [
+                'name' => $validated['full_name'],
+                'specialization' => $validated['specialization'],
+                'license_no' => $validated['license_no'],
+                'clinicID' => $validated['clinicID'] ?? null,
+                'contactNum' => $validated['phone'],
+                'email' => $validated['email'],
+            ];
+            
+            // Create new vet record
+            $vet = Vet::create($dataToInsert);
+
+            // Redirect back with success message
+            return redirect()->back()->with('success', 'Veterinarian added successfully!');
+            
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            // Handle validation errors
+            dd('Validation Error', [
+                'errors' => $e->errors(),
+                'message' => $e->getMessage()
+            ]);
+            
+            return redirect()->back()
+                ->withErrors($e->errors())
+                ->withInput()
+                ->with('error', 'Please check the form and try again.');
+        } catch (\Exception $e) {
+            // Handle any other errors
+            dd('General Error', [
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return redirect()->back()
+                ->withInput()
+                ->with('error', 'Failed to add veterinarian: ' . $e->getMessage());
+        }
+    }
 }

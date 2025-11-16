@@ -59,6 +59,17 @@ Route::get('/animal/{animal}/edit', [AnimalManagementController::class, 'edit'])
 Route::put('/animal/{animal}', [AnimalManagementController::class, 'update'])->name('animal-management.update');
 Route::delete('/animal/{animal}', [AnimalManagementController::class, 'destroy'])->name('animal-management.destroy');
 
+Route::get('/clinic-vet', [AnimalManagementController::class, 'indexClinic'])->name('animal-management.clinic-index');
+Route::get('/medical-create', [AnimalManagementController::class, 'indexClinic'])->name('medical-records.create');
+Route::get('/vaccination-create', [AnimalManagementController::class, 'indexClinic'])->name('vaccination-records.create');
+
+
+
+Route::get('/create-vet', [AnimalManagementController::class, 'createVet'])->name('animal-management.create.vet');
+Route::post('/store-clinics', [AnimalManagementController::class, 'storeClinic'])->name('animal-management.store-clinics');
+Route::post('/store-vets', [AnimalManagementController::class, 'storeVet'])->name('animal-management.store-vets');
+
+Route::get('/animal', [AnimalManagementController::class, 'index'])->name('animal-management.index');
 
 
 

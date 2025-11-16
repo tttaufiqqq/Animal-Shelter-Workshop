@@ -24,6 +24,8 @@ return new class extends Migration {
             $table->string('name');
             $table->string('address')->nullable();
             $table->string('contactNum', 30)->nullable();
+            $table->decimal('latitude', 10, 8)->nullable();
+            $table->decimal('longitude', 11, 8)->nullable();
             $table->timestamps();
         });
 
@@ -68,6 +70,7 @@ return new class extends Migration {
             $table->string('image_path');
             $table->unsignedBigInteger('animalID')->nullable(); // FK later
             $table->unsignedBigInteger('reportID')->nullable(); // FK later
+            $table->unsignedBigInteger('clinicID')->nullable(); // FK later
             $table->timestamps();
         });
 
@@ -115,6 +118,10 @@ return new class extends Migration {
                   ->references('id')
                   ->on('report')
                   ->onDelete('cascade');
+            $table->foreign('clinicID')
+                  ->references('id')
+                  ->on('clinic')
+                  ->onDelete('cascade');
         });
     }
 
@@ -126,6 +133,7 @@ return new class extends Migration {
         Schema::table('image', function (Blueprint $table) {
             $table->dropForeign(['animalID']);
             $table->dropForeign(['reportID']);
+            $table->dropForeign(['clinicID']);
         });
 
         Schema::table('animal', function (Blueprint $table) {
