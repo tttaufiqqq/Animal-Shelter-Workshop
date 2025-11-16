@@ -23,7 +23,7 @@
         <a href="{{ route('booking:main') }}" class="text-purple-100 hover:text-white transition duration-300 font-medium">
             Adoption
         </a>
-        <a href="{{ route('slot:main') }}" class="text-purple-100 hover:text-white transition duration-300 font-medium">
+        <a href="{{ route('shelter-management.index') }}" class="text-purple-100 hover:text-white transition duration-300 font-medium">
             Slot
         </a>
         @endrole
@@ -34,16 +34,21 @@
         </a>
         @endrole
         @role('caretaker')
-        <a href="{{ route('animal:main') }}" class="text-purple-100 hover:text-white transition duration-300 font-medium">
-            Animal
-        </a>
+       
         @endrole
     @endauth
 
     
+    <a href="{{ route('animal:main') }}" class="text-purple-100 hover:text-white transition duration-300 font-medium">
+        Animal
+    </a>
+    <a href="{{route ('contact')}}" class="text-purple-100 hover:text-white transition duration-300 font-medium">
+        My Booking
+    </a>
     <a href="{{route ('contact')}}" class="text-purple-100 hover:text-white transition duration-300 font-medium">
      Contact Us
     </a>
+
    </div>
 
    <!-- Profile Logo -->

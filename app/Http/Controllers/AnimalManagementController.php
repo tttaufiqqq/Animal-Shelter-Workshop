@@ -98,11 +98,6 @@ class AnimalManagementController extends Controller
                 }
             }
 
-            // Update slot status to occupied if assigned
-            if ($slot) {
-                $slot->update(['status' => 'occupied']);
-            }
-
             DB::commit();
 
             return redirect()->route('animal-management.create', ['rescue_id' => $validated['rescueID']])
@@ -180,9 +175,32 @@ class AnimalManagementController extends Controller
             ->get();
         
         $vets = Vet::all();
+        $slots = Slot::where('status', 'available')->get();
         
-        return view('animal-management.show', compact('animal', 'vets', 'medicals', 'vaccinations'));
+        return view('animal-management.show', compact('animal', 'vets', 'medicals', 'vaccinations', 'slots'));
     }
+
+    public function assignSlot(Request $request, $animalId)
+    {
+        $request->validate([
+            'slot_id' => 'required|exists:slot,id',
+        ]);
+
+        $animal = Animal::findOrFail($animalId);
+
+        $slot = Slot::findOrFail($request->slot_id);
+
+        // Assign slot to animal
+        $animal->slotID = $slot->id;
+        $animal->save();
+
+        // Optionally: update slot status to occupied
+        $slot->status = 'occupied';
+        $slot->save();
+
+        return back()->with('success', 'Slot assigned successfully!');
+    }
+
 
     /**
      * Remove the specified animal from storage

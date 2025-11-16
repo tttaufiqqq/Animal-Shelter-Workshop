@@ -433,22 +433,46 @@
                     @if($animal->slot)
                         <div class="bg-purple-50 rounded-lg p-4">
                             <div class="flex items-center justify-between mb-2">
-                                <span class="text-gray-700 font-semibold">Slot Number</span>
-                                <span class="text-purple-700 font-bold text-lg">{{ $animal->slot->slot_number ?? $animal->slot->id }}</span>
+                                <span class="text-gray-700 font-semibold">Slot Name</span>
+                                <span class="text-purple-700 font-bold text-lg">{{ $animal->slot->name ?? $animal->slot->id }}</span>
                             </div>
+
                             <div class="flex items-center justify-between mb-2">
                                 <span class="text-gray-700 font-semibold">Location</span>
                                 <span class="text-gray-800">{{ $animal->slot->location ?? 'Main Shelter' }}</span>
                             </div>
+
                             <div class="flex items-center justify-between">
                                 <span class="text-gray-700 font-semibold">Status</span>
-                                <span class="px-2 py-1 bg-red-100 text-red-700 rounded text-xs font-medium">{{ $animal->slot->status }}</span>
+                                <span class="px-2 py-1 bg-red-100 text-red-700 rounded text-xs font-medium">
+                                    {{ $animal->slot->status }}
+                                </span>
                             </div>
                         </div>
+
                     @else
                         <div class="bg-gray-50 rounded-lg p-4 text-center text-gray-600">
                             <i class="fas fa-exclamation-circle text-3xl mb-2 text-gray-400"></i>
-                            <p>No slot assigned</p>
+                            <p class="mb-3">No slot assigned</p>
+
+                            @if(auth()->user()->hasRole('admin') || auth()->user()->hasRole('caretaker'))
+                                <form action="{{ route('animals.assignSlot', $animal->id) }}" method="POST">
+                                    @csrf
+                                    
+                                    <select name="slot_id" class="w-full border rounded-lg p-2 mb-3">
+                                        <option value="">Select Slot</option>
+                                        @foreach($slots as $slot)
+                                            <option value="{{ $slot->id }}">
+                                                Slot {{ $slot->name ?? $slot->id }} ({{ $slot->section }})
+                                            </option>
+                                        @endforeach
+                                    </select>
+
+                                    <button class="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700">
+                                        Assign Slot
+                                    </button>
+                                </form>
+                            @endif
                         </div>
                     @endif
                 </div>
@@ -460,7 +484,7 @@
                         <h3 class="text-xl font-bold mb-2">Interested in adopting?</h3>
                         <p class="text-purple-100 mb-4">Contact us to learn more about {{ $animal->name }} and start the adoption process.</p>
                         <button class="w-full bg-white text-purple-700 py-3 rounded-lg font-semibold hover:bg-purple-50 transition duration-300">
-                            <i class="fas fa-heart mr-2"></i>Adopt {{ $animal->name }}
+                            <i class="fas fa-heart mr-2"></i>Book {{ $animal->name }} for Adoption
                         </button>
                     </div>
                 @endif

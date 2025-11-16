@@ -66,6 +66,8 @@ Route::get('/vaccination-create', [AnimalManagementController::class, 'indexClin
 
 Route::post('/medical-records/store', [AnimalManagementController::class, 'storeMedical'])->name('medical-records.store');
 Route::post('/vaccination-records/store', [AnimalManagementController::class, 'storeVaccination'])->name('vaccination-records.store');
+Route::post('/animals/{animal}/assign-slot', [AnimalManagementController::class, 'assignSlot'])->name('animals.assignSlot');
+
 
 Route::get('/create-vet', [AnimalManagementController::class, 'createVet'])->name('animal-management.create.vet');
 Route::post('/store-clinics', [AnimalManagementController::class, 'storeClinic'])->name('animal-management.store-clinics');
@@ -84,9 +86,10 @@ Route::delete('/vets/{id}', [AnimalManagementController::class, 'destroyVet'])->
 
 
 //Shelter-Management
-Route::middleware('auth')->group(function () {
-    Route::get('/slot:main', [ShelterManagementController::class, 'home'])->name('slot:main');
-});
+  Route::get('/slots', [ShelterManagementController::class, 'indexSlot'])->name('shelter-management.index');
+    Route::post('/slots-store', [ShelterManagementController::class, 'storeSlot'])->name('shelter-management.store-slot');
+    Route::put('/slots/{id}', [ShelterManagementController::class, 'updateSlot'])->name('shelter-management.update-slot');
+    Route::delete('/slots/{id}', [ShelterManagementController::class, 'deleteSlot'])->name('shelter-management.delete-slot');
 
 //Booking-Adoption
 Route::middleware('auth')->group(function () {

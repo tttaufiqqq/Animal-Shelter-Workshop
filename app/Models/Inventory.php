@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class Inventory extends Model
 {
+    protected $table = 'inventory';
     protected $fillable = [
         'item_name', 'quantity', 'brand', 'weight', 'status', 'slotID', 'categoryID'
     ];

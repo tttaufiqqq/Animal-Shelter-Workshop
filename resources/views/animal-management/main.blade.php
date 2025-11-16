@@ -115,7 +115,7 @@
                                 <p><span class="font-semibold">Gender:</span> {{ $animal->gender }}</p>
                                 <p><span class="font-semibold">Location:</span> 
                                     @if($animal->slot)
-                                        Slot {{ $animal->slot->slot_number ?? $animal->slot->id }} - {{ $animal->slot->location ?? 'Main Shelter' }}
+                                        Slot {{ $animal->slot->name ?? $animal->slot->id }} - {{ $animal->slot->section }}
                                     @else
                                         Not Assigned
                                     @endif
