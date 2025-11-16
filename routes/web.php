@@ -64,6 +64,8 @@ Route::get('/medical-create', [AnimalManagementController::class, 'indexClinic']
 Route::get('/vaccination-create', [AnimalManagementController::class, 'indexClinic'])->name('vaccination-records.create');
 
 
+Route::post('/medical-records/store', [AnimalManagementController::class, 'storeMedical'])->name('medical-records.store');
+Route::post('/vaccination-records/store', [AnimalManagementController::class, 'storeVaccination'])->name('vaccination-records.store');
 
 Route::get('/create-vet', [AnimalManagementController::class, 'createVet'])->name('animal-management.create.vet');
 Route::post('/store-clinics', [AnimalManagementController::class, 'storeClinic'])->name('animal-management.store-clinics');

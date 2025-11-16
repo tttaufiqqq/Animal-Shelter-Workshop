@@ -20,7 +20,7 @@
                     </a>
                     <h1 class="text-4xl font-bold">{{ $animal->name }}</h1>
                 </div>
-                <div class="flex gap-3">
+                <!-- <div class="flex gap-3">
                     <a href="{{ route('animal-management.edit', $animal->id) }}" 
                        class="bg-white text-purple-700 px-6 py-2 rounded-lg font-medium hover:bg-purple-50 transition duration-300">
                         <i class="fas fa-edit mr-2"></i>Edit
@@ -32,7 +32,7 @@
                             <i class="fas fa-trash mr-2"></i>Delete
                         </button>
                     </form>
-                </div>
+                </div> -->
             </div>
         </div>
     </div>
@@ -97,63 +97,6 @@
                     <p class="text-gray-700 leading-relaxed whitespace-pre-line">{{ $animal->health_details }}</p>
                 </div>
 
-                 <div class="bg-white rounded-lg shadow-lg p-6 mt-6">
-                    <div class="flex items-center justify-between mb-4">
-                        <h2 class="text-2xl font-bold text-gray-800 flex items-center">
-                            <i class="fas fa-syringe text-purple-600 mr-3"></i>
-                            Medical & Vaccination Records
-                        </h2>
-                        @role('admin|caretaker')
-                        <a href="{{ route('medical-records.create', ['animal_id' => $animal->id]) }}" 
-                           class="bg-purple-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-purple-700 transition duration-300 text-sm">
-                            <i class="fas fa-plus mr-2"></i>Add Record
-                        </a>
-                        @endrole
-                    </div>
-
-                    @if($animal->medicalRecords && $animal->medicalRecords->count() > 0)
-                        <div class="space-y-4">
-                            @foreach($animal->medicalRecords->sortByDesc('record_date') as $record)
-                                <div class="border border-gray-200 rounded-lg p-4 hover:border-purple-300 transition-colors">
-                                    <div class="flex items-start justify-between mb-2">
-                                        <div>
-                                            <span class="inline-block px-3 py-1 rounded-full text-xs font-semibold
-                                                @if($record->record_type == 'Vaccination') bg-green-100 text-green-700
-                                                @elseif($record->record_type == 'Treatment') bg-blue-100 text-blue-700
-                                                @elseif($record->record_type == 'Checkup') bg-purple-100 text-purple-700
-                                                @else bg-gray-100 text-gray-700
-                                                @endif">
-                                                {{ $record->record_type }}
-                                            </span>
-                                        </div>
-                                        <span class="text-sm text-gray-500">{{ \Carbon\Carbon::parse($record->record_date)->format('M d, Y') }}</span>
-                                    </div>
-                                    <h4 class="font-semibold text-gray-800 mb-1">{{ $record->title }}</h4>
-                                    <p class="text-gray-600 text-sm mb-2">{{ $record->description }}</p>
-                                    @if($record->veterinarian)
-                                        <div class="flex items-center text-sm text-gray-500">
-                                            <i class="fas fa-user-md mr-2"></i>
-                                            <span>{{ $record->veterinarian }}</span>
-                                        </div>
-                                    @endif
-                                    @if($record->next_due_date)
-                                        <div class="flex items-center text-sm text-gray-500 mt-1">
-                                            <i class="fas fa-calendar-alt mr-2"></i>
-                                            <span>Next due: {{ \Carbon\Carbon::parse($record->next_due_date)->format('M d, Y') }}</span>
-                                        </div>
-                                    @endif
-                                </div>
-                            @endforeach
-                        </div>
-                    @else
-                        <div class="bg-gray-50 rounded-lg p-6 text-center text-gray-600">
-                            <i class="fas fa-clipboard-list text-4xl mb-3 text-gray-400"></i>
-                            <p class="font-medium">No medical records yet</p>
-                            <p class="text-sm text-gray-500 mt-1">Medical and vaccination records will appear here</p>
-                        </div>
-                    @endif
-                </div>
-
                 <!-- Rescue Information -->
                 @if($animal->rescue)
                     <div class="bg-white rounded-lg shadow-lg p-6 mt-6">
@@ -183,6 +126,261 @@
                         </div>
                     </div>
                 @endif
+
+                <!-- Medical Records Section -->
+                <div class="bg-white rounded-lg shadow-lg p-6 mt-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-2xl font-bold text-gray-800 flex items-center">
+                            <i class="fas fa-notes-medical text-blue-600 mr-3"></i>
+                            Medical Records
+                        </h2>
+                        @role('caretaker')
+                        <button onclick="openMedicalModal()" class="bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700 transition duration-300 text-sm">
+                            <i class="fas fa-plus mr-2"></i>Add Medical Record
+                        </button>
+                        @endrole
+                    </div>
+
+                    @if($animal->medicals && $animal->medicals->count() > 0)
+                        <div class="space-y-4">
+                            @foreach($animal->medicals->sortByDesc('created_at') as $medical)
+                                <div class="border border-gray-200 rounded-lg p-4 hover:border-blue-300 transition-colors">
+                                    <div class="flex items-start justify-between mb-2">
+                                        <div>
+                                            <span class="inline-block px-3 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-700">
+                                                {{ $medical->treatment_type }}
+                                            </span>
+                                        </div>
+                                        <span class="text-sm text-gray-500">{{ \Carbon\Carbon::parse($medical->created_at)->format('M d, Y') }}</span>
+                                    </div>
+                                    <h4 class="font-semibold text-gray-800 mb-1">Diagnosis: {{ $medical->diagnosis }}</h4>
+                                    <p class="text-gray-600 text-sm mb-2"><strong>Action:</strong> {{ $medical->action }}</p>
+                                    @if($medical->remarks)
+                                        <p class="text-gray-600 text-sm mb-2"><strong>Remarks:</strong> {{ $medical->remarks }}</p>
+                                    @endif
+                                    @if($medical->vet)
+                                        <div class="flex items-center text-sm text-gray-500">
+                                            <i class="fas fa-user-md mr-2"></i>
+                                            <span>{{ $medical->vet->name }}</span>
+                                        </div>
+                                    @endif
+                                    @if($medical->costs)
+                                        <div class="flex items-center text-sm text-gray-500 mt-1">
+                                            <i class="fas fa-dollar-sign mr-2"></i>
+                                            <span>RM {{ number_format($medical->costs, 2) }}</span>
+                                        </div>
+                                    @endif
+                                </div>
+                            @endforeach
+                        </div>
+                    @else
+                        <div class="bg-gray-50 rounded-lg p-6 text-center text-gray-600">
+                            <i class="fas fa-notes-medical text-4xl mb-3 text-gray-400"></i>
+                            <p class="font-medium">No medical records yet</p>
+                            <p class="text-sm text-gray-500 mt-1">Medical treatment records will appear here</p>
+                        </div>
+                    @endif
+                </div>
+
+                <!-- Vaccination Records Section -->
+                <div class="bg-white rounded-lg shadow-lg p-6 mt-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-2xl font-bold text-gray-800 flex items-center">
+                            <i class="fas fa-syringe text-green-600 mr-3"></i>
+                            Vaccination Records
+                        </h2>
+                        @role('caretaker')
+                        <button onclick="openVaccinationModal()" class="bg-green-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-green-700 transition duration-300 text-sm">
+                            <i class="fas fa-plus mr-2"></i>Add Vaccination
+                        </button>
+                        @endrole
+                    </div>
+
+                    @if($animal->vaccinations && $animal->vaccinations->count() > 0)
+                        <div class="space-y-4">
+                            @foreach($animal->vaccinations->sortByDesc('created_at') as $vaccination)
+                                <div class="border border-gray-200 rounded-lg p-4 hover:border-green-300 transition-colors">
+                                    <div class="flex items-start justify-between mb-2">
+                                        <div>
+                                            <span class="inline-block px-3 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700">
+                                                {{ $vaccination->type }}
+                                            </span>
+                                        </div>
+                                        <span class="text-sm text-gray-500">{{ \Carbon\Carbon::parse($vaccination->created_at)->format('M d, Y') }}</span>
+                                    </div>
+                                    <h4 class="font-semibold text-gray-800 mb-1">{{ $vaccination->name }}</h4>
+                                    @if($vaccination->remarks)
+                                        <p class="text-gray-600 text-sm mb-2">{{ $vaccination->remarks }}</p>
+                                    @endif
+                                    @if($vaccination->vet)
+                                        <div class="flex items-center text-sm text-gray-500">
+                                            <i class="fas fa-user-md mr-2"></i>
+                                            <span>{{ $vaccination->vet->name }}</span>
+                                        </div>
+                                    @endif
+                                    @if($vaccination->next_due_date)
+                                        <div class="flex items-center text-sm text-gray-500 mt-1">
+                                            <i class="fas fa-calendar-alt mr-2"></i>
+                                            <span>Next due: {{ \Carbon\Carbon::parse($vaccination->next_due_date)->format('M d, Y') }}</span>
+                                        </div>
+                                    @endif
+                                    @if($vaccination->costs)
+                                        <div class="flex items-center text-sm text-gray-500 mt-1">
+                                            <i class="fas fa-dollar-sign mr-2"></i>
+                                            <span>RM {{ number_format($vaccination->costs, 2) }}</span>
+                                        </div>
+                                    @endif
+                                </div>
+                            @endforeach
+                        </div>
+                    @else
+                        <div class="bg-gray-50 rounded-lg p-6 text-center text-gray-600">
+                            <i class="fas fa-syringe text-4xl mb-3 text-gray-400"></i>
+                            <p class="font-medium">No vaccination records yet</p>
+                            <p class="text-sm text-gray-500 mt-1">Vaccination records will appear here</p>
+                        </div>
+                    @endif
+                </div>
+
+                <!-- Modal for Add Medical Record -->
+                <div id="medicalModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                    <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+                        <div class="bg-gradient-to-r from-blue-500 to-blue-600 text-white p-6">
+                            <div class="flex items-center justify-between">
+                                <h2 class="text-2xl font-bold">Add Medical Record</h2>
+                                <button onclick="closeMedicalModal()" class="text-white hover:text-gray-200">
+                                    <i class="fas fa-times text-2xl"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <form method="POST" action="{{ route('medical-records.store') }}" class="p-6 space-y-4">
+                            @csrf
+                            <input type="hidden" name="animalID" value="{{ $animal->id }}">
+                            
+                            <div>
+                                <label class="block text-gray-800 font-semibold mb-2">Treatment Type <span class="text-red-600">*</span></label>
+                                <select name="treatment_type" class="w-full border-gray-300 rounded-lg shadow-sm px-4 py-3 border focus:border-blue-500 focus:ring focus:ring-blue-200 transition" required>
+                                    <option value="">Select Treatment Type</option>
+                                    <option value="Checkup">Checkup</option>
+                                    <option value="Surgery">Surgery</option>
+                                    <option value="Emergency">Emergency</option>
+                                    <option value="Dental">Dental</option>
+                                    <option value="Other">Other</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label class="block text-gray-800 font-semibold mb-2">Diagnosis <span class="text-red-600">*</span></label>
+                                <textarea name="diagnosis" rows="3" class="w-full border-gray-300 rounded-lg shadow-sm px-4 py-3 border focus:border-blue-500 focus:ring focus:ring-blue-200 transition" placeholder="Enter diagnosis" required></textarea>
+                            </div>
+
+                            <div>
+                                <label class="block text-gray-800 font-semibold mb-2">Action Taken <span class="text-red-600">*</span></label>
+                                <textarea name="action" rows="3" class="w-full border-gray-300 rounded-lg shadow-sm px-4 py-3 border focus:border-blue-500 focus:ring focus:ring-blue-200 transition" placeholder="Enter action taken" required></textarea>
+                            </div>
+
+                            <div>
+                                <label class="block text-gray-800 font-semibold mb-2">Remarks</label>
+                                <textarea name="remarks" rows="2" class="w-full border-gray-300 rounded-lg shadow-sm px-4 py-3 border focus:border-blue-500 focus:ring focus:ring-blue-200 transition" placeholder="Additional remarks (optional)"></textarea>
+                            </div>
+
+                            <div>
+                                <label class="block text-gray-800 font-semibold mb-2">Veterinarian <span class="text-red-600">*</span></label>
+                                <select name="vetID" class="w-full border-gray-300 rounded-lg shadow-sm px-4 py-3 border focus:border-blue-500 focus:ring focus:ring-blue-200 transition" required>
+                                    <option value="">Select Veterinarian</option>
+                                    @foreach($vets as $vet)
+                                        <option value="{{ $vet->id }}">{{ $vet->name }} - {{ $vet->specialization }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+
+                            <div>
+                                <label class="block text-gray-800 font-semibold mb-2">Cost (RM)</label>
+                                <input type="number" name="costs" step="0.01" min="0" class="w-full border-gray-300 rounded-lg shadow-sm px-4 py-3 border focus:border-blue-500 focus:ring focus:ring-blue-200 transition" placeholder="0.00">
+                            </div>
+
+                            <div class="flex justify-end gap-3 pt-4">
+                                <button type="button" onclick="closeMedicalModal()" class="px-6 py-3 bg-gray-200 text-gray-700 font-semibold rounded-lg hover:bg-gray-300 transition duration-300">
+                                    Cancel
+                                </button>
+                                <button type="submit" class="px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-semibold rounded-lg hover:from-blue-600 hover:to-blue-700 transition duration-300">
+                                    <i class="fas fa-plus mr-2"></i>Add Record
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Modal for Add Vaccination -->
+                <div id="vaccinationModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                    <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+                        <div class="bg-gradient-to-r from-green-500 to-green-600 text-white p-6">
+                            <div class="flex items-center justify-between">
+                                <h2 class="text-2xl font-bold">Add Vaccination Record</h2>
+                                <button onclick="closeVaccinationModal()" class="text-white hover:text-gray-200">
+                                    <i class="fas fa-times text-2xl"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <form method="POST" action="{{ route('vaccination-records.store') }}" class="p-6 space-y-4">
+                            @csrf
+                            <input type="hidden" name="animalID" value="{{ $animal->id }}">
+                            
+                            <div>
+                                <label class="block text-gray-800 font-semibold mb-2">Vaccine Name <span class="text-red-600">*</span></label>
+                                <input type="text" name="name" class="w-full border-gray-300 rounded-lg shadow-sm px-4 py-3 border focus:border-green-500 focus:ring focus:ring-green-200 transition" placeholder="e.g., Rabies Vaccine" required>
+                            </div>
+
+                            <div>
+                                <label class="block text-gray-800 font-semibold mb-2">Vaccine Type <span class="text-red-600">*</span></label>
+                                <select name="type" class="w-full border-gray-300 rounded-lg shadow-sm px-4 py-3 border focus:border-green-500 focus:ring focus:ring-green-200 transition" required>
+                                    <option value="">Select Type</option>
+                                    <option value="Rabies">Rabies</option>
+                                    <option value="DHPP">DHPP (Distemper, Hepatitis, Parvovirus, Parainfluenza)</option>
+                                    <option value="Bordetella">Bordetella</option>
+                                    <option value="Leptospirosis">Leptospirosis</option>
+                                    <option value="Feline Distemper">Feline Distemper</option>
+                                    <option value="Feline Leukemia">Feline Leukemia</option>
+                                    <option value="Other">Other</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label class="block text-gray-800 font-semibold mb-2">Next Due Date</label>
+                                <input type="date" name="next_due_date" class="w-full border-gray-300 rounded-lg shadow-sm px-4 py-3 border focus:border-green-500 focus:ring focus:ring-green-200 transition">
+                            </div>
+
+                            <div>
+                                <label class="block text-gray-800 font-semibold mb-2">Remarks</label>
+                                <textarea name="remarks" rows="3" class="w-full border-gray-300 rounded-lg shadow-sm px-4 py-3 border focus:border-green-500 focus:ring focus:ring-green-200 transition" placeholder="Additional notes (optional)"></textarea>
+                            </div>
+
+                            <div>
+                                <label class="block text-gray-800 font-semibold mb-2">Veterinarian <span class="text-red-600">*</span></label>
+                                <select name="vetID" class="w-full border-gray-300 rounded-lg shadow-sm px-4 py-3 border focus:border-green-500 focus:ring focus:ring-green-200 transition" required>
+                                    <option value="">Select Veterinarian</option>
+                                    @foreach($vets as $vet)
+                                        <option value="{{ $vet->id }}">{{ $vet->name }} - {{ $vet->specialization }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+
+                            <div>
+                                <label class="block text-gray-800 font-semibold mb-2">Cost (RM)</label>
+                                <input type="number" name="costs" step="0.01" min="0" class="w-full border-gray-300 rounded-lg shadow-sm px-4 py-3 border focus:border-green-500 focus:ring focus:ring-green-200 transition" placeholder="0.00">
+                            </div>
+
+                            <div class="flex justify-end gap-3 pt-4">
+                                <button type="button" onclick="closeVaccinationModal()" class="px-6 py-3 bg-gray-200 text-gray-700 font-semibold rounded-lg hover:bg-gray-300 transition duration-300">
+                                    Cancel
+                                </button>
+                                <button type="submit" class="px-6 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white font-semibold rounded-lg hover:from-green-600 hover:to-green-700 transition duration-300">
+                                    <i class="fas fa-plus mr-2"></i>Add Vaccination
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
             </div>
 
             <!-- Right Column - Details -->
@@ -275,6 +473,38 @@
         function changeImage(imagePath) {
             document.getElementById('mainImage').src = imagePath;
         }
+        function openMedicalModal() {
+            document.getElementById('medicalModal').classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeMedicalModal() {
+            document.getElementById('medicalModal').classList.add('hidden');
+            document.body.style.overflow = 'auto';
+        }
+
+        function openVaccinationModal() {
+            document.getElementById('vaccinationModal').classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeVaccinationModal() {
+            document.getElementById('vaccinationModal').classList.add('hidden');
+            document.body.style.overflow = 'auto';
+        }
+
+        // Close modals when clicking outside
+        document.getElementById('medicalModal')?.addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeMedicalModal();
+            }
+        });
+
+        document.getElementById('vaccinationModal')?.addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeVaccinationModal();
+            }
+        });
     </script>
 </body>
 </html>

@@ -27,7 +27,7 @@
                 <p class="font-semibold">{{ session('success') }}</p>
             </div>
         @endif
-        <!-- Add New Clinic/Vet Cards -->
+        <!-- Add New Clinic/Vet Cards --> @role('admin')
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
             <!-- Add Clinic Card -->
             <div class="bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-xl transition duration-300">
@@ -62,14 +62,14 @@
                     </button>
                 </div>
             </div>
-        </div>
+        </div> @endrole
 
         <!-- Clinics Section -->
         <div class="mb-12">
             <div class="flex items-center justify-between mb-6">
                 <h2 class="text-3xl font-bold text-gray-800 flex items-center">
                     <i class="fas fa-hospital text-blue-600 mr-3"></i>
-                    Veterinary Clinics
+                    Clinics
                 </h2>
                 <span class="text-gray-600">{{ $clinics->count() }} Clinics</span>
             </div>
@@ -112,12 +112,14 @@
                                     <button onclick="viewClinicDetails({{ $clinic->id }})" class="flex-1 bg-{{ $color }}-600 hover:bg-{{ $color }}-700 text-white py-2 rounded-lg font-medium transition duration-300">
                                         <i class="fas fa-info-circle mr-1"></i>Details
                                     </button>
+                                    @role('admin')
                                     <button onclick="editClinic({{ $clinic->id }})" class="px-4 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg transition duration-300">
                                         <i class="fas fa-edit"></i>
                                     </button>
                                     <button onclick="deleteClinic({{ $clinic->id }})" class="px-4 bg-red-100 hover:bg-red-200 text-red-600 rounded-lg transition duration-300">
                                         <i class="fas fa-trash"></i>
                                     </button>
+                                    @endrole
                                 </div>
                             </div>
                         </div>
@@ -205,9 +207,9 @@
                                     <button class="flex-1 bg-{{ $color }}-600 hover:bg-{{ $color }}-700 text-white py-2 rounded-lg font-medium transition duration-300">
                                         <i class="fas fa-info-circle mr-1"></i>Details
                                     </button>
-                                    <button class="px-4 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg transition duration-300">
+                                    @role('admin')<button class="px-4 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg transition duration-300">
                                         <i class="fas fa-edit"></i>
-                                    </button>
+                                    </button>@endrole
                                 </div>
                             </div>
                         </div>

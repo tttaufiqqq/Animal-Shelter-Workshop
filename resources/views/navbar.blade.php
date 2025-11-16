@@ -15,21 +15,22 @@
    <div class="hidden md:flex space-x-8">
     @auth
         @role('admin')
-            <a href="{{ route('dashboard') }}" class="text-purple-100 hover:text-white transition duration-300 font-medium">
-                Dashboard
-            </a>
+        <a href="{{ route('dashboard') }}" class="text-purple-100 hover:text-white transition duration-300 font-medium">
+            Dashboard
+        </a>
         <a href="{{ route('reports.index') }}" class="text-purple-100 hover:text-white transition duration-300 font-medium">
             Report
-        </a>
-            <a href="{{ route('animal-management.clinic-index') }}" class="text-purple-100 hover:text-white transition duration-300 font-medium">
-            Manage clinics and vets
-        </a>
-        
         <a href="{{ route('booking:main') }}" class="text-purple-100 hover:text-white transition duration-300 font-medium">
             Adoption
         </a>
         <a href="{{ route('slot:main') }}" class="text-purple-100 hover:text-white transition duration-300 font-medium">
             Slot
+        </a>
+        @endrole
+        @role('admin|caretaker')
+        </a>
+            <a href="{{ route('animal-management.clinic-index') }}" class="text-purple-100 hover:text-white transition duration-300 font-medium">
+            Clinics & Vets
         </a>
         @endrole
         @role('caretaker')

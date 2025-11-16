@@ -6,8 +6,10 @@ use Illuminate\Database\Eloquent\Model;
 
 class Vaccination extends Model
 {
+    protected $table = 'vaccination';
+    protected $primaryKey = 'id';
     protected $fillable = [
-        'name', 'type', 'date', 'next_due_date', 'remarks', 'animalID', 'vetID'
+        'name', 'type','next_due_date', 'remarks', 'costs', 'animalID', 'vetID'
     ];
 
     public function vet()

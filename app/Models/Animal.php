@@ -21,10 +21,13 @@ class Animal extends Model
     {
         return $this->belongsTo(Slot::class, 'slotID');
     }
-
-    public function vaccination()
+    public function medicals()
     {
-        return $this->belongsTo(Vaccination::class, 'vaccinationID');
+        return $this->hasMany(Medical::class, 'animalID');
+    }
+    public function vaccinations()
+    {
+        return $this->hasMany(Vaccination::class, 'animalID');
     }
 
     public function images()

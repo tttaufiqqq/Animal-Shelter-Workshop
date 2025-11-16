@@ -9,6 +9,8 @@ use App\Models\Image;
 use App\Models\Rescue; 
 use App\Models\Clinic; 
 use App\Models\Vet; 
+use App\Models\Medical;
+use App\Models\Vaccination;  
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
@@ -179,8 +181,19 @@ class AnimalManagementController extends Controller
             'slot',
             'rescue.report'
         ])->findOrFail($id);
-
-        return view('animal-management.show', compact('animal'));
+        
+        // Get medical and vaccination records for THIS animal only
+        $medicals = Medical::with('vet')
+            ->where('animalID', $id)
+            ->get();
+        
+        $vaccinations = Vaccination::with('vet')
+            ->where('animalID', $id)
+            ->get();
+        
+        $vets = Vet::all();
+        
+        return view('animal-management.show', compact('animal', 'vets', 'medicals', 'vaccinations'));
     }
 
     /**
@@ -278,9 +291,6 @@ class AnimalManagementController extends Controller
                 'phone' => 'required|string|max:20',
                 'email' => 'required|email|max:255|unique:vet,email',
             ]);
-
-            
-
             $dataToInsert = [
                 'name' => $validated['full_name'],
                 'specialization' => $validated['specialization'],
@@ -289,10 +299,8 @@ class AnimalManagementController extends Controller
                 'contactNum' => $validated['phone'],
                 'email' => $validated['email'],
             ];
-            
             // Create new vet record
             $vet = Vet::create($dataToInsert);
-
             // Redirect back with success message
             return redirect()->back()->with('success', 'Veterinarian added successfully!');
             
@@ -302,7 +310,6 @@ class AnimalManagementController extends Controller
                 'errors' => $e->errors(),
                 'message' => $e->getMessage()
             ]);
-            
             return redirect()->back()
                 ->withErrors($e->errors())
                 ->withInput()
@@ -314,11 +321,104 @@ class AnimalManagementController extends Controller
                 'file' => $e->getFile(),
                 'line' => $e->getLine(),
                 'trace' => $e->getTraceAsString()
+            ]); 
+            return redirect()->back()
+                ->withInput()
+                ->with('error', 'Failed to add veterinarian: ' . $e->getMessage());
+        }
+    }
+    public function storeMedical(Request $request)
+    {
+        // Debug: Check incoming request data
+        // dd($request->all());
+        try {
+            $validated = $request->validate([
+                'animalID' => 'required|exists:animal,id',
+                'treatment_type' => 'required|string|max:255',
+                'diagnosis' => 'required|string',
+                'action' => 'required|string',
+                'remarks' => 'nullable|string',
+                'vetID' => 'required|exists:vet,id',
+                'costs' => 'nullable|numeric|min:0',
+            ]);
+            // Debug: Check validated data
+            // dd($validated);
+            $medical = Medical::create($validated);
+            // Debug: Check created record
+            // dd($medical);
+            return redirect()->back()->with('success', 'Medical record added successfully!');
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            // Debug: Check validation errors
+            dd([
+                'validation_errors' => $e->errors(),
+                'request_data' => $request->all()
+            ]);
+            
+            return redirect()->back()
+                ->withErrors($e->errors())
+                ->withInput()
+                ->with('error', 'Please check the form and try again.');
+        } catch (\Exception $e) {
+            // Debug: Check exception details
+            dd([
+                'error_message' => $e->getMessage(),
+                'error_line' => $e->getLine(),
+                'error_file' => $e->getFile(),
+                'request_data' => $request->all()
             ]);
             
             return redirect()->back()
                 ->withInput()
-                ->with('error', 'Failed to add veterinarian: ' . $e->getMessage());
+                ->with('error', 'Failed to add medical record: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Store vaccination record
+     */
+    public function storeVaccination(Request $request)
+    {
+        // Debug: Check incoming request data
+        // dd($request->all());
+        try {
+            $validated = $request->validate([
+                'animalID' => 'required|exists:animal,id',
+                'name' => 'required|string|max:255',
+                'type' => 'required|string|max:255',
+                'next_due_date' => 'nullable|date|after:today',
+                'remarks' => 'nullable|string',
+                'vetID' => 'required|exists:vet,id',
+                'costs' => 'nullable|numeric|min:0',
+            ]);
+            // Debug: Check validated data
+            // dd($validated);
+            $vaccination = Vaccination::create($validated);
+            // Debug: Check created record
+            // dd($vaccination);
+            return redirect()->back()->with('success', 'Vaccination record added successfully!');
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            // Debug: Check validation errors
+            dd([
+                'validation_errors' => $e->errors(),
+                'request_data' => $request->all()
+            ]);
+            
+            return redirect()->back()
+                ->withErrors($e->errors())
+                ->withInput()
+                ->with('error', 'Please check the form and try again.');
+        } catch (\Exception $e) {
+            // Debug: Check exception details
+            dd([
+                'error_message' => $e->getMessage(),
+                'error_line' => $e->getLine(),
+                'error_file' => $e->getFile(),
+                'request_data' => $request->all()
+            ]);
+            
+            return redirect()->back()
+                ->withInput()
+                ->with('error', 'Failed to add vaccination record: ' . $e->getMessage());
         }
     }
 }

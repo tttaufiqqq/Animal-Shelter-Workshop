@@ -18,4 +18,9 @@ class Image extends Model
     {
         return $this->belongsTo(Report::class, 'reportID');
     }
+
+     public function clinic()
+    {
+        return $this->belongsTo(Clinic::class, 'clinicID');
+    }
 }

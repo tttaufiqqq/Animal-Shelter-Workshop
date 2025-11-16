@@ -6,8 +6,9 @@ use Illuminate\Database\Eloquent\Model;
 
 class Medical extends Model
 {
+    protected $table = 'medical';
     protected $fillable = [
-        'date_checkup', 'treatment_type', 'diagnosis', 'action', 'remarks',
+        'treatment_type', 'diagnosis', 'action', 'remarks',
         'costs', 'vetID', 'animalID'
     ];
 
