@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use App\Models\Slot;
 use App\Models\Inventory;
 use App\Models\Animal;
+use App\Models\Image;
 use App\Models\Category;
 
 
@@ -124,6 +125,7 @@ class ShelterManagementController extends Controller
             // Load relationships separately with error handling
             $medicals = $animal->medicals()->with('vet')->get();
             $vaccinations = $animal->vaccinations()->with('vet')->get();
+            $images = $animal->images()->get(); // Load images
             
             return response()->json([
                 'id' => $animal->id,
@@ -132,6 +134,12 @@ class ShelterManagementController extends Controller
                 'breed' => $animal->breed ?? 'Unknown',
                 'adoption_status' => $animal->adoption_status ?? 'unknown',
                 'health_details' => $animal->health_details ?? 'No health details available.',
+                'images' => $images->map(function($image) {
+                    return [
+                        'id' => $image->id,
+                        'path' => $image->image_path,
+                    ];
+                }),
                 'medicals' => $medicals->map(function($medical) {
                     return [
                         'id' => $medical->id,
@@ -152,6 +160,7 @@ class ShelterManagementController extends Controller
                         'batch_number' => $vaccination->type ?? 'N/A',
                         'administered_by' => $vaccination->vet->name ?? 'Unknown',
                         'notes' => $vaccination->remarks ?? '',
+                        'cost' => $vaccination->costs ?? 0,
                     ];
                 }),
             ]);

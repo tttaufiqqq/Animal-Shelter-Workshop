@@ -70,7 +70,7 @@ class StrayReportingManagementController extends Controller
             }
         }
 
-        return redirect()->route('reports.create')->with('success', 'Report submitted successfully!');
+        return redirect()->back()->with('success', 'Report submitted successfully!');
     }
 
     // Display all reports for the authenticated user

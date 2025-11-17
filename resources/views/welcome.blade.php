@@ -5,11 +5,22 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Welcome - Stray Animals Shelter</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- In your <head> section -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+    <!-- Before closing </body> tag -->
+   
 </head>
 <body class="bg-gradient-to-br from-purple-600 to-purple-800 min-h-screen flex flex-col">
     
     <!-- Include Navbar -->
     @include('navbar')
+    @include('stray-reporting.create')
+    @if (session('success'))
+        <div class="bg-green-50 border-l-4 border-green-600 text-green-700 p-4 rounded-lg mb-6">
+                        <p class="font-semibold">{{ session('success') }}</p>
+        </div>
+    @endif
 
     <!-- Main Content -->
     <div class="flex-1 flex items-center justify-center p-4">
@@ -82,10 +93,10 @@
                                 </div>
                                 @role('public user')
                                 <div>
-                                    <a href="{{ route('reports.create') }}" class="inline-flex items-center gap-2 bg-gradient-to-r from-purple-600 to-purple-700 text-white font-semibold px-5 py-2 rounded-lg hover:from-purple-700 hover:to-purple-800 transition duration-300 shadow-lg">
+                                    <button type="button" onclick="openReportModal()" class="inline-flex items-center gap-2 bg-gradient-to-r from-purple-600 to-purple-700 text-white font-semibold px-5 py-2 rounded-lg hover:from-purple-700 hover:to-purple-800 transition duration-300 shadow-lg">
                                         <span class="text-lg">📝</span>
                                         <span>Submit Stray Animal Report</span>
-                                    </a>
+                                    </button>
                                 </div>
                                 @endrole
                                 @role('caretaker')
@@ -122,5 +133,6 @@
             </div>
         </div>
     </div>
+     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 </body>
 </html>

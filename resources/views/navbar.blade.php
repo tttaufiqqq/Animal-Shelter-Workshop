@@ -13,43 +13,54 @@
 
    <!-- Navigation Links -->
    <div class="hidden md:flex space-x-8">
+
+    {{-- Must be logged in for everything except Contact Us --}}
     @auth
+
+        {{-- ADMIN ONLY: Dashboard, Report, Slots --}}
         @role('admin')
-        <a href="{{ route('dashboard') }}" class="text-purple-100 hover:text-white transition duration-300 font-medium">
-            Dashboard
-        </a>
-        <a href="{{ route('reports.index') }}" class="text-purple-100 hover:text-white transition duration-300 font-medium">
-            Report
-        <a href="{{ route('booking:main') }}" class="text-purple-100 hover:text-white transition duration-300 font-medium">
-            Adoption
-        </a>
-        <a href="{{ route('shelter-management.index') }}" class="text-purple-100 hover:text-white transition duration-300 font-medium">
-            Slot
-        </a>
+            <a href="{{ route('dashboard') }}" class="text-purple-100 hover:text-white transition duration-300 font-medium">
+                Dashboard
+            </a>
+
+            <a href="{{ route('reports.index') }}" class="text-purple-100 hover:text-white transition duration-300 font-medium">
+                Report
+            </a>
         @endrole
+
+        {{-- ADMIN + CARETAKER + USER: Animal --}}
+        <a href="{{ route('animal:main') }}" class="text-purple-100 hover:text-white transition duration-300 font-medium">
+            Animal
+        </a>
+
+        {{-- ADMIN ONLY: Slots --}}
+        @role('admin')
+            <a href="{{ route('shelter-management.index') }}" class="text-purple-100 hover:text-white transition duration-300 font-medium">
+                Slots
+            </a>
+        @endrole
+
+        {{-- ADMIN + CARETAKER: Clinics & Vets --}}
         @role('admin|caretaker')
-        </a>
             <a href="{{ route('animal-management.clinic-index') }}" class="text-purple-100 hover:text-white transition duration-300 font-medium">
-            Clinics & Vets
+                Clinics & Vets
+            </a>
+        @endrole
+
+        {{-- ALL LOGGED IN USERS: Booking --}}
+        <a href="{{ route('contact') }}" class="text-purple-100 hover:text-white transition duration-300 font-medium">
+            My Booking
         </a>
-        @endrole
-        @role('caretaker')
-       
-        @endrole
+
     @endauth
 
-    
-    <a href="{{ route('animal:main') }}" class="text-purple-100 hover:text-white transition duration-300 font-medium">
-        Animal
-    </a>
-    <a href="{{route ('contact')}}" class="text-purple-100 hover:text-white transition duration-300 font-medium">
-        My Booking
-    </a>
-    <a href="{{route ('contact')}}" class="text-purple-100 hover:text-white transition duration-300 font-medium">
-     Contact Us
+    {{-- Public: Contact Us --}}
+    <a href="{{ route('contact') }}" class="text-purple-100 hover:text-white transition duration-300 font-medium">
+        Contact Us
     </a>
 
-   </div>
+</div>
+
 
    <!-- Profile Logo -->
    <div class="hidden md:flex items-center">
