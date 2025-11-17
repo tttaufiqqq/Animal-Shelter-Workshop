@@ -76,8 +76,6 @@ class AnimalManagementController extends Controller
                 'age' => $age, // combined age string
                 'gender' => $validated['gender'],
                 'adoption_status' => 'Not Adopted',
-                'arrival_date' => now(),
-                'medical_status' => 'Pending',
                 'rescueID' => $validated['rescueID'],
                 'slotID' => $validated['slotID'],
             ]);

@@ -240,6 +240,9 @@
     </div>
     @include('shelter-management.slot-detail-modal')
     @include('shelter-management.inventory-create-modal', ['categories' => $categories])
+    @include('shelter-management.inventory-detail-modal', ['categories' => $categories])
+    @include('shelter-management.animal-detail-modal')
+
 
     <script>
         function openSlotModal() {

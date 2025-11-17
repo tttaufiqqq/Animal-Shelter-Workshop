@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Slot;
 use App\Models\Inventory;
+use App\Models\Animal;
 use App\Models\Category;
 
 
@@ -112,10 +113,61 @@ class ShelterManagementController extends Controller
                 ->with('error', 'Failed to delete slot: ' . $e->getMessage());
         }
     }
+    /**
+     * Get animal details with medical and vaccination records
+     */
+    public function getAnimalDetails($id)
+    {
+        try {
+            $animal = Animal::findOrFail($id);
+            
+            // Load relationships separately with error handling
+            $medicals = $animal->medicals()->with('vet')->get();
+            $vaccinations = $animal->vaccinations()->with('vet')->get();
+            
+            return response()->json([
+                'id' => $animal->id,
+                'name' => $animal->name ?? 'Unknown',
+                'species' => $animal->species ?? 'Unknown',
+                'breed' => $animal->breed ?? 'Unknown',
+                'adoption_status' => $animal->adoption_status ?? 'unknown',
+                'health_details' => $animal->health_details ?? 'No health details available.',
+                'medicals' => $medicals->map(function($medical) {
+                    return [
+                        'id' => $medical->id,
+                        'treatment' => $medical->treatment_type ?? 'N/A',
+                        'diagnosis' => $medical->diagnosis ?? 'N/A',
+                        'date' => $medical->created_at ? $medical->created_at->format('Y-m-d') : date('Y-m-d'),
+                        'cost' => $medical->costs ?? 0,
+                        'notes' => $medical->action ?? $medical->remarks ?? '',
+                        'vet_name' => $medical->vet->name ?? 'Unknown',
+                    ];
+                }),
+                'vaccinations' => $vaccinations->map(function($vaccination) {
+                    return [
+                        'id' => $vaccination->id,
+                        'vaccine_name' => $vaccination->name ?? 'N/A',
+                        'date' => $vaccination->created_at ? $vaccination->created_at->format('Y-m-d') : date('Y-m-d'),
+                        'next_due_date' => $vaccination->next_due_date ?? null,
+                        'batch_number' => $vaccination->type ?? 'N/A',
+                        'administered_by' => $vaccination->vet->name ?? 'Unknown',
+                        'notes' => $vaccination->remarks ?? '',
+                    ];
+                }),
+            ]);
+            
+        } catch (\Exception $e) {
+            \Log::error('Animal details error for ID ' . $id . ': ' . $e->getMessage());
+            return response()->json([
+                'error' => 'Failed to load animal details',
+                'message' => config('app.debug') ? $e->getMessage() : 'An error occurred'
+            ], 500);
+        }
+    }
     public function getSlotDetails($id)
     {
         try {
-            $slot = Slot::with(['animals', 'inventories.category'])->findOrFail($id);
+            $slot = Slot::with(['animals.vaccinations', 'animals.medicals', 'inventories.category'])->findOrFail($id);
 
             return response()->json([
                 'id' => $slot->id,
@@ -128,11 +180,10 @@ class ShelterManagementController extends Controller
                         'id' => $animal->id,
                         'name' => $animal->name,
                         'species' => $animal->species,
-                        'breed' => $animal->breed,
                         'age' => $animal->age,
                         'gender' => $animal->gender,
-                        'weight' => $animal->weight,
-                        'health_status' => $animal->health_status,
+                        'adoption_status' => $animal->adoption_status,
+                        'health_details' => $animal->health_details,
                     ];
                 }),
                 'inventories' => $slot->inventories->map(function($inventory) {
@@ -146,6 +197,8 @@ class ShelterManagementController extends Controller
                         'quantity' => $inventory->quantity,
                         'unit' => $inventory->unit,
                         'description' => $inventory->description,
+                        'brand' => $inventory->brand,
+                        'status' => $inventory->status,
                     ];
                 }),
             ]);
@@ -175,6 +228,74 @@ class ShelterManagementController extends Controller
             return redirect()->back()
                 ->withInput()
                 ->with('error', 'Failed to add inventory: ' . $e->getMessage());
+        }
+    }
+
+    public function getInventoryDetails($id)
+    {
+        try {
+            $inventory = Inventory::with(['category', 'slot'])->findOrFail($id);
+            
+            return response()->json([
+                'id' => $inventory->id,
+                'item_name' => $inventory->item_name,
+                'quantity' => $inventory->quantity,
+                'weight' => $inventory->weight,
+                'brand' => $inventory->brand,
+                'status' => $inventory->status,
+                'categoryID' => $inventory->categoryID,
+                'category_main' => $inventory->category->main ?? null,
+                'category_sub' => $inventory->category->sub ?? null,
+                'slot_name' => $inventory->slot->name ?? null,
+                'slot_section' => $inventory->slot->section ?? null,
+            ]);
+            
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Inventory not found'], 404);
+        }
+    }
+
+    /**
+     * Update inventory
+     */
+    public function updateInventory(Request $request, $id)
+    {
+        try {
+            $validated = $request->validate([
+                'item_name' => 'required|string|max:255',
+                'categoryID' => 'required|exists:category,id',
+                'quantity' => 'required|integer|min:0',
+                'weight' => 'nullable|numeric|min:0',
+                'brand' => 'nullable|string|max:255',
+                'status' => 'required|in:available,low,out',
+            ]);
+
+            $inventory = Inventory::findOrFail($id);
+            $inventory->update($validated);
+
+            return redirect()->back()->with('success', 'Inventory updated successfully!');
+            
+        } catch (\Exception $e) {
+            return redirect()->back()
+                ->withInput()
+                ->with('error', 'Failed to update inventory: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Delete inventory
+     */
+    public function deleteInventory($id)
+    {
+        try {
+            $inventory = Inventory::findOrFail($id);
+            $inventory->delete();
+
+            return redirect()->back()->with('success', 'Inventory deleted successfully!');
+            
+        } catch (\Exception $e) {
+            return redirect()->back()
+                ->with('error', 'Failed to delete inventory: ' . $e->getMessage());
         }
     }
 }

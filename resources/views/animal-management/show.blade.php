@@ -20,7 +20,7 @@
                     </a>
                     <h1 class="text-4xl font-bold">{{ $animal->name }}</h1>
                 </div>
-                <div class="flex gap-3">
+                @role('admin')<div class="flex gap-3">
                     <a href="{{ route('animal-management.edit', $animal->id) }}" 
                        class="bg-white text-purple-700 px-6 py-2 rounded-lg font-medium hover:bg-purple-50 transition duration-300">
                         <i class="fas fa-edit mr-2"></i>Edit
@@ -32,7 +32,7 @@
                             <i class="fas fa-trash mr-2"></i>Delete
                         </button>
                     </form>
-                </div>
+                </div>@endrole
             </div>
         </div>
     </div>
@@ -403,7 +403,7 @@
                         @endif
                     </div>
 
-                    <h2 class="text-xl font-bold text-gray-800 mb-4">Basic Information</h2>
+                    <h2 class="text-xl font-bold text-gray-800 mb-4">Animal Information</h2>
                     <div class="space-y-3">
                         <div class="flex justify-between py-2 border-b border-gray-100">
                             <span class="text-gray-600 font-semibold">Species</span>
@@ -428,29 +428,38 @@
                 <div class="bg-white rounded-lg shadow-lg p-6">
                     <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
                         <i class="fas fa-map-marker-alt text-purple-600 mr-2"></i>
-                        Current Location
+                        Assigned Slot
                     </h2>
                     @if($animal->slot)
                         <div class="bg-purple-50 rounded-lg p-4">
                             <div class="flex items-center justify-between mb-2">
-                                <span class="text-gray-700 font-semibold">Slot Name</span>
+                                <span class="text-gray-700 font-semibold">Name</span>
                                 <span class="text-purple-700 font-bold text-lg">
                                     {{ $animal->slot->name ?? $animal->slot->id }}
                                 </span>
                             </div>
 
                             <div class="flex items-center justify-between mb-2">
-                                <span class="text-gray-700 font-semibold">Location</span>
-                                <span class="text-gray-800">{{ $animal->slot->location ?? 'Main Shelter' }}</span>
+                                <span class="text-gray-700 font-semibold">Section</span>
+                                <span class="text-gray-800">{{ $animal->slot->section ?? 'Main Shelter' }}</span>
                             </div>
 
                             <div class="flex items-center justify-between mb-4">
                                 <span class="text-gray-700 font-semibold">Status</span>
-                                <span class="px-2 py-1 bg-red-100 text-red-700 rounded text-xs font-medium">
-                                    {{ $animal->slot->status }}
+
+                                @php
+                                    $status = $animal->slot->status;
+                                    $colorClass = match($status) {
+                                        'available' => 'bg-green-200 text-green-700',
+                                        'occupied' => 'bg-red-200 text-red-700',
+                                        default => 'bg-gray-100 text-gray-700'
+                                    };
+                                @endphp
+
+                                <span class="px-2 py-1 rounded text-xs font-medium {{ $colorClass }}">
+                                     {{ ucfirst($status) }}
                                 </span>
                             </div>
-
                             {{-- Reassign Slot Form --}}
                             @if(auth()->user()->hasRole('admin') || auth()->user()->hasRole('caretaker'))
                                 <form action="{{ route('animals.assignSlot', $animal->id) }}" method="POST">
