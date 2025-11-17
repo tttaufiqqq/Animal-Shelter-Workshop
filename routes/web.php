@@ -91,6 +91,8 @@ Route::delete('/vets/{id}', [AnimalManagementController::class, 'destroyVet'])->
     Route::put('/shelter-management/slots/{id}', [ShelterManagementController::class, 'updateSlot'])->name('shelter-management.update-slot');
     Route::delete('/slots/{id}', [ShelterManagementController::class, 'deleteSlot'])->name('shelter-management.delete-slot');
     Route::get('/shelter-management/slots/{id}/edit', [ShelterManagementController::class, 'editSlot'])->name('shelter-management.edit-slot');
+    Route::get('/shelter-management/slots/{id}/details', [ShelterManagementController::class, 'getSlotDetails'])->name('shelter-management.slot-details');
+    Route::post('/shelter-management/inventory', [ShelterManagementController::class, 'storeInventory'])->name('shelter-management.store-inventory');
 
 //Booking-Adoption
 Route::middleware('auth')->group(function () {

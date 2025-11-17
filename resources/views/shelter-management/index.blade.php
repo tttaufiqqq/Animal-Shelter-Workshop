@@ -152,7 +152,7 @@
 
                         <!-- Action Buttons -->
                         <div class="flex gap-2">
-                            <button class="flex-1 bg-gradient-to-r from-indigo-500 to-indigo-600 text-white py-2 rounded-lg font-semibold hover:from-indigo-600 hover:to-indigo-700 transition duration-300">
+                            <button onclick="viewSlotDetails({{ $slot->id }})" class="flex-1 bg-gradient-to-r from-indigo-500 to-indigo-600 text-white py-2 rounded-lg font-semibold hover:from-indigo-600 hover:to-indigo-700 transition duration-300">
                                 <i class="fas fa-info-circle mr-1"></i>Details
                             </button>
                             <button onclick="editSlot({{ $slot->id }})" class="px-4 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg transition duration-300">
@@ -238,6 +238,8 @@
             </form>
         </div>
     </div>
+    @include('shelter-management.slot-detail-modal')
+    @include('shelter-management.inventory-create-modal', ['categories' => $categories])
 
     <script>
         function openSlotModal() {

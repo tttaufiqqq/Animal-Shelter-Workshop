@@ -20,7 +20,7 @@
                     </a>
                     <h1 class="text-4xl font-bold">{{ $animal->name }}</h1>
                 </div>
-                <!-- <div class="flex gap-3">
+                <div class="flex gap-3">
                     <a href="{{ route('animal-management.edit', $animal->id) }}" 
                        class="bg-white text-purple-700 px-6 py-2 rounded-lg font-medium hover:bg-purple-50 transition duration-300">
                         <i class="fas fa-edit mr-2"></i>Edit
@@ -32,7 +32,7 @@
                             <i class="fas fa-trash mr-2"></i>Delete
                         </button>
                     </form>
-                </div> -->
+                </div>
             </div>
         </div>
     </div>

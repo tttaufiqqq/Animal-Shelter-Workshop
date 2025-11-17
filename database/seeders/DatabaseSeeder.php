@@ -25,6 +25,7 @@ class DatabaseSeeder extends Seeder
             //    and can now rely on roles being present
             CreateStaffUserSeeder::class,
             CaretakerSeeder::class,
+            CategorySeeder::class,
         ]);
     }
 }
