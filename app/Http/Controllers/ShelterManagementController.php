@@ -41,6 +41,26 @@ class ShelterManagementController extends Controller
         }
     }
 
+    public function editSlot($id)
+    {
+        try {
+            $slot = Slot::findOrFail($id);
+            
+            return response()->json([
+                'id' => $slot->id,
+                'name' => $slot->name,
+                'section' => $slot->section,
+                'capacity' => $slot->capacity,
+                'status' => $slot->status,
+            ]);
+            
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Slot not found'
+            ], 404);
+        }
+    }
+
     /**
      * Update an existing slot
      */
@@ -51,6 +71,7 @@ class ShelterManagementController extends Controller
                 'name' => 'required|string|max:255',
                 'section' => 'required|string|max:255',
                 'capacity' => 'required|integer|min:1',
+                'status' => 'required|in:available,occupied,maintenance',
             ]);
 
             $slot = Slot::findOrFail($id);

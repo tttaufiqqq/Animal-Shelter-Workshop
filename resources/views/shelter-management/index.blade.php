@@ -175,7 +175,7 @@
         </div>
     </div>
 
-    <!-- Add Slot Modal -->
+    <!-- Add/Edit Slot Modal -->
     <div id="slotModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
         <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div class="bg-gradient-to-r from-indigo-500 to-purple-600 text-white p-6">
@@ -203,20 +203,9 @@
 
                 <div>
                     <label class="block text-gray-800 font-semibold mb-2">
-                     Section <span class="text-red-600">*</span>
-                  </label>
-
-                  <select name="section" id="slotSection" 
-                     class="w-full border-gray-300 rounded-lg shadow-sm px-4 py-3 border
-                           focus:border-indigo-500 focus:ring focus:ring-indigo-200 transition"
-                     required>
-                     <option value="" disabled selected>-- Select Section --</option>
-                     <option value="Cat Zone">Cat Zone</option>
-                     <option value="Dog Zone">Dog Zone</option>
-                     <option value="Medical Wing">Medical Wing</option>
-                     <option value="Puppy Section">Puppy Section</option>
-                     <option value="Exercise Yard">Exercise Yard</option>
-                  </select>
+                        Section <span class="text-red-600">*</span>
+                    </label>
+                    <input type="text" name="section" id="slotSection" class="w-full border-gray-300 rounded-lg shadow-sm px-4 py-3 border focus:border-indigo-500 focus:ring focus:ring-indigo-200 transition" placeholder="e.g., Building A, Outdoor Area" required>
                 </div>
 
                 <div>
@@ -225,6 +214,18 @@
                     </label>
                     <input type="number" name="capacity" id="slotCapacity" min="1" class="w-full border-gray-300 rounded-lg shadow-sm px-4 py-3 border focus:border-indigo-500 focus:ring focus:ring-indigo-200 transition" placeholder="Maximum number of animals" required>
                 </div>
+
+                <div id="statusField" class="hidden">
+                    <label class="block text-gray-800 font-semibold mb-2">
+                        Status <span class="text-red-600">*</span>
+                    </label>
+                    <select name="status" id="slotStatus" class="w-full border-gray-300 rounded-lg shadow-sm px-4 py-3 border bg-white focus:border-indigo-500 focus:ring focus:ring-indigo-200 transition">
+                        <option value="available">Available</option>
+                        <option value="occupied">Occupied</option>
+                        <option value="maintenance">Under Maintenance</option>
+                    </select>
+                </div>
+
                 <div class="flex justify-end gap-3 pt-4">
                     <button type="button" onclick="closeSlotModal()" class="px-6 py-3 bg-gray-200 text-gray-700 font-semibold rounded-lg hover:bg-gray-300 transition duration-300">
                         Cancel
@@ -248,6 +249,9 @@
             document.getElementById('submitButtonText').textContent = 'Add Slot';
             document.getElementById('formMethod').value = 'POST';
             document.getElementById('slotId').value = '';
+            // Hide status field for add mode
+            document.getElementById('statusField').classList.add('hidden');
+            document.getElementById('slotStatus').removeAttribute('required');
         }
 
         function closeSlotModal() {
@@ -256,15 +260,37 @@
         }
 
         function editSlot(slotId) {
-            // You'll need to fetch slot data via AJAX or pass it from backend
-            // For now, just open the modal
-            alert('Edit functionality - Slot ID: ' + slotId);
-            // openSlotModal();
-            // document.getElementById('modalTitle').textContent = 'Edit Slot';
-            // document.getElementById('submitButtonText').textContent = 'Update Slot';
-            // document.getElementById('formMethod').value = 'PUT';
-            // document.getElementById('slotId').value = slotId;
-        }
+            // Open modal in edit mode
+            document.getElementById('slotModal').classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+            document.getElementById('modalTitle').textContent = 'Edit Slot';
+            document.getElementById('submitButtonText').textContent = 'Update Slot';
+            document.getElementById('formMethod').value = 'PUT';
+            document.getElementById('slotId').value = slotId;
+            
+            // Show status field for edit mode
+            document.getElementById('statusField').classList.remove('hidden');
+            document.getElementById('slotStatus').setAttribute('required', 'required');
+            
+            // Update form action
+            document.getElementById('slotForm').action = '/shelter-management/slots/' + slotId;
+            
+            // Fetch slot data via AJAX
+            fetch(`/shelter-management/slots/${slotId}/edit`)
+               .then(response => response.json())
+               .then(data => {
+                     // Populate form fields
+                     document.getElementById('slotName').value = data.name;
+                     document.getElementById('slotSection').value = data.section;
+                     document.getElementById('slotCapacity').value = data.capacity;
+                     document.getElementById('slotStatus').value = data.status;
+               })
+               .catch(error => {
+                     console.error('Error fetching slot data:', error);
+                     alert('Failed to load slot data. Please try again.');
+                     closeSlotModal();
+               });
+         }
 
         function deleteSlot(slotId) {
             if (confirm('Are you sure you want to delete this slot?')) {
