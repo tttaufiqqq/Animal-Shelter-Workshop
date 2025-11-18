@@ -40,6 +40,7 @@ class BookingAdoptionController extends Controller
    }
     public function storeBooking(Request $request)
    {
+
       $request->validate([
          'animalID' => 'required|exists:animal,id',
          'appointment_date' => 'required|date|after:now',
@@ -48,17 +49,16 @@ class BookingAdoptionController extends Controller
 
       // Split datetime-local into date + time
       $dateTime = Carbon::parse($request->appointment_date);
+        
 
       // Check if user already has a pending booking
       $existingBooking = Booking::where('userID', auth()->id())
          ->where('animalID', $request->animalID)
          ->where('status', 'Pending')
          ->first();
-
       if ($existingBooking) {
          return redirect()->back()->with('error', 'You already have a pending booking for this animal.');
       }
-
       Booking::create([
          'userID' => auth()->id(),
          'animalID' => $request->animalID,
@@ -243,8 +243,11 @@ class BookingAdoptionController extends Controller
                 if ($booking) {
                     // Update booking status to Completed
                     $booking->update(['status' => 'Completed']);
+
+                    // Mark the animal as Adopted
+                    $booking->animal->update(['adoption_status' => 'Adopted']);
                     
-                    // Create transaction record
+                    // Create transaction
                     $transaction = Transaction::create([
                         'amount' => $adoptionFee,
                         'status' => 'Success',
@@ -254,13 +257,26 @@ class BookingAdoptionController extends Controller
                         'userID' => Auth::id(),
                     ]);
 
+                    // Create adoption record
                     Adoption::create([
                         'fee'=> $adoptionFee,
-                        'remarks' =>  $animalName . 'Adopted ',
+                        'remarks' =>  $animalName . ' Adopted',
                         'bookingID'=> $bookingId,
                         'transactionID' => $transaction->id,
                     ]);
-                    
+
+                    // Update user role
+                    $user = Auth::user();
+
+                    if ($user->hasRole('public user')) {
+                        $user->removeRole('public user');
+                        $user->assignRole('adopter');
+                    } elseif ($user->hasRole('caretaker')) {
+                        if (!$user->hasRole('adopter')) {
+                            $user->assignRole('adopter');
+                        }
+                    }
+
                     // Clear session
                     session()->forget(['booking_id', 'adoption_fee', 'animal_name', 'bill_code']);
                     
@@ -271,7 +287,8 @@ class BookingAdoptionController extends Controller
                     ]);
                 }
             }
-        } else {
+        }
+ else {
             // Payment failed or pending
             if ($bookingId) {
                 $booking = Booking::find($bookingId);
