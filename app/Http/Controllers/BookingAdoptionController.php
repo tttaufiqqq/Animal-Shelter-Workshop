@@ -21,6 +21,7 @@ use App\Models\Vaccination;
 use App\Models\Booking;  
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
 
 class BookingAdoptionController extends Controller
@@ -116,12 +117,12 @@ class BookingAdoptionController extends Controller
         }
 
         // Only allow cancellation if status is pending or confirmed
-        if (in_array($booking->status, ['pending', 'confirmed'])) {
-            $booking->update(['status' => 'cancelled']);
-            return redirect()->route('booking-adoption.main')->with('success', 'Booking cancelled successfully!');
+        if (in_array($booking->status, ['Pending', 'Confirmed'])) {
+            $booking->update(['status' => 'Cancelled']);
+            return redirect()->route('booking:main')->with('success', 'Booking cancelled successfully!');
         }
 
-        return redirect()->route('booking-adoption.main')->with('error', 'Cannot cancel this booking.');
+        return redirect()->route('booking:main')->with('error', 'Cannot cancel this booking.');
     }
     public function showModal($id)
       {

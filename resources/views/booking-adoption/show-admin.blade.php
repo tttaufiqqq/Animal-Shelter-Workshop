@@ -22,15 +22,21 @@
             <!-- Status Badge -->
             <div class="flex justify-between items-center">
                 <h3 class="text-lg font-bold text-gray-800">Booking Status</h3>
+                
+                @php
+                    // Normalize status to lowercase for safe, case-insensitive checks
+                    $status = strtolower($booking->status);
+                @endphp
+
                 <span class="px-4 py-2 rounded-full text-sm font-semibold
-                    @if($booking->status == 'Pending') bg-yellow-100 text-yellow-700
-                    @elseif($booking->status == 'Confirmed') bg-blue-100 text-blue-700
-                    @elseif($booking->status == 'Completed') bg-green-100 text-green-700
-                    @elseif($booking->status == 'Cancelled') bg-red-100 text-red-700
+                    @if($status == 'pending') bg-yellow-100 text-yellow-700 
+                    @elseif($status == 'confirmed') bg-blue-100 text-blue-700
+                    @elseif($status == 'completed') bg-green-100 text-green-700
+                    @elseif($status == 'cancelled') bg-red-100 text-red-700
                     @else bg-gray-100 text-gray-700
                     @endif">
                     <i class="fas fa-circle text-xs mr-1"></i>
-                    {{ $booking->status }}
+                    {{ ucwords($booking->status) }}
                 </span>
             </div>
 

@@ -55,7 +55,7 @@
             </div>
         @endif
 
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-12">
+        <div class="grid grid-cols-1 md:grid-cols-5 gap-6 mb-10">
             <div class="bg-white rounded-lg shadow-lg p-8 text-center">
                 <div class="text-5xl mb-4">📅</div>
                 <p class="text-4xl font-bold text-purple-700 mb-2">{{ $bookings->count() }}</p>
@@ -75,6 +75,11 @@
                 <div class="text-5xl mb-4">🎉</div>
                 <p class="text-4xl font-bold text-green-600 mb-2">{{ $bookings->where('status', 'Completed')->count() }}</p>
                 <p class="text-gray-600">Completed</p>
+            </div>
+            <div class="bg-white rounded-lg shadow-lg p-8 text-center">
+                <div class="text-5xl mb-4">❌</div>
+                <p class="text-4xl font-bold text-red-600 mb-2">{{ $bookings->whereIn('status', ['Cancelled', 'cancelled'])->count() }}</p>
+                <p class="text-gray-600">Cancelled</p>
             </div>
         </div>
 
@@ -103,31 +108,45 @@
                         <div class="relative">
                             @php
                                 $statusColors = [
-                                    'pending' => 'from-yellow-300 to-yellow-400',
+                                    'pending'   => 'from-yellow-300 to-yellow-400',
                                     'confirmed' => 'from-blue-300 to-blue-400',
                                     'completed' => 'from-green-300 to-green-400',
                                     'cancelled' => 'from-red-300 to-red-400',
                                 ];
                                 $statusEmojis = [
-                                    'pending' => '⏳',
+                                    'pending'   => '⏳',
                                     'confirmed' => '✅',
                                     'completed' => '🎉',
                                     'cancelled' => '❌',
                                 ];
-                                $statusColor = $statusColors[$booking->status] ?? 'from-gray-300 to-gray-400';
-                                $statusEmoji = $statusEmojis[$booking->status] ?? '📅';
+
+                                // 1. Normalize the status to lowercase for the lookup
+                                $statusKey = strtolower($booking->status);
+
+                                // 2. Use the normalized key for safe retrieval with a default fallback (??)
+                                $statusColor = $statusColors[$statusKey] ?? 'from-gray-300 to-gray-400';
+                                $statusEmoji = $statusEmojis[$statusKey] ?? '📅';
                             @endphp
                             <div class="h-32 bg-gradient-to-br {{ $statusColor }} flex items-center justify-center">
                                 <span class="text-7xl">{{ $statusEmoji }}</span>
                             </div>
-                            @php
+                           @php
                                 $badgeColors = [
-                                    'pending' => 'bg-yellow-500',
+                                    'pending'   => 'bg-yellow-500',
                                     'confirmed' => 'bg-blue-500',
                                     'completed' => 'bg-green-500',
                                     'cancelled' => 'bg-red-500',
                                 ];
-                                $badgeColor = $badgeColors[$booking->status] ?? 'bg-gray-500';
+
+                                // 1. Normalize the status to lowercase for the lookup key
+                                $statusKey = strtolower($booking->status);
+
+                                // 2. Safely retrieve the badge color class using the normalized key
+                                //    The ?? operator provides a default 'bg-gray-500' if the status is unrecognized.
+                                $badgeColor = $badgeColors[$statusKey] ?? 'bg-gray-500';
+
+                                // (Optional) Prepare the display status
+                                $displayStatus = ucwords($booking->status);
                             @endphp
                             <div class="absolute top-4 right-4 {{ $badgeColor }} text-white px-3 py-1 rounded-full text-sm font-semibold">
                                 {{ ucfirst($booking->status) }}
@@ -202,16 +221,6 @@
                                         class="flex-1 text-center bg-purple-700 hover:bg-purple-800 text-white py-3 rounded-lg font-semibold transition duration-300">
                                     View Details
                                 </button>
-                                
-                                @if(in_array($booking->status, ['Pending', 'Confirmed']))
-                                    <form action="{{ route('bookings.cancel', $booking->id) }}" method="POST" class="flex-1" onsubmit="return confirm('Are you sure you want to cancel this booking?');">
-                                        @csrf
-                                        @method('PATCH')
-                                        <button type="submit" class="w-full bg-red-600 hover:bg-red-700 text-white py-3 rounded-lg font-semibold transition duration-300">
-                                            Cancel
-                                        </button>
-                                    </form>
-                                @endif
                             </div>
 
                             <!-- Add this at the bottom of your bookings list page -->
