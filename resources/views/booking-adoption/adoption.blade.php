@@ -159,10 +159,10 @@
                 <!-- Terms & Conditions -->
                 <div class="mb-4 flex items-start">
                     <input type="checkbox" 
-                           id="agree_terms" 
-                           name="agree_terms" 
-                           class="mt-1 mr-3 h-4 w-4 text-green-600 border-gray-300 rounded focus:ring-green-500" 
-                           required>
+                        id="agree_terms" 
+                        name="agree_terms" 
+                        class="mt-1 mr-3 h-4 w-4 text-green-600 border-gray-300 rounded focus:ring-green-500" 
+                        required>
                     <label for="agree_terms" class="text-sm text-gray-700">
                         I understand and agree to pay the adoption fee of <strong>RM {{ number_format($feeBreakdown['total_fee'], 2) }}</strong>. I acknowledge that this fee covers all medical care and vaccinations provided to the animal. <span class="text-red-600">*</span>
                     </label>
@@ -176,7 +176,7 @@
                     </button>
                     <button type="submit" 
                             class="px-6 py-3 bg-gradient-to-r from-green-600 to-green-700 text-white font-semibold rounded-lg hover:from-green-700 hover:to-green-800 transition duration-300 shadow-lg">
-                        <i class="fas fa-credit-card mr-2"></i>Confirm & Proceed to Payment
+                        <i class="fas fa-check-circle mr-2"></i>Confirm Booking
                     </button>
                 </div>
             </form>
@@ -205,4 +205,38 @@
             }
         }
     });
+    function openAdoptionFeeModal(bookingId) {
+        const container = document.getElementById('adoptionFeeModalContainer');
+        if (!container) {
+            // Create container if it doesn't exist
+            const newContainer = document.createElement('div');
+            newContainer.id = 'adoptionFeeModalContainer';
+            document.body.appendChild(newContainer);
+        }
+        
+        const containerElement = document.getElementById('adoptionFeeModalContainer');
+        containerElement.innerHTML = '<div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]"><div class="bg-white rounded-lg p-6"><i class="fas fa-spinner fa-spin mr-2"></i>Loading...</div></div>';
+        
+        fetch(`/bookings/${bookingId}/adoption-fee`, {
+            method: 'GET',
+            headers: {
+                'Accept': 'text/html',
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.text();
+        })
+        .then(html => {
+            containerElement.innerHTML = html;
+        })
+        .catch(error => {
+            console.error('Error loading adoption fee:', error);
+            alert('Failed to load adoption fee details: ' + error.message);
+            containerElement.innerHTML = '';
+        });
+    }
 </script>

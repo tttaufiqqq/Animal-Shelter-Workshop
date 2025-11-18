@@ -36,6 +36,7 @@ return new class extends Migration {
             $table->string('contactNum', 30)->nullable();
             $table->string('specialization')->nullable();
             $table->string('license_no', 50)->nullable();
+            $table->decimal('weight', 8, 2)->nullable();
             $table->unsignedBigInteger('clinicID')->nullable(); // FK later
             $table->timestamps();
         });
@@ -46,6 +47,7 @@ return new class extends Migration {
             $table->string('type')->nullable();
             $table->date('next_due_date')->nullable();
             $table->text('remarks')->nullable();
+            $table->decimal('weight', 8, 2)->nullable();
             $table->decimal('costs', 10, 2)->nullable();
             $table->timestamps();
             $table->unsignedBigInteger('animalID')->nullable(); // FK later
@@ -58,6 +60,7 @@ return new class extends Migration {
             $table->string('species')->nullable();
             $table->text('health_details')->nullable();
             $table->string('age')->nullable();
+            $table->decimal('weight', 8, 2)->nullable();
             $table->enum('gender', ['Male', 'Female', 'Unknown'])->default('Unknown');
             $table->string('adoption_status')->nullable();
             $table->unsignedBigInteger('rescueID')->nullable();     // FK later

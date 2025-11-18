@@ -205,14 +205,11 @@
                         <i class="fas fa-times-circle mr-2"></i>Cancel Booking
                     </button>
                 </form>
-                <form action="{{ route('bookings.confirm', $booking->id) }}" method="POST" class="inline" onsubmit="return confirm('Are you sure you want to confirm this booking?');">
-                    @csrf
-                    @method('PATCH')
-                    <button onclick="openAdoptionFeeModal({{ $booking->id }})" 
-                            class="px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg transition duration-300 shadow-md">
-                        <i class="fas fa-check-circle mr-2"></i>Confirm & Pay
-                    </button>
-                </form>
+                <!-- Change this button to open modal instead of direct form submission -->
+                <button onclick="openAdoptionFeeModal({{ $booking->id }})" 
+                        class="px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg transition duration-300 shadow-md">
+                    <i class="fas fa-check-circle mr-2"></i>Confirm & Pay
+                </button>
             @endif
         </div>
     </div>
