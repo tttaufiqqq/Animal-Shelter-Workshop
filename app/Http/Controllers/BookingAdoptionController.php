@@ -19,7 +19,8 @@ use App\Models\Vet;
 use App\Models\Medical;
 use App\Models\Vaccination;  
 use App\Models\Transaction;  
-use App\Models\Booking;  
+use App\Models\Booking;
+use App\Models\Adoption;    
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\Log;
@@ -135,7 +136,7 @@ class BookingAdoptionController extends Controller
         }
 
         // Only allow confirmation if status is pending
-        if (!in_array($booking->status, ['Pending', 'pending'])) {
+        if (!in_array($booking->status, ['Pending', 'pending', 'confirmed', 'Confirmed'])) {
             if ($request->expectsJson()) {
                 return response()->json([
                     'success' => false,
@@ -190,11 +191,16 @@ class BookingAdoptionController extends Controller
             'billContentEmail' => 'Thank you for adopting ' . $animalName . '!',
         ];
 
-        $url = 'https://toyyibpay.com/index.php/api/createBill';
+        $url = 'https://dev.toyyibpay.com/index.php/api/createBill';
         $response = Http::withoutVerifying()->asForm()->post($url, $option);
         $data = $response->json();
 
-        Log::info('ToyyibPay Response:', ['response' => $data]);
+        // dd([
+        //     'status'   => $response->status(),
+        //     'body'     => $response->body(),
+        //     'json'     => $response->json(),
+        //     'payload'  => $option, // optional but VERY useful
+        // ]);
 
         if (isset($data[0]['BillCode'])) {
             $billCode = $data[0]['BillCode'];
@@ -202,11 +208,11 @@ class BookingAdoptionController extends Controller
             // Store bill code in session for verification
             session(['bill_code' => $billCode]);
             
-            return redirect('https://toyyibpay.com/' . $billCode);
+            return redirect('https://dev.toyyibpay.com/' . $billCode);
         } else {
-            Log::error('ToyyibPay Error:', [
+            dd([
                 'status' => $response->status(),
-                'body' => $response->body(),
+                'body'   => $response->body(),
             ]);
 
             // Revert booking status back to Pending
@@ -239,13 +245,20 @@ class BookingAdoptionController extends Controller
                     $booking->update(['status' => 'Completed']);
                     
                     // Create transaction record
-                    Transaction::create([
+                    $transaction = Transaction::create([
                         'amount' => $adoptionFee,
                         'status' => 'Success',
                         'remarks' => 'Adoption payment for ' . $animalName . ' (Booking #' . $bookingId . ') - Bill Code: ' . $billCode,
                         'date' => now(),
                         'type' => 'Online Banking',
                         'userID' => Auth::id(),
+                    ]);
+
+                    Adoption::create([
+                        'fee'=> $adoptionFee,
+                        'remarks' =>  $animalName . 'Adopted ',
+                        'bookingID'=> $bookingId,
+                        'transactionID' => $transaction->id,
                     ]);
                     
                     // Clear session
@@ -334,7 +347,7 @@ class BookingAdoptionController extends Controller
     // Helper function to get bill transaction details
     private function getBillTransactions($billCode)
     {
-        $url = 'https://toyyibpay.com/index.php/api/getBillTransactions';
+        $url = 'https://dev.toyyibpay.com/index.php/api/getBillTransactions';
         
         $response = Http::withoutVerifying()->asForm()->post($url, [
             'billCode' => $billCode,
