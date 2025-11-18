@@ -11,6 +11,7 @@ use App\Models\Clinic;
 use App\Models\Vet; 
 use App\Models\Medical;
 use App\Models\Vaccination;  
+use App\Models\Booking;  
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
@@ -160,7 +161,7 @@ class AnimalManagementController extends Controller
         $animal = Animal::with([
             'images',
             'slot',
-            'rescue.report'
+            'rescue.report',
         ])->findOrFail($id);
         
         // Get medical and vaccination records for THIS animal only
@@ -174,8 +175,19 @@ class AnimalManagementController extends Controller
         
         $vets = Vet::all();
         $slots = Slot::where('status', 'available')->get();
+         $bookedSlots = $animal->bookings->map(function($booking) {
+            // Combine date and time
+            $dateTime = \Carbon\Carbon::parse($booking->appointment_date . ' ' . $booking->appointment_time);
+            
+            return [
+                'date' => $dateTime->format('Y-m-d'),
+                'time' => $dateTime->format('H:i'),
+                'datetime' => $dateTime->format('Y-m-d\TH:i'),
+            ];
+        });
+        // dd($bookedSlots);
         
-        return view('animal-management.show', compact('animal', 'vets', 'medicals', 'vaccinations', 'slots'));
+        return view('animal-management.show', compact('animal', 'vets', 'medicals', 'vaccinations', 'slots', 'bookedSlots'));
     }
 
     public function assignSlot(Request $request, $animalId)

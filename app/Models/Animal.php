@@ -37,7 +37,7 @@ class Animal extends Model
 
     public function bookings()
     {
-        return $this->belongsToMany(Booking::class, 'animal_booking', 'animalID', 'bookingID');
+        return $this->hasMany(Booking::class, 'animalID', 'id');
     }
 }
 

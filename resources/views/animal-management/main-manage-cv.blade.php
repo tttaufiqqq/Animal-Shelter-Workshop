@@ -143,9 +143,9 @@
                     <div class="text-6xl mb-4">🏥</div>
                     <h3 class="text-2xl font-bold text-gray-800 mb-2">No Clinics Yet</h3>
                     <p class="text-gray-600 mb-6">Start by adding your first veterinary clinic</p>
-                    <button onclick="openModal('clinic')" class="px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-semibold rounded-lg hover:from-blue-600 hover:to-blue-700 transition duration-300">
+                    @role('admin')<button onclick="openModal('clinic')" class="px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-semibold rounded-lg hover:from-blue-600 hover:to-blue-700 transition duration-300">
                         <i class="fas fa-plus mr-2"></i>Add First Clinic
-                    </button>
+                    </button>@endrole
                 </div>
             @endif
         </div>
@@ -314,9 +314,9 @@
                     <div class="text-6xl mb-4">👨‍⚕️</div>
                     <h3 class="text-xl font-bold text-gray-800 mb-2">No Veterinarians Yet</h3>
                     <p class="text-gray-600 mb-6">Start by adding your first veterinarian to the system.</p>
-                    <button onclick="openModal('vet')" class="px-6 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white font-semibold rounded-lg hover:from-green-600 hover:to-green-700 transition duration-300 shadow-lg">
+                    @role('admin')<button onclick="openModal('vet')" class="px-6 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white font-semibold rounded-lg hover:from-green-600 hover:to-green-700 transition duration-300 shadow-lg">
                         <i class="fas fa-plus mr-2"></i>Add First Veterinarian
-                    </button>
+                    </button>@endrole
                 </div>
             @endif
         </div>

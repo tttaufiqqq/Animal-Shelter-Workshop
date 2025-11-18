@@ -35,22 +35,28 @@
 
         {{-- ADMIN ONLY: Slots --}}
         @role('admin')
-            <a href="{{ route('shelter-management.index') }}" class="text-purple-100 hover:text-white transition duration-300 font-medium">
-                Slots
+           <a href="{{ route('bookings.index') }}" class="text-purple-100 hover:text-white transition duration-300 font-medium">
+               Bookings
             </a>
         @endrole
 
         {{-- ADMIN + CARETAKER: Clinics & Vets --}}
         @role('admin|caretaker')
+            <a href="{{ route('shelter-management.index') }}" class="text-purple-100 hover:text-white transition duration-300 font-medium">
+                Slots
+            </a>
             <a href="{{ route('animal-management.clinic-index') }}" class="text-purple-100 hover:text-white transition duration-300 font-medium">
                 Clinics & Vets
             </a>
         @endrole
 
-        {{-- ALL LOGGED IN USERS: Booking --}}
+        {{-- Caretaker and Public User: Booking --}}
+         @role('public user|caretaker')
         <a href="{{ route('bookings.index') }}" class="text-purple-100 hover:text-white transition duration-300 font-medium">
             My Booking
         </a>
+        @endrole
+
 
     @endauth
 

@@ -53,6 +53,10 @@ The system provides different roles and dashboards for administrators, caretaker
 -   Overview of reports, rescues, adoptions, and active users
 -   Visualization of animal statistics and system metrics
 
+### ERD
+
+<p align="center"> <img src="public/ERDV2.png" alt="ERD Diagram" width="700"/> </p>
+
 ---
 
 ## 🧩 System Architecture

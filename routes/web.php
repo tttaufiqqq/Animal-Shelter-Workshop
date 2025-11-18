@@ -104,6 +104,9 @@ Route::middleware('auth')->group(function () {
     Route::get('/bookings/{booking}', [BookingAdoptionController::class, 'show'])->name('bookings.show');
     Route::patch('/bookings/{booking}/cancel', [BookingAdoptionController::class, 'cancel'])->name('bookings.cancel');
 
+    Route::get('/bookings/{id}/modal', [BookingAdoptionController::class, 'showModal'])->name('bookings.show.modal')->middleware('auth');
+    Route::get('/bookings/{id}/modal', [BookingAdoptionController::class, 'showModal'])->name('bookings.show.modal')->middleware('auth');
+
 });
 
 require __DIR__.'/auth.php';

@@ -38,19 +38,44 @@
 
             <!-- Appointment Date & Time -->
             <div>
-                <label for="appointment_date" class="block text-gray-800 font-semibold mb-2">
-                    <i class="fas fa-calendar-alt mr-1"></i>Preferred Appointment Date & Time <span class="text-red-600">*</span>
-                </label>
-                <input type="datetime-local" 
-                       id="appointment_date" 
-                       name="appointment_date" 
-                       min="{{ date('Y-m-d\TH:i') }}"
-                       class="w-full border-gray-300 rounded-lg shadow-sm px-4 py-3 border focus:border-purple-500 focus:ring focus:ring-purple-200 transition" 
-                       required>
-                <p class="text-xs text-gray-600 mt-2">
-                    <i class="fas fa-info-circle mr-1"></i>
-                    Select your preferred date and time for the adoption appointment
-                </p>
+               <label for="appointment_date" class="block text-gray-800 font-semibold mb-2">
+                  <i class="fas fa-calendar-alt mr-1"></i>Preferred Appointment Date & Time <span class="text-red-600">*</span>
+               </label>
+               <input type="datetime-local" 
+                     id="appointment_date" 
+                     name="appointment_date" 
+                     min="{{ date('Y-m-d\TH:i') }}"
+                     class="w-full border-gray-300 rounded-lg shadow-sm px-4 py-3 border focus:border-purple-500 focus:ring focus:ring-purple-200 transition" 
+                     required>
+               
+               <!-- Show booked slots info -->
+               @if($bookedSlots && $bookedSlots->count() > 0)
+                  <div class="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                        <p class="text-xs font-semibold text-yellow-800 mb-2">
+                           <i class="fas fa-clock mr-1"></i>Already Booked Time Slots:
+                        </p>
+                        <div class="space-y-1">
+                           @foreach($bookedSlots as $slot)
+                              <div class="text-xs text-yellow-700 flex items-center">
+                                    <i class="fas fa-times-circle mr-2"></i>
+                                    {{ \Carbon\Carbon::parse($slot['datetime'])->format('F d, Y - h:i A') }}
+                              </div>
+                           @endforeach
+                        </div>
+                        <p class="text-xs text-yellow-600 mt-2">
+                           Please select a different date and time
+                        </p>
+                  </div>
+               @endif
+               
+               <p class="text-xs text-gray-600 mt-2">
+                  <i class="fas fa-info-circle mr-1"></i>
+                  Select your preferred date and time for the adoption appointment
+               </p>
+               <div id="booking-warning" class="hidden mt-2 text-xs text-red-600 bg-red-50 p-2 rounded border border-red-200">
+                  <i class="fas fa-exclamation-triangle mr-1"></i>
+                  This time slot is already booked. Please select a different time.
+               </div>
             </div>
 
             <!-- Contact Information -->
@@ -163,4 +188,59 @@
             closeBookAdoptionModal();
         }
     });
+               // Store booked slots
+               const bookedSlots = @json($bookedSlots ?? []);
+               
+               // Function to check if a datetime is booked
+               function isSlotBooked(selectedDateTime) {
+                  return bookedSlots.some(slot => slot.datetime === selectedDateTime);
+               }
+               
+               // Validate appointment time on form submission
+               document.getElementById('bookAdoptionForm')?.addEventListener('submit', function(e) {
+                  const appointmentInput = document.getElementById('appointment_date');
+                  const selectedDateTime = appointmentInput.value;
+                  
+                  if (isSlotBooked(selectedDateTime)) {
+                        e.preventDefault();
+                        alert('This time slot is already booked. Please select a different date and time.');
+                        appointmentInput.focus();
+                        return false;
+                  }
+               });
+               
+               // Add real-time validation
+               document.addEventListener('DOMContentLoaded', function() {
+                  const appointmentInput = document.getElementById('appointment_date');
+                  const warningDiv = document.getElementById('booking-warning');
+                  const submitButton = document.querySelector('#bookAdoptionForm button[type="submit"]');
+                  
+                  if (appointmentInput) {
+                        appointmentInput.addEventListener('change', function() {
+                           const selectedDateTime = this.value;
+                           
+                           if (isSlotBooked(selectedDateTime)) {
+                              // Show warning
+                              warningDiv.classList.remove('hidden');
+                              // Disable submit button
+                              if (submitButton) {
+                                    submitButton.disabled = true;
+                                    submitButton.classList.add('opacity-50', 'cursor-not-allowed');
+                              }
+                              // Highlight input as error
+                              this.classList.add('border-red-500', 'bg-red-50');
+                           } else {
+                              // Hide warning
+                              warningDiv.classList.add('hidden');
+                              // Enable submit button
+                              if (submitButton) {
+                                    submitButton.disabled = false;
+                                    submitButton.classList.remove('opacity-50', 'cursor-not-allowed');
+                              }
+                              // Remove error styling
+                              this.classList.remove('border-red-500', 'bg-red-50');
+                           }
+                        });
+                  }
+               });
 </script>

@@ -44,7 +44,7 @@ return new class extends Migration {
         Schema::create('booking', function (Blueprint $table) {
             $table->id();
             $table->date('appointment_date')->nullable();
-            $table->time('booking_time');
+            $table->time('appointment_time');
             $table->string('status')->nullable();
             $table->unsignedBigInteger('animalID')->nullable(); // FK later
             $table->unsignedBigInteger('userID')->nullable();   // FK later
@@ -70,13 +70,6 @@ return new class extends Migration {
             $table->unsignedBigInteger('transactionID')->nullable(); // FK later
             $table->timestamps();
         });
-
-        Schema::create('animal_booking', function (Blueprint $table) {
-            $table->unsignedBigInteger('animalID');  // FK later
-            $table->unsignedBigInteger('bookingID'); // FK later
-            $table->primary(['animalID', 'bookingID']);
-        });
-
         /**
          * Step 2: Add foreign key constraints
          */
@@ -134,30 +127,10 @@ return new class extends Migration {
                   ->on('transaction')
                   ->onDelete('set null');
         });
-
-        Schema::table('animal_booking', function (Blueprint $table) {
-            $table->foreign('animalID')
-                  ->references('id')
-                  ->on('animal')
-                  ->onDelete('cascade');
-
-            $table->foreign('bookingID')
-                  ->references('id')
-                  ->on('booking')
-                  ->onDelete('cascade');
-        });
     }
 
     public function down(): void
     {
-        /**
-         * Drop FKs first in reverse order
-         */
-        Schema::table('animal_booking', function (Blueprint $table) {
-            $table->dropForeign(['animalID']);
-            $table->dropForeign(['bookingID']);
-        });
-
         Schema::table('adoption', function (Blueprint $table) {
             $table->dropForeign(['bookingID']);
             $table->dropForeign(['transactionID']);
@@ -185,7 +158,6 @@ return new class extends Migration {
         /**
          * Drop tables
          */
-        Schema::dropIfExists('animal_booking');
         Schema::dropIfExists('adoption');
         Schema::dropIfExists('transaction');
         Schema::dropIfExists('booking');

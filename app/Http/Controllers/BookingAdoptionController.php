@@ -20,6 +20,8 @@ use App\Models\Medical;
 use App\Models\Vaccination;  
 use App\Models\Booking;  
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Support\Facades\DB;
 
 class BookingAdoptionController extends Controller
 {
@@ -57,7 +59,7 @@ class BookingAdoptionController extends Controller
          'userID' => auth()->id(),
          'animalID' => $request->animalID,
          'appointment_date' => $dateTime->toDateString(),  // YYYY-MM-DD
-         'booking_time' => $dateTime->toTimeString(),      // HH:MM:SS
+         'appointment_time' => $dateTime->toTimeString(),      // HH:MM:SS
          'status' => 'Pending',
          'notes' => $request->notes,
       ]);
@@ -72,9 +74,9 @@ class BookingAdoptionController extends Controller
     {
         // Get all bookings for the logged-in user with related data
         $bookings = Booking::where('userID', Auth::id())
-            ->with(['animals', 'adoption'])
+            ->with(['animal', 'adoption'])
             ->orderBy('appointment_date', 'desc')
-            ->orderBy('booking_time', 'desc')
+            ->orderBy('appointment_time', 'desc')
             ->get();
 
         return view('booking-adoption.main', compact('bookings'));
@@ -105,10 +107,27 @@ class BookingAdoptionController extends Controller
         // Only allow cancellation if status is pending or confirmed
         if (in_array($booking->status, ['pending', 'confirmed'])) {
             $booking->update(['status' => 'cancelled']);
-            return redirect()->route('bookings.index')->with('success', 'Booking cancelled successfully!');
+            return redirect()->route('booking-adoption.main')->with('success', 'Booking cancelled successfully!');
         }
 
         return redirect()->route('booking-adoption.main')->with('error', 'Cannot cancel this booking.');
     }
+    public function showModal($id)
+      {
+         try {
+            $booking = Booking::with(['animal.images', 'user'])
+                  ->where('id', $id)
+                  ->where('userID', auth()->id())
+                  ->firstOrFail();
+            
+            return view('booking-adoption.show-modal', compact('booking'));
+         } catch (\Exception $e) {
+            \Log::error('Booking modal error: ' . $e->getMessage());
+            return response()->json([
+                  'error' => 'Failed to load booking',
+                  'message' => $e->getMessage()
+            ], 500);
+         }
+      }
 
 }

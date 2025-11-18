@@ -9,7 +9,6 @@
 <body class="bg-gray-50">
     @include('navbar')
 
-    <!-- Hero Section -->
     <div class="bg-gradient-to-r from-purple-600 to-purple-800 text-white py-16">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex flex-col md:flex-row md:items-center md:justify-between">
@@ -17,22 +16,23 @@
                     <h1 class="text-5xl font-bold mb-4">My Bookings</h1>
                     <p class="text-xl text-purple-100">View and manage your appointment bookings</p>
                 </div>
+                {{-- FIX: Close the @unless block and the div properly --}}
+                @unless($bookings->isEmpty())
                 <div class="mt-6 md:mt-0">
-                    <a href="{{ route('bookings.create') }}" class="inline-flex items-center gap-2 bg-white text-purple-700 px-8 py-3 rounded-lg font-semibold hover:bg-purple-50 transition duration-300 shadow-lg">
+                    <a href="{{ route('animal:main') }}" class="inline-flex items-center gap-2 bg-white text-purple-700 px-8 py-3 rounded-lg font-semibold hover:bg-purple-50 transition duration-300 shadow-lg">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
                         </svg>
                         <span>New Booking</span>
                     </a>
                 </div>
+                @endunless
             </div>
         </div>
     </div>
 
-    <!-- Main Content -->
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         
-        <!-- Success/Error Messages -->
         @if (session('success'))
             <div class="bg-green-50 border-l-4 border-green-600 text-green-700 p-4 rounded-lg mb-8 shadow-sm">
                 <div class="flex items-center">
@@ -55,7 +55,6 @@
             </div>
         @endif
 
-        <!-- Stats Section -->
         <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-12">
             <div class="bg-white rounded-lg shadow-lg p-8 text-center">
                 <div class="text-5xl mb-4">📅</div>
@@ -64,22 +63,21 @@
             </div>
             <div class="bg-white rounded-lg shadow-lg p-8 text-center">
                 <div class="text-5xl mb-4">⏳</div>
-                <p class="text-4xl font-bold text-yellow-600 mb-2">{{ $bookings->where('status', 'pending')->count() }}</p>
+                <p class="text-4xl font-bold text-yellow-600 mb-2">{{ $bookings->where('status', 'Pending')->count() }}</p>
                 <p class="text-gray-600">Pending</p>
             </div>
             <div class="bg-white rounded-lg shadow-lg p-8 text-center">
                 <div class="text-5xl mb-4">✅</div>
-                <p class="text-4xl font-bold text-blue-600 mb-2">{{ $bookings->where('status', 'confirmed')->count() }}</p>
+                <p class="text-4xl font-bold text-blue-600 mb-2">{{ $bookings->where('status', 'Confirmed')->count() }}</p>
                 <p class="text-gray-600">Confirmed</p>
             </div>
             <div class="bg-white rounded-lg shadow-lg p-8 text-center">
                 <div class="text-5xl mb-4">🎉</div>
-                <p class="text-4xl font-bold text-green-600 mb-2">{{ $bookings->where('status', 'completed')->count() }}</p>
+                <p class="text-4xl font-bold text-green-600 mb-2">{{ $bookings->where('status', 'Completed')->count() }}</p>
                 <p class="text-gray-600">Completed</p>
             </div>
         </div>
 
-        <!-- Bookings List -->
         @if($bookings->isEmpty())
             <div class="bg-white rounded-lg shadow-lg p-12 text-center">
                 <div class="mb-6">
@@ -102,7 +100,6 @@
                 @foreach($bookings as $booking)
                     <div class="bg-white rounded-lg shadow-lg overflow-hidden hover:shadow-2xl transition duration-300">
                         
-                        <!-- Status Header -->
                         <div class="relative">
                             @php
                                 $statusColors = [
@@ -137,7 +134,6 @@
                             </div>
                         </div>
 
-                        <!-- Booking Details -->
                         <div class="p-6">
                             <div class="flex items-center justify-between mb-4">
                                 <h3 class="text-2xl font-bold text-gray-800">Booking #{{ $booking->id }}</h3>
@@ -164,11 +160,13 @@
                                     </div>
                                     <div>
                                         <p class="text-sm text-gray-500 font-medium">Time</p>
-                                        <p class="font-semibold text-gray-800">{{ \Carbon\Carbon::parse($booking->booking_time)->format('h:i A') }}</p>
+                                        {{-- FIX: Corrected variable name from booking_time to appointment_time --}}
+                                        <p class="font-semibold text-gray-800">{{ \Carbon\Carbon::parse($booking->appointment_time)->format('h:i A') }}</p>
                                     </div>
                                 </div>
 
-                                @if($booking->animals->isNotEmpty())
+                                {{-- FIX: Changed $booking->animals->isNotEmpty() to check singular animal relationship $booking->animal --}}
+                                @if($booking->animal)
                                     <div class="flex items-start">
                                         <div class="bg-purple-100 rounded-full p-2 mr-3 flex-shrink-0">
                                             <svg class="w-5 h-5 text-purple-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -176,13 +174,12 @@
                                             </svg>
                                         </div>
                                         <div>
-                                            <p class="text-sm text-gray-500 font-medium">Animals</p>
+                                            <p class="text-sm text-gray-500 font-medium">Animal</p>
                                             <div class="flex flex-wrap gap-1 mt-1">
-                                                @foreach($booking->animals as $animal)
-                                                    <span class="bg-purple-100 text-purple-700 px-2 py-1 rounded-full text-xs font-medium">
-                                                        {{ $animal->name ?? 'Animal #' . $animal->id }}
-                                                    </span>
-                                                @endforeach
+                                                {{-- FIX: Accessing singular animal directly --}}
+                                                <span class="bg-purple-100 text-purple-700 px-2 py-1 rounded-full text-xs font-medium">
+                                                    {{ $booking->animal->name ?? 'Animal #' . $booking->animal->id }}
+                                                </span>
                                             </div>
                                         </div>
                                     </div>
@@ -200,13 +197,13 @@
                                 @endif
                             </div>
 
-                            <!-- Action Buttons -->
                             <div class="flex gap-2 mt-6">
-                                <a href="{{ route('bookings.show', $booking->id) }}" class="flex-1 text-center bg-purple-700 hover:bg-purple-800 text-white py-3 rounded-lg font-semibold transition duration-300">
+                                <button onclick="viewBookingDetails({{ $booking->id }})" 
+                                        class="flex-1 text-center bg-purple-700 hover:bg-purple-800 text-white py-3 rounded-lg font-semibold transition duration-300">
                                     View Details
-                                </a>
+                                </button>
                                 
-                                @if(in_array($booking->status, ['pending', 'confirmed']))
+                                @if(in_array($booking->status, ['Pending', 'Confirmed']))
                                     <form action="{{ route('bookings.cancel', $booking->id) }}" method="POST" class="flex-1" onsubmit="return confirm('Are you sure you want to cancel this booking?');">
                                         @csrf
                                         @method('PATCH')
@@ -216,25 +213,81 @@
                                     </form>
                                 @endif
                             </div>
+
+                            <!-- Add this at the bottom of your bookings list page -->
+                            <div id="bookingDetailsModalContainer"></div>
                         </div>
                     </div>
                 @endforeach
             </div>
+            {{-- FIX: Missing @endif for @if($bookings->isEmpty()) --}}
         @endif
 
-        <!-- Info Section -->
         <div class="mt-16 bg-gradient-to-r from-purple-700 to-purple-900 rounded-lg p-12 text-center text-white">
             <h2 class="text-3xl font-bold mb-4">Need Help with Your Booking?</h2>
             <p class="text-xl mb-6">Contact us if you have any questions about your appointments or need to make changes.</p>
             <div class="flex flex-col sm:flex-row gap-4 justify-center">
-                <a href="{{ route('bookings.create') }}" class="bg-white text-purple-700 px-8 py-3 rounded-lg font-semibold hover:bg-purple-50 transition duration-300 inline-block">
-                    Book New Appointment
-                </a>
-                <a href="#" class="bg-purple-800 hover:bg-purple-900 text-white px-8 py-3 rounded-lg font-semibold transition duration-300 inline-block border-2 border-white">
+                <a href="{{route('contact')}}" class="bg-white text-purple-700 px-8 py-3 rounded-lg font-semibold hover:bg-purple-50 transition duration-300 inline-block">
                     Contact Support
                 </a>
             </div>
         </div>
     </div>
+    <script>
+            function viewBookingDetails(bookingId) {
+            const container = document.getElementById('bookingDetailsModalContainer');
+            container.innerHTML = '<div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"><div class="bg-white rounded-lg p-6"><i class="fas fa-spinner fa-spin mr-2"></i>Loading...</div></div>';
+            
+            fetch(`/bookings/${bookingId}/modal`, {
+                method: 'GET',
+                headers: {
+                    'Accept': 'text/html',
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.text();
+            })
+            .then(html => {
+                container.innerHTML = html;
+                
+                // Attach event listeners after modal is loaded
+                const modal = document.getElementById('bookingDetailsModal');
+                if (modal) {
+                    // Click outside to close
+                    modal.addEventListener('click', function(e) {
+                        if (e.target === this) {
+                            container.innerHTML = '';
+                        }
+                    });
+                }
+                
+                // Escape key to close
+                const escapeHandler = function(e) {
+                    if (e.key === 'Escape' && document.getElementById('bookingDetailsModal')) {
+                        container.innerHTML = '';
+                        document.removeEventListener('keydown', escapeHandler);
+                    }
+                };
+                document.addEventListener('keydown', escapeHandler);
+            })
+            .catch(error => {
+                console.error('Error loading booking details:', error);
+                alert('Failed to load booking details: ' + error.message);
+                container.innerHTML = '';
+            });
+        }
+
+        // Global function for close button
+        function closeBookingDetailsModal() {
+            const container = document.getElementById('bookingDetailsModalContainer');
+            if (container) {
+                container.innerHTML = '';
+            }
+        }
+</script>
 </body>
 </html>

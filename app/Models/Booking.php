@@ -7,16 +7,16 @@ use Illuminate\Database\Eloquent\Model;
 class Booking extends Model
 {
     protected $table = 'booking';
-    protected $fillable = ['appointment_date', 'booking_time', 'status', 'animalID', 'userID'];
+    protected $fillable = ['appointment_date', 'appointment_time', 'status', 'animalID', 'userID'];
 
     public function user()
     {
         return $this->belongsTo(User::class, 'userID');
     }
 
-    public function animals()
+    public function animal()
     {
-        return $this->belongsToMany(Animal::class, 'animal_booking', 'bookingID', 'animalID');
+        return $this->belongsTo(Animal::class, 'animalID', 'id');
     }
 
     public function adoption()

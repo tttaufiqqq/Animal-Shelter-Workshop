@@ -76,23 +76,28 @@
                                 <span>{{ Auth::user()->email }}</span>
                             </p>
                             <div class="flex items-center justify-between flex-wrap gap-3">
-                                <div>
+                                @php
+                                    $userRoles = Auth::user()->getRoleNames(); 
+                                    $rolesToDisplay = $userRoles->isEmpty() ? collect(['user']) : $userRoles; 
+
+                                    $badgeColors = [
+                                        'staff' => 'from-purple-600 to-purple-700',
+                                        'adopter' => 'from-purple-600 to-purple-700',
+                                        'moderator' => 'from-blue-600 to-blue-700',
+                                        'user' => 'from-gray-600 to-gray-700',
+                                        'public user' => 'from-gray-600 to-gray-700',
+                                    ];
+                                @endphp
+
+                                @foreach ($rolesToDisplay as $role)
                                     @php
-                                        $userRole = Auth::user()->getRoleNames()->first() ?? 'user';
-                                        $badgeColors = [
-                                            'staff' => 'from-purple-600 to-purple-700',
-                                            'adopter' => 'from-purple-600 to-purple-700',
-                                            'moderator' => 'from-blue-600 to-blue-700',
-                                            'user' => 'from-gray-600 to-gray-700',
-                                            'public user' => 'from-gray-600 to-gray-700',
-                                        ];
-                                        $badgeColor = $badgeColors[$userRole] ?? 'from-gray-600 to-gray-700';
+                                        $badgeColor = $badgeColors[$role] ?? 'from-gray-600 to-gray-700';
                                     @endphp
-                                    
-                                    <span class="inline-block bg-gradient-to-r {{ $badgeColor }} text-white px-4 py-2 rounded-full text-sm font-semibold capitalize">
-                                        {{ $userRole }}
+
+                                    <span class="inline-block bg-gradient-to-r {{ $badgeColor }} text-white px-4 py-2 rounded-full text-sm font-semibold capitalize mr-2 mb-2">
+                                        {{ $role }}
                                     </span>
-                                </div>
+                                @endforeach
                                 @role('public user')
                                 <div>
                                     <button type="button" onclick="openReportModal()" class="inline-flex items-center gap-2 bg-gradient-to-r from-purple-600 to-purple-700 text-white font-semibold px-5 py-2 rounded-lg hover:from-purple-700 hover:to-purple-800 transition duration-300 shadow-lg">
