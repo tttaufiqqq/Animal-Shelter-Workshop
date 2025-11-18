@@ -252,8 +252,7 @@ class BookingAdoptionController extends Controller
                         'amount' => $adoptionFee,
                         'status' => 'Success',
                         'remarks' => 'Adoption payment for ' . $animalName . ' (Booking #' . $bookingId . ') - Bill Code: ' . $billCode,
-                        'date' => now(),
-                        'type' => 'Online Banking',
+                        'type' => 'FPX Online Banking',
                         'userID' => Auth::id(),
                     ]);
 

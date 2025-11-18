@@ -6,12 +6,11 @@ use App\Http\Controllers\AnimalManagementController;
 use App\Http\Controllers\ShelterManagementController;
 use App\Http\Controllers\BookingAdoptionController;
 use Illuminate\Support\Facades\Route;
+use App\Livewire\Dashboard;
+
+Route::get('/dashboard', Dashboard::class)->name('dashboard');
 
 Route::get('/', [StrayReportingManagementController::class, 'indexUser'])->name('welcome');
-
-Route::get('/dashboard', function () {
-    return view('dashboard.main');
-})->middleware(['auth', 'verified'])->name('dashboard');
 
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');

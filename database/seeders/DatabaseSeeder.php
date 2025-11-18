@@ -26,6 +26,10 @@ class DatabaseSeeder extends Seeder
             CreateStaffUserSeeder::class,
             CaretakerSeeder::class,
             CategorySeeder::class,
+            AnimalSeeder::class,
+            BookingSeeder::class,
+            TransactionSeeder::class,
+            AdoptionSeeder::class,
         ]);
     }
 }
