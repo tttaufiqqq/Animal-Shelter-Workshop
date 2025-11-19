@@ -33,9 +33,7 @@ class BookingAdoptionController extends Controller
     {
         $bookings = Booking::with('animals')
             ->where('userID', auth()->id())
-            ->orderBy('appointment_date', 'desc')
-            ->get();
-
+            ->orderBy('appointment_date', 'desc')->get();
         return view('booking-adoption.main', compact('bookings'));
     }
 
@@ -77,19 +75,30 @@ class BookingAdoptionController extends Controller
             ->with(['animal', 'adoption'])
             ->orderBy('appointment_date', 'desc')
             ->orderBy('appointment_time', 'desc')
-            ->get();
+            ->paginate(6);
 
-        return view('booking-adoption.main', compact('bookings'));
+        // Count statuses for this user only
+        $statusCounts = Booking::where('userID', Auth::id())
+            ->select('status', DB::raw('COUNT(*) as total'))
+            ->groupBy('status')
+            ->pluck('total', 'status'); 
+
+        return view('booking-adoption.main', compact('bookings', 'statusCounts'));
     }
+
 
     public function indexAdmin()
     {
         $bookings = Booking::with(['animal', 'adoption', 'user'])
             ->orderBy('appointment_date', 'desc')
             ->orderBy('appointment_time', 'desc')
-            ->get();
+            ->paginate(6);
+            
+        $statusCounts = Booking::select('status', DB::raw('COUNT(*) as total'))
+        ->groupBy('status')
+        ->pluck('total', 'status'); 
 
-        return view('booking-adoption.admin', compact('bookings'));
+        return view('booking-adoption.admin', compact('bookings', 'statusCounts'));
     }
    
     public function show(Booking $booking)

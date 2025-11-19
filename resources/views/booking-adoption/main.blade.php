@@ -68,27 +68,27 @@
         <div class="grid grid-cols-1 md:grid-cols-5 gap-6 mb-10">
             <div class="bg-white rounded-lg shadow-lg p-8 text-center">
                 <div class="text-5xl mb-4">📅</div>
-                <p class="text-4xl font-bold text-purple-700 mb-2">{{ $bookings->count() }}</p>
+                <p class="text-4xl font-bold text-purple-700 mb-2">{{ $bookings->total() }}</p>
                 <p class="text-gray-600">Total Bookings</p>
             </div>
             <div class="bg-white rounded-lg shadow-lg p-8 text-center">
                 <div class="text-5xl mb-4">⏳</div>
-                <p class="text-4xl font-bold text-yellow-600 mb-2">{{ $bookings->where('status', 'Pending')->count() }}</p>
+                <p class="text-4xl font-bold text-yellow-600 mb-2">{{ $statusCounts['Pending'] ?? 0 }}</p>
                 <p class="text-gray-600">Pending</p>
             </div>
             <div class="bg-white rounded-lg shadow-lg p-8 text-center">
                 <div class="text-5xl mb-4">✅</div>
-                <p class="text-4xl font-bold text-blue-600 mb-2">{{ $bookings->where('status', 'Confirmed')->count() }}</p>
+                <p class="text-4xl font-bold text-blue-600 mb-2">{{ $statusCounts['Confirmed'] ?? 0 }}</p>
                 <p class="text-gray-600">Confirmed</p>
             </div>
             <div class="bg-white rounded-lg shadow-lg p-8 text-center">
                 <div class="text-5xl mb-4">🎉</div>
-                <p class="text-4xl font-bold text-green-600 mb-2">{{ $bookings->where('status', 'Completed')->count() }}</p>
+                <p class="text-4xl font-bold text-green-600 mb-2">{{ $statusCounts['Completed'] ?? 0 }}</p>
                 <p class="text-gray-600">Completed</p>
             </div>
             <div class="bg-white rounded-lg shadow-lg p-8 text-center">
                 <div class="text-5xl mb-4">❌</div>
-                <p class="text-4xl font-bold text-red-600 mb-2">{{ $bookings->whereIn('status', ['Cancelled', 'cancelled'])->count() }}</p>
+                <p class="text-4xl font-bold text-red-600 mb-2">{{ $statusCounts['Cancelled'] ?? 0 }}</p>
                 <p class="text-gray-600">Cancelled</p>
             </div>
         </div>
@@ -240,6 +240,11 @@
                 @endforeach
             </div>
             {{-- FIX: Missing @endif for @if($bookings->isEmpty()) --}}
+        @endif
+        @if($bookings->hasPages())
+            <div class="mt-8 flex justify-center">
+                {{ $bookings->links() }}
+            </div>
         @endif
 
         <div class="mt-16 bg-gradient-to-r from-purple-700 to-purple-900 rounded-lg p-12 text-center text-white">
