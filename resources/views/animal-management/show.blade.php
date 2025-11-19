@@ -20,11 +20,12 @@
                     </a>
                     <h1 class="text-4xl font-bold">{{ $animal->name }}</h1>
                 </div>
-                @role('admin')<div class="flex gap-3">
-                    <a href="{{ route('animal-management.edit', $animal->id) }}" 
-                       class="bg-white text-purple-700 px-6 py-2 rounded-lg font-medium hover:bg-purple-50 transition duration-300">
+                @role('admin|caretaker')
+                <div class="flex gap-3">
+                    <button onclick="openEditModal({{ $animal->id }})" 
+                            class="bg-white text-purple-700 px-6 py-2 rounded-lg font-medium hover:bg-purple-50 transition duration-300">
                         <i class="fas fa-edit mr-2"></i>Edit
-                    </a>
+                    </button>
                     <form action="{{ route('animal-management.destroy', $animal->id) }}" method="POST" class="inline" onsubmit="return confirm('Are you sure you want to delete this animal record?');">
                         @csrf
                         @method('DELETE')
@@ -32,7 +33,11 @@
                             <i class="fas fa-trash mr-2"></i>Delete
                         </button>
                     </form>
-                </div>@endrole
+                </div>
+
+                {{-- Include the edit modal --}}
+                @include('animal-management.edit-modal', ['animal' => $animal])
+                @endrole
             </div>
         </div>
     </div>

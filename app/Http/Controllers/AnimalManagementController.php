@@ -15,6 +15,8 @@ use App\Models\Booking;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+
 
 class AnimalManagementController extends Controller
 {
@@ -114,6 +116,139 @@ class AnimalManagementController extends Controller
                 ->withErrors(['error' => 'An error occurred while adding the animal: ' . $e->getMessage()]);
         }
     }
+
+public function update(Request $request, $id)
+{
+    \Log::info('UPDATE REQUEST START', [
+        'animal_id' => $id,
+        'has_images' => $request->hasFile('images'),
+        'image_count' => $request->file('images') ? count($request->file('images')) : 0,
+        'delete_images' => $request->delete_images ?? [],
+        'input' => $request->all(),
+    ]);
+
+    $validated = $request->validate([
+        'name' => 'required|string|max:255',
+        'species' => 'required|string|max:255',
+        'health_details' => 'required|string',
+        'age_number' => 'required|numeric|min:0',
+        'age_unit' => 'required|in:months,years',
+        'gender' => 'required|in:Male,Female,Unknown',
+        'slotID' => 'nullable|exists:slot,id',
+        'images' => 'nullable|array',
+        'images.*' => 'nullable|image|mimes:jpeg,jpg,png,gif|max:5120',
+        'delete_images' => 'nullable|array',
+        'delete_images.*' => 'exists:image,id',
+    ]);
+
+    DB::beginTransaction();
+
+    try {
+        $animal = Animal::findOrFail($id);
+        $uploadedFiles = [];
+
+        // ----- Combine Age -----
+        $age = $validated['age_number'] . ' ' . $validated['age_unit'];
+
+        // ----- Safe slot logic -----
+        $slotID = $validated['slotID'] ?? $animal->slotID;
+
+        if (($validated['slotID'] ?? null) !== null && $slotID != $animal->slotID) {
+            $slot = Slot::find($slotID);
+
+            if (!$slot || $slot->status !== 'available') {
+                return back()->withInput()
+                    ->withErrors(['slotID' => 'Selected slot is not available.']);
+            }
+        }
+
+        // ----- Update Animal -----
+        $animal->update([
+            'name' => $validated['name'],
+            'species' => $validated['species'],
+            'health_details' => $validated['health_details'],
+            'age' => $age,
+            'gender' => $validated['gender'],
+            'slotID' => $slotID,
+        ]);
+
+        \Log::info('Animal updated basic info.', [
+            'id' => $animal->id,
+            'slotID' => $slotID
+        ]);
+
+        // ----- Delete Images Optional -----
+        if (!empty($validated['delete_images'])) {
+            foreach ($validated['delete_images'] as $imageId) {
+                $img = Image::where('id', $imageId)
+                    ->where('animalID', $animal->id)
+                    ->first();
+
+                if ($img) {
+                    \Log::info('Deleting image', [
+                        'image_id' => $imageId,
+                        'path' => $img->image_path
+                    ]);
+
+                    Storage::disk('public')->delete($img->image_path);
+                    $img->delete();
+                }
+            }
+        }
+
+        \Log::info('Remaining after delete', [
+            'count' => Image::where('animalID', $animal->id)->count()
+        ]);
+
+        // ----- Upload New Images Optional -----
+        if ($request->hasFile('images')) {
+            foreach ($request->file('images') as $file) {
+                $filename = time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
+                $path = $file->storeAs('animal_images', $filename, 'public');
+
+                $uploadedFiles[] = $path;
+
+                Image::create([
+                    'animalID' => $animal->id,
+                    'image_path' => $path,
+                    'filename' => $filename,
+                    'uploaded_at' => now(),
+                ]);
+            }
+
+            \Log::info('Uploaded images:', [
+                'files' => $uploadedFiles
+            ]);
+        }
+
+        // ----- NO MORE "must have at least one image" -----
+
+        DB::commit();
+
+        \Log::info('UPDATE SUCCESSFUL', [
+            'animal_id' => $animal->id
+        ]);
+
+        return redirect()->back()->with('success', 'Animal updated successfully!');
+
+    } catch (\Exception $e) {
+        DB::rollBack();
+
+        \Log::error('UPDATE FAILED', [
+            'error' => $e->getMessage(),
+            'line' => $e->getLine(),
+            'file' => $e->getFile(),
+        ]);
+
+        foreach ($uploadedFiles as $path) {
+            Storage::disk('public')->delete($path);
+        }
+
+        return back()->withInput()
+            ->withErrors(['error' => $e->getMessage()]);
+    }
+}
+
 
     public function index(Request $request)
     {

@@ -59,12 +59,26 @@
                             Name <span class="text-red-600">*</span>
                         </label>
                         <input type="text" name="name" value="{{ old('name') }}" 
-                               class="w-full border-gray-300 rounded-lg shadow-sm px-4 py-3 border focus:border-purple-500 focus:ring focus:ring-purple-200 transition" 
-                               placeholder="Give name to the rescued animal" required>
+                            class="w-full border-gray-300 rounded-lg shadow-sm px-4 py-3 border focus:border-purple-500 focus:ring focus:ring-purple-200 transition" 
+                            placeholder="Give name to the rescued animal" required>
                         @error('name')
                             <p class="text-sm text-red-600 mt-1">{{ $message }}</p>
                         @enderror
                     </div>
+
+                    {{-- Weight --}}
+                    <div>
+                        <label class="block text-gray-800 font-semibold mb-2">
+                            Weight (kg) <span class="text-red-600">*</span>
+                        </label>
+                        <input type="number" name="weight" min="0" step="0.1" value="{{ old('weight') }}" 
+                            class="w-full border-gray-300 rounded-lg shadow-sm px-4 py-3 border focus:border-purple-500 focus:ring focus:ring-purple-200 transition" 
+                            placeholder="Enter animal weight in kg" required>
+                        @error('weight')
+                            <p class="text-sm text-red-600 mt-1">{{ $message }}</p>
+                        @enderror
+                    </div>
+
 
                     {{-- Species --}}
                     <div>
