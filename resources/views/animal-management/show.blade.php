@@ -280,6 +280,22 @@
                             </div>
 
                             <div>
+                                <label class="block text-gray-800 font-semibold mb-2">
+                                    Weight (kg) <span class="text-red-600">*</span>
+                                </label>
+                                <input 
+                                    type="number" 
+                                    name="weight" 
+                                    step="0.01" 
+                                    min="0" 
+                                    value="{{ old('weight', $animal->weight) }}"
+                                    class="w-full border-gray-300 rounded-lg shadow-sm px-4 py-3 border focus:border-blue-500 focus:ring focus:ring-blue-200 transition"
+                                    placeholder="Enter animal weight" 
+                                    required
+                                >
+                            </div>
+
+                            <div>
                                 <label class="block text-gray-800 font-semibold mb-2">Diagnosis <span class="text-red-600">*</span></label>
                                 <textarea name="diagnosis" rows="3" class="w-full border-gray-300 rounded-lg shadow-sm px-4 py-3 border focus:border-blue-500 focus:ring focus:ring-blue-200 transition" placeholder="Enter diagnosis" required></textarea>
                             </div>
@@ -356,6 +372,22 @@
                             </div>
 
                             <div>
+                                <label class="block text-gray-800 font-semibold mb-2">
+                                    Weight (kg) <span class="text-red-600">*</span>
+                                </label>
+                                <input 
+                                    type="number" 
+                                    name="weight" 
+                                    step="0.01" 
+                                    min="0" 
+                                    value="{{ old('weight', $animal->weight) }}"
+                                    class="w-full border-gray-300 rounded-lg shadow-sm px-4 py-3 border focus:border-blue-500 focus:ring focus:ring-blue-200 transition"
+                                    placeholder="Enter animal weight" 
+                                    required
+                                >
+                            </div>
+
+                            <div>
                                 <label class="block text-gray-800 font-semibold mb-2">Next Due Date</label>
                                 <input type="date" name="next_due_date" class="w-full border-gray-300 rounded-lg shadow-sm px-4 py-3 border focus:border-green-500 focus:ring focus:ring-green-200 transition">
                             </div>
@@ -421,7 +453,7 @@
                         </div>
                         <div class="flex justify-between py-2 border-b border-gray-100">
                             <span class="text-gray-600 font-semibold">Age</span>
-                            <span class="text-gray-800">{{ $animal->age }}</span>
+                            <span class="text-gray-800">{{ $animal->age }} old</span>
                         </div>
                         <div class="flex justify-between py-2 border-b border-gray-100">
                             <span class="text-gray-600 font-semibold">Gender</span>
