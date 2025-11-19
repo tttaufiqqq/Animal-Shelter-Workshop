@@ -12,7 +12,7 @@
         <div class="mb-6 flex gap-4">
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-2">Year</label>
-                <select wire:model.live="selectedYear" class="border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-purple-500 focus:border-purple-500">
+                <select wire:model.live="selectedYear" class="w-80 border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-purple-500 focus:border-purple-500">
                     @foreach($years as $year)
                         <option value="{{ $year }}">{{ $year }}</option>
                     @endforeach
@@ -78,11 +78,19 @@
             <!-- Revenue by Species -->
             <div class="bg-white rounded-lg shadow">
                 <div class="p-6 border-b border-gray-200">
-                    <h2 class="text-xl font-bold text-gray-800">Revenue by Species</h2>
+                    <div class="flex justify-between items-center">
+                        <h2 class="text-xl font-bold text-gray-800">Revenue by Species</h2>
+                        <div class="text-right">
+                            <p class="text-sm text-gray-500">Total Revenue</p>
+                            <p class="text-2xl font-bold text-purple-700">
+                                RM {{ number_format($topAnimals->sum('total_revenue'), 2) }}
+                            </p>
+                        </div>
+                    </div>
                 </div>
                 <div class="p-6">
                     <div class="space-y-4">
-                        @foreach($topAnimals as $animal)
+                        @forelse($topAnimals as $animal)
                         <div>
                             <div class="flex justify-between text-sm mb-2">
                                 <span class="font-semibold text-gray-800">{{ $animal->name }}</span>
@@ -92,7 +100,11 @@
                                 <div class="bg-purple-600 h-3 rounded-full transition-all duration-500" style="width: {{ $animal->percentage }}%"></div>
                             </div>
                         </div>
-                        @endforeach
+                        @empty
+                        <div class="text-center py-8 text-gray-500">
+                            <p>No revenue data available</p>
+                        </div>
+                        @endforelse
                     </div>
                 </div>
             </div>

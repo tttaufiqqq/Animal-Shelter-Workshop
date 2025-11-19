@@ -3,8 +3,10 @@
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
+use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Faker\Factory as Faker;
+use Carbon\Carbon;
 
 class ReportSeeder extends Seeder
 {
@@ -24,31 +26,45 @@ class ReportSeeder extends Seeder
             'Melaka'         => ['lat_min' => 2.10, 'lat_max' => 2.40, 'lng_min' => 102.10, 'lng_max' => 102.30]
         ];
 
-        $speciesList = ['Cat', 'Dog'];
-        $statuses = ['Not Adopted', 'Adopted'];
+        $reportStatuses = ['Pending', 'In Progress', 'Resolved', 'Closed'];
 
-        for ($i = 0; $i < 400; $i++) {
+        // Get all public users (exclude admin and caretaker)
+        $excludedRoles = ['admin', 'caretaker'];
+        $userIDs = User::whereDoesntHave('roles', function ($query) use ($excludedRoles) {
+            $query->whereIn('name', $excludedRoles);
+        })->pluck('id')->toArray();
 
-            // choose random Malaysian region
+        if (empty($userIDs)) {
+            $this->command->info('No eligible public users found!');
+            return;
+        }
+
+        $reports = [];
+
+        // Create 150 random reports over the past 2 years
+        for ($i = 0; $i < 150; $i++) {
             $state = $faker->randomElement(array_keys($locations));
             $loc = $locations[$state];
 
-            // generate Malaysia-only coordinates
-            $lat = $faker->randomFloat(8, $loc['lat_min'], $loc['lat_max']);
-            $lng = $faker->randomFloat(8, $loc['lng_min'], $loc['lng_max']);
+            // Random date in past 2 years
+            $createdAt = Carbon::now()->subDays(rand(0, 365 * 2));
 
-            DB::table('report')->insert([
-                'latitude'      => $lat,
-                'longitude'     => $lng,
+            $reports[] = [
+                'latitude'      => $faker->randomFloat(8, $loc['lat_min'], $loc['lat_max']),
+                'longitude'     => $faker->randomFloat(8, $loc['lng_min'], $loc['lng_max']),
                 'address'       => $faker->streetAddress(),
                 'city'          => $faker->city(),
                 'state'         => $state,
-                'report_status' => $faker->randomElement($statuses),
+                'report_status' => $faker->randomElement($reportStatuses),
                 'description'   => $faker->sentence(10),
-                'userID'        => null,
-                'created_at'    => now(),
-                'updated_at'    => now(),
-            ]);
+                'userID'        => $faker->randomElement($userIDs),
+                'created_at'    => $createdAt,
+                'updated_at'    => $createdAt,
+            ];
         }
+
+        DB::table('report')->insert($reports);
+
+        $this->command->info(count($reports) . ' reports generated successfully!');
     }
 }

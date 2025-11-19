@@ -45,7 +45,6 @@
                             <option value="">All</option>
                             <option value="Dog" {{ request('species') == 'Dog' ? 'selected' : '' }}>Dog</option>
                             <option value="Cat" {{ request('species') == 'Cat' ? 'selected' : '' }}>Cat</option>
-                            <option value="Other" {{ request('species') == 'Other' ? 'selected' : '' }}>Other</option>
                         </select>
                     </div>
                     <div>
@@ -62,7 +61,6 @@
                             <option value="">All</option>
                             <option value="Male" {{ request('gender') == 'Male' ? 'selected' : '' }}>Male</option>
                             <option value="Female" {{ request('gender') == 'Female' ? 'selected' : '' }}>Female</option>
-                            <option value="Unknown" {{ request('gender') == 'Unknown' ? 'selected' : '' }}>Unknown</option>
                         </select>
                     </div>
                 </div>

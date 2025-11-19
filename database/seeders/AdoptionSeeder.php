@@ -3,48 +3,50 @@
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
+use App\Models\Transaction;
+use App\Models\Booking;
+use App\Models\Animal;
+use App\Models\Adoption;
 use Illuminate\Support\Facades\DB;
-use Carbon\Carbon;
 
 class AdoptionSeeder extends Seeder
 {
     public function run()
     {
-        // Get only successful transactions
-        $transactions = DB::table('transaction')
-            ->where('status', 'Success')
-            ->get();
+        // Get all successful transactions
+        $transactions = Transaction::where('status', 'Success')->get();
 
-        $adoptions = [];
+        $usedBookingIds = [];
 
         foreach ($transactions as $tx) {
-
-            // Find the booking linked to this transaction, if exists
-            $booking = DB::table('booking')
-                ->where('userID', $tx->userID)
+            // Find a booking for this user that hasn't been adopted yet
+            $booking = Booking::where('userID', $tx->userID)
+                ->whereNotIn('id', $usedBookingIds)
+                ->inRandomOrder() // Randomly pick a booking
                 ->first();
 
-            // If no booking exists, skip
+            // Skip if no booking found
             if (!$booking) continue;
 
-            // Get animal details
-            $animal = DB::table('animal')->where('id', $booking->animalID)->first();
+            // Mark this booking as used
+            $usedBookingIds[] = $booking->id;
+
+            // Get related animal via relationship
+            $animal = $booking->animal;
+
             if (!$animal) continue;
 
-            // Create adoption record structure
-            $adoptions[] = [
+            // Create adoption record
+            Adoption::create([
                 'fee'           => $tx->amount,
                 'remarks'       => $animal->name . ' Adopted',
                 'bookingID'     => $booking->id,
                 'transactionID' => $tx->id,
                 'created_at'    => $tx->created_at,
                 'updated_at'    => $tx->updated_at,
-            ];
+            ]);
         }
 
-        // Insert into adoption table
-        if (!empty($adoptions)) {
-            DB::table('adoption')->insert($adoptions);
-        }
+        $this->command->info('Adoptions seeded successfully!');
     }
 }

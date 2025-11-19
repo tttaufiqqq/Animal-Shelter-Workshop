@@ -18,13 +18,10 @@ class DatabaseSeeder extends Seeder
         // ... (User factory comments remain optional)
 
         $this->call([
-            // 1. RoleSeeder must be called first
             RoleSeeder::class,
-            
-            // 2. CreateStaffUserSeeder will be called second, 
-            //    and can now rely on roles being present
-            CreateStaffUserSeeder::class,
-            CaretakerSeeder::class,
+            UserSeeder::class,
+            ReportSeeder::class,
+            RescueSeeder::class,
             CategorySeeder::class,
             AnimalSeeder::class,
             BookingSeeder::class,
