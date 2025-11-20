@@ -48,6 +48,10 @@
                                     <span class="font-semibold">{{ $billcode }}</span>
                                 </div>
                                 <div class="flex justify-between">
+                                    <span class="text-gray-600">Reference No:</span>
+                                    <span class="font-semibold">{{ $reference_no ?? 'N/A' }}</span>
+                                </div>
+                                <div class="flex justify-between">
                                     <span class="text-gray-600">Status:</span>
                                     <span class="px-2 py-1 bg-green-100 text-green-700 rounded text-xs font-semibold">Completed</span>
                                 </div>
@@ -111,6 +115,10 @@
                                 <div class="flex justify-between">
                                     <span class="text-gray-600">Bill Code:</span>
                                     <span class="font-semibold">{{ $billcode }}</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-gray-600">Reference No:</span>
+                                    <span class="font-semibold">{{ $reference_no ?? 'N/A' }}</span>
                                 </div>
                                 <div class="flex justify-between">
                                     <span class="text-gray-600">Status:</span>

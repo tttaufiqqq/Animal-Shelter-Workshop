@@ -164,6 +164,7 @@ class BookingAdoptionController extends Controller
     {
         $user = Auth::user();
         $animalName = $booking->animal->name;
+        $referenceNo = 'BOOKING-' . $booking->id . '-' . time();
 
         $option = [
             'userSecretKey' => config('toyyibpay.key'),
@@ -175,7 +176,7 @@ class BookingAdoptionController extends Controller
             'billAmount' => ($adoptionFee) * 100,
             'billReturnUrl' => route('toyyibpay-status'),
             'billCallbackUrl' => route('toyyibpay-callback'),
-            'billExternalReferenceNo' => 'BOOKING-' . $booking->id . '-' . time(),
+            'billExternalReferenceNo' => $referenceNo, // Store this
             'billTo' => $user->name,
             'billEmail' => $user->email,
             'billPhone' => $user->phone ?? '0000000000',
@@ -191,12 +192,16 @@ class BookingAdoptionController extends Controller
 
         if (isset($data[0]['BillCode'])) {
             $billCode = $data[0]['BillCode'];
-            session(['bill_code' => $billCode]);
+            
+            // Store both bill code and reference number in session
+            session([
+                'bill_code' => $billCode,
+                'reference_no' => $referenceNo
+            ]);
             
             return redirect('https://dev.toyyibpay.com/' . $billCode);
         } else {
             $booking->update(['status' => 'Pending']);
-            
             return redirect()->route('booking.main')->withErrors(['error' => 'Failed to create payment. Please try again.']);
         }
     }
@@ -210,6 +215,7 @@ class BookingAdoptionController extends Controller
         $bookingId = session('booking_id');
         $adoptionFee = session('adoption_fee');
         $animalName = session('animal_name');
+        $referenceNo = session('reference_no'); // Get reference number from session
         
         $paymentStatus = $this->getBillTransactions($billCode);
         
@@ -224,8 +230,10 @@ class BookingAdoptionController extends Controller
                     $transaction = Transaction::create([
                         'amount' => $adoptionFee,
                         'status' => 'Success',
-                        'remarks' => 'Adoption payment for ' . $animalName . ' (Booking #' . $bookingId . ') - Bill Code: ' . $billCode,
+                        'remarks' => 'Adoption payment for ' . $animalName . ' (Booking #' . $bookingId . ')',
                         'type' => 'FPX Online Banking',
+                        'bill_code' => $billCode, // Store bill code
+                        'reference_no' => $referenceNo, // Store reference number
                         'userID' => Auth::id(),
                     ]);
 
@@ -246,12 +254,14 @@ class BookingAdoptionController extends Controller
                         }
                     }
 
-                    session()->forget(['booking_id', 'adoption_fee', 'animal_name', 'bill_code']);
+                    // Clean up session
+                    session()->forget(['booking_id', 'adoption_fee', 'animal_name', 'bill_code', 'reference_no']);
                     
                     Log::info('Payment Success', [
                         'booking_id' => $bookingId,
                         'amount' => $adoptionFee,
-                        'bill_code' => $billCode
+                        'bill_code' => $billCode,
+                        'reference_no' => $referenceNo
                     ]);
                 }
             }
@@ -263,15 +273,18 @@ class BookingAdoptionController extends Controller
                     Log::info('Payment Failed/Pending', [
                         'booking_id' => $bookingId,
                         'status_id' => $statusId,
-                        'bill_code' => $billCode
+                        'bill_code' => $billCode,
+                        'reference_no' => $referenceNo
                     ]);
                     
+                    // Store bill code and reference for failed transactions too
                     Transaction::create([
                         'amount' => $adoptionFee,
                         'status' => 'Failed',
-                        'remarks' => 'Failed adoption payment for ' . $animalName . ' (Booking #' . $bookingId . ') - Bill Code: ' . $billCode,
-                        'date' => now(),
+                        'remarks' => 'Failed adoption payment for ' . $animalName . ' (Booking #' . $bookingId . ')',
                         'type' => 'Adoption Fee',
+                        'bill_code' => $billCode, // Store bill code
+                        'reference_no' => $referenceNo, // Store reference number
                         'userID' => Auth::id(),
                     ]);
                 }
@@ -285,6 +298,7 @@ class BookingAdoptionController extends Controller
             'booking_id' => $bookingId,
             'amount' => $adoptionFee,
             'animal_name' => $animalName,
+            'reference_no' => $referenceNo,
             'payment_details' => $paymentStatus,
         ]);
     }
@@ -295,10 +309,10 @@ class BookingAdoptionController extends Controller
         
         $billCode = $request->input('billcode');
         $statusId = $request->input('status_id');
+        $referenceNo = $request->input('refno'); // This is your reference number
         
-        $refNo = $request->input('refno');
-        if (strpos($refNo, 'BOOKING-') !== false) {
-            $parts = explode('-', $refNo);
+        if (strpos($referenceNo, 'BOOKING-') !== false) {
+            $parts = explode('-', $referenceNo);
             if (isset($parts[1])) {
                 $bookingId = $parts[1];
                 $booking = Booking::find($bookingId);
@@ -306,21 +320,25 @@ class BookingAdoptionController extends Controller
                 if ($booking && $statusId == 1) {
                     $booking->update(['status' => 'Completed']);
                     
-                    // Use LIKE instead of 'like' for cross-RDBMS compatibility
-                    $existingTransaction = Transaction::where('remarks', 'LIKE', '%' . $billCode . '%')->first();
+                    // Check if transaction already exists using bill_code
+                    $existingTransaction = Transaction::where('bill_code', $billCode)->first();
                     if (!$existingTransaction) {
                         Transaction::create([
                             'amount' => $request->input('amount') / 100,
                             'status' => 'Success',
-                            'remarks' => 'Adoption payment (Callback) - Booking #' . $bookingId . ' - Bill Code: ' . $billCode,
+                            'remarks' => 'Adoption payment (Callback) - Booking #' . $bookingId,
                             'date' => now(),
                             'type' => 'Adoption Fee',
+                            'bill_code' => $billCode, // Store bill code
+                            'reference_no' => $referenceNo, // Store reference number
                             'userID' => $booking->userID,
                         ]);
                     }
                 }
             }
         }
+        
+        return response()->json(['status' => 'success']);
     }
     
     private function getBillTransactions($billCode)

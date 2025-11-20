@@ -58,6 +58,8 @@ return new class extends Migration {
             $table->string('status')->nullable();
             $table->text('remarks')->nullable();
             $table->string('type')->nullable();
+            $table->string('bill_code')->nullable();
+            $table->string('reference_no')->nullable();
             $table->unsignedBigInteger('userID')->nullable(); // FK later
             $table->timestamps();
         });
