@@ -30,9 +30,9 @@ class AnimalManagementController extends Controller
         $adopterProfile = AdopterProfile::where('adopterID', $user->id)->first();
         
         if (!$adopterProfile) {
-            return response()->json([
+           return response()->json([
                 'success' => false,
-                'message' => 'Please complete your adopter profile first.'
+                'message' => 'Please complete your adopter profile first to see your matches.'
             ]);
         }
 

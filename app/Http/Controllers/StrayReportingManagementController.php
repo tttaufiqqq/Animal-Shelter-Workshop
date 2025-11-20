@@ -27,29 +27,28 @@ class StrayReportingManagementController extends Controller
             ->with(['images'])
             ->orderBy('created_at', 'desc')
             ->paginate(5);
-        $adopterProfile = AdopterProfile::where('adopterID', auth()->id())->first();
-        // get profile manually
-        $profile = AdopterProfile::where('adopterID', auth()->id())->first();
 
-        if (!$profile) {
-            return back()->with('error', 'Please complete your adopter profile first.');
+        $adopterProfile = AdopterProfile::where('adopterID', auth()->id())->first();
+
+        if (!$adopterProfile) {
+            // User has not completed adopter profile → show home but no matches
+            $matches = collect();
+        } else {
+            $matches = AnimalProfile::with('animal')
+                ->when($adopterProfile->preferred_species, function ($q) use ($adopterProfile) {
+                    $q->whereHas('animal', fn($a) =>
+                        $a->where('species', $adopterProfile->preferred_species)
+                    );
+                })
+                ->when($adopterProfile->preferred_size, function ($q) use ($adopterProfile) {
+                    $q->where('size', $adopterProfile->preferred_size);
+                })
+                ->get();
         }
 
-        $matches = AnimalProfile::with('animal') 
-        ->when($profile->preferred_species, function ($q) use ($profile) {
-            $q->whereHas('animal', fn($a) =>
-                $a->where('species', $profile->preferred_species)
-            );
-        })
-        ->when($profile->preferred_size, function ($q) use ($profile) {
-            $q->where('size', $profile->preferred_size);
-        })
-        ->get();
-
-        // dd($matches);
-        
         return view('welcome', compact('userReports', 'adopterProfile', 'matches'));
     }
+
 
     public function store(Request $request)
     {

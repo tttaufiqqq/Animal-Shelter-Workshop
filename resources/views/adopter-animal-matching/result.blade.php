@@ -117,7 +117,7 @@ function displayMatches(matches) {
                                 <h3 class="text-xl font-bold text-gray-800">${animal.name}</h3>
                                 <p class="text-gray-600">${animal.species} • ${profile.age} • ${profile.size}</p>
                             </div>
-                            <a href="/animal/${animal.id}" class="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition text-sm font-semibold">
+                            <a href="/animal/${animal.id}" class="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition text-sm font-semibold" target="_blank">
                                 View Profile
                             </a>
                         </div>
