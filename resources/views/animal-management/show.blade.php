@@ -453,7 +453,7 @@
                         </div>
                         <div class="flex justify-between py-2 border-b border-gray-100">
                             <span class="text-gray-600 font-semibold">Age</span>
-                            <span class="text-gray-800">{{ $animal->age }} old</span>
+                            <span class="text-gray-800">{{ $animal->age }}</span>
                         </div>
                         <div class="flex justify-between py-2 border-b border-gray-100">
                             <span class="text-gray-600 font-semibold">Gender</span>

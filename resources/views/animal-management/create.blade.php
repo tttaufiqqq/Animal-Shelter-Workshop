@@ -102,33 +102,26 @@
 
                     {{-- Age and Gender in Grid --}}
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {{-- Age --}}
+                        {{-- Age Category --}}
                         <div>
                             <label class="block text-gray-800 font-semibold mb-2">
-                                Age <span class="text-red-600">*</span>
+                                Age Category <span class="text-red-600">*</span>
                             </label>
-                            <div class="flex gap-2">
-                                <input type="number" name="age_number" min="0" value="{{ old('age_number') }}"
-                                    class="w-1/2 border-gray-300 rounded-lg shadow-sm px-4 py-3 border focus:border-purple-500 focus:ring focus:ring-purple-200 transition"
-                                    placeholder="e.g., 2" required>
-
-                                <div class="relative w-1/2">
-                                    <select name="age_unit"
-                                            class="w-full border-gray-300 rounded-lg shadow-sm px-4 py-3 border focus:border-purple-500 focus:ring focus:ring-purple-200 transition appearance-none cursor-pointer bg-white pr-10"
-                                            required>
-                                        <option value="" disabled selected>Select unit</option>
-                                        <option value="years" {{ old('age_unit') == 'years' ? 'selected' : '' }}>Years</option>
-                                        <option value="months" {{ old('age_unit') == 'months' ? 'selected' : '' }}>Months</option>
-                                    </select>
-                                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
-                                        <i class="fas fa-chevron-down"></i>
-                                    </div>
+                            <div class="relative">
+                                <select name="age_category"
+                                        class="w-full border-gray-300 rounded-lg shadow-sm px-4 py-3 border focus:border-purple-500 focus:ring focus:ring-purple-200 transition appearance-none cursor-pointer bg-white pr-10"
+                                        required>
+                                    <option value="" disabled selected>Select age category</option>
+                                    <option value="kitten" {{ old('age_category') == 'kitten' ? 'selected' : '' }}>Kitten</option>
+                                    <option value="puppy" {{ old('age_category') == 'puppy' ? 'selected' : '' }}>Puppy</option>
+                                    <option value="adult" {{ old('age_category') == 'adult' ? 'selected' : '' }}>Adult</option>
+                                    <option value="senior" {{ old('age_category') == 'senior' ? 'selected' : '' }}>Senior</option>
+                                </select>
+                                <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
+                                    <i class="fas fa-chevron-down"></i>
                                 </div>
                             </div>
-                            @error('age_number')
-                                <p class="text-sm text-red-600 mt-1">{{ $message }}</p>
-                            @enderror
-                            @error('age_unit')
+                            @error('age_category')
                                 <p class="text-sm text-red-600 mt-1">{{ $message }}</p>
                             @enderror
                         </div>

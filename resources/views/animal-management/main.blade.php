@@ -114,7 +114,7 @@
 
                             <div class="space-y-2 text-sm text-gray-600 mb-4">
                                 <p><span class="font-semibold">Species:</span> {{ $animal->species }}</p>
-                                <p><span class="font-semibold">Age:</span> {{ $animal->age }} old</p>
+                                <p><span class="font-semibold">Age:</span> {{ $animal->age }} </p>
                                 <p><span class="font-semibold">Gender:</span> {{ $animal->gender }}</p>
                                 <p><span class="font-semibold">Location:</span> 
                                     @if($animal->slot)

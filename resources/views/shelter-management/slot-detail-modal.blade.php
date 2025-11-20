@@ -204,7 +204,7 @@
                 <div class="mt-3 grid grid-cols-3 gap-2 text-sm text-gray-600">
                     <div>
                         <i class="fas fa-calendar text-green-600 mr-1"></i>
-                        <span>${animal.age || 'N/A'} ${animal.age ? 'old' : ''}</span>
+                        <span>${animal.age || 'N/A'} ${animal.age ? '' : ''}</span>
                     </div>
                     <div>
                         <i class="fas fa-venus-mars text-green-600 mr-1"></i>

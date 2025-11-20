@@ -37,9 +37,9 @@ return new class extends Migration
             $table->string('temperament')->nullable(); // calm/active/shy
             $table->string('medical_needs')->nullable();
             // FK to ANIMALS table
-            $table->unsignedBigInteger('animal_id');
-            $table->foreign('animal_id')
-                  ->references('id')->on('animals')
+            $table->unsignedBigInteger('animalID');
+            $table->foreign('animalID')
+                  ->references('id')->on('animal')
                   ->onDelete('cascade');
             $table->timestamps();
           

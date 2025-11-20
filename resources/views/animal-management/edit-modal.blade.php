@@ -66,39 +66,42 @@
 
                 {{-- Age and Gender in Grid --}}
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {{-- Age --}}
+                    {{-- Age Category --}}
                     <div>
                         <label class="block text-gray-800 font-semibold mb-2">
-                            Age <span class="text-red-600">*</span>
+                            Age Category <span class="text-red-600">*</span>
                         </label>
-                        <div class="flex gap-2">
+                        <div class="relative">
                             @php
-                                // Parse existing age (e.g., "2 years" or "6 months")
-                                $ageParts = explode(' ', $animal->age);
-                                $ageNumber = $ageParts[0] ?? '';
-                                $ageUnit = $ageParts[1] ?? 'years';
+                                // Map existing age to category for pre-selection
+                                $existingAge = $animal->age ?? '';
+                                $ageCategory = '';
+                                
+                                if (str_contains(strtolower($existingAge), 'kitten')) {
+                                    $ageCategory = 'kitten';
+                                } elseif (str_contains(strtolower($existingAge), 'puppy')) {
+                                    $ageCategory = 'puppy';
+                                } elseif (str_contains(strtolower($existingAge), 'senior')) {
+                                    $ageCategory = 'senior';
+                                } elseif (!empty($existingAge)) {
+                                    $ageCategory = 'adult';
+                                }
                             @endphp
-                            <input type="number" name="age_number" min="0" value="{{ old('age_number', $ageNumber) }}"
-                                class="w-1/2 border border-gray-300 rounded-lg shadow-sm px-4 py-3 focus:border-purple-500 focus:ring focus:ring-purple-200 transition text-gray-900 bg-white"
-                                placeholder="e.g., 2" required>
-
-                            <div class="relative w-1/2">
-                                <select name="age_unit"
-                                        class="w-full border border-gray-300 rounded-lg shadow-sm px-4 py-3 focus:border-purple-500 focus:ring focus:ring-purple-200 transition appearance-none cursor-pointer bg-white pr-10 text-gray-900"
-                                        required>
-                                    <option value="" disabled>Select unit</option>
-                                    <option value="years" {{ old('age_unit', $ageUnit) == 'years' ? 'selected' : '' }}>Years</option>
-                                    <option value="months" {{ old('age_unit', $ageUnit) == 'months' ? 'selected' : '' }}>Months</option>
-                                </select>
-                                <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
-                                    <i class="fas fa-chevron-down"></i>
-                                </div>
+                            
+                            <select name="age_category"
+                                    class="w-full border border-gray-300 rounded-lg shadow-sm px-4 py-3 focus:border-purple-500 focus:ring focus:ring-purple-200 transition appearance-none cursor-pointer bg-white pr-10 text-gray-900"
+                                    required>
+                                <option value="" disabled {{ old('age_category', $ageCategory) ? '' : 'selected' }}>Select age category</option>
+                                <option value="kitten" {{ old('age_category', $ageCategory) == 'kitten' ? 'selected' : '' }}>Kitten</option>
+                                <option value="puppy" {{ old('age_category', $ageCategory) == 'puppy' ? 'selected' : '' }}>Puppy</option>
+                                <option value="adult" {{ old('age_category', $ageCategory) == 'adult' ? 'selected' : '' }}>Adult</option>
+                                <option value="senior" {{ old('age_category', $ageCategory) == 'senior' ? 'selected' : '' }}>Senior</option>
+                            </select>
+                            <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
+                                <i class="fas fa-chevron-down"></i>
                             </div>
                         </div>
-                        @error('age_number')
-                            <p class="text-sm text-red-600 mt-1">{{ $message }}</p>
-                        @enderror
-                        @error('age_unit')
+                        @error('age_category')
                             <p class="text-sm text-red-600 mt-1">{{ $message }}</p>
                         @enderror
                     </div>

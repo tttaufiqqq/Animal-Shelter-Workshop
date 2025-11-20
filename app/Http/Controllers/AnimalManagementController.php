@@ -43,7 +43,7 @@ class AnimalManagementController extends Controller
             'species' => 'required|string|max:255',
             'health_details' => 'required|string',
             'age_number' => 'required|numeric|min:0',
-            'age_unit' => 'required|in:months,years',
+            'age_category' => 'nullable|in:kitten,puppy,adult,senior',
             'gender' => 'required|in:Male,Female,Unknown',
             'rescueID' => 'required|exists:rescue,id',
             'slotID' => 'nullable|exists:slot,id',
@@ -61,60 +61,61 @@ class AnimalManagementController extends Controller
         DB::beginTransaction();
 
         try {
-            $age = $validated['age_number'] . ' ' . $validated['age_unit'];
+        // Use age category directly
+        $age = ucfirst($validated['age_category']);
 
-            $slot = null;
-            if ($validated['slotID']) {
-                $slot = Slot::find($validated['slotID']);
-                if (!$slot || $slot->status !== 'available') {
-                    return back()
-                        ->withInput()
-                        ->withErrors(['slotID' => 'Selected slot is not available.']);
-                }
+        $slot = null;
+        if ($validated['slotID']) {
+            $slot = Slot::find($validated['slotID']);
+            if (!$slot || $slot->status !== 'available') {
+                return back()
+                    ->withInput()
+                    ->withErrors(['slotID' => 'Selected slot is not available.']);
             }
-
-            $animal = Animal::create([
-                'name' => $validated['name'],
-                'species' => $validated['species'],
-                'health_details' => $validated['health_details'],
-                'age' => $age,
-                'gender' => $validated['gender'],
-                'adoption_status' => 'Not Adopted',
-                'rescueID' => $validated['rescueID'],
-                'slotID' => $validated['slotID'],
-            ]);
-
-            if ($request->hasFile('images')) {
-                foreach ($request->file('images') as $imageFile) {
-                    $filename = time() . '_' . uniqid() . '.' . $imageFile->getClientOriginalExtension();
-                    $path = $imageFile->storeAs('animal_images', $filename, 'public');
-                    $uploadedFiles[] = $path;
-
-                    Image::create([
-                        'animalID' => $animal->id,
-                        'image_path' => $path,
-                        'filename' => $filename,
-                        'uploaded_at' => now(),
-                    ]);
-                }
-            }
-
-            DB::commit();
-
-            return redirect()->route('animal-management.create', ['rescue_id' => $validated['rescueID']])
-                ->with('success', 'Animal "' . $animal->name . '" added successfully with ' . count($request->file('images')) . ' image(s)! Do you want to add another animal? If so, please fill all the required fields again.');
-
-        } catch (\Exception $e) {
-            DB::rollBack();
-
-            foreach ($uploadedFiles as $filePath) {
-                Storage::disk('public')->delete($filePath);
-            }
-
-            return back()
-                ->withInput()
-                ->withErrors(['error' => 'An error occurred while adding the animal: ' . $e->getMessage()]);
         }
+
+        $animal = Animal::create([
+            'name' => $validated['name'],
+            'species' => $validated['species'],
+            'health_details' => $validated['health_details'],
+            'age' => $age, // Store the category directly
+            'gender' => $validated['gender'],
+            'adoption_status' => 'Not Adopted',
+            'rescueID' => $validated['rescueID'],
+            'slotID' => $validated['slotID'],
+        ]);
+
+        if ($request->hasFile('images')) {
+            foreach ($request->file('images') as $imageFile) {
+                $filename = time() . '_' . uniqid() . '.' . $imageFile->getClientOriginalExtension();
+                $path = $imageFile->storeAs('animal_images', $filename, 'public');
+                $uploadedFiles[] = $path;
+
+                Image::create([
+                    'animalID' => $animal->id,
+                    'image_path' => $path,
+                    'filename' => $filename,
+                    'uploaded_at' => now(),
+                ]);
+            }
+        }
+
+        DB::commit();
+
+        return redirect()->route('animal-management.create', ['rescue_id' => $validated['rescueID']])
+            ->with('success', 'Animal "' . $animal->name . '" added successfully with ' . count($request->file('images') ?? []) . ' image(s)! Do you want to add another animal? If so, please fill all the required fields again.');
+
+    } catch (\Exception $e) {
+        DB::rollBack();
+
+        foreach ($uploadedFiles as $filePath) {
+            Storage::disk('public')->delete($filePath);
+        }
+
+        return back()
+            ->withInput()
+            ->withErrors(['error' => 'An error occurred while adding the animal: ' . $e->getMessage()]);
+    }
     }
 
 public function update(Request $request, $id)
@@ -131,8 +132,7 @@ public function update(Request $request, $id)
         'name' => 'required|string|max:255',
         'species' => 'required|string|max:255',
         'health_details' => 'required|string',
-        'age_number' => 'required|numeric|min:0',
-        'age_unit' => 'required|in:months,years',
+        'age_category' => 'required|in:kitten,puppy,adult,senior',
         'gender' => 'required|in:Male,Female,Unknown',
         'slotID' => 'nullable|exists:slot,id',
         'images' => 'nullable|array',
@@ -143,12 +143,12 @@ public function update(Request $request, $id)
 
     DB::beginTransaction();
 
-    try {
+   try {
         $animal = Animal::findOrFail($id);
         $uploadedFiles = [];
 
-        // ----- Combine Age -----
-        $age = $validated['age_number'] . ' ' . $validated['age_unit'];
+        // ----- Age Category -----
+        $age = ucfirst($validated['age_category']); // Directly use the category
 
         // ----- Safe slot logic -----
         $slotID = $validated['slotID'] ?? $animal->slotID;
@@ -167,14 +167,15 @@ public function update(Request $request, $id)
             'name' => $validated['name'],
             'species' => $validated['species'],
             'health_details' => $validated['health_details'],
-            'age' => $age,
+            'age' => $age, // Store the category directly
             'gender' => $validated['gender'],
             'slotID' => $slotID,
         ]);
 
         \Log::info('Animal updated basic info.', [
             'id' => $animal->id,
-            'slotID' => $slotID
+            'slotID' => $slotID,
+            'age_category' => $age
         ]);
 
         // ----- Delete Images Optional -----
