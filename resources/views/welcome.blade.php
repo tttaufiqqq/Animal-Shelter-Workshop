@@ -94,7 +94,7 @@
                                             'moderator' => 'from-blue-600 to-blue-700',
                                             'user' => 'from-gray-600 to-gray-700',
                                             'public user' => 'from-gray-600 to-gray-700',
-                                            'caretaker' => 'from-green-600 to-green-700',
+                                            'caretaker' => 'from-teal-600 to-teal-700',
                                         ];
                                     @endphp
 
@@ -124,6 +124,7 @@
                                         if (e.target === this) closeAdopterModal();
                                     });
                                     </script>
+                                    {{-- Buttons for public users or adopters (excluding caretakers) --}}
                                     @hasanyrole('public user|adopter')
                                         @unlessrole('caretaker')
                                             <button onclick="openReportModal()" class="flex items-center justify-center gap-2 bg-gradient-to-r from-purple-600 to-purple-700 text-white font-semibold px-5 py-3 rounded-lg shadow hover:from-purple-700 hover:to-purple-800 transition">
@@ -133,21 +134,26 @@
                                             <button onclick="openMyReportsModal()" class="flex items-center justify-center gap-2 bg-gradient-to-r from-purple-600 to-purple-700 text-white font-semibold px-5 py-3 rounded-lg shadow hover:from-purple-700 hover:to-purple-800 transition">
                                                 📄 My Submitted Reports
                                             </button>
-                                            <!-- Buttons to open modals -->
-                                            <button onclick="openAdopterModal()" class="flex items-center justify-center gap-2 bg-gradient-to-r from-purple-600 to-purple-700 text-white font-semibold px-5 py-3 rounded-lg shadow hover:from-purple-700 hover:to-purple-800 transition">
-                                                📖 Help Us Know You Better
-                                            </button>
                                         @endunlessrole
                                     @endhasanyrole
 
+                                    {{-- Buttons for adopters (visible even if they are caretakers) --}}
+                                    @role('adopter')
+                                        <button onclick="openAdopterModal()" class="flex items-center justify-center gap-2 bg-gradient-to-r from-purple-600 to-purple-700 text-white font-semibold px-5 py-3 rounded-lg shadow hover:from-purple-700 hover:to-purple-800 transition">
+                                            📖 Help Us Know You Better
+                                        </button>
+
+                                        <button onclick="openAdopterModal()" class="flex items-center justify-center gap-2 bg-gradient-to-r from-purple-600 to-purple-700 text-white font-semibold px-5 py-3 rounded-lg shadow hover:from-purple-700 hover:to-purple-800 transition">
+                                            🐾 Animal You Might Want To Adopt
+                                        </button>
+                                    @endrole
+
+                                    {{-- Button for caretakers --}}
                                     @role('caretaker')
-                                        <a href="{{ route('rescues.index') }}" class="flex items-center justify-center gap-2 bg-gradient-to-r from-green-600 to-green-700 text-white font-semibold px-5 py-3 rounded-lg shadow hover:from-green-700 hover:to-green-800 transition">
+                                        <a href="{{ route('rescues.index') }}" class="flex items-center justify-center gap-2 bg-gradient-to-r from-teal-600 to-teal-700 text-white font-semibold px-5 py-3 rounded-lg shadow hover:from-teal-800 hover:to-teal-600 transition">
                                             🐾 View Assigned Rescue Reports
                                         </a>
                                     @endrole
-
-                                    
-                                    
 
                                 </div>
                             </div>

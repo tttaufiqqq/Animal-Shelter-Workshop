@@ -17,17 +17,86 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use App\Models\AnimalProfile;  
+use App\Models\AdopterProfile;  
 use Illuminate\Validation\Rule;
-
-
 
 class AnimalManagementController extends Controller
 {
+    public function match()
+    {
+        // Get the adopter profile (logged-in user)
+        $adopter = auth()->user()->adopterProfile;
+
+        if (!$adopter) {
+            return back()->with('error', 'Please complete your Adopter Profile first.');
+        }
+
+        // Get all animals with their profiles
+        $animals = Animal::with('profile')->get();
+
+        // Score calculation
+        $matched = $animals->map(function($animal) use ($adopter) {
+            $score = 0;
+
+            // Avoid animals with missing profile
+            if (!$animal->profile) {
+                $animal->score = 0;
+                return $animal;
+            }
+
+            // Species match
+            if ($adopter->preferred_species == $animal->species) $score += 15;
+
+            // Size match
+            if ($adopter->preferred_size == $animal->profile->size) $score += 10;
+
+            // Energy level
+            if ($adopter->activity_level == $animal->profile->energy_level) $score += 10;
+
+            // Good with kids
+            if ($adopter->has_children && $animal->profile->good_with_kids) {
+                $score += 10;
+            }
+
+            // Not good with kids but adopter has kids
+            if ($adopter->has_children && !$animal->profile->good_with_kids) {
+                $score -= 20;
+            }
+
+            // Good with other pets
+            if ($adopter->has_other_pets && $animal->profile->good_with_pets) {
+                $score += 10;
+            }
+
+            // Conflict: adopter has pets but animal cannot
+            if ($adopter->has_other_pets && !$animal->profile->good_with_pets) {
+                $score -= 20;
+            }
+
+            // Housing type constraint
+            if ($adopter->housing_type == 'condo' && $animal->profile->size == 'large') {
+                $score -= 15;
+            }
+
+            // Calm animals for beginners
+            if ($adopter->experience == 'beginner' && $animal->profile->temperament == 'calm') {
+                $score += 10;
+            }
+
+            $animal->score = $score;
+            return $animal;
+        });
+
+        // Sort by highest score
+        $results = $matched->sortByDesc('score')->values();
+
+        return view('matching.results', compact('results'));
+    }
+
     public function storeOrUpdate(Request $request, $animalId)
     {
-        // 1. Validate
+        // 1. Validate other fields (excluding 'age')
         $validated = $request->validate([
-            'age' => ['required', Rule::in(['kitten', 'puppy', 'adult', 'senior'])],
             'size' => ['required', Rule::in(['small', 'medium', 'large'])],
             'energy_level' => ['required', Rule::in(['low', 'medium', 'high'])],
             'good_with_kids' => ['required', 'boolean'],
@@ -42,10 +111,20 @@ class AnimalManagementController extends Controller
             return redirect()->back()->with('error', 'Animal not found.');
         }
 
-        // 3. Check if profile exists
+        // 3. Validate age from the Animal table (case-insensitive)
+        $allowedAges = ['kitten', 'puppy', 'adult', 'senior'];
+        $ageFromAnimal = strtolower($animal->age); // convert to lower case
+
+        if (!in_array($ageFromAnimal, $allowedAges)) {
+            return redirect()->back()->with('error', 'Invalid age value in the Animal table.');
+        }
+
+        $validated['age'] = $ageFromAnimal;
+
+        // 4. Check if profile exists
         $profile = AnimalProfile::firstOrNew(['animalID' => $animalId]);
 
-        // 4. Fill and save
+        // 5. Fill and save
         $profile->fill($validated);
         $saved = $profile->save();
 

@@ -484,12 +484,7 @@
                    </div>
 
                    <div class="space-y-3">
-                       <!-- Age -->
-                       <div class="flex justify-between py-2 border-b border-gray-100">
-                           <span class="text-gray-600 font-semibold">Age Category</span>
-                           <span class="text-gray-800">{{ ucfirst($animalProfile->age) }}</span>
-                       </div>
-                       
+                      
                        <!-- Size -->
                        <div class="flex justify-between py-2 border-b border-gray-100">
                            <span class="text-gray-600 font-semibold">Size</span>

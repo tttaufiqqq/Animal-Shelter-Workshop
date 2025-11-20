@@ -26,18 +26,6 @@
                 <input type="hidden" name="profile_id" value="{{ $animalProfile->id }}">
             @endif
 
-            <!-- Age Category -->
-            <div>
-                <label for="age" class="block text-sm font-semibold text-gray-700 mb-2">Age Category</label>
-                <select id="age" name="age" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition bg-white">
-                    <option value="">Select age category</option>
-                    <option value="kitten" @selected($getProfileValue('age') == 'kitten')>Kitten (0-1 year)</option>
-                    <option value="puppy" @selected($getProfileValue('age') == 'puppy')>Puppy (0-1 year)</option>
-                    <option value="adult" @selected($getProfileValue('age') == 'adult')>Adult (1-7 years)</option>
-                    <option value="senior" @selected($getProfileValue('age') == 'senior')>Senior (7+ years)</option>
-                </select>
-            </div>
-
             <!-- Size -->
             <div>
                 <label for="size" class="block text-sm font-semibold text-gray-700 mb-2">Size</label>
