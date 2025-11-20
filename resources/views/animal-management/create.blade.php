@@ -11,7 +11,7 @@
     {{-- Font Awesome --}}
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
-<body class="bg-gradient-to-br from-purple-600 to-purple-800 min-h-screen flex flex-col">
+<body class="bg-white min-h-screen flex flex-col">
    
     <!-- Include Navbar -->
     @include('navbar')

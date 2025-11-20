@@ -11,7 +11,7 @@
     {{-- Leaflet CSS --}}
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 </head>
-<body class="bg-gradient-to-br from-blue-600 to-blue-800 min-h-screen">
+<body class="bg-white min-h-screen">
 
     <!-- Include Navbar -->
     @include('navbar')
@@ -19,7 +19,7 @@
     <div class="max-w-7xl mx-auto mt-10 p-4 md:p-6 pb-10">
         <!-- Header Section -->
         <div class="bg-white rounded-2xl shadow-2xl overflow-hidden mb-6">
-            <div class="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-6 md:p-8">
+            <div class="bg-gradient-to-r from-purple-600 to-purple-700 text-white p-6 md:p-8">
                 <div class="flex items-center justify-between flex-wrap gap-4">
                     <div class="flex items-center">
                         <span class="text-4xl md:text-5xl mr-4">🚑</span>
@@ -47,7 +47,7 @@
         <div class="bg-white rounded-2xl shadow-2xl overflow-hidden mb-6">
             <div class="flex flex-wrap gap-2 p-4">
                 <a href="{{ route('rescues.index') }}" 
-                   class="px-4 py-2 rounded-lg font-semibold transition {{ !request('status') ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200' }}">
+                   class="px-4 py-2 rounded-lg font-semibold transition {{ !request('status') ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200' }}">
                     All Rescues
                 </a>
                 <a href="{{ route('rescues.index', ['status' => 'Scheduled']) }}" 
@@ -159,7 +159,7 @@
                             {{-- Actions --}}
                             <div class="mt-6 pt-6 border-t border-gray-200 flex justify-end gap-3 flex-wrap">
                                 <a href="{{ route('rescues.show', $rescue->id) }}" 
-                                   class="px-5 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-semibold rounded-lg hover:from-blue-700 hover:to-blue-800 transition duration-300 shadow-lg">
+                                   class="px-5 py-3 bg-gradient-to-r from-purple-600 to-purple-700 text-white font-semibold rounded-lg hover:from-blue-700 hover:to-blue-800 transition duration-300 shadow-lg">
                                     View Full Report
                                 </a>
                             </div>

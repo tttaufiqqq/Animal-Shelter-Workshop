@@ -60,45 +60,74 @@
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <!-- Left Column - Images -->
             <div class="lg:col-span-2">
-                <div class="bg-white rounded-lg shadow-lg overflow-hidden">
-                    @if($animal->images && $animal->images->count() > 0)
-                        <!-- Main Image -->
-                        <div class="aspect-video bg-gray-100">
-                            <img id="mainImage" 
-                                 src="{{ asset('storage/' . $animal->images->first()->image_path) }}" 
-                                 alt="{{ $animal->name }}" 
-                                 class="w-full h-full object-cover">
+                <div class="bg-white rounded-lg shadow-lg overflow-hidden relative">
+                    <!-- Main Image Display -->
+                    <div class="relative w-full aspect-video bg-gray-100 flex items-center justify-center">
+                        <div id="imageSwiperContent" class="w-full h-full flex items-center justify-center">
+                            @if($animal->images && $animal->images->count() > 0)
+                                <img src="{{ asset('storage/' . $animal->images->first()->image_path) }}" 
+                                    alt="{{ $animal->name }}" 
+                                    class="max-w-full max-h-full object-contain">
+                            @else
+                                <div class="aspect-video bg-gradient-to-br from-purple-300 to-purple-400 flex items-center justify-center w-full h-full">
+                                    <span class="text-9xl">
+                                        @if(strtolower($animal->species) == 'dog')
+                                            🐕
+                                        @elseif(strtolower($animal->species) == 'cat')
+                                            🐈
+                                        @else
+                                            🐾
+                                        @endif
+                                    </span>
+                                </div>
+                            @endif
                         </div>
 
-                        <!-- Image Thumbnails -->
-                        @if($animal->images->count() > 1)
-                            <div class="p-4 bg-gray-50">
-                                <div class="grid grid-cols-4 md:grid-cols-6 gap-2">
-                                    @foreach($animal->images as $image)
-                                        <div class="aspect-square cursor-pointer rounded-lg overflow-hidden border-2 border-transparent hover:border-purple-500 transition-all"
-                                             onclick="changeImage('{{ asset('storage/' . $image->image_path) }}')">
-                                            <img src="{{ asset('storage/' . $image->image_path) }}" 
-                                                 alt="{{ $animal->name }}" 
-                                                 class="w-full h-full object-cover">
-                                        </div>
-                                    @endforeach
-                                </div>
-                            </div>
-                        @endif
-                    @else
-                        <div class="aspect-video bg-gradient-to-br from-purple-300 to-purple-400 flex items-center justify-center">
-                            <span class="text-9xl">
-                                @if(strtolower($animal->species) == 'dog')
-                                    🐕
-                                @elseif(strtolower($animal->species) == 'cat')
-                                    🐈
-                                @else
-                                    🐾
-                                @endif
-                            </span>
+                        <!-- Navigation Arrows -->
+                        <button id="prevImageBtn" class="hidden absolute left-4 top-1/2 -translate-y-1/2 bg-black bg-opacity-50 hover:bg-opacity-70 text-white rounded-full w-12 h-12 flex items-center justify-center transition duration-300 z-10">
+                            <i class="fas fa-chevron-left text-xl"></i>
+                        </button>
+                        <button id="nextImageBtn" class="hidden absolute right-4 top-1/2 -translate-y-1/2 bg-black bg-opacity-50 hover:bg-opacity-70 text-white rounded-full w-12 h-12 flex items-center justify-center transition duration-300 z-10">
+                            <i class="fas fa-chevron-right text-xl"></i>
+                        </button>
+
+                        <!-- Image Counter -->
+                        <div id="imageCounter" class="hidden absolute bottom-4 right-4 bg-black bg-opacity-70 text-white px-4 py-2 rounded-full text-sm font-semibold">
+                            <i class="fas fa-images mr-1"></i>
+                            <span id="currentImageIndex">1</span> / <span id="totalImages">{{ $animal->images->count() ?: 1 }}</span>
                         </div>
-                    @endif
+                    </div>
+
+                    <!-- Thumbnails -->
+                    <div id="thumbnailContainer" class="p-4 overflow-x-auto">
+                        <div id="thumbnailStrip" class="flex gap-2">
+                            @if($animal->images && $animal->images->count() > 0)
+                                @foreach($animal->images as $index => $image)
+                                    <div onclick="goToImage({{ $index }})"
+                                        class="flex-shrink-0 w-20 h-20 cursor-pointer rounded-lg overflow-hidden border-2 transition duration-300 {{ $index == 0 ? 'border-green-600' : 'border-gray-300 hover:border-green-400' }}"
+                                        id="thumbnail-{{ $index }}">
+                                        <img src="{{ asset('storage/' . $image->image_path) }}" 
+                                            alt="{{ $animal->name }}" 
+                                            class="w-full h-full object-cover">
+                                    </div>
+                                @endforeach
+                            @else
+                                <!-- Show placeholder as single thumbnail -->
+                                <div class="flex-shrink-0 w-20 h-20 cursor-pointer rounded-lg overflow-hidden border-2 border-gray-300 flex items-center justify-center text-4xl">
+                                    @if(strtolower($animal->species) == 'dog')
+                                        🐕
+                                    @elseif(strtolower($animal->species) == 'cat')
+                                        🐈
+                                    @else
+                                        🐾
+                                    @endif
+                                </div>
+                            @endif
+                        </div>
+                    </div>
                 </div>
+
+
 
                 <!-- Health Details Card -->
                 <div class="bg-white rounded-lg shadow-lg p-6 mt-6">
@@ -678,6 +707,66 @@
                 closeVaccinationModal();
             }
         });
+
+         let currentImages = [
+        @foreach($animal->images as $image)
+            { path: "{{ asset('storage/' . $image->image_path) }}" },
+        @endforeach
+    ];
+    let currentImageIndex = 0;
+
+    function displayCurrentImage() {
+        const content = document.getElementById('imageSwiperContent');
+        const image = currentImages[currentImageIndex];
+
+        content.innerHTML = `<img src="${image.path}" class="max-w-full max-h-full object-contain">`;
+        document.getElementById('currentImageIndex').textContent = currentImageIndex + 1;
+
+        // Update thumbnails
+        currentImages.forEach((_, index) => {
+            const thumb = document.getElementById(`thumbnail-${index}`);
+            if (thumb) {
+                thumb.className = `flex-shrink-0 w-20 h-20 cursor-pointer rounded-lg overflow-hidden border-2 transition duration-300 ${
+                    index === currentImageIndex ? 'border-green-600' : 'border-gray-300 hover:border-green-400'
+                }`;
+            }
+        });
+    }
+
+    function nextImage() {
+        currentImageIndex = (currentImageIndex + 1) % currentImages.length;
+        displayCurrentImage();
+    }
+
+    function prevImage() {
+        currentImageIndex = (currentImageIndex - 1 + currentImages.length) % currentImages.length;
+        displayCurrentImage();
+    }
+
+    function goToImage(index) {
+        currentImageIndex = index;
+        displayCurrentImage();
+    }
+
+    // Init
+    if(currentImages.length > 0) {
+        displayCurrentImage();
+        if(currentImages.length > 1) {
+            document.getElementById('prevImageBtn').classList.remove('hidden');
+            document.getElementById('nextImageBtn').classList.remove('hidden');
+            document.getElementById('imageCounter').classList.remove('hidden');
+        }
+    }
+
+    document.getElementById('prevImageBtn').addEventListener('click', prevImage);
+    document.getElementById('nextImageBtn').addEventListener('click', nextImage);
+
+    // Optional keyboard navigation
+    document.addEventListener('keydown', function(e){
+        if(currentImages.length < 2) return;
+        if(e.key === 'ArrowLeft') prevImage();
+        if(e.key === 'ArrowRight') nextImage();
+    });
     </script>
 </body>
 </html>

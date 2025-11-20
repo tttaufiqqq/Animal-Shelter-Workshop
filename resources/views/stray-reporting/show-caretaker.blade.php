@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 </head>
-<body class="bg-gradient-to-br from-purple-600 to-purple-800 min-h-screen">
+<body class="bg-white min-h-screen">
 
     <!-- Navbar -->
     @include('navbar')
@@ -157,65 +157,101 @@
 
             <!-- Sidebar -->
             <div class="lg:col-span-1 space-y-6">
-                <!-- Images Section -->
+                <!-- Images Section with Swiper -->
                 <div class="bg-white rounded-2xl shadow-2xl overflow-hidden">
                     <div class="p-6 md:p-8">
                         <h2 class="text-2xl font-bold text-gray-800 mb-4">Report Images</h2>
-                        
-                        @if($rescue->report->images && $rescue->report->images->count() > 0)
-                            <div class="space-y-4">
-                                @foreach($rescue->report->images as $image)
-                                    <div class="border-2 border-purple-100 rounded-xl overflow-hidden hover:border-purple-300 transition">
-                                        <img src="{{ asset('storage/' . $image->image_path) }}" 
-                                             alt="Report Image {{ $loop->iteration }}"
-                                             class="w-full h-48 object-cover cursor-pointer hover:opacity-90 transition duration-200"
-                                             onclick="openImageModal('{{ asset('storage/' . $image->image_path) }}')">
-                                        <div class="p-3 bg-purple-50">
-                                            <p class="text-sm text-gray-700 text-center font-semibold">Image {{ $loop->iteration }}</p>
-                                        </div>
+
+                        <div class="relative w-full h-64 bg-gray-100 flex items-center justify-center">
+                            <!-- Main Image Display -->
+                            <div id="rescueImageSwiperContent" class="w-full h-full flex items-center justify-center">
+                                @if($rescue->report->images && $rescue->report->images->count() > 0)
+                                    <img src="{{ asset('storage/' . $rescue->report->images->first()->image_path) }}" 
+                                        alt="Report Image 1" 
+                                        class="max-w-full max-h-full object-contain">
+                                @else
+                                    <div class="flex items-center justify-center w-full h-full bg-purple-50 text-5xl text-purple-400">
+                                        <i class="fas fa-image"></i>
                                     </div>
-                                @endforeach
+                                @endif
                             </div>
-                        @else
-                            <div class="text-center py-8 bg-purple-50 rounded-xl">
-                                <i class="fas fa-image text-purple-300 text-5xl mb-3"></i>
-                                <p class="text-gray-600">No images available for this report</p>
+
+                            <!-- Navigation Arrows -->
+                            <button id="rescuePrevImageBtn" class="hidden absolute left-2 top-1/2 -translate-y-1/2 bg-black bg-opacity-50 hover:bg-opacity-70 text-white rounded-full w-10 h-10 flex items-center justify-center transition duration-300 z-10">
+                                <i class="fas fa-chevron-left text-lg"></i>
+                            </button>
+                            <button id="rescueNextImageBtn" class="hidden absolute right-2 top-1/2 -translate-y-1/2 bg-black bg-opacity-50 hover:bg-opacity-70 text-white rounded-full w-10 h-10 flex items-center justify-center transition duration-300 z-10">
+                                <i class="fas fa-chevron-right text-lg"></i>
+                            </button>
+
+                            <!-- Image Counter -->
+                            <div id="rescueImageCounter" class="hidden absolute bottom-2 right-2 bg-black bg-opacity-70 text-white px-3 py-1 rounded-full text-sm font-semibold">
+                                <i class="fas fa-images mr-1"></i>
+                                <span id="rescueCurrentImageIndex">1</span> / <span id="rescueTotalImages">{{ $rescue->report->images->count() ?: 1 }}</span>
                             </div>
-                        @endif
+                        </div>
+
+                        <!-- Thumbnail Strip -->
+                        <div id="rescueThumbnailContainer" class="mt-4 overflow-x-auto">
+                            <div id="rescueThumbnailStrip" class="flex gap-2">
+                                @if($rescue->report->images && $rescue->report->images->count() > 0)
+                                    @foreach($rescue->report->images as $index => $image)
+                                        <div onclick="rescueGoToImage({{ $index }})"
+                                            class="flex-shrink-0 w-20 h-20 cursor-pointer rounded-lg overflow-hidden border-2 transition duration-300 {{ $index == 0 ? 'border-green-600' : 'border-gray-300 hover:border-green-400' }}"
+                                            id="rescueThumbnail-{{ $index }}">
+                                            <img src="{{ asset('storage/' . $image->image_path) }}" 
+                                                alt="Report Image {{ $loop->iteration }}" 
+                                                class="w-full h-full object-cover">
+                                        </div>
+                                    @endforeach
+                                @else
+                                    <div class="flex-shrink-0 w-20 h-20 cursor-pointer rounded-lg overflow-hidden border-2 border-gray-300 flex items-center justify-center text-3xl text-purple-400">
+                                        <i class="fas fa-image"></i>
+                                    </div>
+                                @endif
+                            </div>
+                        </div>
                     </div>
                 </div>
 
+
                 <!-- Status Info -->
-               <div class="bg-white rounded-2xl shadow-2xl overflow-hidden p-6 md:p-8">
-                  <h2 class="text-2xl font-bold text-gray-800 mb-4">Update Rescue Status</h2>
+               @php
+                $isFinal = in_array($rescue->status, ['Success', 'Failed']);
+                @endphp
 
-                  <form id="statusForm" action="{{ route('rescues.update-status', $rescue->id) }}" method="POST">
-                     @csrf
-                     @method('PATCH')
-                     <div class="grid grid-cols-2 gap-2">
-                           <button type="button" onclick="updateStatus('Scheduled')" 
-                                 class="bg-gradient-to-r from-yellow-400 to-yellow-500 hover:from-yellow-500 hover:to-yellow-600 text-yellow-900 px-3 py-2.5 rounded-lg text-sm font-semibold transition duration-200 flex items-center justify-center shadow-lg">
-                              <i class="fas fa-calendar-alt mr-1"></i> Scheduled
-                           </button>
+                <div class="bg-white rounded-2xl shadow-2xl overflow-hidden p-6 md:p-8">
+                <h2 class="text-2xl font-bold text-gray-800 mb-4">Update Rescue Status</h2>
 
-                           <button type="button" onclick="updateStatus('In Progress')" 
-                                 class="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white px-3 py-2.5 rounded-lg text-sm font-semibold transition duration-200 flex items-center justify-center shadow-lg">
-                              <i class="fas fa-rocket mr-1"></i> In Progress
-                           </button>
+                <form id="statusForm" action="{{ route('rescues.update-status', $rescue->id) }}" method="POST">
+                    @csrf
+                    @method('PATCH')
 
-                           <button type="button" onclick="updateStatus('Success')" 
-                                 class="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white px-3 py-2.5 rounded-lg text-sm font-semibold transition duration-200 flex items-center justify-center shadow-lg">
-                              <i class="fas fa-check-circle mr-1"></i> Success
-                           </button>
+                    <div class="grid grid-cols-2 gap-2 {{ $isFinal ? 'pointer-events-none opacity-50' : '' }}">
+                        
+                        <button type="button" onclick="updateStatus('Scheduled')" 
+                            class="bg-gradient-to-r from-yellow-400 to-yellow-500 text-yellow-900 px-3 py-2.5 rounded-lg text-sm font-semibold transition duration-200 flex items-center justify-center shadow-lg">
+                            <i class="fas fa-calendar-alt mr-1"></i> Scheduled
+                        </button>
 
-                           <button type="button" onclick="updateStatus('Failed')" 
-                                 class="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white px-3 py-2.5 rounded-lg text-sm font-semibold transition duration-200 flex items-center justify-center shadow-lg">
-                              <i class="fas fa-times-circle mr-1"></i> Failed
-                           </button>
-                     </div>
-                  </form>
-               </div>
+                        <button type="button" onclick="updateStatus('In Progress')" 
+                            class="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-3 py-2.5 rounded-lg text-sm font-semibold transition duration-200 flex items-center justify-center shadow-lg">
+                            <i class="fas fa-rocket mr-1"></i> In Progress
+                        </button>
 
+                        <button type="button" onclick="updateStatus('Success')" 
+                            class="bg-gradient-to-r from-green-500 to-green-600 text-white px-3 py-2.5 rounded-lg text-sm font-semibold transition duration-200 flex items-center justify-center shadow-lg">
+                            <i class="fas fa-check-circle mr-1"></i> Success
+                        </button>
+
+                        <button type="button" onclick="updateStatus('Failed')" 
+                            class="bg-gradient-to-r from-red-500 to-red-600 text-white px-3 py-2.5 rounded-lg text-sm font-semibold transition duration-200 flex items-center justify-center shadow-lg">
+                            <i class="fas fa-times-circle mr-1"></i> Failed
+                        </button>
+
+                    </div>
+                </form>
+                </div>
             </div>
         </div>
     </div>
@@ -428,6 +464,85 @@
                 closeRemarksModal();
             }
         });
+        // Rescue report images swiper
+let rescueImages = [
+    @if($rescue->report->images && $rescue->report->images->count() > 0)
+        @foreach($rescue->report->images as $image)
+            { path: "{{ asset('storage/' . $image->image_path) }}" },
+        @endforeach
+    @endif
+];
+let rescueImageIndex = 0;
+
+function rescueDisplayImage() {
+    const content = document.getElementById('rescueImageSwiperContent');
+    const counter = document.getElementById('rescueImageCounter');
+
+    if (rescueImages.length === 0) {
+        content.innerHTML = `<div class="flex items-center justify-center w-full h-full bg-purple-50 text-5xl text-purple-400">
+                                <i class="fas fa-image"></i>
+                             </div>`;
+        document.getElementById('rescuePrevImageBtn').classList.add('hidden');
+        document.getElementById('rescueNextImageBtn').classList.add('hidden');
+        counter.classList.add('hidden');
+        return;
+    }
+
+    content.innerHTML = `<img src="${rescueImages[rescueImageIndex].path}" class="max-w-full max-h-full object-contain">`;
+
+    document.getElementById('rescueCurrentImageIndex').textContent = rescueImageIndex + 1;
+    document.getElementById('rescueTotalImages').textContent = rescueImages.length;
+    counter.classList.remove('hidden');
+
+    // Update thumbnails
+    rescueImages.forEach((_, index) => {
+        const thumb = document.getElementById(`rescueThumbnail-${index}`);
+        if (thumb) {
+            thumb.className = `flex-shrink-0 w-20 h-20 cursor-pointer rounded-lg overflow-hidden border-2 transition duration-300 ${
+                index === rescueImageIndex ? 'border-green-600' : 'border-gray-300 hover:border-green-400'
+            }`;
+        }
+    });
+
+    const prevBtn = document.getElementById('rescuePrevImageBtn');
+    const nextBtn = document.getElementById('rescueNextImageBtn');
+    if (rescueImages.length > 1) {
+        prevBtn.classList.remove('hidden');
+        nextBtn.classList.remove('hidden');
+    } else {
+        prevBtn.classList.add('hidden');
+        nextBtn.classList.add('hidden');
+    }
+}
+
+function rescueGoToImage(index) {
+    if (index >= 0 && index < rescueImages.length) {
+        rescueImageIndex = index;
+        rescueDisplayImage();
+    }
+}
+
+function rescueNextImage() {
+    rescueImageIndex = (rescueImageIndex + 1) % rescueImages.length;
+    rescueDisplayImage();
+}
+
+function rescuePrevImage() {
+    rescueImageIndex = (rescueImageIndex - 1 + rescueImages.length) % rescueImages.length;
+    rescueDisplayImage();
+}
+
+document.getElementById('rescuePrevImageBtn').addEventListener('click', rescuePrevImage);
+document.getElementById('rescueNextImageBtn').addEventListener('click', rescueNextImage);
+document.addEventListener('keydown', function(e) {
+    if (rescueImages.length === 0) return;
+    if (e.key === 'ArrowLeft') rescuePrevImage();
+    if (e.key === 'ArrowRight') rescueNextImage();
+});
+
+// Initialize on page load
+rescueDisplayImage();
+
     </script>
 </body>
 </html>

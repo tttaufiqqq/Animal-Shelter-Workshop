@@ -139,33 +139,63 @@
 
             <!-- Sidebar -->
             <div class="lg:col-span-1 space-y-6">
-                <!-- Images Section -->
+                <!-- Images Section with Swiper -->
                 <div class="bg-white rounded-2xl shadow-2xl overflow-hidden">
                     <div class="p-6 md:p-8">
                         <h2 class="text-2xl font-bold text-gray-800 mb-4">Report Images</h2>
                         
-                        @if($report->images && $report->images->count() > 0)
-                            <div class="space-y-4">
-                                @foreach($report->images as $image)
-                                    <div class="border-2 border-purple-100 rounded-xl overflow-hidden hover:border-purple-300 transition">
-                                        <img src="{{ asset('storage/' . $image->image_path) }}" 
-                                             alt="Report Image {{ $loop->iteration }}"
-                                             class="w-full h-48 object-cover cursor-pointer hover:opacity-90 transition duration-200"
-                                             onclick="openImageModal('{{ asset('storage/' . $image->image_path) }}')">
-                                        <div class="p-3 bg-purple-50">
-                                            <p class="text-sm text-gray-700 text-center font-semibold">Image {{ $loop->iteration }}</p>
-                                        </div>
+                        <div class="relative w-full h-64 bg-gray-100 flex items-center justify-center">
+                            <!-- Swiper Main Content -->
+                            <div id="imageSwiperContent" class="w-full h-full flex items-center justify-center">
+                                @if($report->images && $report->images->count() > 0)
+                                    <img src="{{ asset('storage/' . $report->images->first()->image_path) }}" 
+                                        alt="Report Image 1" 
+                                        class="max-w-full max-h-full object-contain">
+                                @else
+                                    <div class="flex items-center justify-center w-full h-full bg-purple-50 text-5xl text-purple-400">
+                                        <i class="fas fa-image"></i>
                                     </div>
-                                @endforeach
+                                @endif
                             </div>
-                        @else
-                            <div class="text-center py-8 bg-purple-50 rounded-xl">
-                                <i class="fas fa-image text-purple-300 text-5xl mb-3"></i>
-                                <p class="text-gray-600">No images available for this report</p>
+
+                            <!-- Navigation Arrows -->
+                            <button id="prevImageBtn" class="hidden absolute left-2 top-1/2 -translate-y-1/2 bg-black bg-opacity-50 hover:bg-opacity-70 text-white rounded-full w-10 h-10 flex items-center justify-center transition duration-300 z-10">
+                                <i class="fas fa-chevron-left text-lg"></i>
+                            </button>
+                            <button id="nextImageBtn" class="hidden absolute right-2 top-1/2 -translate-y-1/2 bg-black bg-opacity-50 hover:bg-opacity-70 text-white rounded-full w-10 h-10 flex items-center justify-center transition duration-300 z-10">
+                                <i class="fas fa-chevron-right text-lg"></i>
+                            </button>
+
+                            <!-- Image Counter -->
+                            <div id="imageCounter" class="hidden absolute bottom-2 right-2 bg-black bg-opacity-70 text-white px-3 py-1 rounded-full text-sm font-semibold">
+                                <i class="fas fa-images mr-1"></i>
+                                <span id="currentImageIndex">1</span> / <span id="totalImages">{{ $report->images->count() ?: 1 }}</span>
                             </div>
-                        @endif
+                        </div>
+
+                        <!-- Thumbnail Strip -->
+                        <div id="thumbnailContainer" class="mt-4 overflow-x-auto">
+                            <div id="thumbnailStrip" class="flex gap-2">
+                                @if($report->images && $report->images->count() > 0)
+                                    @foreach($report->images as $index => $image)
+                                        <div onclick="goToImage({{ $index }})"
+                                            class="flex-shrink-0 w-20 h-20 cursor-pointer rounded-lg overflow-hidden border-2 transition duration-300 {{ $index == 0 ? 'border-green-600' : 'border-gray-300 hover:border-green-400' }}"
+                                            id="thumbnail-{{ $index }}">
+                                            <img src="{{ asset('storage/' . $image->image_path) }}" 
+                                                alt="Report Image {{ $loop->iteration }}" 
+                                                class="w-full h-full object-cover">
+                                        </div>
+                                    @endforeach
+                                @else
+                                    <div class="flex-shrink-0 w-20 h-20 cursor-pointer rounded-lg overflow-hidden border-2 border-gray-300 flex items-center justify-center text-3xl text-purple-400">
+                                        <i class="fas fa-image"></i>
+                                    </div>
+                                @endif
+                            </div>
+                        </div>
                     </div>
                 </div>
+
 
                 <!-- Quick Actions -->
                 <div class="bg-white rounded-2xl shadow-2xl overflow-hidden">
@@ -284,6 +314,93 @@
                 closeImageModal();
             }
         });
+        // Initialize swiper data
+let currentImages = [
+    @if($report->images && $report->images->count() > 0)
+        @foreach($report->images as $image)
+            { path: "{{ asset('storage/' . $image->image_path) }}" },
+        @endforeach
+    @endif
+];
+let currentImageIndex = 0;
+
+// Display current image
+function displayCurrentImage() {
+    const content = document.getElementById('imageSwiperContent');
+    const counter = document.getElementById('imageCounter');
+
+    if (currentImages.length === 0) {
+        content.innerHTML = `
+            <div class="flex items-center justify-center w-full h-full bg-purple-50 text-5xl text-purple-400">
+                <i class="fas fa-image"></i>
+            </div>
+        `;
+        document.getElementById('prevImageBtn').classList.add('hidden');
+        document.getElementById('nextImageBtn').classList.add('hidden');
+        counter.classList.add('hidden');
+        return;
+    }
+
+    // Main image
+    content.innerHTML = `<img src="${currentImages[currentImageIndex].path}" class="max-w-full max-h-full object-contain">`;
+
+    // Update counter
+    document.getElementById('currentImageIndex').textContent = currentImageIndex + 1;
+    document.getElementById('totalImages').textContent = currentImages.length;
+    counter.classList.remove('hidden');
+
+    // Update thumbnails
+    currentImages.forEach((_, index) => {
+        const thumb = document.getElementById(`thumbnail-${index}`);
+        if (thumb) {
+            thumb.className = `flex-shrink-0 w-20 h-20 cursor-pointer rounded-lg overflow-hidden border-2 transition duration-300 ${
+                index === currentImageIndex ? 'border-green-600' : 'border-gray-300 hover:border-green-400'
+            }`;
+        }
+    });
+
+    // Show arrows only if multiple images
+    const prevBtn = document.getElementById('prevImageBtn');
+    const nextBtn = document.getElementById('nextImageBtn');
+    if (currentImages.length > 1) {
+        prevBtn.classList.remove('hidden');
+        nextBtn.classList.remove('hidden');
+    } else {
+        prevBtn.classList.add('hidden');
+        nextBtn.classList.add('hidden');
+    }
+}
+
+// Go to image by index
+function goToImage(index) {
+    if (index >= 0 && index < currentImages.length) {
+        currentImageIndex = index;
+        displayCurrentImage();
+    }
+}
+
+// Navigation buttons
+function nextImage() {
+    currentImageIndex = (currentImageIndex + 1) % currentImages.length;
+    displayCurrentImage();
+}
+function prevImage() {
+    currentImageIndex = (currentImageIndex - 1 + currentImages.length) % currentImages.length;
+    displayCurrentImage();
+}
+
+// Event listeners
+document.getElementById('prevImageBtn').addEventListener('click', prevImage);
+document.getElementById('nextImageBtn').addEventListener('click', nextImage);
+document.addEventListener('keydown', function(e) {
+    if (currentImages.length === 0) return;
+    if (e.key === 'ArrowLeft') prevImage();
+    if (e.key === 'ArrowRight') nextImage();
+});
+
+// Initialize on page load
+displayCurrentImage();
+
     </script>
 </body>
 </html>
