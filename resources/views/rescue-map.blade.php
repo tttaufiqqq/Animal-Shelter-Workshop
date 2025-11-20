@@ -19,6 +19,7 @@
             height: 100%; 
             width: 100%;
             filter: brightness(0.95) contrast(1.05);
+            z-index: 0;
         }
         
         .cluster-marker {
@@ -68,21 +69,17 @@
             background: rgba(255, 255, 255, 0.95);
             backdrop-filter: blur(10px);
             border: 1px solid rgba(255, 255, 255, 0.8);
+            z-index: 10;
         }
         
         .details-panel {
             animation: slideIn 0.3s ease-out;
+            z-index: 1000;
         }
         
         @keyframes slideIn {
-            from {
-                opacity: 0;
-                transform: translateX(20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateX(0);
-            }
+            from { opacity: 0; transform: translateX(20px); }
+            to { opacity: 1; transform: translateX(0); }
         }
         
         .progress-ring {
@@ -96,16 +93,15 @@
     </style>
 </head>
 <body class="bg-gradient-to-br from-slate-50 to-slate-100">
+    {{-- Navbar --}}
     @include('navbar')
-    
+
+    {{-- Main Content Wrapper --}}
     <div class="flex flex-col h-screen">
-        <!-- Modern Header -->
         <div class="glassmorphism shadow-lg p-6">
             <div class="flex items-center justify-between mb-6">
                 <div>
-                    <h1 class="text-3xl font-bold text-gray-800">
-                        Animal Rescue Reports
-                    </h1>
+                    <h1 class="text-3xl font-bold text-gray-800">Animal Rescue Reports</h1>
                     <p class="text-sm text-gray-500 mt-1">Real-time rescue operations dashboard</p>
                 </div>
                 <div class="flex items-center gap-3">
@@ -113,8 +109,7 @@
                     <span class="text-sm text-gray-600 font-medium">Live Data</span>
                 </div>
             </div>
-            
-            <!-- Statistics Cards -->
+
             <div class="grid grid-cols-2 md:grid-cols-6 gap-4">
                 <div class="stat-card bg-gradient-to-br from-blue-50 to-blue-100 p-4 rounded-2xl border border-blue-200">
                     <div class="flex items-center justify-between">
@@ -202,11 +197,9 @@
             </div>
         </div>
 
-        <!-- Map Container -->
         <div class="flex-1 relative">
             <div id="map"></div>
             
-            <!-- Modern Details Panel -->
             <div id="detailsPanel" class="hidden absolute top-6 right-6 glassmorphism rounded-3xl shadow-2xl p-6 w-96 max-h-[calc(100%-3rem)] overflow-y-auto z-[1000] details-panel">
                 <div class="flex justify-between items-start mb-5">
                     <div>
@@ -222,7 +215,6 @@
 
                 <div id="clusterStats" class="space-y-3 mb-5"></div>
 
-                <!-- Success Rate with Progress Circle -->
                 <div class="bg-gradient-to-br from-green-50 to-emerald-50 rounded-2xl p-4 border border-green-100">
                     <div class="flex justify-between items-center mb-2">
                         <span class="text-sm font-semibold text-gray-700">Success Rate</span>
@@ -244,54 +236,50 @@
                 </div>
             </div>
         </div>
+    </div>
 
-        <!-- Modern Legend -->
-        <div class="glassmorphism border-t border-gray-200 p-4">
-            <div class="flex items-center justify-center gap-8 text-sm">
-                <div class="flex items-center gap-2">
-                    <div class="w-5 h-5 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full shadow-md"></div>
-                    <span class="font-medium text-gray-700">High Success <span class="text-gray-500">(≥70%)</span></span>
-                </div>
-                <div class="flex items-center gap-2">
-                    <div class="w-5 h-5 bg-gradient-to-br from-yellow-500 to-amber-600 rounded-full shadow-md"></div>
-                    <span class="font-medium text-gray-700">Medium <span class="text-gray-500">(40-70%)</span></span>
-                </div>
-                <div class="flex items-center gap-2">
-                    <div class="w-5 h-5 bg-gradient-to-br from-red-500 to-red-600 rounded-full shadow-md"></div>
-                    <span class="font-medium text-gray-700">Low <span class="text-gray-500">(&lt;40%)</span></span>
-                </div>
+    {{-- Modern Legend (fixed to bottom) --}}
+    <div class="glassmorphism border-t border-gray-200 p-4 fixed bottom-0 left-0 w-full z-50">
+        <div class="flex items-center justify-center gap-8 text-sm">
+            <div class="flex items-center gap-2">
+                <div class="w-5 h-5 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full shadow-md"></div>
+                <span class="font-medium text-gray-700">High Success <span class="text-gray-500">(≥70%)</span></span>
+            </div>
+            <div class="flex items-center gap-2">
+                <div class="w-5 h-5 bg-gradient-to-br from-yellow-500 to-amber-600 rounded-full shadow-md"></div>
+                <span class="font-medium text-gray-700">Medium <span class="text-gray-500">(40-70%)</span></span>
+            </div>
+            <div class="flex items-center gap-2">
+                <div class="w-5 h-5 bg-gradient-to-br from-red-500 to-red-600 rounded-full shadow-md"></div>
+                <span class="font-medium text-gray-700">Low <span class="text-gray-500">(&lt;40%)</span></span>
             </div>
         </div>
     </div>
 
     <script>
-        // Initialize map with modern tiles
-        const map = L.map('map', {
-            zoomControl: false
-        }).setView([37.0902, -95.7129], 5);
+        // --- START OF CORRECTED JAVASCRIPT ---
+        
+        // 1. Initialize map (KEEP this one)
+        const map = L.map('map', { zoomControl: false }).setView([37.0902, -95.7129], 5);
+        
+        // 2. Add controls and tiles
+        L.control.zoom({ position: 'bottomright' }).addTo(map);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap contributors', maxZoom: 18 }).addTo(map);
 
-        // Add zoom control in bottom right
-        L.control.zoom({
-            position: 'bottomright'
-        }).addTo(map);
-
-        // Modern map tiles
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '© OpenStreetMap contributors',
-            maxZoom: 18
-        }).addTo(map);
-
-        // Reports data from Laravel
+        // 3. Reports data from Laravel (Keep this one)
         const reportsData = @json($reports);
 
         function clusterReports(reports) {
             const clusters = [];
-            const clusterRadius = 0.0022;
+            // Adjusted clusterRadius for better clustering across larger areas
+            const clusterRadius = 0.0025; // Use a slightly larger radius for initial clustering
             
             reports.forEach(report => {
                 let foundCluster = null;
                 
                 for (let cluster of clusters) {
+                    // Check if the report is within a 0.5 degree latitude/longitude box
+                    // This is a simplified check for clustering in a map context
                     const distance = Math.sqrt(
                         Math.pow(cluster.lat - report.lat, 2) + 
                         Math.pow(cluster.lng - report.lng, 2)
@@ -306,6 +294,8 @@
                 if (foundCluster) {
                     foundCluster.reports.push(report);
                     const count = foundCluster.reports.length;
+                    
+                    // Recalculate centroid (simple average)
                     foundCluster.lat = ((foundCluster.lat * (count - 1)) + report.lat) / count;
                     foundCluster.lng = ((foundCluster.lng * (count - 1)) + report.lng) / count;
                     
@@ -451,6 +441,7 @@
         function closeDetails() {
             document.getElementById('detailsPanel').classList.add('hidden');
         }
+        // --- END OF CORRECTED JAVASCRIPT ---
     </script>
 </body>
 </html>
