@@ -661,11 +661,13 @@
                     @if($animal->adoption_status == 'Not Adopted')
                         <div class="bg-gradient-to-br from-purple-600 to-purple-700 rounded-lg shadow-lg p-6 text-white">
                             <h3 class="text-xl font-bold mb-2">Interested in adopting?</h3>
-                            <p class="text-purple-100 mb-4">Contact us to learn more about {{ $animal->name }} and start the adoption process.</p>
-                            <button onclick="openBookAdoptionModal({{ $animal->id }}, '{{ $animal->name }}', '{{ $animal->species }}')" 
-                                    class="w-full bg-white text-purple-700 py-3 rounded-lg font-semibold hover:bg-purple-50 transition duration-300">
-                                <i class="fas fa-heart mr-2"></i>Book {{ $animal->name }} for Adoption
-                            </button>
+                            <form action="{{ route('visit.list.add', $animal->id) }}" method="POST">
+                                @csrf
+                                <button type="submit" 
+                                    class="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 rounded-xl shadow-lg">
+                                    <i class="fas fa-plus mr-2"></i>Add to Visit List
+                                </button>
+                            </form>
                         </div>
                     @endif
                 @endrole

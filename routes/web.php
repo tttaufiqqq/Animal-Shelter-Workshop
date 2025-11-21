@@ -119,6 +119,15 @@ Route::middleware('auth')->group(function () {
     // Route to confirm booking (PATCH request - only updates status)
     Route::patch('/bookings/{booking}/confirm', [BookingAdoptionController::class, 'confirm'])->name('bookings.confirm')->middleware('auth');
 
+    // Visit list actions
+    Route::get('/visit-list', [BookingAdoptionController::class, 'indexList'])->name('visit.list');
+    Route::post('/visit-list/add/{animal}', [BookingAdoptionController::class, 'addList'])->name('visit.list.add');
+    Route::post('/visit-list/remove/{animal}', [BookingAdoptionController::class, 'removeList'])->name('visit.list.remove');
+
+    // Booking final submission
+    Route::post('/adoption/book', [BookingAdoptionController::class, 'storeBooking'])->name('adoption.book');
+
+
     Route::get('/payment/status', [BookingAdoptionController::class, 'paymentStatus'])->name('toyyibpay-status');
     Route::post('/payment/callback', [BookingAdoptionController::class, 'callback'])->name('toyyibpay-callback');
 

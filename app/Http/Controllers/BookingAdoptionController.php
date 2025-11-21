@@ -38,37 +38,90 @@ class BookingAdoptionController extends Controller
         return view('booking-adoption.main', compact('bookings'));
     }
 
-    public function storeBooking(Request $request)
+    public function addToVisitList($animalId) //book multiple animals to adopt
+    {
+        $list = session()->get('visit_list', []);
+
+        if (!in_array($animalId, $list)) {
+            $list[] = $animalId;
+        }
+
+        session()->put('visit_list', $list);
+
+        return back()->with('success', 'Animal added to your visit list.');
+    }
+
+    public function indexList()
+    {
+        $list = session()->get('visit_list', []);
+        $animals = Animal::whereIn('id', $list)->get();
+
+        return view('booking-adoption.visit-list', compact('animals'));
+    }
+
+    // Add animal to visit list
+    public function addList($animalId)
+    {
+        $list = session()->get('visit_list', []);
+
+        if (!in_array($animalId, $list)) {
+            $list[] = $animalId;
+        }
+
+        session()->put('visit_list', $list);
+
+        return back()->with('success', 'Animal added to your visit list. View the list in the main animal page.');
+    }
+
+    // Remove animal from visit list
+    public function removeList($animalId)
+    {
+        $list = session()->get('visit_list', []);
+
+        $list = array_filter($list, function ($id) use ($animalId) {
+            return $id != $animalId;
+        });
+
+        session()->put('visit_list', $list);
+
+        return back()->with('success', 'Animal removed from visit list.');
+    }
+
+
+    public function storeBooking(Request $request) //store booking wiith multiple animals
     {
         $request->validate([
-            'animalID' => 'required|exists:animal,id',
+            'animal_ids' => 'required|array|min:1',
+            'animal_ids.*' => 'exists:animal,id',
             'appointment_date' => 'required|date|after:now',
             'terms' => 'required|accepted',
         ]);
 
         $dateTime = Carbon::parse($request->appointment_date);
 
-        // Check if user already has a pending booking
-        $existingBooking = Booking::where('userID', auth()->id())
-            ->where('animalID', $request->animalID)
-            ->where('status', 'Pending')
-            ->first();
-
-        if ($existingBooking) {
-            return redirect()->back()->with('error', 'You already have a pending booking for this animal.');
-        }
-
-        Booking::create([
+        $booking = Booking::create([
             'userID' => auth()->id(),
-            'animalID' => $request->animalID,
             'appointment_date' => $dateTime->toDateString(),
             'appointment_time' => $dateTime->toTimeString(),
             'status' => 'Pending',
             'notes' => $request->notes,
         ]);
 
-        return redirect()->back()->with('success', 'Adoption appointment booked successfully! We will contact you to confirm the details.');
+        $pivotData = [];
+
+        foreach ($request->animal_ids as $animalId) {
+            $pivotData[$animalId] = [
+                'remarks' => $request->remarks[$animalId] ?? null
+            ];
+        }
+
+        $booking->animals()->attach($pivotData);
+
+        session()->forget('visit_list');
+
+        return redirect()->route('visit.list')->with('success', 'Appointment booked successfully!');
     }
+
 
     public function index()
     {

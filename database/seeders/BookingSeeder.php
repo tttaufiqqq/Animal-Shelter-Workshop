@@ -28,7 +28,6 @@ class BookingSeeder extends Seeder
                 'appointment_time' => $time,
                 'status'           => $statuses[array_rand($statuses)],
                 'remarks'          => 'N/A',
-                'animalID'         => $animalIds[array_rand($animalIds)],
                 'userID'           => $users[array_rand($users)],
                 'created_at'       => $date,
                 'updated_at'       => $date,
