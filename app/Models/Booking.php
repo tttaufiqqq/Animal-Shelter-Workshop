@@ -14,14 +14,21 @@ class Booking extends Model
         return $this->belongsTo(User::class, 'userID');
     }
 
-    public function animal()
+    public function animalBookings()
     {
-        return $this->belongsTo(Animal::class, 'animalID', 'id');
+        return $this->hasMany(AnimalBooking::class, 'bookingID', 'id');
+    }
+
+    public function animals()
+    {
+        return $this->belongsToMany(Animal::class, 'AnimalBooking', 'bookingID', 'animalID')
+                    ->withPivot('remarks')
+                    ->withTimestamps();
     }
 
     public function adoption()
     {
-        return $this->hasOne(Adoption::class, 'bookingID');
+        return $this->hasMany(Adoption::class, 'bookingID');
     }
 }
 

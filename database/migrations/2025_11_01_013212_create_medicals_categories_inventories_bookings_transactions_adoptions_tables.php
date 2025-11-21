@@ -47,7 +47,6 @@ return new class extends Migration {
             $table->time('appointment_time');
             $table->string('status')->nullable();
             $table->text('remarks')->nullable();
-            $table->unsignedBigInteger('animalID')->nullable(); // FK later
             $table->unsignedBigInteger('userID')->nullable();   // FK later
             $table->timestamps();
         });
@@ -100,11 +99,6 @@ return new class extends Migration {
         });
 
         Schema::table('booking', function (Blueprint $table) {
-            $table->foreign('animalID')
-                  ->references('id')
-                  ->on('animal')
-                  ->onDelete('set null');
-
             $table->foreign('userID')
                   ->references('id')
                   ->on('users')

@@ -40,9 +40,17 @@ class Animal extends Model
         return $this->hasMany(Image::class, 'animalID');
     }
 
+    public function animalBookings()
+    {
+        return $this->hasMany(AnimalBooking::class, 'animalID', 'id');
+    }
+
     public function bookings()
     {
-        return $this->hasMany(Booking::class, 'animalID', 'id');
+        return $this->belongsToMany(Booking::class, 'AnimalBooking', 'animalID', 'bookingID')
+                    ->withPivot('remarks')
+                    ->withTimestamps();
     }
+
 }
 
