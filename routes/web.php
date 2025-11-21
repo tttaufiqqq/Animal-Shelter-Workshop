@@ -86,7 +86,7 @@ Route::middleware('auth')->group(function () {
 });
 
 //Shelter-Management
-Route::middleware('auth')->group(function () { 
+Route::middleware('auth')->group(function () {
     Route::get('/slots', [ShelterManagementController::class, 'indexSlot'])->name('shelter-management.index');
     Route::post('/slots-store', [ShelterManagementController::class, 'storeSlot'])->name('shelter-management.store-slot');
     Route::put('/shelter-management/slots/{id}', [ShelterManagementController::class, 'updateSlot'])->name('shelter-management.update-slot');
@@ -105,28 +105,25 @@ Route::middleware('auth')->group(function () {
 //Booking-Adoption
 Route::middleware('auth')->group(function () {
     Route::get('/booking:main', [BookingAdoptionController::class, 'index'])->name('booking:main');
-    
 
-    Route::post('/adoption/book', [BookingAdoptionController::class, 'storeBooking'])->name('adoption.book')->middleware('auth');
-    Route::get('/bookings', [BookingAdoptionController::class, 'index'])->name('bookings.index');
-    Route::get('/bookings/all', [BookingAdoptionController::class, 'indexAdmin'])->name('bookings.index-admin');
-    Route::get('/bookings/create', [BookingAdoptionController::class, 'create'])->name('bookings.create');
-    Route::post('/bookings', [BookingAdoptionController::class, 'store'])->name('bookings.store');
-    Route::get('/bookings/{booking}', [BookingAdoptionController::class, 'show'])->name('bookings.show');
-    Route::patch('/bookings/{booking}/cancel', [BookingAdoptionController::class, 'cancel'])->name('bookings.cancel');
-   // Route to show the fee modal (GET request)
-    Route::get('/bookings/{booking}/adoption-fee', [BookingAdoptionController::class, 'showAdoptionFee'])->name('bookings.adoption.fee')->middleware('auth');
-    // Route to confirm booking (PATCH request - only updates status)
-    Route::patch('/bookings/{booking}/confirm', [BookingAdoptionController::class, 'confirm'])->name('bookings.confirm')->middleware('auth');
 
     // Visit list actions
     Route::get('/visit-list', [BookingAdoptionController::class, 'indexList'])->name('visit.list');
     Route::post('/visit-list/add/{animal}', [BookingAdoptionController::class, 'addList'])->name('visit.list.add');
     Route::post('/visit-list/remove/{animal}', [BookingAdoptionController::class, 'removeList'])->name('visit.list.remove');
 
-    // Booking final submission
-    Route::post('/adoption/book', [BookingAdoptionController::class, 'storeBooking'])->name('adoption.book');
-
+// Booking final submission
+    Route::post('/adoption/book', [BookingAdoptionController::class, 'storeBooking'])->name('adoption.book')->middleware('auth');
+    Route::get('/bookings/index', [BookingAdoptionController::class, 'index'])->name('bookings.index');
+    Route::get('/bookings/all', [BookingAdoptionController::class, 'indexAdmin'])->name('bookings.index-admin');
+    Route::get('/bookings/create', [BookingAdoptionController::class, 'create'])->name('bookings.create');
+    Route::post('/bookings/store', [BookingAdoptionController::class, 'store'])->name('bookings.store');
+    Route::get('/bookings/{booking}', [BookingAdoptionController::class, 'show'])->name('bookings.show');
+    Route::patch('/bookings/{booking}/cancel', [BookingAdoptionController::class, 'cancel'])->name('bookings.cancel');
+   // Route to show the fee modal (GET request)
+    Route::get('//bookings/{id}/adoption-fee', [BookingAdoptionController::class, 'showAdoptionFee'])->name('bookings.adoption-fee');
+    // Route to confirm booking (PATCH request - only updates status)
+    Route::patch('/bookings/{booking}/confirm', [BookingAdoptionController::class, 'confirm'])->name('bookings.confirm')->middleware('auth');
 
     Route::get('/payment/status', [BookingAdoptionController::class, 'paymentStatus'])->name('toyyibpay-status');
     Route::post('/payment/callback', [BookingAdoptionController::class, 'callback'])->name('toyyibpay-callback');

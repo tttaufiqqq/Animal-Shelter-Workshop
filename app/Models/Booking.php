@@ -26,7 +26,7 @@ class Booking extends Model
                     ->withTimestamps();
     }
 
-    public function adoption()
+    public function adoptions()
     {
         return $this->hasMany(Adoption::class, 'bookingID');
     }

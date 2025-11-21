@@ -13,14 +13,14 @@ use App\Models\Inventory;
 use App\Models\Animal;
 use App\Models\Image;
 use App\Models\Category;
-use App\Models\Rescue; 
-use App\Models\Clinic; 
-use App\Models\Vet; 
+use App\Models\Rescue;
+use App\Models\Clinic;
+use App\Models\Vet;
 use App\Models\Medical;
-use App\Models\Vaccination;  
-use App\Models\Transaction;  
+use App\Models\Vaccination;
+use App\Models\Transaction;
 use App\Models\Booking;
-use App\Models\Adoption;    
+use App\Models\Adoption;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\Log;
@@ -126,7 +126,7 @@ class BookingAdoptionController extends Controller
     public function index()
     {
         $bookings = Booking::where('userID', Auth::id())
-            ->with(['animal', 'adoption'])
+            ->with(['animals', 'adoptions'])
             ->orderBy('appointment_date', 'desc')
             ->orderBy('appointment_time', 'desc')
             ->paginate(6);
@@ -135,7 +135,7 @@ class BookingAdoptionController extends Controller
         $statusCounts = Booking::where('userID', Auth::id())
             ->select('status', DB::raw('COUNT(*) as total'))
             ->groupBy('status')
-            ->pluck('total', 'status'); 
+            ->pluck('total', 'status');
 
         return view('booking-adoption.main', compact('bookings', 'statusCounts'));
     }
@@ -147,25 +147,26 @@ class BookingAdoptionController extends Controller
             ->orderBy('appointment_date', 'desc')
             ->orderBy('appointment_time', 'desc')
             ->paginate(6);
-            
+
         $statusCounts = Booking::select('status', DB::raw('COUNT(*) as total'))
         ->groupBy('status')
-        ->pluck('total', 'status'); 
+        ->pluck('total', 'status');
 
         return view('booking-adoption.admin', compact('bookings', 'statusCounts'));
     }
-   
+
     public function show(Booking $booking)
     {
         if ($booking->userID !== Auth::id()) {
             abort(403, 'Unauthorized action.');
         }
 
-        $booking->load(['animals', 'adoption']);
-        
+        $booking->load(['animals', 'adoptions']);
+
         return view('booking-adoption.show', compact('booking'));
     }
 
+    // Cancel a booking
     public function cancel(Booking $booking)
     {
         if ($booking->userID !== Auth::id()) {
@@ -180,39 +181,80 @@ class BookingAdoptionController extends Controller
         return redirect()->route('booking:main')->with('error', 'Cannot cancel this booking.');
     }
 
-    public function confirm(Booking $booking, Request $request)
+    // Confirm adoption of a specific animal in a booking
+    public function confirm(Request $request, Booking $booking)
     {
         if ($booking->userID !== Auth::id()) {
             abort(403, 'Unauthorized action.');
         }
 
+        $request->validate([
+            'animal_id' => 'required|exists:animal,id',
+        ]);
+
+        $animalId = $request->animal_id;
+
+        // Make sure the animal belongs to this booking
+        if (!$booking->animals->contains('id', $animalId)) {
+            return redirect()->route('booking:main')->with('error', 'Selected animal does not belong to this booking.');
+        }
+
         // Case-insensitive status check
         $currentStatus = strtolower($booking->status);
         if (!in_array($currentStatus, ['pending', 'confirmed'])) {
-            if ($request->expectsJson()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Cannot confirm this booking.'
-                ], 400);
-            }
             return redirect()->route('booking:main')->with('error', 'Cannot confirm this booking.');
         }
 
-        $booking->load('animal');
-        $medicalRecords = Medical::where('animalID', $booking->animalID)->get();
-        $vaccinationRecords = Vaccination::where('animalID', $booking->animalID)->get();
-        $feeBreakdown = $this->calculateAdoptionFee($booking->animal, $medicalRecords, $vaccinationRecords);
-        
-        $booking->update(['status' => 'Confirmed']);
-        
+        // Load the selected animal
+        $animal = $booking->animals()->where('id', $animalId)->first();
+        if (!$animal) {
+            return redirect()->route('booking:main')->with('error', 'Animal not found.');
+        }
+
+        // Fetch medical and vaccination records
+        $medicalRecords = Medical::where('animalID', $animal->id)->get();
+        $vaccinationRecords = Vaccination::where('animalID', $animal->id)->get();
+
+        // Calculate adoption fee
+        $feeBreakdown = $this->calculateAdoptionFee($animal, $medicalRecords, $vaccinationRecords);
+
+        // Optionally, mark this animal as adopted (if you have a pivot column like `status` in booking_animal table)
+        $booking->animals()->updateExistingPivot($animal->id, ['status' => 'Confirmed']);
+
+        // Update booking status to confirmed if not already
+        if ($currentStatus === 'pending') {
+            $booking->update(['status' => 'Confirmed']);
+        }
+
+        // Store session info for checkout/payment
         session([
             'booking_id' => $booking->id,
             'adoption_fee' => $feeBreakdown['total_fee'],
-            'animal_name' => $booking->animal->name,
+            'animal_name' => $animal->name,
         ]);
-        
+
+        // Create bill / redirect to payment page
         return $this->createBill($booking, $feeBreakdown['total_fee']);
     }
+
+    public function showAdoptionFee(Booking $booking, Request $request)
+    {
+        if ($booking->userID !== Auth::id()) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        // Get the selected animal
+        $animalId = $request->query('animal_id');
+        $animal = $booking->animals()->findOrFail($animalId);
+
+        $medicalRecords = Medical::where('animalID', $animal->id)->get();
+        $vaccinationRecords = Vaccination::where('animalID', $animal->id)->get();
+
+        $feeBreakdown = $this->calculateAdoptionFee($animal, $medicalRecords, $vaccinationRecords);
+
+        return view('booking-adoption.adoption-fee', compact('booking', 'animal', 'feeBreakdown', 'medicalRecords', 'vaccinationRecords'));
+    }
+
 
     public function createBill(Booking $booking, $adoptionFee)
     {
@@ -246,13 +288,13 @@ class BookingAdoptionController extends Controller
 
         if (isset($data[0]['BillCode'])) {
             $billCode = $data[0]['BillCode'];
-            
+
             // Store both bill code and reference number in session
             session([
                 'bill_code' => $billCode,
                 'reference_no' => $referenceNo
             ]);
-            
+
             return redirect('https://dev.toyyibpay.com/' . $billCode);
         } else {
             $booking->update(['status' => 'Pending']);
@@ -265,22 +307,22 @@ class BookingAdoptionController extends Controller
         $statusId = $request->input('status_id');
         $billCode = $request->input('billcode');
         $orderId = $request->input('order_id');
-        
+
         $bookingId = session('booking_id');
         $adoptionFee = session('adoption_fee');
         $animalName = session('animal_name');
         $referenceNo = session('reference_no'); // Get reference number from session
-        
+
         $paymentStatus = $this->getBillTransactions($billCode);
-        
+
         if ($statusId == 1) {
             if ($bookingId) {
                 $booking = Booking::find($bookingId);
-                
+
                 if ($booking) {
                     $booking->update(['status' => 'Completed']);
                     $booking->animal->update(['adoption_status' => 'Adopted']);
-                    
+
                     $transaction = Transaction::create([
                         'amount' => $adoptionFee,
                         'status' => 'Success',
@@ -310,7 +352,7 @@ class BookingAdoptionController extends Controller
 
                     // Clean up session
                     session()->forget(['booking_id', 'adoption_fee', 'animal_name', 'bill_code', 'reference_no']);
-                    
+
                     Log::info('Payment Success', [
                         'booking_id' => $bookingId,
                         'amount' => $adoptionFee,
@@ -322,7 +364,7 @@ class BookingAdoptionController extends Controller
         } else {
             if ($bookingId) {
                 $booking = Booking::find($bookingId);
-                
+
                 if ($booking && strtolower($booking->status) == 'confirmed') {
                     Log::info('Payment Failed/Pending', [
                         'booking_id' => $bookingId,
@@ -330,7 +372,7 @@ class BookingAdoptionController extends Controller
                         'bill_code' => $billCode,
                         'reference_no' => $referenceNo
                     ]);
-                    
+
                     // Store bill code and reference for failed transactions too
                     Transaction::create([
                         'amount' => $adoptionFee,
@@ -344,7 +386,7 @@ class BookingAdoptionController extends Controller
                 }
             }
         }
-        
+
         return view('booking-adoption.payment-status', [
             'status_id' => $statusId,
             'billcode' => $billCode,
@@ -360,20 +402,20 @@ class BookingAdoptionController extends Controller
     public function callback(Request $request)
     {
         Log::info('ToyyibPay Callback:', $request->all());
-        
+
         $billCode = $request->input('billcode');
         $statusId = $request->input('status_id');
         $referenceNo = $request->input('refno'); // This is your reference number
-        
+
         if (strpos($referenceNo, 'BOOKING-') !== false) {
             $parts = explode('-', $referenceNo);
             if (isset($parts[1])) {
                 $bookingId = $parts[1];
                 $booking = Booking::find($bookingId);
-                
+
                 if ($booking && $statusId == 1) {
                     $booking->update(['status' => 'Completed']);
-                    
+
                     // Check if transaction already exists using bill_code
                     $existingTransaction = Transaction::where('bill_code', $billCode)->first();
                     if (!$existingTransaction) {
@@ -391,77 +433,36 @@ class BookingAdoptionController extends Controller
                 }
             }
         }
-        
+
         return response()->json(['status' => 'success']);
     }
-    
+
     private function getBillTransactions($billCode)
     {
         $url = 'https://dev.toyyibpay.com/index.php/api/getBillTransactions';
-        
+
         $response = Http::withoutVerifying()->asForm()->post($url, [
             'billCode' => $billCode,
             'userSecretKey' => config('toyyibpay.key'),
         ]);
-        
+
         return $response->json();
     }
 
-    public function showAdoptionFee(Booking $booking)
-    {
-        if ($booking->userID !== Auth::id()) {
-            abort(403, 'Unauthorized action.');
-        }
 
-        $booking->load('animal');
-        
-        $medicalRecords = Medical::where('animalID', $booking->animalID)->get();
-        $vaccinationRecords = Vaccination::where('animalID', $booking->animalID)->get();
-        
-        $feeBreakdown = $this->calculateAdoptionFee($booking->animal, $medicalRecords, $vaccinationRecords);
-        
-        return view('booking-adoption.adoption', compact('booking', 'feeBreakdown', 'medicalRecords', 'vaccinationRecords'));
-    }
-
-    private function calculateAdoptionFee($animal, $medicalRecords, $vaccinationRecords)
-    {
-        $baseFees = [
-            'Dog' => 150.00,
-            'Cat' => 100.00,
-        ];
-        
-        $baseFee = $baseFees[$animal->species] ?? ($baseFees['Other'] ?? 100.00);
-        
-        $medicalRate = 20.00;
-        $medicalCount = $medicalRecords->count();
-        $medicalFee = $medicalCount * $medicalRate;
-        
-        $vaccinationRate = 30.00;
-        $vaccinationCount = $vaccinationRecords->count();
-        $vaccinationFee = $vaccinationCount * $vaccinationRate;
-        
-        $totalFee = $baseFee + $medicalFee + $vaccinationFee;
-        
-        return [
-            'base_fee' => $baseFee,
-            'medical_count' => $medicalCount,
-            'medical_rate' => $medicalRate,
-            'medical_fee' => $medicalFee,
-            'vaccination_count' => $vaccinationCount,
-            'vaccination_rate' => $vaccinationRate,
-            'vaccination_fee' => $vaccinationFee,
-            'total_fee' => $totalFee,
-        ];
-    }
 
     public function showModal($id)
     {
         try {
-            $booking = Booking::with(['animal.images', 'user'])
+            $booking = Booking::with([
+                'animals.images',   // load animals via pivot
+                'adoptions',        // load adoptions (no animal() inside)
+                'user'
+            ])
                 ->where('id', $id)
                 ->where('userID', auth()->id())
                 ->firstOrFail();
-            
+
             return view('booking-adoption.show-modal', compact('booking'));
         } catch (\Exception $e) {
             Log::error('Booking modal error: ' . $e->getMessage());
@@ -472,18 +473,19 @@ class BookingAdoptionController extends Controller
         }
     }
 
+
     public function showModalAdmin($id)
     {
         try {
             $booking = Booking::with(['animal.images', 'user'])
                 ->where('id', $id)
                 ->firstOrFail();
-            
+
             return view('booking-adoption.show-admin', compact('booking'));
-            
+
         } catch (\Exception $e) {
             Log::error('Admin Booking modal error for ID ' . $id . ': ' . $e->getMessage());
-            
+
             if ($e instanceof ModelNotFoundException) {
                 return response()->json([
                     'error' => 'Booking Not Found',
