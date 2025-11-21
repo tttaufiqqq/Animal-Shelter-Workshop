@@ -21,6 +21,7 @@ class DatabaseSeeder extends Seeder
             BookingSeeder::class,
             TransactionSeeder::class,
             AdoptionSeeder::class,
+            AnimalProfileSeeder::class,
         ]);
     }
 }

@@ -483,6 +483,10 @@
                             <span class="text-gray-800">{{ $animal->species }}</span>
                         </div>
                         <div class="flex justify-between py-2 border-b border-gray-100">
+                            <span class="text-gray-600 font-semibold">Weight</span>
+                            <span class="text-gray-800">{{ $animal->weight }} kg</span>
+                        </div>
+                        <div class="flex justify-between py-2 border-b border-gray-100">
                             <span class="text-gray-600 font-semibold">Age</span>
                             <span class="text-gray-800">{{ $animal->age }}</span>
                         </div>
@@ -609,7 +613,7 @@
                                     @csrf
                                     
                                     <label class="text-gray-700 font-semibold">Reassign Slot</label>
-                                    <select name="slot_id" class="w-full border rounded-lg p-2 mb-3">
+                                    <select name="slot_id" class="w-full border rounded-lg p-2 mb-3" required>
                                         @foreach($slots as $slot)
                                             <option value="{{ $slot->id }}"
                                                 {{ $animal->slotID == $slot->id ? 'selected' : '' }}>
@@ -634,7 +638,7 @@
                                 <form action="{{ route('animals.assignSlot', $animal->id) }}" method="POST">
                                     @csrf
                                     
-                                    <select name="slot_id" class="w-full border rounded-lg p-2 mb-3">
+                                    <select name="slot_id" class="w-full border rounded-lg p-2 mb-3" required>
                                         <option value="">Select Slot</option>
                                         @foreach($slots as $slot)
                                             <option value="{{ $slot->id }}">

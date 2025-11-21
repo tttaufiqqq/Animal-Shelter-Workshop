@@ -19,21 +19,20 @@ class AdoptionSeeder extends Seeder
         $usedBookingIds = [];
 
         foreach ($transactions as $tx) {
-            // Find a booking for this user that hasn't been adopted yet
+            // Only consider bookings where status is completed or Completed
             $booking = Booking::where('userID', $tx->userID)
+                ->whereIn('status', ['completed', 'Completed'])
                 ->whereNotIn('id', $usedBookingIds)
-                ->inRandomOrder() // Randomly pick a booking
+                ->inRandomOrder()
                 ->first();
 
-            // Skip if no booking found
             if (!$booking) continue;
 
             // Mark this booking as used
             $usedBookingIds[] = $booking->id;
 
-            // Get related animal via relationship
+            // Get related animal
             $animal = $booking->animal;
-
             if (!$animal) continue;
 
             // Create adoption record
@@ -47,6 +46,6 @@ class AdoptionSeeder extends Seeder
             ]);
         }
 
-        $this->command->info('Adoptions seeded successfully!');
+        $this->command->info('Adoptions seeded successfully (only completed bookings)!');
     }
 }

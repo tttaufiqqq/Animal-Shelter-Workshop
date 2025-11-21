@@ -272,7 +272,7 @@
         function clusterReports(reports) {
             const clusters = [];
             // Adjusted clusterRadius for better clustering across larger areas
-            const clusterRadius = 0.0025; // Use a slightly larger radius for initial clustering
+            const clusterRadius = 0.003; // Use a slightly larger radius for initial clustering
             
             reports.forEach(report => {
                 let foundCluster = null;

@@ -236,9 +236,9 @@ class AnimalManagementController extends Controller
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
+            'weight' => 'required|numeric',
             'species' => 'required|string|max:255',
             'health_details' => 'required|string',
-            'age_number' => 'required|numeric|min:0',
             'age_category' => 'nullable|in:kitten,puppy,adult,senior',
             'gender' => 'required|in:Male,Female,Unknown',
             'rescueID' => 'required|exists:rescue,id',
@@ -252,66 +252,68 @@ class AnimalManagementController extends Controller
             'images.*.max' => 'Each image must not exceed 5MB.',
         ]);
 
+
         $uploadedFiles = [];
 
         DB::beginTransaction();
 
         try {
-        // Use age category directly
-        $age = ucfirst($validated['age_category']);
+            // Use age category directly
+            $age = ucfirst($validated['age_category']);
 
-        $slot = null;
-        if ($validated['slotID']) {
-            $slot = Slot::find($validated['slotID']);
-            if (!$slot || $slot->status !== 'available') {
-                return back()
-                    ->withInput()
-                    ->withErrors(['slotID' => 'Selected slot is not available.']);
+            $slot = null;
+            if ($validated['slotID']) {
+                $slot = Slot::find($validated['slotID']);
+                if (!$slot || $slot->status !== 'available') {
+                    return back()
+                        ->withInput()
+                        ->withErrors(['slotID' => 'Selected slot is not available.']);
+                }
             }
-        }
 
-        $animal = Animal::create([
-            'name' => $validated['name'],
-            'species' => $validated['species'],
-            'health_details' => $validated['health_details'],
-            'age' => $age, // Store the category directly
-            'gender' => $validated['gender'],
-            'adoption_status' => 'Not Adopted',
-            'rescueID' => $validated['rescueID'],
-            'slotID' => $validated['slotID'],
-        ]);
+            $animal = Animal::create([
+                'name' => $validated['name'],
+                'weight' => $validated['weight'],
+                'species' => $validated['species'],
+                'health_details' => $validated['health_details'],
+                'age' => $age, // Store the category directly
+                'gender' => $validated['gender'],
+                'adoption_status' => 'Not Adopted',
+                'rescueID' => $validated['rescueID'],
+                'slotID' => $validated['slotID'],
+            ]);
 
-        if ($request->hasFile('images')) {
-            foreach ($request->file('images') as $imageFile) {
-                $filename = time() . '_' . uniqid() . '.' . $imageFile->getClientOriginalExtension();
-                $path = $imageFile->storeAs('animal_images', $filename, 'public');
-                $uploadedFiles[] = $path;
+            if ($request->hasFile('images')) {
+                foreach ($request->file('images') as $imageFile) {
+                    $filename = time() . '_' . uniqid() . '.' . $imageFile->getClientOriginalExtension();
+                    $path = $imageFile->storeAs('animal_images', $filename, 'public');
+                    $uploadedFiles[] = $path;
 
-                Image::create([
-                    'animalID' => $animal->id,
-                    'image_path' => $path,
-                    'filename' => $filename,
-                    'uploaded_at' => now(),
-                ]);
+                    Image::create([
+                        'animalID' => $animal->id,
+                        'image_path' => $path,
+                        'filename' => $filename,
+                        'uploaded_at' => now(),
+                    ]);
+                }
             }
+
+            DB::commit();
+
+            return redirect()->route('animal-management.create', ['rescue_id' => $validated['rescueID']])
+                ->with('success', 'Animal "' . $animal->name . '" added successfully with ' . count($request->file('images') ?? []) . ' image(s)! Do you want to add another animal? If so, please fill all the required fields again.');
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            foreach ($uploadedFiles as $filePath) {
+                Storage::disk('public')->delete($filePath);
+            }
+
+            return back()
+                ->withInput()
+                ->withErrors(['error' => 'An error occurred while adding the animal: ' . $e->getMessage()]);
         }
-
-        DB::commit();
-
-        return redirect()->route('animal-management.create', ['rescue_id' => $validated['rescueID']])
-            ->with('success', 'Animal "' . $animal->name . '" added successfully with ' . count($request->file('images') ?? []) . ' image(s)! Do you want to add another animal? If so, please fill all the required fields again.');
-
-    } catch (\Exception $e) {
-        DB::rollBack();
-
-        foreach ($uploadedFiles as $filePath) {
-            Storage::disk('public')->delete($filePath);
-        }
-
-        return back()
-            ->withInput()
-            ->withErrors(['error' => 'An error occurred while adding the animal: ' . $e->getMessage()]);
-    }
     }
 
 public function update(Request $request, $id)
@@ -326,6 +328,7 @@ public function update(Request $request, $id)
 
     $validated = $request->validate([
         'name' => 'required|string|max:255',
+        'weight' => 'required|numeric',
         'species' => 'required|string|max:255',
         'health_details' => 'required|string',
         'age_category' => 'required|in:kitten,puppy,adult,senior',
@@ -361,6 +364,7 @@ public function update(Request $request, $id)
         // ----- Update Animal -----
         $animal->update([
             'name' => $validated['name'],
+            'weight' => $validated['weight'],
             'species' => $validated['species'],
             'health_details' => $validated['health_details'],
             'age' => $age, // Store the category directly

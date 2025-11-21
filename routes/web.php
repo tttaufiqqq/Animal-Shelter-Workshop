@@ -105,6 +105,7 @@ Route::middleware('auth')->group(function () {
 //Booking-Adoption
 Route::middleware('auth')->group(function () {
     Route::get('/booking:main', [BookingAdoptionController::class, 'index'])->name('booking:main');
+    
 
     Route::post('/adoption/book', [BookingAdoptionController::class, 'storeBooking'])->name('adoption.book')->middleware('auth');
     Route::get('/bookings', [BookingAdoptionController::class, 'index'])->name('bookings.index');

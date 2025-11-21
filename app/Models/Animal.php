@@ -8,7 +8,7 @@ class Animal extends Model
 {
     protected $table = 'animal';
     protected $fillable = [
-        'species', 'name', 'health_details', 'age', 'gender',
+        'species', 'name', 'health_details', 'age', 'gender', 'weight',
         'adoption_status', 'rescueID', 'slotID', 'vaccinationID'
     ];
 

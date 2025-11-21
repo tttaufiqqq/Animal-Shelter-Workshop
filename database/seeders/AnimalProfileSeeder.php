@@ -41,33 +41,22 @@ class AnimalProfileSeeder extends Seeder
      */
     private function generateMatchedProfile($animal, $adopter)
     {
-        // Match size to adopter preference if possible
         $size = $adopter->preferred_size ?? $this->getSizeForSpecies($animal->species);
-
-        // Match energy level based on adopter activity
         $energy = $this->matchEnergyToAdopter($adopter->activity_level);
 
         return [
-            'animal_id'      => $animal->id,
             'animalID'       => $animal->id,
-            'age'            => rand(1, 15),
+            'age'            => $this->getAgeCategory($animal->species),
 
             'size'           => $size,
             'energy_level'   => $energy,
-
-            // Kids compatibility based on adopter needs
             'good_with_kids' => $adopter->has_children ? 1 : rand(0, 1),
-
-            // Pets compatibility based on adopter needs
             'good_with_pets' => $adopter->has_other_pets ? 1 : rand(0, 1),
-
-            // Temperament matched with activity level
             'temperament'    => $this->temperamentBasedOnEnergy($energy),
-
-            // Random medical needs (but still realistic)
             'medical_needs'  => $this->randomMedicalNeeds(),
         ];
     }
+
 
     /**
      * Fallback: random but realistic profile
@@ -75,9 +64,8 @@ class AnimalProfileSeeder extends Seeder
     private function generateRandomProfile($animal)
     {
         return [
-            'animal_id'      => $animal->id,
             'animalID'       => $animal->id,
-            'age'            => rand(1, 15),
+            'age'            => $this->getAgeCategory($animal->species),
 
             'size'           => $this->getSizeForSpecies($animal->species),
             'energy_level'   => $this->randomEnergy(),
@@ -87,6 +75,7 @@ class AnimalProfileSeeder extends Seeder
             'medical_needs'  => $this->randomMedicalNeeds(),
         ];
     }
+
 
     private function matchEnergyToAdopter($activity)
     {
@@ -139,4 +128,16 @@ class AnimalProfileSeeder extends Seeder
     {
         return collect(['none', 'minor', 'moderate', 'special'])->random();
     }
+
+    private function getAgeCategory($species)
+    {
+        $species = strtolower($species);
+
+        if ($species === 'cat' || $species === 'dog') {
+            return collect(['kitten/puppy', 'young', 'adult', 'senior'])->random();
+        }
+
+        return collect(['young', 'adult'])->random();
+    }
+
 }

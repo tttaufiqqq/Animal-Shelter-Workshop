@@ -1,6 +1,6 @@
 <!-- Animal Detail Modal -->
 <div id="animalDetailModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[70] p-4">
-    <div class="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[70vh] overflow-y-auto">
         <!-- Modal Header -->
         <div class="bg-gradient-to-r from-green-500 to-emerald-600 text-white p-6">
             <div class="flex items-center justify-between">

@@ -13,6 +13,11 @@ class ReportSeeder extends Seeder
     {
         // Load CSV
         $csvPath = database_path('seeders/report.csv');
+        if (!file_exists($csvPath)) {
+            $this->command->error('CSV file not found at: ' . $csvPath);
+            return;
+        }
+
         $rows = array_map('str_getcsv', file($csvPath));
         $header = array_shift($rows); // first row as header
 
@@ -35,26 +40,32 @@ class ReportSeeder extends Seeder
         $reportStatuses = ['Pending', 'In Progress', 'Resolved', 'Closed'];
         $reports = [];
 
+        // Maximum coordinate offset (~1 km)
+        $maxOffset = 0.01;
+
         // Generate 300 reports
-        for ($i = 0; $i < 300; $i++) {
+        for ($i = 0; $i < 600; $i++) {
 
             $row = $data[array_rand($data)]; // pick random CSV row
 
             // Random date in last 2 years
             $createdAt = Carbon::now()->subDays(rand(0, 730));
 
+            // Randomize coordinates slightly
+            $latitude  = $row['latitude']  + (rand(-1000, 1000) / 100000); // ±0.01
+            $longitude = $row['longitude'] + (rand(-1000, 1000) / 100000); // ±0.01
+
             $reports[] = [
-                'latitude'      => $row['latitude'],
-                'longitude'     => $row['longitude'],
+                'latitude'      => $latitude,
+                'longitude'     => $longitude,
                 'address'       => $row['address'],
                 'city'          => $row['city'],
                 'state'         => $row['state'],
-                'report_status' => $row['report_status'], // or randomElement($reportStatuses)
+                'report_status' => in_array($row['report_status'], $reportStatuses) ? $row['report_status'] : $reportStatuses[array_rand($reportStatuses)],
                 'description'   => $row['description'],
 
-                // Use CSV userID OR assign random public user
-                'userID'        => $row['userID'], 
-                // 'userID'     => $faker->randomElement($userIDs),
+                // Assign random public user if not in CSV
+                'userID'        => isset($row['userID']) && in_array($row['userID'], $userIDs) ? $row['userID'] : $userIDs[array_rand($userIDs)],
 
                 'created_at'    => $createdAt,
                 'updated_at'    => $createdAt,
@@ -63,6 +74,6 @@ class ReportSeeder extends Seeder
 
         DB::table('report')->insert($reports);
 
-        $this->command->info("300 reports generated successfully!");
+        $this->command->info("300 reports generated successfully with randomized coordinates!");
     }
 }

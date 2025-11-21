@@ -26,10 +26,14 @@
                     <span class="text-4xl mr-4">🐾</span>
                     <h2 class="text-3xl font-bold">Add New Animal</h2>
                 </div>
-                <p class="text-purple-100 text-lg">
+                <p class="text-purple-100 text-lg font-bold">
                     Register a new animal to the shelter system from rescue: {{$rescue_id}}
                 </p>
-            </div>
+                <a href="{{route( 'animal-management.index')}}" class="text-purple-100 hover:text-white flex items-center gap-2">
+                    <i class="fas fa-paw"></i>
+                    <span class="font-bold">View all animals</span>
+                </a>
+            </div>                 
 
             <!-- Form Section -->
             <div class="p-8 md:p-12">

@@ -31,7 +31,7 @@ class RescueSeeder extends Seeder
         }
 
         // Other statuses (except Success)
-        $otherStatuses = ['Scheduled', 'In Progress', 'Failed', 'Cancelled'];
+        $otherStatuses = ['Scheduled', 'In Progress', 'Failed', 'Pending'];
 
         $rescues = [];
 

@@ -1,6 +1,6 @@
 <!-- Match Results Modal -->
 <div id="matchResultModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-    <div class="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden shadow-2xl">
+    <div class="bg-white rounded-2xl max-w-5xl w-full max-h-[90vh] overflow-hidden shadow-2xl">
         <!-- Header -->
         <div class="bg-gradient-to-r from-purple-600 to-purple-700 text-white p-6">
             <div class="flex justify-between items-center">
