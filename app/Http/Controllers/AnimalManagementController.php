@@ -4,20 +4,20 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\Animal;
-use App\Models\Slot;  
-use App\Models\Image;  
-use App\Models\Rescue; 
-use App\Models\Clinic; 
-use App\Models\Vet; 
+use App\Models\Slot;
+use App\Models\Image;
+use App\Models\Rescue;
+use App\Models\Clinic;
+use App\Models\Vet;
 use App\Models\Medical;
-use App\Models\Vaccination;  
-use App\Models\Booking;  
+use App\Models\Vaccination;
+use App\Models\VisitList;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use App\Models\AnimalProfile;  
-use App\Models\AdopterProfile;  
+use App\Models\AnimalProfile;
+use App\Models\AdopterProfile;
 use Illuminate\Validation\Rule;
 
 class AnimalManagementController extends Controller
@@ -25,10 +25,10 @@ class AnimalManagementController extends Controller
     public function getMatches()
     {
         $user = Auth::user();
-        
+
         // Get adopter profile
         $adopterProfile = AdopterProfile::where('adopterID', $user->id)->first();
-        
+
         if (!$adopterProfile) {
            return response()->json([
                 'success' => false,
@@ -116,12 +116,12 @@ class AnimalManagementController extends Controller
     private function matchEnergyLevel($activityLevel, $energyLevel)
     {
         $levels = ['low' => 1, 'medium' => 2, 'high' => 3];
-        
+
         $activityValue = $levels[$activityLevel] ?? 2;
         $energyValue = $levels[$energyLevel] ?? 2;
-        
+
         $difference = abs($activityValue - $energyValue);
-        
+
         if ($difference === 0) return 1.0;
         if ($difference === 1) return 0.6;
         return 0.2;
@@ -131,18 +131,18 @@ class AnimalManagementController extends Controller
     {
         // Apartment dwellers better with smaller, lower energy animals
         if ($housingType === 'apartment') {
-            if (in_array($animalProfile->size, ['small', 'medium']) && 
+            if (in_array($animalProfile->size, ['small', 'medium']) &&
                 $animalProfile->energy_level !== 'high') {
                 return 15;
             }
             return 5;
         }
-        
+
         // House with yard - most animals suitable
         if ($housingType === 'house_with_yard') {
             return 15;
         }
-        
+
         return 10; // Default
     }
 
@@ -219,15 +219,15 @@ class AnimalManagementController extends Controller
     public function home(){
         return view('animal-management.main');
     }
-    
+
     public function create($rescue_id = null)
     {
         $rescues = Rescue::all();
         $slots = Slot::all();
-        
+
         return view('animal-management.create', [
-            'slots' => $slots, 
-            'rescues' => $rescues, 
+            'slots' => $slots,
+            'rescues' => $rescues,
             'rescue_id' => $rescue_id,
         ]);
     }
@@ -455,7 +455,7 @@ public function update(Request $request, $id)
     {
         $query = Animal::with(['images', 'slot']);
 
-        // Cross-RDBMS case-insensitive search
+        // Filters
         if ($request->filled('search')) {
             $query->where(DB::raw('LOWER(name)'), 'LIKE', '%' . strtolower($request->search) . '%');
         }
@@ -476,7 +476,18 @@ public function update(Request $request, $id)
 
         $animals = $query->paginate(12)->appends($request->query());
 
-        return view('animal-management.main', compact('animals'));
+        // ===== Only for logged-in user =====
+        $animalList = collect(); // default empty
+        if (Auth::check()) {
+            $user = Auth::user();
+
+            $visitList = VisitList::with('animals')
+                ->firstOrCreate(['userID' => $user->id]);
+
+            $animalList = $visitList->animals; // only this user's visit list
+        }
+
+        return view('animal-management.main', compact('animals', 'animalList'));
     }
 
     public function show($id)
@@ -486,21 +497,21 @@ public function update(Request $request, $id)
             'slot',
             'rescue.report',
         ])->findOrFail($id);
-        
+
         $medicals = Medical::with('vet')
             ->where('animalID', $id)
             ->get();
-        
+
         $vaccinations = Vaccination::with('vet')
             ->where('animalID', $id)
             ->get();
-        
+
         $vets = Vet::all();
         $slots = Slot::where('status', 'available')->get();
-        
+
         $bookedSlots = $animal->bookings->map(function($booking) {
             $dateTime = \Carbon\Carbon::parse($booking->appointment_date . ' ' . $booking->appointment_time);
-            
+
             return [
                 'date' => $dateTime->format('Y-m-d'),
                 'time' => $dateTime->format('H:i'),
@@ -508,8 +519,18 @@ public function update(Request $request, $id)
             ];
         });
         $animalProfile = AnimalProfile::where('animalID', $id)->first();
-        
-        return view('animal-management.show', compact('animal', 'vets', 'medicals', 'vaccinations', 'slots', 'bookedSlots', 'animalProfile'));
+        // ===== Only for logged-in user =====
+        $animalList = collect(); // default empty
+        if (Auth::check()) {
+            $user = Auth::user();
+
+            $visitList = VisitList::with('animals')
+                ->firstOrCreate(['userID' => $user->id]);
+
+            $animalList = $visitList->animals; // only this user's visit list
+        }
+
+        return view('animal-management.show', compact('animal', 'vets', 'medicals', 'vaccinations', 'slots', 'bookedSlots', 'animalProfile', 'animalList'));
     }
 
     public function assignSlot(Request $request, $animalId)
@@ -578,7 +599,7 @@ public function update(Request $request, $id)
 
         } catch (\Exception $e) {
             DB::rollBack();
-            
+
             \Log::error('Error deleting animal: ' . $e->getMessage());
 
             return back()->withErrors(['error' => 'An error occurred while deleting the animal.']);
@@ -588,7 +609,7 @@ public function update(Request $request, $id)
     public function indexClinic()
     {
         $clinics = Clinic::all();
-        $vets = Vet::with('clinic')->get(); 
+        $vets = Vet::with('clinic')->get();
         return view('animal-management.main-manage-cv', ['clinics' => $clinics, 'vets' => $vets]);
     }
 
@@ -612,7 +633,7 @@ public function update(Request $request, $id)
             ]);
 
             return redirect()->back()->with('success', 'Clinic added successfully!');
-            
+
         } catch (\Illuminate\Validation\ValidationException $e) {
             return redirect()->back()
                 ->withErrors($e->errors())
@@ -636,7 +657,7 @@ public function update(Request $request, $id)
                 'phone' => 'required|string|max:20',
                 'email' => 'required|email|max:255|unique:vet,email',
             ]);
-            
+
             $dataToInsert = [
                 'name' => $validated['full_name'],
                 'specialization' => $validated['specialization'],
@@ -645,11 +666,11 @@ public function update(Request $request, $id)
                 'contactNum' => $validated['phone'],
                 'email' => $validated['email'],
             ];
-            
+
             $vet = Vet::create($dataToInsert);
-            
+
             return redirect()->back()->with('success', 'Veterinarian added successfully!');
-            
+
         } catch (\Illuminate\Validation\ValidationException $e) {
             return redirect()->back()
                 ->withErrors($e->errors())
@@ -674,9 +695,9 @@ public function update(Request $request, $id)
                 'vetID' => 'required|exists:vet,id',
                 'costs' => 'nullable|numeric|min:0',
             ]);
-            
+
             $medical = Medical::create($validated);
-            
+
             return redirect()->back()->with('success', 'Medical record added successfully!');
         } catch (\Illuminate\Validation\ValidationException $e) {
             return redirect()->back()
@@ -702,9 +723,9 @@ public function update(Request $request, $id)
                 'vetID' => 'required|exists:vet,id',
                 'costs' => 'nullable|numeric|min:0',
             ]);
-            
+
             $vaccination = Vaccination::create($validated);
-            
+
             return redirect()->back()->with('success', 'Vaccination record added successfully!');
         } catch (\Illuminate\Validation\ValidationException $e) {
             return redirect()->back()
@@ -758,7 +779,7 @@ public function update(Request $request, $id)
     {
         try {
             $vet = Vet::findOrFail($id);
-            
+
             return response()->json([
                 'id' => $vet->id,
                 'name' => $vet->name,

@@ -52,5 +52,13 @@ class Animal extends Model
                     ->withTimestamps();
     }
 
+    public function visitLists()
+    {
+        return $this->belongsToMany(VisitList::class, 'visit_list_animals', 'animalID', 'visit_list_id')
+            ->withPivot('remarks')
+            ->withTimestamps();
+    }
+
+
 }
 

@@ -24,17 +24,13 @@
                 </div>
                 @role('admin|caretaker')
                 <div class="flex gap-3">
-                    <button onclick="openEditModal({{ $animal->id }})" 
-                            class="bg-white text-purple-700 px-6 py-2 rounded-lg font-medium hover:bg-purple-50 transition duration-300">
-                        <i class="fas fa-edit mr-2"></i>Edit
+                    <button onclick="openVisitModal()"
+                            class="bg-white/20 hover:bg-white/30 text-white px-4 py-3 rounded-xl
+                                    transition flex items-center gap-2 shadow-lg backdrop-blur">
+                        <i class="fas fa-list text-xl"></i>
+                        <span class="hidden sm:inline font-semibold">Visit List</span>
                     </button>
-                    <form action="{{ route('animal-management.destroy', $animal->id) }}" method="POST" class="inline" onsubmit="return confirm('Are you sure you want to delete this animal record?');">
-                        @csrf
-                        @method('DELETE')
-                        <button type="submit" class="bg-red-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-red-700 transition duration-300">
-                            <i class="fas fa-trash mr-2"></i>Delete
-                        </button>
-                    </form>
+                    @include('booking-adoption.visit-list')
                 </div>
 
                 {{-- Include the edit modal --}}
@@ -65,8 +61,8 @@
                     <div class="relative w-full aspect-video bg-gray-100 flex items-center justify-center">
                         <div id="imageSwiperContent" class="w-full h-full flex items-center justify-center">
                             @if($animal->images && $animal->images->count() > 0)
-                                <img src="{{ asset('storage/' . $animal->images->first()->image_path) }}" 
-                                    alt="{{ $animal->name }}" 
+                                <img src="{{ asset('storage/' . $animal->images->first()->image_path) }}"
+                                    alt="{{ $animal->name }}"
                                     class="max-w-full max-h-full object-contain">
                             @else
                                 <div class="aspect-video bg-gradient-to-br from-purple-300 to-purple-400 flex items-center justify-center w-full h-full">
@@ -106,8 +102,8 @@
                                     <div onclick="goToImage({{ $index }})"
                                         class="flex-shrink-0 w-20 h-20 cursor-pointer rounded-lg overflow-hidden border-2 transition duration-300 {{ $index == 0 ? 'border-green-600' : 'border-gray-300 hover:border-green-400' }}"
                                         id="thumbnail-{{ $index }}">
-                                        <img src="{{ asset('storage/' . $image->image_path) }}" 
-                                            alt="{{ $animal->name }}" 
+                                        <img src="{{ asset('storage/' . $image->image_path) }}"
+                                            alt="{{ $animal->name }}"
                                             class="w-full h-full object-cover">
                                     </div>
                                 @endforeach
@@ -297,7 +293,7 @@
                         <form method="POST" action="{{ route('medical-records.store') }}" class="p-6 space-y-4">
                             @csrf
                             <input type="hidden" name="animalID" value="{{ $animal->id }}">
-                            
+
                             <div>
                                 <label class="block text-gray-800 font-semibold mb-2">Treatment Type <span class="text-red-600">*</span></label>
                                 <select name="treatment_type" class="w-full border-gray-300 rounded-lg shadow-sm px-4 py-3 border focus:border-blue-500 focus:ring focus:ring-blue-200 transition" required>
@@ -314,14 +310,14 @@
                                 <label class="block text-gray-800 font-semibold mb-2">
                                     Weight during treatment (kg) <span class="text-red-600">*</span>
                                 </label>
-                                <input 
-                                    type="number" 
-                                    name="weight" 
-                                    step="0.01" 
-                                    min="0" 
+                                <input
+                                    type="number"
+                                    name="weight"
+                                    step="0.01"
+                                    min="0"
                                     value="{{ old('weight', $animal->weight) }}"
                                     class="w-full border-gray-300 rounded-lg shadow-sm px-4 py-3 border focus:border-blue-500 focus:ring focus:ring-blue-200 transition"
-                                    placeholder="Enter animal weight" 
+                                    placeholder="Enter animal weight"
                                     required
                                 >
                             </div>
@@ -382,7 +378,7 @@
                         <form method="POST" action="{{ route('vaccination-records.store') }}" class="p-6 space-y-4">
                             @csrf
                             <input type="hidden" name="animalID" value="{{ $animal->id }}">
-                            
+
                             <div>
                                 <label class="block text-gray-800 font-semibold mb-2">Vaccine Name <span class="text-red-600">*</span></label>
                                 <input type="text" name="name" class="w-full border-gray-300 rounded-lg shadow-sm px-4 py-3 border focus:border-green-500 focus:ring focus:ring-green-200 transition" placeholder="e.g., Rabies Vaccine" required>
@@ -406,14 +402,14 @@
                                 <label class="block text-gray-800 font-semibold mb-2">
                                     Weight during taking the vaccine (kg) <span class="text-red-600">*</span>
                                 </label>
-                                <input 
-                                    type="number" 
-                                    name="weight" 
-                                    step="0.01" 
-                                    min="0" 
+                                <input
+                                    type="number"
+                                    name="weight"
+                                    step="0.01"
+                                    min="0"
                                     value="{{ old('weight', $animal->weight) }}"
                                     class="w-full border-gray-300 rounded-lg shadow-sm px-4 py-3 border focus:border-blue-500 focus:ring focus:ring-blue-200 transition"
-                                    placeholder="Enter animal weight" 
+                                    placeholder="Enter animal weight"
                                     required
                                 >
                             </div>
@@ -459,45 +455,67 @@
             <!-- Right Column - Details -->
             <div class="space-y-6">
                 <!-- Status Card -->
-                <div class="bg-white rounded-lg shadow-lg p-6">
-                    <div class="mb-4">
-                        @if($animal->adoption_status == 'Not Adopted')
-                            <span class="inline-block px-4 py-2 bg-green-100 text-green-700 rounded-full text-sm font-semibold">
-                                <i class="fas fa-check-circle mr-1"></i>Available for Adoption
-                            </span>
-                        @elseif($animal->adoption_status == 'Adopted')
-                            <span class="inline-block px-4 py-2 bg-blue-100 text-blue-700 rounded-full text-sm font-semibold">
-                                <i class="fas fa-home mr-1"></i>Adopted
-                            </span>
-                        @else
-                            <span class="inline-block px-4 py-2 bg-yellow-100 text-yellow-700 rounded-full text-sm font-semibold">
-                                {{ $animal->adoption_status }}
-                            </span>
-                        @endif
+                <div class="bg-white rounded-lg shadow-lg p-6 flex justify-between">
+                    <div class="flex-1">
+                        <div class="mb-4">
+                            @if($animal->adoption_status == 'Not Adopted')
+                                <span class="inline-block px-4 py-2 bg-green-100 text-green-700 rounded-full text-sm font-semibold">
+                    <i class="fas fa-check-circle mr-1"></i>Available for Adoption
+                </span>
+                            @elseif($animal->adoption_status == 'Adopted')
+                                <span class="inline-block px-4 py-2 bg-blue-100 text-blue-700 rounded-full text-sm font-semibold">
+                    <i class="fas fa-home mr-1"></i>Adopted
+                </span>
+                            @else
+                                <span class="inline-block px-4 py-2 bg-yellow-100 text-yellow-700 rounded-full text-sm font-semibold">
+                    {{ $animal->adoption_status }}
+                </span>
+                            @endif
+                        </div>
+
+                        <h2 class="text-xl font-bold text-gray-800 mb-4">Animal Information</h2>
+
+                        <!-- Animal Details -->
+                        <div class="space-y-3">
+                            <div class="flex justify-between py-2 border-b border-gray-100">
+                                <span class="text-gray-600 font-semibold">Species</span>
+                                <span class="text-gray-800">{{ $animal->species }}</span>
+                            </div>
+                            <div class="flex justify-between py-2 border-b border-gray-100">
+                                <span class="text-gray-600 font-semibold">Weight</span>
+                                <span class="text-gray-800">{{ $animal->weight }} kg</span>
+                            </div>
+                            <div class="flex justify-between py-2 border-b border-gray-100">
+                                <span class="text-gray-600 font-semibold">Age</span>
+                                <span class="text-gray-800">{{ $animal->age }}</span>
+                            </div>
+                            <div class="flex justify-between py-2 border-b border-gray-100">
+                                <span class="text-gray-600 font-semibold">Gender</span>
+                                <span class="text-gray-800">{{ $animal->gender }}</span>
+                            </div>
+                            <div class="flex justify-between py-2 border-b border-gray-100">
+                                <span class="text-gray-600 font-semibold">Arrival Date</span>
+                                <span class="text-gray-800">{{ \Carbon\Carbon::parse($animal->arrival_date)->format('M d, Y') }}</span>
+                            </div>
+                        </div>
                     </div>
 
-                    <h2 class="text-xl font-bold text-gray-800 mb-4">Animal Information</h2>
-                    <div class="space-y-3">
-                        <div class="flex justify-between py-2 border-b border-gray-100">
-                            <span class="text-gray-600 font-semibold">Species</span>
-                            <span class="text-gray-800">{{ $animal->species }}</span>
-                        </div>
-                        <div class="flex justify-between py-2 border-b border-gray-100">
-                            <span class="text-gray-600 font-semibold">Weight</span>
-                            <span class="text-gray-800">{{ $animal->weight }} kg</span>
-                        </div>
-                        <div class="flex justify-between py-2 border-b border-gray-100">
-                            <span class="text-gray-600 font-semibold">Age</span>
-                            <span class="text-gray-800">{{ $animal->age }}</span>
-                        </div>
-                        <div class="flex justify-between py-2 border-b border-gray-100">
-                            <span class="text-gray-600 font-semibold">Gender</span>
-                            <span class="text-gray-800">{{ $animal->gender }}</span>
-                        </div>
-                        <div class="flex justify-between py-2 border-b border-gray-100">
-                            <span class="text-gray-600 font-semibold">Arrival Date</span>
-                            <span class="text-gray-800">{{ \Carbon\Carbon::parse($animal->arrival_date)->format('M d, Y') }}</span>
-                        </div>
+                    <!-- Buttons on the right -->
+                    <div class="flex flex-col space-y-2 ml-6">
+                        <button onclick="openEditModal({{ $animal->id }})"
+                                class="bg-white text-purple-700 px-6 py-2 rounded-lg font-medium hover:bg-purple-50 transition duration-300">
+                            <i class="fas fa-edit mr-2"></i>Edit
+                        </button>
+
+                        <form action="{{ route('animal-management.destroy', $animal->id) }}" method="POST"
+                              onsubmit="return confirm('Are you sure you want to delete this animal record?');">
+                            @csrf
+                            @method('DELETE')
+                            <button type="submit"
+                                    class="bg-red-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-red-700 transition duration-300">
+                                <i class="fas fa-trash mr-2"></i>Delete
+                            </button>
+                        </form>
                     </div>
                 </div>
 
@@ -507,7 +525,7 @@
                         Animal Profile
                     </h2>
 
-                   @if($animalProfile) 
+                   @if($animalProfile)
                    <!-- Header with Edit Button: This is displayed when the profile exists -->
                    <div class="flex justify-between items-center mb-4 border-b pb-2">
                        <!-- Button to open the modal for editing -->
@@ -517,37 +535,37 @@
                    </div>
 
                    <div class="space-y-3">
-                      
+
                        <!-- Size -->
                        <div class="flex justify-between py-2 border-b border-gray-100">
                            <span class="text-gray-600 font-semibold">Size</span>
                            <span class="text-gray-800">{{ ucfirst($animalProfile->size) }}</span>
                        </div>
-                       
+
                        <!-- Energy Level -->
                        <div class="flex justify-between py-2 border-b border-gray-100">
                            <span class="text-gray-600 font-semibold">Energy Level</span>
                            <span class="text-gray-800">{{ ucfirst($animalProfile->energy_level) }}</span>
                        </div>
-                       
+
                        <!-- Good with Kids (Boolean to Yes/No) -->
                        <div class="flex justify-between py-2 border-b border-gray-100">
                            <span class="text-gray-600 font-semibold">Good with Kids</span>
                            <span class="text-gray-800">{{ $animalProfile->good_with_kids ? 'Yes' : 'No' }}</span>
                        </div>
-                       
+
                        <!-- Good with Pets (Boolean to Yes/No) -->
                        <div class="flex justify-between py-2 border-b border-gray-100">
                            <span class="text-gray-600 font-semibold">Good with Pets</span>
                            <span class="text-gray-800">{{ $animalProfile->good_with_pets ? 'Yes' : 'No' }}</span>
                        </div>
-                       
+
                        <!-- Temperament -->
                        <div class="flex justify-between py-2 border-b border-gray-100">
                            <span class="text-gray-600 font-semibold">Temperament</span>
                            <span class="text-gray-800">{{ ucfirst($animalProfile->temperament) }}</span>
                        </div>
-                       
+
                        <!-- Medical Needs -->
                        <div class="flex justify-between py-2 border-b border-gray-100">
                            <span class="text-gray-600 font-semibold">Medical Needs</span>
@@ -558,14 +576,14 @@
                @else
                    <!-- Case when no profile exists -->
                    <p class="text-gray-500 mb-4">This animal does not have a profile yet. Click below to add one.</p>
-                   
+
                    <!-- Button to open the modal for creation -->
                    @role('caretaker')<button type="button" onclick="openAnimalModal()" class="w-full bg-purple-100 text-purple-700 py-3 rounded-lg font-semibold hover:bg-purple-200 transition duration-300 shadow-sm">
                        <i class="fas fa-plus mr-2"></i>Add Profile
                    </button>@endrole
 
                @endif
-    
+
                 </div>
 
                 @include('adopter-animal-matching.animal-modal')
@@ -611,7 +629,7 @@
                             @if(auth()->user()->hasRole('admin') || auth()->user()->hasRole('caretaker'))
                                 <form action="{{ route('animals.assignSlot', $animal->id) }}" method="POST">
                                     @csrf
-                                    
+
                                     <label class="text-gray-700 font-semibold">Reassign Slot</label>
                                     <select name="slot_id" class="w-full border rounded-lg p-2 mb-3" required>
                                         @foreach($slots as $slot)
@@ -637,7 +655,7 @@
                             @if(auth()->user()->hasRole('admin') || auth()->user()->hasRole('caretaker'))
                                 <form action="{{ route('animals.assignSlot', $animal->id) }}" method="POST">
                                     @csrf
-                                    
+
                                     <select name="slot_id" class="w-full border rounded-lg p-2 mb-3" required>
                                         <option value="">Select Slot</option>
                                         @foreach($slots as $slot)
@@ -663,7 +681,7 @@
                             <h3 class="text-xl font-bold mb-2">Interested in adopting?</h3>
                             <form action="{{ route('visit.list.add', $animal->id) }}" method="POST">
                                 @csrf
-                                <button type="submit" 
+                                <button type="submit"
                                     class="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 rounded-xl shadow-lg">
                                     <i class="fas fa-plus mr-2"></i>Add to Visit List
                                 </button>

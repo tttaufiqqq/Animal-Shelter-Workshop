@@ -110,7 +110,9 @@ Route::middleware('auth')->group(function () {
     // Visit list actions
     Route::get('/visit-list', [BookingAdoptionController::class, 'indexList'])->name('visit.list');
     Route::post('/visit-list/add/{animal}', [BookingAdoptionController::class, 'addList'])->name('visit.list.add');
-    Route::post('/visit-list/remove/{animal}', [BookingAdoptionController::class, 'removeList'])->name('visit.list.remove');
+    Route::delete('/visit-list/remove/{animal}', [BookingAdoptionController::class, 'removeList'])->name('visit.list.remove');
+    Route::post('/visit-list/confirm', [BookingAdoptionController::class, 'confirmAppointment'])
+        ->name('visit.list.confirm');
 
 // Booking final submission
     Route::post('/adoption/book', [BookingAdoptionController::class, 'storeBooking'])->name('adoption.book')->middleware('auth');

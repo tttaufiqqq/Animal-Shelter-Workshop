@@ -12,6 +12,11 @@ class User extends Authenticatable
     /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasFactory, Notifiable, HasRoles;
 
+    public function visitList()
+    {
+        return $this->hasOne(VisitList::class, 'userID');
+    }
+
     /**
      * The attributes that are mass assignable.
      *

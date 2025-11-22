@@ -1,143 +1,321 @@
-<!-- VISIT LIST MODAL -->
+<!-- IMPROVED VISIT LIST MODAL -->
 <div id="visitModal"
-     class="fixed inset-0 hidden bg-black/40 backdrop-blur-md z-50 flex items-center justify-center p-4 transition-opacity">
+     class="fixed inset-0 hidden bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 transition-opacity duration-300">
 
     <div id="visitModalContent"
-         class="bg-white max-w-3xl w-full rounded-2xl shadow-xl overflow-y-auto max-h-[90vh]
-                opacity-0 scale-95 transform transition-all duration-300 p-6">
+         class="bg-white max-w-4xl w-full rounded-3xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col
+                opacity-0 scale-95 transform transition-all duration-300">
 
-        <div class="flex justify-between items-center mb-4">
-            <h1 class="text-2xl font-bold">Your Visit List</h1>
-            <button onclick="closeVisitModal()" class="text-gray-600 text-2xl hover:text-black">&times;</button>
-        </div>
-
-        @if (session('success'))
-            <div class="bg-green-100 border border-green-300 text-green-800 p-4 rounded-xl mb-4">
-                {{ session('success') }}
-            </div>
-        @endif
-
-        @if ($animals->isEmpty())
-            <div class="bg-gray-100 p-6 rounded-xl text-center">
-                <p class="text-gray-600">Your visit list is empty.</p>
-            </div>
-
-            <div class="mt-4 text-right">
+        <!-- Modal Header -->
+        <div class="bg-gradient-to-r from-purple-600 to-purple-700 p-6 text-white relative overflow-hidden">
+            <div class="absolute inset-0 bg-white/10 backdrop-blur-sm"></div>
+            <div class="relative flex justify-between items-center">
+                <div>
+                    <h1 class="text-3xl font-bold flex items-center gap-2">
+                        <i class="fas fa-heart"></i>
+                        Your Visit List
+                    </h1>
+                    <p class="text-purple-100 text-sm mt-1">Schedule a visit with your favorite animals</p>
+                </div>
                 <button onclick="closeVisitModal()"
-                        class="px-4 py-2 bg-gray-300 hover:bg-gray-400 rounded-lg">
-                    Close
+                        class="text-white/80 hover:text-white text-3xl w-10 h-10 flex items-center justify-center rounded-full hover:bg-white/20 transition-all duration-200">
+                    &times;
                 </button>
             </div>
-            @return
-        @endif
+        </div>
 
-        <form method="POST" action="{{ route('adoption.book') }}" class="space-y-6">
-            @csrf
+        <!-- Modal Body -->
+        <div class="overflow-y-auto flex-1 p-6">
+            @if (session('success'))
+                <div class="bg-green-50 border-l-4 border-green-500 text-green-800 p-4 rounded-lg mb-6 flex items-start gap-3 animate-slideIn">
+                    <i class="fas fa-check-circle text-green-500 text-xl mt-0.5"></i>
+                    <div>
+                        <p class="font-semibold">Success!</p>
+                        <p class="text-sm">{{ session('success') }}</p>
+                    </div>
+                </div>
+            @endif
 
-            <!-- Selected animals -->
-            <div class="bg-gray-50 shadow-md rounded-xl p-6">
-                <h2 class="text-xl font-bold mb-4">Animals You Want to Visit</h2>
+            @if ($animalList->isEmpty())
+                <!-- Empty State -->
+                <div class="text-center py-16">
+                    <div class="inline-flex items-center justify-center w-24 h-24 bg-purple-100 rounded-full mb-6">
+                        <i class="fas fa-heart-broken text-purple-400 text-4xl"></i>
+                    </div>
+                    <h3 class="text-2xl font-bold text-gray-800 mb-2">Your visit list is empty</h3>
+                    <p class="text-gray-600 mb-8">Start adding animals you'd like to meet!</p>
+                    <button onclick="closeVisitModal()"
+                            class="px-8 py-3 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-xl transition-all duration-200 transform hover:scale-105">
+                        Browse Animals
+                    </button>
+                </div>
+            @else
+                <form method="POST" action="{{ route('visit.list.confirm') }}" class="space-y-6" id="visitListForm">
+                    @csrf
 
-                <div class="space-y-4">
-                    @foreach($animals as $animal)
-                        <div class="border p-4 rounded-lg flex justify-between items-center">
+                    <!-- Animals Counter -->
+                    <div class="bg-purple-50 border border-purple-200 rounded-xl p-4 flex items-center gap-3">
+                        <div class="w-12 h-12 bg-purple-600 rounded-full flex items-center justify-center">
+                            <span class="text-white font-bold text-lg">{{ $animalList->count() }}</span>
+                        </div>
+                        <div>
+                            <p class="font-semibold text-gray-800">
+                                {{ $animalList->count() }} {{ Str::plural('Animal', $animalList->count()) }} Selected
+                            </p>
+                            <p class="text-sm text-gray-600">Ready for your visit appointment</p>
+                        </div>
+                    </div>
+
+                    <!-- Selected Animals Grid -->
+                    <div>
+                        <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+                            <i class="fas fa-paw text-purple-600"></i>
+                            Animals You'll Visit
+                        </h2>
+
+                        <div class="grid grid-cols-1 gap-4">
+                            @foreach($animalList as $index => $animal)
+                                <div class="group bg-gradient-to-br from-white to-gray-50 border-2 border-gray-200 hover:border-purple-300 rounded-2xl p-5 transition-all duration-300 hover:shadow-lg">
+                                    <div class="flex gap-4">
+                                        <!-- Animal Image -->
+                                        <div class="flex-shrink-0">
+                                            <div class="w-24 h-24 rounded-xl overflow-hidden bg-gray-200 ring-4 ring-purple-100 group-hover:ring-purple-300 transition-all duration-300">
+                                                @if($animal->image)
+                                                    <img src="{{ asset('storage/' . $animal->image) }}"
+                                                         alt="{{ $animal->name }}"
+                                                         class="w-full h-full object-cover transform group-hover:scale-110 transition-transform duration-300">
+                                                @else
+                                                    <div class="w-full h-full flex items-center justify-center">
+                                                        <i class="fas fa-paw text-gray-400 text-3xl"></i>
+                                                    </div>
+                                                @endif
+                                            </div>
+                                        </div>
+
+                                        <!-- Animal Info -->
+                                        <div class="flex-1 min-w-0">
+                                            <div class="flex items-start justify-between mb-2">
+                                                <div>
+                                                    <h3 class="text-xl font-bold text-gray-800 flex items-center gap-2">
+                                                        {{ $animal->name }}
+                                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                                                            #{{ $index + 1 }}
+                                                        </span>
+                                                    </h3>
+                                                    <div class="flex flex-wrap gap-2 mt-2">
+                                                        <span class="inline-flex items-center gap-1 px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-sm">
+                                                            <i class="fas fa-dog"></i>
+                                                            {{ $animal->species }}
+                                                        </span>
+                                                        @if($animal->breed)
+                                                            <span class="inline-flex items-center gap-1 px-3 py-1 bg-green-50 text-green-700 rounded-full text-sm">
+                                                                <i class="fas fa-dna"></i>
+                                                                {{ $animal->breed }}
+                                                            </span>
+                                                        @endif
+                                                        @if($animal->age)
+                                                            <span class="inline-flex items-center gap-1 px-3 py-1 bg-orange-50 text-orange-700 rounded-full text-sm">
+                                                                <i class="fas fa-calendar"></i>
+                                                                {{ $animal->age }}
+                                                            </span>
+                                                        @endif
+                                                        @if($animal->gender)
+                                                            <span class="inline-flex items-center gap-1 px-3 py-1 bg-pink-50 text-pink-700 rounded-full text-sm">
+                                                                <i class="fas fa-{{ $animal->gender == 'Male' ? 'mars' : 'venus' }}"></i>
+                                                                {{ $animal->gender }}
+                                                            </span>
+                                                        @endif
+                                                    </div>
+                                                </div>
+
+                                                <!-- Remove Button -->
+                                                <form action="{{ route('visit.list.remove', $animal->id) }}" method="POST"
+                                                      onsubmit="return confirm('Remove {{ $animal->name }} from your visit list?');">
+                                                    @csrf
+                                                    @method('DELETE')
+                                                    <button type="submit"
+                                                            class="text-red-500 hover:text-white hover:bg-red-500 p-2.5 rounded-lg transition-all duration-200 flex items-center gap-2 group/btn border border-red-200 hover:border-red-500">
+                                                        <i class="fas fa-trash-alt"></i>
+                                                        <span class="text-sm font-medium hidden sm:inline">Remove</span>
+                                                    </button>
+                                                </form>
+                                            </div>
+
+                                            <!-- Remarks Input -->
+                                            <div class="mt-3">
+                                                <label class="block text-sm font-medium text-gray-700 mb-1.5">
+                                                    <i class="fas fa-comment-dots text-purple-600 mr-1"></i>
+                                                    Why are you interested in {{ $animal->name }}?
+                                                </label>
+                                                <textarea name="remarks[{{ $animal->id }}]"
+                                                          placeholder="Tell us what makes {{ $animal->name }} special to you..."
+                                                          class="w-full border-2 border-gray-200 focus:border-purple-400 focus:ring-2 focus:ring-purple-200 text-gray-700 rounded-lg p-3 text-sm transition-all duration-200 resize-none"
+                                                          rows="2"></textarea>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Hidden input for booking -->
+                                    <input type="hidden" name="animal_ids[]" value="{{ $animal->id }}">
+                                </div>
+                            @endforeach
+                        </div>
+                    </div>
+
+                    <!-- Appointment Section -->
+                    <div class="bg-gradient-to-br from-purple-50 to-blue-50 border-2 border-purple-200 rounded-2xl p-6">
+                        <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+                            <i class="fas fa-calendar-check text-purple-600"></i>
+                            Schedule Your Visit
+                            <span class="text-red-500 text-sm">*</span>
+                        </h2>
+
+                        <div class="space-y-4">
                             <div>
-                                <strong>{{ $animal->name }}</strong>
-                                <br>
-                                <span class="text-gray-600 text-sm">{{ $animal->species }}</span>
+                                <label class="block text-sm font-semibold text-gray-700 mb-2">
+                                    <i class="fas fa-clock text-purple-600 mr-1"></i>
+                                    Preferred Date & Time <span class="text-red-500">*</span>
+                                </label>
+                                <input type="datetime-local"
+                                       id="appointmentDate"
+                                       name="appointment_date"
+                                       required
+                                       min="{{ date('Y-m-d\TH:i') }}"
+                                       class="w-full border-2 border-gray-300 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 text-gray-700 rounded-xl p-3.5 text-base transition-all duration-200">
+                                <p class="text-xs text-gray-600 mt-2">
+                                    <i class="fas fa-info-circle"></i>
+                                    Our adoption center is open Monday-Saturday, 9 AM - 5 PM
+                                </p>
+                                <p id="appointmentError" class="text-xs text-red-600 mt-2 hidden">
+                                    <i class="fas fa-exclamation-circle"></i>
+                                    Please select a date and time for your visit
+                                </p>
                             </div>
 
-                            <form action="{{ route('visit.list.remove', $animal->id) }}" method="POST">
-                                @csrf
-                                <button type="submit"
-                                        class="text-red-600 font-semibold hover:text-red-800">
-                                    Remove
-                                </button>
-                            </form>
+                            <!-- Terms Checkbox -->
+                            <div class="bg-white/80 backdrop-blur-sm rounded-xl p-4 border border-purple-200">
+                                <label class="flex items-start gap-3 cursor-pointer group">
+                                    <input type="checkbox"
+                                           name="terms"
+                                           required
+                                           class="mt-1 w-5 h-5 text-purple-600 border-gray-300 rounded focus:ring-2 focus:ring-purple-500 cursor-pointer">
+                                    <span class="text-sm text-gray-700 flex-1">
+                                        <span class="font-semibold text-gray-800 group-hover:text-purple-600 transition-colors">I understand and agree</span>
+                                        <br>
+                                        This is a visit appointment request pending staff approval. You will be notified once confirmed.
+                                    </span>
+                                </label>
+                            </div>
                         </div>
-
-                        <input type="hidden" name="animal_ids[]" value="{{ $animal->id }}">
-                    @endforeach
-                </div>
-            </div>
-
-            <!-- Remarks -->
-            <div class="bg-gray-50 shadow-md rounded-xl p-6">
-                <h2 class="text-xl font-bold mb-4">Remarks (Optional)</h2>
-
-                @foreach($animals as $animal)
-                    <div class="mb-4">
-                        <label class="block text-gray-700 font-medium">
-                            Why are you interested in {{ $animal->name }}?
-                        </label>
-                        <textarea name="remarks[{{ $animal->id }}]"
-                                  class="w-full border rounded-lg p-3"
-                                  rows="2"></textarea>
                     </div>
-                @endforeach
-            </div>
 
-            <!-- Appointment -->
-            <div class="bg-gray-50 shadow-md rounded-xl p-6">
-                <label class="block font-semibold mb-2">Appointment Date & Time</label>
-                <input type="datetime-local" name="appointment_date" required
-                       min="{{ date('Y-m-d\TH:i') }}"
-                       class="w-full border rounded-lg p-3">
-            </div>
-
-            <!-- Terms -->
-            <div class="flex items-start">
-                <input type="checkbox" name="terms" required class="mt-1">
-                <span class="ml-3 text-sm">
-                    I understand this is an appointment request, pending approval.
-                </span>
-            </div>
-
-            <button type="submit"
-                    class="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 rounded-xl">
-                Confirm Appointment
-            </button>
-        </form>
-
-        <div class="mt-4 text-right">
-            <button onclick="closeVisitModal()"
-                    class="px-4 py-2 bg-gray-300 hover:bg-gray-400 rounded-lg">
-                Close
-            </button>
+                    <!-- Action Buttons -->
+                    <div class="flex gap-3 pt-4">
+                        <button type="button"
+                                onclick="closeVisitModal()"
+                                class="flex-1 px-6 py-4 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-xl transition-all duration-200 flex items-center justify-center gap-2 border-2 border-gray-200">
+                            <i class="fas fa-arrow-left"></i>
+                            Continue Browsing
+                        </button>
+                        <button type="submit"
+                                id="confirmBookingBtn"
+                                disabled
+                                class="flex-1 px-6 py-4 bg-gray-300 text-gray-500 font-bold rounded-xl shadow-lg transition-all duration-200 flex items-center justify-center gap-2 cursor-not-allowed">
+                            <i class="fas fa-check-circle"></i>
+                            Confirm Visit Booking
+                        </button>
+                    </div>
+                </form>
+            @endif
         </div>
     </div>
 </div>
 
+<!-- Styles remain same as before -->
+
 <script>
+    // Open / Close Modal
     function openVisitModal() {
         const modal = document.getElementById('visitModal');
         const content = document.getElementById('visitModalContent');
         modal.classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
         setTimeout(() => {
             content.classList.remove('opacity-0', 'scale-95');
             content.classList.add('opacity-100', 'scale-100');
         }, 10);
     }
-
     function closeVisitModal() {
         const modal = document.getElementById('visitModal');
         const content = document.getElementById('visitModalContent');
         content.classList.add('opacity-0', 'scale-95');
         content.classList.remove('opacity-100', 'scale-100');
-        setTimeout(() => modal.classList.add('hidden'), 200);
+        setTimeout(() => {
+            modal.classList.add('hidden');
+            document.body.style.overflow = '';
+        }, 300);
     }
 
-    document.addEventListener('click', function (e) {
+    // Enable / Disable Confirm Button
+    function updateConfirmButton() {
+        const appointmentInput = document.getElementById('appointmentDate');
+        const termsCheckbox = document.querySelector('input[name="terms"]');
+        const confirmBtn = document.getElementById('confirmBookingBtn');
+
+        const isValid = appointmentInput.value.trim() !== '' && termsCheckbox.checked;
+
+        confirmBtn.disabled = !isValid;
+        if (isValid) {
+            confirmBtn.classList.remove('bg-gray-300','text-gray-500','cursor-not-allowed');
+            confirmBtn.classList.add('bg-gradient-to-r','from-purple-600','to-purple-700','hover:from-purple-700','hover:to-purple-800','text-white','hover:shadow-xl','transform','hover:scale-105','cursor-pointer');
+        } else {
+            confirmBtn.classList.add('bg-gray-300','text-gray-500','cursor-not-allowed');
+            confirmBtn.classList.remove('bg-gradient-to-r','from-purple-600','to-purple-700','hover:from-purple-700','hover:to-purple-800','text-white','hover:shadow-xl','transform','hover:scale-105','cursor-pointer');
+        }
+    }
+
+    // Event listeners
+    document.addEventListener('DOMContentLoaded', function() {
+        const form = document.getElementById('visitListForm');
+        const appointmentInput = document.getElementById('appointmentDate');
+        const termsCheckbox = document.querySelector('input[name="terms"]');
+
+        if(appointmentInput){
+            appointmentInput.addEventListener('input', updateConfirmButton);
+            appointmentInput.addEventListener('change', updateConfirmButton);
+        }
+        if(termsCheckbox){
+            termsCheckbox.addEventListener('change', updateConfirmButton);
+        }
+
+        form.addEventListener('submit', function(e){
+            if(!appointmentInput.value || !termsCheckbox.checked){
+                e.preventDefault();
+                alert('Please select a date and accept terms.');
+                appointmentInput.focus();
+            }
+        });
+
+        // Initial check
+        updateConfirmButton();
+    });
+
+    // Close modal on click outside
+    document.addEventListener('click', function(e){
         const modal = document.getElementById('visitModal');
-        if (!modal.classList.contains('hidden') && e.target === modal) {
+        if(!modal.classList.contains('hidden') && e.target === modal){
             closeVisitModal();
         }
     });
 
-    document.addEventListener('keydown', function(e) {
-        if (e.key === "Escape") closeVisitModal();
+    // Close modal on Escape
+    document.addEventListener('keydown', function(e){
+        if(e.key === "Escape"){
+            closeVisitModal();
+        }
     });
 
+    // Auto-open modal if session flag
     @if (session('open_visit_modal'))
     document.addEventListener("DOMContentLoaded", function () {
         openVisitModal();

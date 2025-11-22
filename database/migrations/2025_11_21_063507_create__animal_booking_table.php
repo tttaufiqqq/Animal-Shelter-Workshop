@@ -19,10 +19,12 @@ return new class extends Migration
 
             // 🚩 FIX THIS LINE: Explicitly reference the 'animal' table
             $table->foreignId('animalID')->constrained('animal')->onDelete('cascade');
-            
+
             $table->text('remarks')->nullable();
             $table->timestamps();
         });
+
+
     }
 
     /**
@@ -31,5 +33,6 @@ return new class extends Migration
     public function down(): void
     {
         Schema::dropIfExists('AnimalBooking');
+
     }
 };

@@ -3,19 +3,9 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use App\Http\Requests\ProfileUpdateRequest;
-use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Redirect;
-use Illuminate\View\View;
-use App\Models\Slot;
-use App\Models\Inventory;
 use App\Models\Animal;
-use App\Models\Image;
-use App\Models\Category;
-use App\Models\Rescue;
-use App\Models\Clinic;
-use App\Models\Vet;
+use App\Models\VisitList;
 use App\Models\Medical;
 use App\Models\Vaccination;
 use App\Models\Transaction;
@@ -39,51 +29,188 @@ class BookingAdoptionController extends Controller
     }
 
     // Show visit list
+    /**
+     * Show user's visit list.
+     */
     public function indexList()
     {
-        $list = session()->get('visit_list', []);
+        $user = Auth::user();
 
-        // Only fetch animals in the session list
-        $animals = Animal::whereIn('id', $list)
-            ->orderByRaw("FIELD(id," . implode(',', $list) . ")") // optional: keep order
-            ->get();
+        // Find or create the user's visit list
+        $visitList = VisitList::firstOrCreate([
+            'userID' => $user->id,
+        ]);
 
-        // Clean session: remove any IDs that no longer exist
-        $validIds = $animals->pluck('id')->toArray();
-        session()->put('visit_list', $validIds);
+        // Load animals from pivot
+        $animals = $visitList->animals;
 
         return view('booking-adoption.visit-list', compact('animals'));
     }
 
-    // Add animal to visit list
+    /**
+     * Add an animal to the user's visit list.
+     */
     public function addList($animalId)
     {
-        $list = session()->get('visit_list', []);
+        $user = Auth::user();
 
-        // Only add if exists in DB
-        if (Animal::where('id', $animalId)->exists() && !in_array($animalId, $list)) {
-            $list[] = $animalId;
+        // Ensure visit list exists
+        $visitList = VisitList::firstOrCreate([
+            'userID' => $user->id
+        ]);
+
+        // Validate animal exists
+        if (!Animal::find($animalId)) {
+            return back()->with('error', 'Animal does not exist.');
         }
 
-        session()->put('visit_list', array_values($list));
+        // Check duplicate
+        if ($visitList->animals()->where('animalID', $animalId)->exists()) {
+            return back()->with('info', 'This animal is already in your visit list.');
+        }
+
+        // Attach to pivot table
+        $visitList->animals()->attach($animalId, [
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
 
         return back()->with('success', 'Animal added to your visit list.');
     }
 
-    // Remove animal from visit list
+    /**
+     * Remove an animal from the visit list.
+     */
     public function removeList($animalId)
     {
-        $list = session()->get('visit_list', []);
-        $list = array_values(array_diff($list, [$animalId])); // removes ID safely
-        session()->put('visit_list', $list);
+        $user = Auth::user();
+        $visitList = $user->visitList;
 
-        session()->flash('open_visit_modal', true);
+        if (!$visitList) {
+            return back()->with('error', 'Visit list not found.');
+        }
 
-        return back()->with('success', 'Animal removed from visit list.');
+        $visitList->animals()->detach($animalId);
+
+        return back()->with('success', 'Animal removed from your visit list.');
     }
 
+     /* Confirm appointment (convert visit list -> booking + booking_animal)
+     */
+    public function confirmAppointment(Request $request)
+    {
+        try {
+            \Log::info('=== CONFIRM APPOINTMENT STARTED ===');
+            \Log::info('Request data:', $request->all());
 
+            // Validation
+            $validated = $request->validate([
+                'appointment_date' => 'required|date|after_or_equal:now',
+                'animal_ids' => 'required|array|min:1',
+                'animal_ids.*' => 'required|exists:animal,id',
+                'remarks' => 'nullable|array',
+                'remarks.*' => 'nullable|string|max:500',
+                'terms' => 'required|accepted',
+            ], [
+                'appointment_date.required' => 'Please select an appointment date and time.',
+                'appointment_date.after_or_equal' => 'Appointment must be in the future.',
+                'animal_ids.required' => 'Please select at least one animal.',
+                'animal_ids.min' => 'Please select at least one animal.',
+                'terms.required' => 'You must agree to the terms.',
+                'terms.accepted' => 'You must agree to the terms.',
+            ]);
 
+            \Log::info('Validation passed');
+
+            $user = Auth::user();
+
+            // Get the user's VISIT LIST (not booking!)
+            $visitList = VisitList::where('userID', $user->id)->first();
+
+            if (!$visitList || $visitList->animals->isEmpty()) {
+                \Log::warning('No visit list found for user', ['user_id' => $user->id]);
+                return back()
+                    ->with('error', 'Your visit list is empty.')
+                    ->with('open_visit_modal', true);
+            }
+
+            \Log::info('Found visit list', ['visit_list_id' => $visitList->id]);
+
+            // Verify all selected animals are in the visit list
+            $visitListAnimalIds = $visitList->animals->pluck('id')->toArray();
+            $requestedAnimalIds = $validated['animal_ids'];
+
+            \Log::info('Animal verification', [
+                'visit_list_animals' => $visitListAnimalIds,
+                'requested_animals' => $requestedAnimalIds
+            ]);
+
+            // Check if all requested animals are in the visit list
+            $invalidAnimals = array_diff($requestedAnimalIds, $visitListAnimalIds);
+            if (!empty($invalidAnimals)) {
+                \Log::warning('Invalid animals requested', ['invalid_ids' => $invalidAnimals]);
+                return back()
+                    ->with('error', 'Some selected animals are not in your visit list.')
+                    ->with('open_visit_modal', true);
+            }
+
+            // Create new booking for the appointment
+            $booking = Booking::create([
+                'userID' => $user->id,
+                'status' => 'Pending', // Pending appointment approval
+                'booking_date' => $validated['appointment_date'],
+            ]);
+
+            \Log::info('Created booking', ['booking_id' => $booking->id]);
+
+            // Attach animals with remarks to the booking
+            $animalData = [];
+            foreach ($validated['animal_ids'] as $animalId) {
+                $animalData[$animalId] = [
+                    'status' => 'Pending',
+                    'remarks' => $validated['remarks'][$animalId] ?? null,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ];
+            }
+
+            $booking->animals()->attach($animalData);
+            \Log::info('Attached animals to booking', ['count' => count($animalData)]);
+
+            // Remove the confirmed animals from the visit list
+            $visitList->animals()->detach($validated['animal_ids']);
+            \Log::info('Removed animals from visit list');
+
+            // If visit list has no more animals, delete it
+            if ($visitList->animals()->count() === 0) {
+                $visitList->delete();
+                \Log::info('Deleted empty visit list');
+            }
+
+            \Log::info('=== CONFIRM APPOINTMENT COMPLETED SUCCESSFULLY ===');
+
+            return redirect()->route('booking.success')
+                ->with('success', 'Your visit appointment has been scheduled! We will notify you once it\'s confirmed.');
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            \Log::error('Validation failed', ['errors' => $e->errors()]);
+
+            return back()
+                ->withErrors($e->errors())
+                ->withInput()
+                ->with('open_visit_modal', true);
+
+        } catch (\Exception $e) {
+            \Log::error('Booking Confirmation Error: ' . $e->getMessage(), [
+                'user_id' => Auth::id(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return back()
+                ->with('error', 'Failed to schedule appointment. Please try again.')
+                ->with('open_visit_modal', true);
+        }
+    }
 
     public function storeBooking(Request $request) //store booking wiith multiple animals
     {
@@ -519,9 +646,6 @@ class BookingAdoptionController extends Controller
 
         return $response->json();
     }
-
-
-
 
 
     public function showModalAdmin($id)
