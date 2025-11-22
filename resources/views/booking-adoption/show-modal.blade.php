@@ -1,6 +1,33 @@
-<!-- Booking Details Modal -->
-<div id="bookingDetailsModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-    <div class="bg-white rounded-2xl shadow-2xl max-w-[1400px] w-full max-h-[95vh] overflow-y-auto">
+{{-- bookings/partials/booking-modal.blade.php --}}
+{{-- Booking Details Modal with animal selection + Adoption Fee Modal with selected animals only --}}
+
+@php
+    $animals = $booking->animals ?? collect();
+    $allFeeBreakdowns = [];
+    $totalFee = 0;
+
+    if ($animals->isNotEmpty()) {
+        foreach ($animals as $animal) {
+            $baseFee = 50;
+            $medicalFee = $animal->medicals ? $animal->medicals->sum('cost') : 0;
+            $vaccinationFee = $animal->vaccinations ? $animal->vaccinations->sum('cost') : 0;
+            $animalTotal = $baseFee + $medicalFee + $vaccinationFee;
+
+            $allFeeBreakdowns[$animal->id] = [
+                'base_fee' => $baseFee,
+                'medical_fee' => $medicalFee,
+                'vaccination_fee' => $vaccinationFee,
+                'total_fee' => $animalTotal,
+            ];
+
+            $totalFee += $animalTotal;
+        }
+    }
+@endphp
+
+    <!-- Booking Details Modal -->
+<div id="bookingModal-{{ $booking->id }}" class="modal-backdrop hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-[1400px] w-full max-h-[95vh] overflow-y-auto" onclick="event.stopPropagation()">
 
         <!-- Modal Header -->
         <div class="bg-gradient-to-r from-purple-600 to-purple-700 text-white p-6 sticky top-0 z-10">
@@ -12,8 +39,10 @@
                         <p class="text-purple-100 text-sm">Booking #{{ $booking->id }}</p>
                     </div>
                 </div>
-                <button onclick="closeBookingDetailsModal()" class="text-white hover:text-gray-200 transition">
-                    <i class="fas fa-times text-2xl"></i>
+                <button type="button" onclick="closeModal('bookingModal-{{ $booking->id }}')" class="text-white hover:text-gray-200 transition">
+                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
                 </button>
             </div>
         </div>
@@ -24,95 +53,125 @@
             <!-- Status Badge -->
             <div class="flex justify-between items-center">
                 <h3 class="text-lg font-bold text-gray-800">Booking Status</h3>
-                <span class="px-4 py-2 rounded-full text-sm font-semibold
-                    @if($booking->status == 'Pending') bg-yellow-100 text-yellow-700
-                    @elseif($booking->status == 'Confirmed') bg-blue-100 text-blue-700
-                    @elseif($booking->status == 'Completed') bg-green-100 text-green-700
-                    @elseif($booking->status == 'Cancelled') bg-red-100 text-red-700
-                    @else bg-gray-100 text-gray-700
-                    @endif">
-                    <i class="fas fa-circle text-xs mr-1"></i>
+                @php
+                    $statusBadgeColors = [
+                        'pending' => 'bg-yellow-100 text-yellow-700',
+                        'confirmed' => 'bg-blue-100 text-blue-700',
+                        'completed' => 'bg-green-100 text-green-700',
+                        'cancelled' => 'bg-red-100 text-red-700',
+                    ];
+                    $statusKey = strtolower($booking->status);
+                @endphp
+                <span class="px-4 py-2 rounded-full text-sm font-semibold {{ $statusBadgeColors[$statusKey] ?? 'bg-gray-100 text-gray-700' }}">
                     {{ $booking->status }}
                 </span>
             </div>
 
-            <!-- Animals Section -->
-            @php
-                $animals = $booking->animals instanceof \Illuminate\Database\Eloquent\Collection
-                            ? $booking->animals
-                            : collect([$booking->animals]);
-            @endphp
-
-            @if($animals->count() > 0)
+            <!-- Animals Section with Checkboxes -->
+            @if($animals->isNotEmpty())
                 <div class="bg-gradient-to-br from-purple-50 to-purple-100 border-2 border-purple-300 rounded-xl p-6 shadow-md">
                     <h3 class="font-bold text-gray-800 mb-4 flex items-center text-xl">
-                        <i class="fas fa-paw text-purple-600 mr-3 text-2xl"></i>
+                        <svg class="w-6 h-6 text-purple-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
                         Animals in this Booking
+                        @if(in_array(strtolower($booking->status), ['pending', 'confirmed']))
+                            <span class="ml-2 text-sm font-normal text-purple-600">(Select animals to adopt)</span>
+                        @endif
                     </h3>
 
-                    <form id="selectAnimalForm">
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                            @foreach($animals as $animal)
-                                <label class="cursor-pointer">
-                                    <div class="bg-white rounded-xl p-4 shadow-md border-2 border-transparent hover:border-purple-500 transition relative">
-                                        <input type="checkbox" name="selected_animal_ids[]" value="{{ $animal->id }}"
-                                               class="absolute top-2 right-2 w-5 h-5"
-                                               @if($loop->first) checked @endif>
-                                        @if($animal->images && $animal->images->count() > 0)
-                                            <img src="{{ asset('storage/' . $animal->images->first()->image_path) }}"
-                                                 alt="{{ $animal->name }}"
-                                                 class="w-full h-40 object-cover rounded-lg mb-3">
-                                        @else
-                                            <div class="w-full h-40 bg-gradient-to-br from-purple-300 to-purple-400 rounded-lg flex items-center justify-center mb-3">
-                            <span class="text-5xl">
-                                @if(strtolower($animal->species) == 'dog') 🐕
-                                @elseif(strtolower($animal->species) == 'cat') 🐈
-                                @else 🐾
-                                @endif
-                            </span>
-                                            </div>
-                                        @endif
-                                        <div class="text-gray-800 font-semibold">{{ $animal->name }}</div>
-                                        <div class="text-gray-600 text-sm">{{ $animal->species }} • {{ $animal->age }} years • {{ $animal->gender }}</div>
-                                    </div>
-                                </label>
-                            @endforeach
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        @foreach($animals as $index => $animal)
+                            <label class="cursor-pointer group">
+                                <div class="bg-white rounded-xl p-4 shadow-md border-2 border-transparent group-hover:border-purple-500 transition relative
+                                    @if(in_array(strtolower($booking->status), ['pending', 'confirmed'])) has-[:checked]:border-purple-500 has-[:checked]:ring-2 has-[:checked]:ring-purple-300 @endif">
+
+                                    {{-- Checkbox for selection (only for pending/confirmed) --}}
+                                    @if(in_array(strtolower($booking->status), ['pending', 'confirmed']))
+                                        <input type="checkbox"
+                                               id="selectAnimal-{{ $booking->id }}-{{ $animal->id }}"
+                                               class="animal-select-{{ $booking->id }} absolute top-3 right-3 w-5 h-5 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
+                                               data-animal-id="{{ $animal->id }}"
+                                               data-animal-name="{{ $animal->name }}"
+                                               data-animal-species="{{ $animal->species }}"
+                                               data-fee="{{ $allFeeBreakdowns[$animal->id]['total_fee'] }}"
+                                               data-base-fee="{{ $allFeeBreakdowns[$animal->id]['base_fee'] }}"
+                                               data-medical-fee="{{ $allFeeBreakdowns[$animal->id]['medical_fee'] }}"
+                                               data-vaccination-fee="{{ $allFeeBreakdowns[$animal->id]['vaccination_fee'] }}"
+                                            {{ $index === 0 ? 'checked' : '' }}>
+                                    @endif
+
+                                    @if($animal->images && $animal->images->count() > 0)
+                                        <img src="{{ asset('storage/' . $animal->images->first()->image_path) }}"
+                                             alt="{{ $animal->name }}"
+                                             class="w-full h-40 object-cover rounded-lg mb-3">
+                                    @else
+                                        <div class="w-full h-40 bg-gradient-to-br from-purple-300 to-purple-400 rounded-lg flex items-center justify-center mb-3">
+                                            <span class="text-5xl">
+                                                @if(strtolower($animal->species) == 'dog') 🐕
+                                                @elseif(strtolower($animal->species) == 'cat') 🐈
+                                                @else 🐾
+                                                @endif
+                                            </span>
+                                        </div>
+                                    @endif
+                                    <div class="text-gray-800 font-semibold">{{ $animal->name }}</div>
+                                    <div class="text-gray-600 text-sm">{{ $animal->species }} • {{ $animal->age }} years • {{ $animal->gender }}</div>
+
+                                    @if(in_array(strtolower($booking->status), ['pending', 'confirmed']))
+                                        <div class="mt-2 text-sm font-semibold text-purple-700">
+                                            Fee: RM {{ number_format($allFeeBreakdowns[$animal->id]['total_fee'], 2) }}
+                                        </div>
+                                    @endif
+                                </div>
+                            </label>
+                        @endforeach
+                    </div>
+
+                    {{-- Selection Summary --}}
+                    @if(in_array(strtolower($booking->status), ['pending', 'confirmed']))
+                        <div class="mt-4 p-3 bg-white rounded-lg border border-purple-200">
+                            <div class="flex justify-between items-center">
+                                <span class="text-gray-700">
+                                    Selected: <span id="selectedCount-{{ $booking->id }}" class="font-bold text-purple-700">1</span> animal(s)
+                                </span>
+                                <span class="text-gray-700">
+                                    Estimated Fee: <span id="estimatedFee-{{ $booking->id }}" class="font-bold text-green-600">RM {{ number_format($allFeeBreakdowns[$animals->first()->id]['total_fee'] ?? 0, 2) }}</span>
+                                </span>
+                            </div>
                         </div>
-                    </form>
+                    @endif
+                </div>
+            @else
+                <div class="bg-gray-100 rounded-xl p-6 text-center">
+                    <p class="text-gray-500">No animals associated with this booking.</p>
                 </div>
             @endif
 
             <!-- Appointment Details -->
             <div class="bg-gradient-to-br from-blue-50 to-blue-100 border-2 border-blue-300 rounded-xl p-6 shadow-md">
                 <h3 class="font-bold text-gray-800 mb-4 flex items-center text-xl">
-                    <i class="fas fa-calendar-check text-blue-600 mr-3 text-2xl"></i>
+                    <svg class="w-6 h-6 text-blue-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                    </svg>
                     Appointment Details
                 </h3>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div class="bg-white rounded-lg p-4 shadow-sm">
-                        <div class="flex items-center mb-2">
-                            <i class="fas fa-calendar-alt text-blue-600 mr-3 text-xl"></i>
-                            <span class="text-xs font-semibold text-gray-500 uppercase">Date</span>
-                        </div>
+                        <p class="text-xs font-semibold text-gray-500 uppercase mb-1">Date</p>
                         <p class="text-gray-800 font-bold text-lg">
                             {{ \Carbon\Carbon::parse($booking->appointment_date)->format('F d, Y') }}
                         </p>
                     </div>
                     <div class="bg-white rounded-lg p-4 shadow-sm">
-                        <div class="flex items-center mb-2">
-                            <i class="fas fa-clock text-blue-600 mr-3 text-xl"></i>
-                            <span class="text-xs font-semibold text-gray-500 uppercase">Time</span>
-                        </div>
+                        <p class="text-xs font-semibold text-gray-500 uppercase mb-1">Time</p>
                         <p class="text-gray-800 font-bold text-lg">
-                            {{ date('h:i A', strtotime($booking->appointment_time)) }}
+                            {{ \Carbon\Carbon::parse($booking->appointment_time)->format('h:i A') }}
                         </p>
                     </div>
                 </div>
                 <div class="mt-4 bg-white rounded-lg p-4 shadow-sm">
-                    <div class="flex items-center mb-2">
-                        <i class="fas fa-info-circle text-blue-600 mr-3 text-xl"></i>
-                        <span class="text-xs font-semibold text-gray-500 uppercase">Booked On</span>
-                    </div>
+                    <p class="text-xs font-semibold text-gray-500 uppercase mb-1">Booked On</p>
                     <p class="text-gray-800 font-medium">
                         {{ $booking->created_at->format('F d, Y') }}
                     </p>
@@ -123,42 +182,35 @@
             @if($booking->user)
                 <div class="bg-gradient-to-br from-green-50 to-green-100 border-2 border-green-300 rounded-xl p-6 shadow-md">
                     <h3 class="font-bold text-gray-800 mb-4 flex items-center text-xl">
-                        <i class="fas fa-user text-green-600 mr-3 text-2xl"></i>
+                        <svg class="w-6 h-6 text-green-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                        </svg>
                         Booker Information
                     </h3>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div class="bg-white rounded-lg p-4 shadow-sm">
-                            <div class="flex items-center mb-2">
-                                <i class="fas fa-user-circle text-green-600 mr-3 text-xl"></i>
-                                <span class="text-xs font-semibold text-gray-500 uppercase">Name</span>
-                            </div>
+                            <p class="text-xs font-semibold text-gray-500 uppercase mb-1">Name</p>
                             <p class="text-gray-800 font-medium text-lg">{{ $booking->user->name }}</p>
                         </div>
                         <div class="bg-white rounded-lg p-4 shadow-sm">
-                            <div class="flex items-center mb-2">
-                                <i class="fas fa-envelope text-green-600 mr-3 text-xl"></i>
-                                <span class="text-xs font-semibold text-gray-500 uppercase">Email</span>
-                            </div>
+                            <p class="text-xs font-semibold text-gray-500 uppercase mb-1">Email</p>
                             <p class="text-gray-800 font-medium">{{ $booking->user->email }}</p>
                         </div>
-                        <div class="mt-4 bg-white rounded-lg p-4 shadow-sm">
-                            <div class="flex items-center mb-2">
-                                <i class="fas fa-info-circle text-blue-600 mr-3 text-xl"></i>
-                                <span class="text-xs font-semibold text-gray-500 uppercase">Phone Number</span>
-                            </div>
-                            <p class="text-gray-800 font-medium">
-                                {{ $booking->user->phoneNum }}
-                            </p>
+                        <div class="bg-white rounded-lg p-4 shadow-sm">
+                            <p class="text-xs font-semibold text-gray-500 uppercase mb-1">Phone Number</p>
+                            <p class="text-gray-800 font-medium">{{ $booking->user->phoneNum ?? 'N/A' }}</p>
                         </div>
                     </div>
                 </div>
             @endif
 
             <!-- Important Information -->
-            @if(in_array($booking->status, ['Pending', 'Confirmed']))
+            @if(in_array(strtolower($booking->status), ['pending', 'confirmed']))
                 <div class="bg-yellow-50 border-l-4 border-yellow-500 rounded-lg p-5">
                     <h3 class="font-bold text-gray-800 mb-3 flex items-center text-lg">
-                        <i class="fas fa-exclamation-circle text-yellow-600 mr-2"></i>
+                        <svg class="w-5 h-5 text-yellow-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                        </svg>
                         Important Reminders
                     </h3>
                     <ul class="text-sm text-gray-700 space-y-2 list-disc list-inside">
@@ -173,67 +225,117 @@
 
         <!-- Modal Footer -->
         <div class="bg-gray-50 p-6 border-t border-gray-200 flex flex-wrap justify-end gap-3">
-            <button onclick="closeBookingDetailsModal()" class="px-6 py-3 bg-gray-600 hover:bg-gray-700 text-white font-semibold rounded-lg transition duration-300 shadow-md">
-                <i class="fas fa-times mr-2"></i>Close
+            <button type="button" onclick="closeModal('bookingModal-{{ $booking->id }}')" class="px-6 py-3 bg-gray-600 hover:bg-gray-700 text-white font-semibold rounded-lg transition duration-300 shadow-md">
+                Close
             </button>
 
-            @if(in_array($booking->status, ['Pending', 'Confirmed']))
-                <button type="button" onclick="openAdoptionFeeModal({{ $booking->id }})"
-                        class="px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg transition duration-300 shadow-md">
-                    <i class="fas fa-check-circle mr-2"></i>Confirm & Pay
-                </button>
+            @if(in_array(strtolower($booking->status), ['pending', 'confirmed']))
+                @if($animals->isNotEmpty())
+                    <button type="button" onclick="openAdoptionFeeModal({{ $booking->id }})"
+                            class="px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg transition duration-300 shadow-md">
+                        Confirm & Pay
+                    </button>
+                @endif
 
                 <form action="{{ route('bookings.cancel', $booking->id) }}" method="POST" class="inline" onsubmit="return confirm('Are you sure you want to cancel this booking?');">
                     @csrf
                     @method('PATCH')
                     <button type="submit" class="px-6 py-3 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg transition duration-300 shadow-md">
-                        <i class="fas fa-times-circle mr-2"></i>Cancel Booking
+                        Cancel Booking
                     </button>
                 </form>
             @endif
         </div>
-
     </div>
 </div>
 
-<div id="adoptionFeeModalContainer"></div>
+<!-- Adoption Fee Modal (shows only selected animals) -->
+@if(in_array(strtolower($booking->status), ['pending', 'confirmed']) && $animals->isNotEmpty())
+    <div id="adoptionFeeModal-{{ $booking->id }}" class="modal-backdrop hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto" onclick="event.stopPropagation()">
 
-<script>
-    function closeBookingDetailsModal() {
-        document.getElementById('bookingDetailsModal').remove();
-    }
+            <!-- Modal Header -->
+            <div class="bg-gradient-to-r from-green-600 to-green-700 text-white p-6 sticky top-0 z-10">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <span class="text-3xl">💰</span>
+                        <div>
+                            <h2 class="text-2xl font-bold">Adoption Fee Breakdown</h2>
+                            <p class="text-green-100 text-sm">Booking #{{ $booking->id }}</p>
+                        </div>
+                    </div>
+                    <button type="button" onclick="closeModal('adoptionFeeModal-{{ $booking->id }}')" class="text-white hover:text-gray-200 transition">
+                        <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                </div>
+            </div>
 
-    // Open Adoption Fee modal
-    function openAdoptionFeeModal(bookingId) {
-        const container = document.getElementById('adoptionFeeModalContainer');
-        container.innerHTML = `<div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div class="bg-white rounded-lg p-6"><i class="fas fa-spinner fa-spin mr-2"></i>Loading...</div>
-    </div>`;
+            <!-- Modal Body -->
+            <form action="{{ route('bookings.confirm', $booking->id) }}" method="POST">
+                @csrf
+                @method('PATCH')
 
-        // Get all selected animal IDs
-        const selectedCheckboxes = document.querySelectorAll('#selectAnimalForm input[name="selected_animal_ids[]"]:checked');
-        if(selectedCheckboxes.length === 0){
-            container.innerHTML = `<div class="text-center p-6 text-red-600">Please select at least one animal.</div>`;
-            return;
-        }
+                <div class="p-6 space-y-6">
 
-        const selectedIds = Array.from(selectedCheckboxes).map(cb => cb.value);
+                    <!-- Selected Animals (Read-only display) -->
+                    <div class="bg-purple-50 border-l-4 border-purple-600 rounded-lg p-5">
+                        <h3 class="font-bold text-gray-800 mb-3 flex items-center">
+                            <svg class="w-5 h-5 text-purple-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                            Selected Animals for Adoption
+                        </h3>
 
-        // Fetch adoption fee for all selected animals
-        fetch(`/bookings/${bookingId}/adoption-fee?animal_ids[]=${selectedIds.join('&animal_ids[]=')}`, {
-            headers: { 'X-Requested-With': 'XMLHttpRequest' }
-        })
-            .then(res => {
-                if(!res.ok) throw new Error('HTTP error ' + res.status);
-                return res.text();
-            })
-            .then(html => {
-                container.innerHTML = html;
-            })
-            .catch(err => {
-                console.error(err);
-                container.innerHTML = `<div class="text-red-600 text-center p-6">Failed to load adoption fee.</div>`;
-            });
-    }
+                        {{-- Container for dynamically populated animals --}}
+                        <div id="selectedAnimalsList-{{ $booking->id }}" class="space-y-3">
+                            {{-- Will be populated by JavaScript --}}
+                        </div>
 
-</script>
+                        <p id="noAnimalsSelected-{{ $booking->id }}" class="text-red-600 text-sm hidden">
+                            Please select at least one animal from the booking details.
+                        </p>
+                    </div>
+
+                    <!-- Grand Total -->
+                    <div class="flex justify-between items-center py-4 bg-green-50 rounded-lg px-4">
+                        <p class="text-xl font-bold text-gray-800">Total Adoption Fee</p>
+                        <span id="grandTotal-{{ $booking->id }}" class="text-3xl font-bold text-green-600">RM 0.00</span>
+                    </div>
+
+                    <!-- Terms -->
+                    <div class="flex items-start">
+                        <input type="checkbox"
+                               id="agree_terms_{{ $booking->id }}"
+                               name="agree_terms"
+                               class="mt-1 mr-3 h-4 w-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
+                               required>
+                        <label for="agree_terms_{{ $booking->id }}" class="text-sm text-gray-700">
+                            I understand and agree to pay the adoption fee for the selected animals. <span class="text-red-600">*</span>
+                        </label>
+                    </div>
+
+                    {{-- Hidden inputs for selected animal IDs --}}
+                    <div id="hiddenAnimalInputs-{{ $booking->id }}"></div>
+                </div>
+
+                <!-- Modal Footer -->
+                <div class="bg-gray-50 p-6 border-t border-gray-200">
+                    <div class="flex flex-wrap justify-end gap-3">
+                        <button type="button"
+                                onclick="closeModal('adoptionFeeModal-{{ $booking->id }}')"
+                                class="px-6 py-3 bg-gray-600 hover:bg-gray-700 text-white font-semibold rounded-lg transition duration-300">
+                            Back
+                        </button>
+                        <button type="submit"
+                                id="submitBtn-{{ $booking->id }}"
+                                class="px-6 py-3 bg-gradient-to-r from-green-600 to-green-700 text-white font-semibold rounded-lg hover:from-green-700 hover:to-green-800 transition duration-300 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed">
+                            Complete Adoption
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+@endif

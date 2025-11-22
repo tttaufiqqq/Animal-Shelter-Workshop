@@ -126,7 +126,13 @@ class BookingAdoptionController extends Controller
     public function index()
     {
         $bookings = Booking::where('userID', Auth::id())
-            ->with(['animals', 'adoptions'])
+            ->with([
+                'animals.images',       // For displaying animal photos
+                'animals.medicals',     // For calculating medical fees
+                'animals.vaccinations', // For calculating vaccination fees
+                'user',                 // For booker information
+                'adoptions'             // For showing adoption status
+            ])
             ->orderBy('appointment_date', 'desc')
             ->orderBy('appointment_time', 'desc')
             ->paginate(6);
@@ -140,30 +146,27 @@ class BookingAdoptionController extends Controller
         return view('booking-adoption.main', compact('bookings', 'statusCounts'));
     }
 
-
+    /**
+     * Display a listing of all bookings for admin.
+     */
     public function indexAdmin()
     {
-        $bookings = Booking::with(['animal', 'adoption', 'user'])
+        $bookings = Booking::with([
+            'animals.images',
+            'animals.medicals',
+            'animals.vaccinations',
+            'user',
+            'adoptions'
+        ])
             ->orderBy('appointment_date', 'desc')
             ->orderBy('appointment_time', 'desc')
             ->paginate(6);
 
         $statusCounts = Booking::select('status', DB::raw('COUNT(*) as total'))
-        ->groupBy('status')
-        ->pluck('total', 'status');
+            ->groupBy('status')
+            ->pluck('total', 'status');
 
         return view('booking-adoption.admin', compact('bookings', 'statusCounts'));
-    }
-
-    public function show(Booking $booking)
-    {
-        if ($booking->userID !== Auth::id()) {
-            abort(403, 'Unauthorized action.');
-        }
-
-        $booking->load(['animals', 'adoptions']);
-
-        return view('booking-adoption.show', compact('booking'));
     }
 
     // Cancel a booking
@@ -522,27 +525,6 @@ class BookingAdoptionController extends Controller
 
 
 
-    public function showModal($id)
-    {
-        try {
-            $booking = Booking::with([
-                'animals.images',   // load animals via pivot
-                'adoptions',        // load adoptions (no animal() inside)
-                'user'
-            ])
-                ->where('id', $id)
-                ->where('userID', auth()->id())
-                ->firstOrFail();
-
-            return view('booking-adoption.show-modal', compact('booking'));
-        } catch (\Exception $e) {
-            Log::error('Booking modal error: ' . $e->getMessage());
-            return response()->json([
-                'error' => 'Failed to load booking',
-                'message' => $e->getMessage()
-            ], 500);
-        }
-    }
 
 
     public function showModalAdmin($id)
