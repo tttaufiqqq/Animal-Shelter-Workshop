@@ -105,19 +105,18 @@ class BookingAdoptionController extends Controller
 
             // Validation
             $validated = $request->validate([
-                'appointment_date' => 'required|date|after_or_equal:now',
+                'appointment_date' => 'required|date|after_or_equal:today',
+                'appointment_time' => 'required|date_format:H:i',
                 'animal_ids' => 'required|array|min:1',
                 'animal_ids.*' => 'required|exists:animal,id',
                 'remarks' => 'nullable|array',
                 'remarks.*' => 'nullable|string|max:500',
                 'terms' => 'required|accepted',
             ], [
-                'appointment_date.required' => 'Please select an appointment date and time.',
+                'appointment_date.required' => 'Please select an appointment date.',
+                'appointment_time.required' => 'Please select an appointment time.',  // ← ADD THIS
                 'appointment_date.after_or_equal' => 'Appointment must be in the future.',
-                'animal_ids.required' => 'Please select at least one animal.',
-                'animal_ids.min' => 'Please select at least one animal.',
-                'terms.required' => 'You must agree to the terms.',
-                'terms.accepted' => 'You must agree to the terms.',
+                // ... rest of validation messages
             ]);
 
             \Log::info('Validation passed');
@@ -154,11 +153,16 @@ class BookingAdoptionController extends Controller
                     ->with('open_visit_modal', true);
             }
 
+            // Parse the date and time from the request
+            $appointmentDate = $request->appointment_date;
+            $appointmentTime = $request->appointment_time;
+
             // Create new booking for the appointment
             $booking = Booking::create([
                 'userID' => $user->id,
-                'status' => 'Pending', // Pending appointment approval
-                'booking_date' => $validated['appointment_date'],
+                'status' => 'Pending',
+                'appointment_date' => $appointmentDate,
+                'appointment_time' => $appointmentTime,  // ← ADD THIS LINE
             ]);
 
             \Log::info('Created booking', ['booking_id' => $booking->id]);
@@ -167,7 +171,6 @@ class BookingAdoptionController extends Controller
             $animalData = [];
             foreach ($validated['animal_ids'] as $animalId) {
                 $animalData[$animalId] = [
-                    'status' => 'Pending',
                     'remarks' => $validated['remarks'][$animalId] ?? null,
                     'created_at' => now(),
                     'updated_at' => now(),
@@ -189,7 +192,7 @@ class BookingAdoptionController extends Controller
 
             \Log::info('=== CONFIRM APPOINTMENT COMPLETED SUCCESSFULLY ===');
 
-            return redirect()->route('booking.success')
+            return redirect()->route('animal-management.index')
                 ->with('success', 'Your visit appointment has been scheduled! We will notify you once it\'s confirmed.');
 
         } catch (\Illuminate\Validation\ValidationException $e) {

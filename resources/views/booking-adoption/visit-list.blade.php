@@ -128,17 +128,13 @@
                                                     </div>
                                                 </div>
 
-                                                <!-- Remove Button -->
-                                                <form action="{{ route('visit.list.remove', $animal->id) }}" method="POST"
-                                                      onsubmit="return confirm('Remove {{ $animal->name }} from your visit list?');">
-                                                    @csrf
-                                                    @method('DELETE')
-                                                    <button type="submit"
-                                                            class="text-red-500 hover:text-white hover:bg-red-500 p-2.5 rounded-lg transition-all duration-200 flex items-center gap-2 group/btn border border-red-200 hover:border-red-500">
-                                                        <i class="fas fa-trash-alt"></i>
-                                                        <span class="text-sm font-medium hidden sm:inline">Remove</span>
-                                                    </button>
-                                                </form>
+                                                <!-- Remove Button (No Form) -->
+                                                <button type="button"
+                                                        onclick="removeAnimal({{ $animal->id }}, '{{ $animal->name }}')"
+                                                        class="text-red-500 hover:text-white hover:bg-red-500 p-2.5 rounded-lg transition-all duration-200 flex items-center gap-2 group/btn border border-red-200 hover:border-red-500">
+                                                    <i class="fas fa-trash-alt"></i>
+                                                    <span class="text-sm font-medium hidden sm:inline">Remove</span>
+                                                </button>
                                             </div>
 
                                             <!-- Remarks Input -->
@@ -171,69 +167,99 @@
                         </h2>
 
                         <div class="space-y-4">
-                            <div>
-                                <label class="block text-sm font-semibold text-gray-700 mb-2">
-                                    <i class="fas fa-clock text-purple-600 mr-1"></i>
-                                    Preferred Date & Time <span class="text-red-500">*</span>
-                                </label>
-                                <input type="datetime-local"
-                                       id="appointmentDate"
-                                       name="appointment_date"
-                                       required
-                                       min="{{ date('Y-m-d\TH:i') }}"
-                                       class="w-full border-2 border-gray-300 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 text-gray-700 rounded-xl p-3.5 text-base transition-all duration-200">
-                                <p class="text-xs text-gray-600 mt-2">
-                                    <i class="fas fa-info-circle"></i>
-                                    Our adoption center is open Monday-Saturday, 9 AM - 5 PM
-                                </p>
-                                <p id="appointmentError" class="text-xs text-red-600 mt-2 hidden">
-                                    <i class="fas fa-exclamation-circle"></i>
-                                    Please select a date and time for your visit
-                                </p>
-                            </div>
-
-                            <!-- Terms Checkbox -->
-                            <div class="bg-white/80 backdrop-blur-sm rounded-xl p-4 border border-purple-200">
-                                <label class="flex items-start gap-3 cursor-pointer group">
-                                    <input type="checkbox"
-                                           name="terms"
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <!-- Date Input -->
+                                <div>
+                                    <label class="block text-sm font-semibold text-gray-700 mb-2">
+                                        <i class="fas fa-calendar text-purple-600 mr-1"></i>
+                                        Preferred Date <span class="text-red-500">*</span>
+                                    </label>
+                                    <input type="date"
+                                           id="appointmentDate"
+                                           name="appointment_date"
                                            required
-                                           class="mt-1 w-5 h-5 text-purple-600 border-gray-300 rounded focus:ring-2 focus:ring-purple-500 cursor-pointer">
-                                    <span class="text-sm text-gray-700 flex-1">
+                                           min="{{ date('Y-m-d') }}"
+                                           class="w-full border-2 border-gray-300 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 text-gray-700 rounded-xl p-3.5 text-base transition-all duration-200">
+                                </div>
+
+                                <!-- Time Input -->
+                                <div>
+                                    <label class="block text-sm font-semibold text-gray-700 mb-2">
+                                        <i class="fas fa-clock text-purple-600 mr-1"></i>
+                                        Preferred Time <span class="text-red-500">*</span>
+                                    </label>
+                                    <input type="time"
+                                           id="appointmentTime"
+                                           name="appointment_time"
+                                           required
+                                           class="w-full border-2 border-gray-300 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 text-gray-700 rounded-xl p-3.5 text-base transition-all duration-200">
+                                </div>
+                            </div>
+                            <p class="text-xs text-gray-600 mt-2">
+                                <i class="fas fa-info-circle"></i>
+                                Our adoption center is open Monday-Saturday, 9 AM - 5 PM
+                            </p>
+                            <p id="appointmentError" class="text-xs text-red-600 mt-2 hidden">
+                                <i class="fas fa-exclamation-circle"></i>
+                                Please select a date and time for your visit
+                            </p>
+                        </div>
+
+                        <!-- Terms Checkbox -->
+                        <div class="bg-white/80 backdrop-blur-sm rounded-xl p-4 border border-purple-200">
+                            <label class="flex items-start gap-3 cursor-pointer group">
+                                <input type="checkbox"
+                                       name="terms"
+                                       required
+                                       class="mt-1 w-5 h-5 text-purple-600 border-gray-300 rounded focus:ring-2 focus:ring-purple-500 cursor-pointer">
+                                <span class="text-sm text-gray-700 flex-1">
                                         <span class="font-semibold text-gray-800 group-hover:text-purple-600 transition-colors">I understand and agree</span>
                                         <br>
                                         This is a visit appointment request pending staff approval. You will be notified once confirmed.
                                     </span>
-                                </label>
-                            </div>
+                            </label>
                         </div>
                     </div>
-
-                    <!-- Action Buttons -->
-                    <div class="flex gap-3 pt-4">
-                        <button type="button"
-                                onclick="closeVisitModal()"
-                                class="flex-1 px-6 py-4 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-xl transition-all duration-200 flex items-center justify-center gap-2 border-2 border-gray-200">
-                            <i class="fas fa-arrow-left"></i>
-                            Continue Browsing
-                        </button>
-                        <button type="submit"
-                                id="confirmBookingBtn"
-                                disabled
-                                class="flex-1 px-6 py-4 bg-gray-300 text-gray-500 font-bold rounded-xl shadow-lg transition-all duration-200 flex items-center justify-center gap-2 cursor-not-allowed">
-                            <i class="fas fa-check-circle"></i>
-                            Confirm Visit Booking
-                        </button>
-                    </div>
-                </form>
-            @endif
         </div>
+
+        <!-- Action Buttons -->
+        <div class="flex gap-3 pt-4">
+            <button type="button"
+                    onclick="closeVisitModal()"
+                    class="flex-1 px-6 py-4 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-xl transition-all duration-200 flex items-center justify-center gap-2 border-2 border-gray-200">
+                <i class="fas fa-arrow-left"></i>
+                Continue Browsing
+            </button>
+            <button type="submit"
+                    id="confirmBookingBtn"
+                    disabled
+                    class="flex-1 px-6 py-4 bg-gray-300 text-gray-500 font-bold rounded-xl shadow-lg transition-all duration-200 flex items-center justify-center gap-2 cursor-not-allowed">
+                <i class="fas fa-check-circle"></i>
+                Confirm Visit Booking
+            </button>
+        </div>
+        </form>
+        @endif
     </div>
 </div>
+</div>
 
-<!-- Styles remain same as before -->
+<!-- Hidden form for removing animals -->
+<form id="removeAnimalForm" method="POST" style="display: none;">
+    @csrf
+    @method('DELETE')
+</form>
 
 <script>
+    // Remove animal function (replaces nested form)
+    function removeAnimal(animalId, animalName) {
+        if (confirm(`Remove ${animalName} from your visit list?`)) {
+            const form = document.getElementById('removeAnimalForm');
+            form.action = `{{ url('visit/list/remove') }}/${animalId}`;
+            form.submit();
+        }
+    }
+
     // Open / Close Modal
     function openVisitModal() {
         const modal = document.getElementById('visitModal');
@@ -245,6 +271,7 @@
             content.classList.add('opacity-100', 'scale-100');
         }, 10);
     }
+
     function closeVisitModal() {
         const modal = document.getElementById('visitModal');
         const content = document.getElementById('visitModalContent');
@@ -261,6 +288,8 @@
         const appointmentInput = document.getElementById('appointmentDate');
         const termsCheckbox = document.querySelector('input[name="terms"]');
         const confirmBtn = document.getElementById('confirmBookingBtn');
+
+        if (!appointmentInput || !termsCheckbox) return;
 
         const isValid = appointmentInput.value.trim() !== '' && termsCheckbox.checked;
 
@@ -288,13 +317,15 @@
             termsCheckbox.addEventListener('change', updateConfirmButton);
         }
 
-        form.addEventListener('submit', function(e){
-            if(!appointmentInput.value || !termsCheckbox.checked){
-                e.preventDefault();
-                alert('Please select a date and accept terms.');
-                appointmentInput.focus();
-            }
-        });
+        if(form) {
+            form.addEventListener('submit', function(e){
+                if(!appointmentInput.value || !termsCheckbox.checked){
+                    e.preventDefault();
+                    alert('Please select a date and accept terms.');
+                    appointmentInput.focus();
+                }
+            });
+        }
 
         // Initial check
         updateConfirmButton();
