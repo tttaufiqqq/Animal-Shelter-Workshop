@@ -21,7 +21,7 @@ class Booking extends Model
 
     public function animals()
     {
-        return $this->belongsToMany(Animal::class, 'AnimalBooking', 'bookingID', 'animalID')
+        return $this->belongsToMany(Animal::class, 'animal_booking', 'bookingID', 'animalID')
                     ->withPivot('remarks')
                     ->withTimestamps();
     }

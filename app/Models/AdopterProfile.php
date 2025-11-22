@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class AdopterProfile extends Model
 {
-    protected $table = 'AdopterProfile';
+    protected $table = 'adopter_profile';
     protected $fillable = [
         'user_id',
         'housing_type',

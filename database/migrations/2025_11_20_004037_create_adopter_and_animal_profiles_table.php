@@ -8,7 +8,7 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('AdopterProfile', function (Blueprint $table) {
+        Schema::create('adopter_profile', function (Blueprint $table) {
             $table->id();
             // Adopter matching attributes
             $table->string('housing_type')->nullable(); // condo, landed
@@ -26,7 +26,7 @@ return new class extends Migration
             $table->timestamps();
         });
 
-        Schema::create('AnimalProfile', function (Blueprint $table) {
+        Schema::create('animal_profile', function (Blueprint $table) {
             $table->id();
             // Animal matching attributes
             $table->string('age')->nullable(); // kitten/puppy/adult/senior
@@ -47,7 +47,7 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::dropIfExists('AdopterProfile');
-        Schema::dropIfExists('AnimalProfile');
+        Schema::dropIfExists('adopter_profile');
+        Schema::dropIfExists('animal_profile');
     }
 };

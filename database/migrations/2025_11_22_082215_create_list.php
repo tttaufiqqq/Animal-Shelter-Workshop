@@ -11,7 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('VisitList', function (Blueprint $table) {
+        Schema::create('visit_list', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('userID')->unique(); // one visit list per user
             $table->timestamps();
@@ -19,13 +19,14 @@ return new class extends Migration
             $table->foreign('userID')->references('id')->on('users')->onDelete('cascade');
         });
 
-        Schema::create('VisitListAnimal', function (Blueprint $table) {
+        Schema::create('visit_list_animal', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('listID');
             $table->unsignedBigInteger('animalID');
+            $table->text('remarks')->nullable()->after('animalID');
             $table->timestamps();
 
-            $table->foreign('listID')->references('id')->on('VisitList')->onDelete('cascade');
+            $table->foreign('listID')->references('id')->on('visit_list')->onDelete('cascade');
             $table->foreign('animalID')->references('id')->on('animal')->onDelete('cascade');
 
             // Prevent duplicate animals per visit list
@@ -38,7 +39,7 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('VisitList');
-        Schema::dropIfExists('VisitListAnimal');
+        Schema::dropIfExists('visit_list');
+        Schema::dropIfExists('visit_list_animal');
     }
 };

@@ -11,7 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('AnimalBooking', function (Blueprint $table) {
+        Schema::create('animal_booking', function (Blueprint $table) {
             $table->id();
 
             // 🚩 FIX THIS LINE: Explicitly reference the 'booking' table
@@ -32,7 +32,7 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('AnimalBooking');
+        Schema::dropIfExists('animal_booking');
 
     }
 };

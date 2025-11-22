@@ -5,6 +5,7 @@ namespace App\Livewire;
 use App\Models\Booking;
 use App\Models\Transaction;
 use App\Models\Adoption;
+use App\Models\Animal;
 use Livewire\Component;
 use Livewire\Attributes\Layout;
 use Illuminate\Support\Facades\DB;
@@ -14,14 +15,12 @@ use Carbon\Carbon;
 class Dashboard extends Component
 {
     public $selectedYear;
-    public $selectedCategory = 'all';
     public $years = [];
-    
+
     public function mount()
     {
         $this->selectedYear = date('Y');
-        
-        // Cross-database compatible year extraction
+
         $this->years = Booking::selectRaw($this->getYearExpression('created_at') . ' as year')
             ->distinct()
             ->orderBy('year', 'desc')
@@ -31,94 +30,62 @@ class Dashboard extends Component
 
     public function render()
     {
-        // Key Metrics
-        $totalBookings = $this->getTotalBookings();
-        $successfulBookings = $this->getSuccessfulBookings();
-        $cancelledBookings = $this->getCancelledBookings();
-        $bookingSuccessRate = $totalBookings > 0 ? 
-            round(($successfulBookings / $totalBookings) * 100, 2) : 0;
-        $repeatCustomerRate = $this->getRepeatCustomerRate();
-
-        // Top Animals by Revenue
-        $topAnimals = $this->getTopAnimalsByRevenue();
-
-        // Booking Type Breakdown
-        $bookingTypeBreakdown = $this->getBookingTypeBreakdown();
-
-        // Bookings by Month
-        $bookingsByMonth = $this->getBookingsByMonth();
-
-        // Booking Volume vs Average Value
-        $volumeVsValue = $this->getVolumeVsAverageValue();
-
         return view('livewire.dashboard', [
-            'totalBookings' => $totalBookings,
-            'successfulBookings' => $successfulBookings,
-            'cancelledBookings' => $cancelledBookings,
-            'bookingSuccessRate' => $bookingSuccessRate,
-            'repeatCustomerRate' => $repeatCustomerRate,
-            'topAnimals' => $topAnimals,
-            'bookingTypeBreakdown' => $bookingTypeBreakdown,
-            'bookingsByMonth' => $bookingsByMonth,
-            'volumeVsValue' => $volumeVsValue,
+            // Key Metrics
+            'totalBookings' => $this->getTotalBookings(),
+            'successfulBookings' => $this->getSuccessfulBookings(),
+            'cancelledBookings' => $this->getCancelledBookings(),
+            'pendingBookings' => $this->getPendingBookings(),
+            'bookingSuccessRate' => $this->getBookingSuccessRate(),
+            'repeatCustomerRate' => $this->getRepeatCustomerRate(),
+
+            // Financial Metrics
+            'totalRevenue' => $this->getTotalRevenue(),
+            'totalAdoptions' => $this->getTotalAdoptions(),
+            'avgAdoptionFee' => $this->getAverageAdoptionFee(),
+
+            // Charts Data
+            'topAnimals' => $this->getTopAnimalsByRevenue(),
+            'bookingTypeBreakdown' => $this->getBookingTypeBreakdown(),
+            'bookingsByMonth' => $this->getBookingsByMonth(),
+            'volumeVsValue' => $this->getVolumeVsAverageValue(),
+            'revenueByMonth' => $this->getRevenueByMonth(),
+            'transactionStatus' => $this->getTransactionStatusBreakdown(),
         ]);
     }
 
-    /**
-     * Get database-specific YEAR extraction expression
-     */
+    // ==================== HELPER METHODS ====================
+
     private function getYearExpression($column)
     {
         $driver = DB::connection()->getDriverName();
-        
-        switch ($driver) {
-            case 'pgsql':
-                return "EXTRACT(YEAR FROM {$column})";
-            case 'mysql':
-                return "YEAR({$column})";
-            case 'sqlite':
-                return "CAST(strftime('%Y', {$column}) AS INTEGER)";
-            case 'sqlsrv':
-                return "YEAR({$column})";
-            default:
-                return "YEAR({$column})"; // Fallback to MySQL syntax
-        }
+        return match($driver) {
+            'pgsql' => "EXTRACT(YEAR FROM {$column})",
+            'sqlite' => "CAST(strftime('%Y', {$column}) AS INTEGER)",
+            default => "YEAR({$column})",
+        };
     }
 
-    /**
-     * Get database-specific MONTH extraction expression
-     */
     private function getMonthExpression($column)
     {
         $driver = DB::connection()->getDriverName();
-        
-        switch ($driver) {
-            case 'pgsql':
-                return "EXTRACT(MONTH FROM {$column})";
-            case 'mysql':
-                return "MONTH({$column})";
-            case 'sqlite':
-                return "CAST(strftime('%m', {$column}) AS INTEGER)";
-            case 'sqlsrv':
-                return "MONTH({$column})";
-            default:
-                return "MONTH({$column})";
-        }
+        return match($driver) {
+            'pgsql' => "EXTRACT(MONTH FROM {$column})",
+            'sqlite' => "CAST(strftime('%m', {$column}) AS INTEGER)",
+            default => "MONTH({$column})",
+        };
     }
 
-    /**
-     * Get WHERE clause for year filtering
-     */
     private function whereYear($query, $column)
     {
         $driver = DB::connection()->getDriverName();
-        
         if ($driver === 'pgsql') {
             return $query->whereRaw("EXTRACT(YEAR FROM {$column}) = ?", [$this->selectedYear]);
-        } else {
-            return $query->whereYear($column, $this->selectedYear);
         }
+        return $query->whereYear($column, $this->selectedYear);
     }
+
+    // ==================== BOOKING METRICS ====================
 
     private function getTotalBookings()
     {
@@ -139,16 +106,25 @@ class Dashboard extends Component
             ->count();
     }
 
+    private function getPendingBookings()
+    {
+        return $this->whereYear(Booking::query(), 'created_at')
+            ->where('status', 'Pending')
+            ->count();
+    }
+
+    private function getBookingSuccessRate()
+    {
+        $total = $this->getTotalBookings();
+        $successful = $this->getSuccessfulBookings();
+        return $total > 0 ? round(($successful / $total) * 100, 2) : 0;
+    }
+
     private function getRepeatCustomerRate()
     {
         $query = $this->whereYear(Booking::query(), 'created_at');
-        
-        // Clone query for total customers
-        $totalCustomers = (clone $query)
-            ->distinct()
-            ->count('userID');
 
-        // Get repeat customers using subquery (works across all databases)
+        $totalCustomers = (clone $query)->distinct()->count('userID');
         $repeatCustomers = (clone $query)
             ->select('userID')
             ->groupBy('userID')
@@ -156,17 +132,39 @@ class Dashboard extends Component
             ->get()
             ->count();
 
-        return $totalCustomers > 0 ? 
-            round(($repeatCustomers / $totalCustomers) * 100, 2) : 0;
+        return $totalCustomers > 0 ? round(($repeatCustomers / $totalCustomers) * 100, 2) : 0;
     }
+
+    // ==================== FINANCIAL METRICS ====================
+
+    private function getTotalRevenue()
+    {
+        return $this->whereYear(Transaction::query(), 'created_at')
+            ->where('status', 'Completed')
+            ->sum('amount');
+    }
+
+    private function getTotalAdoptions()
+    {
+        return $this->whereYear(Adoption::query(), 'created_at')->count();
+    }
+
+    private function getAverageAdoptionFee()
+    {
+        return $this->whereYear(Adoption::query(), 'created_at')->avg('fee') ?? 0;
+    }
+
+    // ==================== CHART DATA ====================
 
     private function getTopAnimalsByRevenue()
     {
-        $query = Adoption::join('booking', 'adoption.bookingID', '=', 'booking.id')
-            ->join('animal', 'booking.animalID', '=', 'animal.id');
-        
+        $query = Adoption::query()
+            ->join('booking', 'adoption.bookingID', '=', 'booking.id')
+            ->join('AnimalBooking', 'booking.id', '=', 'AnimalBooking.bookingID')
+            ->join('animal', 'AnimalBooking.animalID', '=', 'animal.id');
+
         $query = $this->whereYear($query, 'adoption.created_at');
-        
+
         $results = $query
             ->select('animal.species as name', DB::raw('SUM(adoption.fee) as total_revenue'))
             ->groupBy('animal.species')
@@ -174,69 +172,106 @@ class Dashboard extends Component
             ->limit(5)
             ->get();
 
-        // Calculate total revenue for percentage
-        $totalRevenueQuery = Adoption::query();
-        $totalRevenue = $this->whereYear($totalRevenueQuery, 'created_at')->sum('fee');
+        $totalRevenue = $this->whereYear(Adoption::query(), 'created_at')->sum('fee');
 
-        return $results->map(function($item) use ($totalRevenue) {
-            $item->percentage = $totalRevenue > 0 ? 
-                round(($item->total_revenue / $totalRevenue) * 100, 2) : 0;
-            return $item;
-        });
+        return [
+            'animals' => $results->map(function($item) use ($totalRevenue) {
+                $item->percentage = $totalRevenue > 0 ?
+                    round(($item->total_revenue / $totalRevenue) * 100, 2) : 0;
+                return $item;
+            }),
+            'totalRevenue' => $totalRevenue
+        ];
     }
 
     private function getBookingTypeBreakdown()
     {
         $query = $this->whereYear(Booking::query(), 'created_at');
         $total = (clone $query)->count();
-        
-        $breakdown = (clone $query)
+
+        return (clone $query)
             ->select('status', DB::raw('count(*) as count'))
             ->groupBy('status')
             ->get()
             ->map(function($item) use ($total) {
-                $item->percentage = $total > 0 ? 
-                    round(($item->count / $total) * 100, 2) : 0;
+                $item->percentage = $total > 0 ? round(($item->count / $total) * 100, 2) : 0;
                 return $item;
             });
-
-        return $breakdown;
     }
 
     private function getBookingsByMonth()
     {
-        $monthExpression = $this->getMonthExpression('created_at');
-        
+        $monthExpr = $this->getMonthExpression('created_at');
         $query = $this->whereYear(Booking::query(), 'created_at');
-        
+
         return $query
-            ->selectRaw("{$monthExpression} as month")
+            ->selectRaw("{$monthExpr} as month")
             ->selectRaw('COUNT(*) as count')
-            ->groupBy(DB::raw($monthExpression))
+            ->groupBy(DB::raw($monthExpr))
             ->orderBy('month')
             ->get()
-            ->map(function($item) {
-                $item->month_name = Carbon::create()->month((int)$item->month)->format('F');
-                return $item;
-            });
+            ->map(fn($item) => [
+                'month' => $item->month,
+                'month_name' => Carbon::create()->month((int)$item->month)->format('F'),
+                'count' => $item->count
+            ]);
     }
 
     private function getVolumeVsAverageValue()
     {
-        $monthExpression = $this->getMonthExpression('adoption.created_at');
-        
+        $monthExpr = $this->getMonthExpression('adoption.created_at');
+
         $query = Adoption::join('booking', 'adoption.bookingID', '=', 'booking.id');
         $query = $this->whereYear($query, 'adoption.created_at');
-        
+
         return $query
-            ->selectRaw("{$monthExpression} as month")
+            ->selectRaw("{$monthExpr} as month")
             ->selectRaw('COUNT(*) as volume')
             ->selectRaw('AVG(adoption.fee) as avg_value')
-            ->groupBy(DB::raw($monthExpression))
+            ->groupBy(DB::raw($monthExpr))
             ->orderBy('month')
             ->get()
-            ->map(function($item) {
-                $item->month_name = Carbon::create()->month((int)$item->month)->format('M');
+            ->map(fn($item) => [
+                'month' => $item->month,
+                'month_name' => Carbon::create()->month((int)$item->month)->format('M'),
+                'volume' => $item->volume,
+                'avg_value' => round($item->avg_value, 2)
+            ]);
+    }
+
+    private function getRevenueByMonth()
+    {
+        $monthExpr = $this->getMonthExpression('created_at');
+
+        $query = $this->whereYear(Transaction::query(), 'created_at')
+            ->where('status', 'Completed');
+
+        return $query
+            ->selectRaw("{$monthExpr} as month")
+            ->selectRaw('SUM(amount) as revenue')
+            ->selectRaw('COUNT(*) as transactions')
+            ->groupBy(DB::raw($monthExpr))
+            ->orderBy('month')
+            ->get()
+            ->map(fn($item) => [
+                'month' => $item->month,
+                'month_name' => Carbon::create()->month((int)$item->month)->format('M'),
+                'revenue' => round($item->revenue, 2),
+                'transactions' => $item->transactions
+            ]);
+    }
+
+    private function getTransactionStatusBreakdown()
+    {
+        $query = $this->whereYear(Transaction::query(), 'created_at');
+        $total = (clone $query)->count();
+
+        return (clone $query)
+            ->select('status', DB::raw('count(*) as count'), DB::raw('SUM(amount) as total_amount'))
+            ->groupBy('status')
+            ->get()
+            ->map(function($item) use ($total) {
+                $item->percentage = $total > 0 ? round(($item->count / $total) * 100, 2) : 0;
                 return $item;
             });
     }

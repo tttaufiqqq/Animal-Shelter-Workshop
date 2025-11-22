@@ -520,8 +520,8 @@ class BookingAdoptionController extends Controller
             | We reference tables explicitly to avoid SQL error 42702.
             |--------------------------------------------------------------------------
             */
-            $bookingAnimalIDs = AnimalBooking::where('AnimalBooking.bookingID', $bookingId)
-                ->pluck('AnimalBooking.animalID')
+            $bookingAnimalIDs = AnimalBooking::where('animal_booking.bookingID', $bookingId)
+                ->pluck('animal_booking.animalID')
                 ->toArray();
 
             Log::info("Comparing selected animal IDs with booking animals", [

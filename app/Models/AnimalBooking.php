@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class AnimalBooking extends Model
 {
-    protected $table = 'AnimalBooking'; // custom table name
+    protected $table = 'animal_booking'; // custom table name
 
     protected $primaryKey = 'id'; // default but OK to declare
 

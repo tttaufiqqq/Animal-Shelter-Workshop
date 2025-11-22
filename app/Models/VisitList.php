@@ -6,10 +6,11 @@ use Illuminate\Database\Eloquent\Model;
 
 class VisitList extends Model
 {
-    protected $table = 'VisitList';
+    protected $table = 'visit_list';
 
     protected $fillable = [
         'userID',
+        'remarks',
     ];
 
     /**
@@ -25,7 +26,7 @@ class VisitList extends Model
      */
     public function animals()
     {
-        return $this->belongsToMany(Animal::class, 'VisitListAnimal', 'listID', 'animalID')
+        return $this->belongsToMany(Animal::class, 'visit_list_animal', 'listID', 'animalID')
             ->withPivot('remarks')
             ->withTimestamps();
     }
