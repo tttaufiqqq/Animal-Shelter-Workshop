@@ -23,7 +23,7 @@ return new class extends Migration
             $table->id();
             $table->unsignedBigInteger('listID');
             $table->unsignedBigInteger('animalID');
-            $table->text('remarks')->nullable()->after('animalID');
+            $table->text('remarks')->nullable();
             $table->timestamps();
 
             $table->foreign('listID')->references('id')->on('visit_list')->onDelete('cascade');
