@@ -26,15 +26,15 @@
 
         <!-- Modal Body -->
         <div class="overflow-y-auto flex-1 p-6">
-            @if (session('success'))
-                <div class="bg-green-50 border-l-4 border-green-500 text-green-800 p-4 rounded-lg mb-6 flex items-start gap-3 animate-slideIn">
-                    <i class="fas fa-check-circle text-green-500 text-xl mt-0.5"></i>
-                    <div>
-                        <p class="font-semibold">Success!</p>
-                        <p class="text-sm">{{ session('success') }}</p>
-                    </div>
-                </div>
-            @endif
+{{--            @if (session('success'))--}}
+{{--                <div class="bg-green-50 border-l-4 border-green-500 text-green-800 p-4 rounded-lg mb-6 flex items-start gap-3 animate-slideIn">--}}
+{{--                    <i class="fas fa-check-circle text-green-500 text-xl mt-0.5"></i>--}}
+{{--                    <div>--}}
+{{--                        <p class="font-semibold">Success!</p>--}}
+{{--                        <p class="text-sm">{{ session('success') }}</p>--}}
+{{--                    </div>--}}
+{{--                </div>--}}
+{{--            @endif--}}
 
             @if ($animalList->isEmpty())
                 <!-- Empty State -->

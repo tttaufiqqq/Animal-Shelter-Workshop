@@ -87,18 +87,32 @@ Route::middleware('auth')->group(function () {
 
 //Shelter-Management
 Route::middleware('auth')->group(function () {
+    // Slot Routes
     Route::get('/slots', [ShelterManagementController::class, 'indexSlot'])->name('shelter-management.index');
-    Route::post('/slots-store', [ShelterManagementController::class, 'storeSlot'])->name('shelter-management.store-slot');
-    Route::put('/shelter-management/slots/{id}', [ShelterManagementController::class, 'updateSlot'])->name('shelter-management.update-slot');
+    Route::post('/slots', [ShelterManagementController::class, 'storeSlot'])->name('shelter-management.store-slot');
+    Route::get('/slots/{id}/edit', [ShelterManagementController::class, 'editSlot'])->name('shelter-management.edit-slot');
+    Route::put('/slots/{id}', [ShelterManagementController::class, 'updateSlot'])->name('shelter-management.update-slot');
     Route::delete('/slots/{id}', [ShelterManagementController::class, 'deleteSlot'])->name('shelter-management.delete-slot');
-    Route::get('/shelter-management/slots/{id}/edit', [ShelterManagementController::class, 'editSlot'])->name('shelter-management.edit-slot');
-    Route::get('/shelter-management/slots/{id}/details', [ShelterManagementController::class, 'getSlotDetails'])->name('shelter-management.slot-details');
+    Route::get('/slots/{id}/details', [ShelterManagementController::class, 'getSlotDetails'])->name('shelter-management.slot-details');
+
     Route::post('/shelter-management/inventory', [ShelterManagementController::class, 'storeInventory'])->name('shelter-management.store-inventory');
 
     Route::get('/shelter-management/inventory/{id}/details', [ShelterManagementController::class, 'getInventoryDetails'])->name('shelter-management.inventory-details');
     Route::put('/shelter-management/inventory/{id}', [ShelterManagementController::class, 'updateInventory'])->name('shelter-management.update-inventory');
     Route::delete('/shelter-management/inventory/{id}', [ShelterManagementController::class, 'deleteInventory'])->name('shelter-management.delete-inventory');
     Route::get('/shelter-management/animals/{id}/details', [ShelterManagementController::class, 'getAnimalDetails'])->name('shelter-management.animal-details');
+
+    // Section Routes
+    Route::post('/shelter-management/sections', [ShelterManagementController::class, 'storeSection'])->name('shelter-management.store-section');
+    Route::get('/shelter-management/sections/{id}/edit', [ShelterManagementController::class, 'editSection']);
+    Route::put('/shelter-management/sections/{id}', [ShelterManagementController::class, 'updateSection']);
+    Route::delete('/shelter-management/sections/{id}', [ShelterManagementController::class, 'deleteSection']);
+
+    //Category Routes
+    Route::post('/shelter-management/categories', [ShelterManagementController::class, 'storeCategory'])->name('shelter-management.store-category');
+    Route::get('/shelter-management/categories/{id}/edit', [ShelterManagementController::class, 'editCategory']);
+    Route::put('/shelter-management/categories/{id}', [ShelterManagementController::class, 'updateCategory']);
+    Route::delete('/shelter-management/categories/{id}', [ShelterManagementController::class, 'deleteCategory']);
 });
 
 

@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class Slot extends Model
 {
     protected $table = 'slot';
-    protected $fillable = ['name', 'section', 'capacity', 'status'];
+    protected $fillable = ['name', 'section', 'capacity', 'status', 'sectionID'];
 
     public function animals()
     {
@@ -17,5 +17,9 @@ class Slot extends Model
     public function inventories()
     {
         return $this->hasMany(Inventory::class, 'slotID');
+    }
+
+    public function section(){
+        return $this->belongsTo(Section::class, 'sectionID');
     }
 }

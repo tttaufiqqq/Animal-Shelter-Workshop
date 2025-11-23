@@ -6,21 +6,63 @@ use Illuminate\Http\Request;
 use App\Models\Slot;
 use App\Models\Inventory;
 use App\Models\Animal;
-use App\Models\Image;
+use App\Models\Section;
 use App\Models\Category;
 
 class ShelterManagementController extends Controller
 {
-    public function home()
-    {
-        return view('shelter-management.main');
-    }
-
     public function indexSlot()
     {
+        $sections = Section::all();
         $slots = Slot::with(['animals', 'inventories'])->get();
         $categories = Category::all();
-        return view('shelter-management.index', compact('slots', 'categories'));
+        return view('shelter-management.index', compact('sections', 'slots', 'categories'));
+    }
+
+    // SECTION METHODS
+    public function storeSection(Request $request)
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'description' => 'required|string|max:1000',
+        ]);
+
+        Section::create($validated);
+
+        return redirect()->back()->with('success', 'Section created successfully!');
+    }
+
+    public function editSection($id)
+    {
+        $section = Section::findOrFail($id);
+        return response()->json($section);
+    }
+
+    public function updateSection(Request $request, $id)
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'description' => 'required|string|max:1000',
+        ]);
+
+        $section = Section::findOrFail($id);
+        $section->update($validated);
+
+        return redirect()->back()->with('success', 'Section updated successfully!');
+    }
+
+    public function deleteSection($id)
+    {
+        $section = Section::findOrFail($id);
+
+        // Check if section has slots
+        if ($section->slots()->count() > 0) {
+            return redirect()->back()->with('error', 'Cannot delete section with existing slots!');
+        }
+
+        $section->delete();
+
+        return redirect()->back()->with('success', 'Section deleted successfully!');
     }
 
     public function storeSlot(Request $request)
@@ -28,15 +70,15 @@ class ShelterManagementController extends Controller
         try {
             $validated = $request->validate([
                 'name' => 'required|string|max:255',
-                'section' => 'required|string|max:255',
+                'sectionID' => 'required|exists:section,id', // Changed to sectionID and correct table name
                 'capacity' => 'required|integer|min:1',
             ]);
-            
+
             $validated['status'] = 'available';
             Slot::create($validated);
 
             return redirect()->back()->with('success', 'Slot added successfully!');
-            
+
         } catch (\Illuminate\Validation\ValidationException $e) {
             return redirect()->back()
                 ->withErrors($e->errors())
@@ -53,15 +95,15 @@ class ShelterManagementController extends Controller
     {
         try {
             $slot = Slot::findOrFail($id);
-            
+
             return response()->json([
                 'id' => $slot->id,
                 'name' => $slot->name,
-                'section' => $slot->section,
+                'sectionID' => $slot->sectionID, // Changed from 'section' to 'sectionID'
                 'capacity' => $slot->capacity,
                 'status' => $slot->status,
             ]);
-            
+
         } catch (\Exception $e) {
             return response()->json([
                 'error' => 'Slot not found'
@@ -74,7 +116,7 @@ class ShelterManagementController extends Controller
         try {
             $validated = $request->validate([
                 'name' => 'required|string|max:255',
-                'section' => 'required|string|max:255',
+                'sectionID' => 'required|exists:section,id', // Changed to sectionID
                 'capacity' => 'required|integer|min:1',
                 'status' => 'required|in:available,occupied,maintenance',
             ]);
@@ -83,7 +125,12 @@ class ShelterManagementController extends Controller
             $slot->update($validated);
 
             return redirect()->back()->with('success', 'Slot updated successfully!');
-            
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return redirect()->back()
+                ->withErrors($e->errors())
+                ->withInput()
+                ->with('error', 'Please check the form and try again.');
         } catch (\Exception $e) {
             return redirect()->back()
                 ->withInput()
@@ -95,31 +142,77 @@ class ShelterManagementController extends Controller
     {
         try {
             $slot = Slot::findOrFail($id);
-            
+
             if ($slot->animals()->count() > 0) {
                 return redirect()->back()
                     ->with('error', 'Cannot delete slot with animals. Please relocate them first.');
             }
-            
+
             $slot->delete();
 
             return redirect()->back()->with('success', 'Slot deleted successfully!');
-            
+
         } catch (\Exception $e) {
             return redirect()->back()
                 ->with('error', 'Failed to delete slot: ' . $e->getMessage());
         }
     }
 
+    // CATEGORY METHODS
+    public function storeCategory(Request $request)
+    {
+        $validated = $request->validate([
+            'main' => 'required|string|max:255',
+            'sub' => 'required|string|max:255',
+        ]);
+
+        Category::create($validated);
+
+        return redirect()->back()->with('success', 'Category created successfully!');
+    }
+
+    public function editCategory($id)
+    {
+        $category = Category::findOrFail($id);
+        return response()->json($category);
+    }
+
+    public function updateCategory(Request $request, $id)
+    {
+        $validated = $request->validate([
+            'main' => 'required|string|max:255',
+            'sub' => 'required|string|max:255',
+        ]);
+
+        $category = Category::findOrFail($id);
+        $category->update($validated);
+
+        return redirect()->back()->with('success', 'Category updated successfully!');
+    }
+
+    public function deleteCategory($id)
+    {
+        $category = Category::findOrFail($id);
+
+        // Check if category has inventories
+        if ($category->inventories()->count() > 0) {
+            return redirect()->back()->with('error', 'Cannot delete category with existing inventory items!');
+        }
+
+        $category->delete();
+
+        return redirect()->back()->with('success', 'Category deleted successfully!');
+    }
+
     public function getAnimalDetails($id)
     {
         try {
             $animal = Animal::findOrFail($id);
-            
+
             $medicals = $animal->medicals()->with('vet')->get();
             $vaccinations = $animal->vaccinations()->with('vet')->get();
             $images = $animal->images()->get();
-            
+
             return response()->json([
                 'id' => $animal->id,
                 'name' => $animal->name ?? 'Unknown',
@@ -157,7 +250,7 @@ class ShelterManagementController extends Controller
                     ];
                 }),
             ]);
-            
+
         } catch (\Exception $e) {
             \Log::error('Animal details error for ID ' . $id . ': ' . $e->getMessage());
             return response()->json([
@@ -225,9 +318,9 @@ class ShelterManagementController extends Controller
                 'brand' => 'nullable|string|max:255',
                 'status' => 'required|in:available,low,out',
             ]);
-            
+
             Inventory::create($validated);
-            
+
             return redirect()->back()->with('success', 'Inventory item added successfully!');
         } catch (\Exception $e) {
             return redirect()->back()
@@ -240,7 +333,7 @@ class ShelterManagementController extends Controller
     {
         try {
             $inventory = Inventory::with(['category', 'slot'])->findOrFail($id);
-            
+
             return response()->json([
                 'id' => $inventory->id,
                 'item_name' => $inventory->item_name,
@@ -254,7 +347,7 @@ class ShelterManagementController extends Controller
                 'slot_name' => $inventory->slot->name ?? null,
                 'slot_section' => $inventory->slot->section ?? null,
             ]);
-            
+
         } catch (\Exception $e) {
             return response()->json(['error' => 'Inventory not found'], 404);
         }
@@ -276,7 +369,7 @@ class ShelterManagementController extends Controller
             $inventory->update($validated);
 
             return redirect()->back()->with('success', 'Inventory updated successfully!');
-            
+
         } catch (\Exception $e) {
             return redirect()->back()
                 ->withInput()
@@ -291,7 +384,7 @@ class ShelterManagementController extends Controller
             $inventory->delete();
 
             return redirect()->back()->with('success', 'Inventory deleted successfully!');
-            
+
         } catch (\Exception $e) {
             return redirect()->back()
                 ->with('error', 'Failed to delete inventory: ' . $e->getMessage());

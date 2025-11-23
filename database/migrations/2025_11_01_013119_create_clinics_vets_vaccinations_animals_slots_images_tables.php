@@ -10,13 +10,20 @@ return new class extends Migration {
         /**
          * Step 1: Create tables first (no foreign keys yet)
          */
+        Schema::create('section', function (Blueprint $table) {
+            $table->id();
+            $table->string('name')->nullable();
+            $table->text('description')->nullable();
+            $table->timestamps();
+        });
+
         Schema::create('slot', function (Blueprint $table) {
             $table->id();
             $table->string('name')->nullable();
-            $table->string('section')->nullable();
             $table->integer('capacity')->nullable();
             $table->string('status')->nullable();
             $table->timestamps();
+            $table->unsignedBigInteger('sectionID')->nullable(); // FK later
         });
 
         Schema::create('clinic', function (Blueprint $table) {
@@ -85,6 +92,13 @@ return new class extends Migration {
                   ->references('id')
                   ->on('clinic')
                   ->onDelete('set null');
+        });
+
+        Schema::table('slot', function (Blueprint $table) {
+            $table->foreign('sectionID')
+                ->references('id')
+                ->on('section')
+                ->onDelete('set null');
         });
 
         Schema::table('vaccination', function (Blueprint $table) {

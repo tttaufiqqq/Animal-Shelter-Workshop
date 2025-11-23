@@ -476,24 +476,29 @@
                             <!-- Left: Title -->
                             <h2 class="text-xl font-bold text-gray-800">Animal Information</h2>
 
-                            @role('admin|caretkaer')<!-- Right: Action Buttons -->
-                            <div class="flex space-x-3">
-                                <button onclick="openEditModal({{ $animal->id }})"
-                                        class="bg-white text-pFurple-700 px-6 py-2 rounded-lg font-medium hover:bg-purple-50 transition duration-300">
-                                    <i class="fas fa-edit mr-2"></i>Edit
-                                </button>
+                            @role('admin|caretaker')
+                            <!-- Right: Action Icons -->
+                            <div class="flex space-x-4">
+                                <a onclick="openEditModal({{ $animal->id }})"
+                                   class="text-purple-600 hover:text-purple-800 cursor-pointer transition duration-300"
+                                   title="Edit">
+                                    <i class="fas fa-edit text-xl"></i>
+                                </a>
 
                                 <form action="{{ route('animal-management.destroy', $animal->id) }}"
                                       method="POST"
+                                      class="inline"
                                       onsubmit="return confirm('Are you sure you want to delete this animal record?');">
                                     @csrf
                                     @method('DELETE')
                                     <button type="submit"
-                                            class="bg-red-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-red-700 transition duration-300">
-                                        <i class="fas fa-trash mr-2"></i>Delete
+                                            class="text-red-600 hover:text-red-800 cursor-pointer transition duration-300 border-0 bg-transparent p-0"
+                                            title="Delete">
+                                        <i class="fas fa-trash text-xl"></i>
                                     </button>
                                 </form>
-                            </div>@endrole
+                            </div>
+                            @endrole
                         </div>
 
 
@@ -670,7 +675,7 @@
                                         @endforeach
                                     </select>
 
-                                    <button class="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700">
+                                    <button class="bg-purple-600 text-white font-semibold px-4 py-2 rounded-lg hover:bg-purple-700">
                                         Assign Slot
                                     </button>
                                 </form>
