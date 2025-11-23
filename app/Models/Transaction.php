@@ -16,8 +16,8 @@ class Transaction extends Model
         return $this->belongsTo(User::class, 'userID');
     }
 
-    public function adoption()
+    public function adoptions()
     {
-        return $this->hasOne(Adoption::class, 'transactionID');
+        return $this->hasMany(Adoption::class, 'transactionID');
     }
 }

@@ -61,15 +61,14 @@ The system provides different roles and dashboards for administrators, caretaker
 
 ## 🧩 System Architecture
 
-| Layer                   | Technology                     |
-| ----------------------- | ------------------------------ |
-| **Backend**             | Laravel 11 (PHP 8+)            |
-| **Frontend**            | Blade Templates + Tailwind CSS |
-| **Database**            | PostgreSQL + MySQL             |
-|                         | + Microsoft SQL Server         |
-| **Authentication**      | Laravel Breeze                 |
-| **Authorization**       | Spatie Laravel Permission      |
-| **Email Notifications** | Laravel Mail                   |
-| **Version Control**     | Git / GitHub                   |
+| Layer                   | Technology                                |
+|-------------------------|-------------------------------------------|
+| **Backend**             | Laravel 11 (PHP 8+)                       |
+| **Frontend**            | Blade Templates + Tailwind CSS            |
+| **Database**            | PostgreSQL + MySQL + Microsoft SQL Server |
+| **Authentication**      | Laravel Breeze                            |
+| **Authorization**       | Spatie Laravel Permission                 |
+| **Email Notifications** | Laravel Mail                              |
+| **Version Control**     | Git / GitHub                              |
 
 ---

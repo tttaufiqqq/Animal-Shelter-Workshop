@@ -14,8 +14,8 @@ class Adoption extends Model
         return $this->belongsTo(Booking::class, 'bookingID');
     }
 
-    public function transaction()
+    public function adoptions()
     {
-        return $this->belongsTo(Transaction::class, 'transactionID');
+        return $this->hasMany(Adoption::class, 'transactionID');
     }
 }

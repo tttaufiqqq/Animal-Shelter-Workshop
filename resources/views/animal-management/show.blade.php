@@ -22,7 +22,7 @@
                     </a>
                     <h1 class="text-4xl font-bold">{{ $animal->name }}</h1>
                 </div>
-                @role('admin|caretaker')
+                @role('caretaker|public user|adopter')
                 <div class="flex gap-3">
                     <button onclick="openVisitModal()"
                             class="bg-white/20 hover:bg-white/30 text-white px-4 py-3 rounded-xl
@@ -476,10 +476,10 @@
                             <!-- Left: Title -->
                             <h2 class="text-xl font-bold text-gray-800">Animal Information</h2>
 
-                            <!-- Right: Action Buttons -->
+                            @role('admin|caretkaer')<!-- Right: Action Buttons -->
                             <div class="flex space-x-3">
                                 <button onclick="openEditModal({{ $animal->id }})"
-                                        class="bg-white text-purple-700 px-6 py-2 rounded-lg font-medium hover:bg-purple-50 transition duration-300">
+                                        class="bg-white text-pFurple-700 px-6 py-2 rounded-lg font-medium hover:bg-purple-50 transition duration-300">
                                     <i class="fas fa-edit mr-2"></i>Edit
                                 </button>
 
@@ -493,7 +493,7 @@
                                         <i class="fas fa-trash mr-2"></i>Delete
                                     </button>
                                 </form>
-                            </div>
+                            </div>@endrole
                         </div>
 
 
@@ -681,18 +681,43 @@
 
                 <!-- Action Card -->
                 @role('public user|caretaker|adopter')
-                    @if($animal->adoption_status == 'Not Adopted')
-                        <div class="bg-gradient-to-br from-purple-600 to-purple-700 rounded-lg shadow-lg p-6 text-white">
-                            <h3 class="text-xl font-bold mb-2">Interested in adopting?</h3>
+                @if($animal->adoption_status == 'Not Adopted')
+                    <div class="bg-white rounded-lg shadow-lg p-6">
+                        <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
+                            <i class="fas fa-heart text-purple-600 mr-2"></i>
+                            Interested in Adopting?
+                        </h2>
+                        <div class="bg-purple-50 rounded-lg p-4">
+                            <div class="flex items-center gap-3 mb-4">
+                                <div class="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
+                                    <i class="fas fa-paw text-purple-600"></i>
+                                </div>
+                                <div>
+                                    <p class="text-gray-800 font-semibold">{{ $animal->name }}</p>
+                                    <p class="text-gray-500 text-sm">Give this friend a loving home</p>
+                                </div>
+                            </div>
+
+                            <p class="text-gray-600 text-sm mb-4">
+                                Add to your visit list and schedule an appointment to meet them in person!
+                            </p>
+
                             <form action="{{ route('visit.list.add', $animal->id) }}" method="POST">
                                 @csrf
                                 <button type="submit"
-                                    class="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 rounded-xl shadow-lg">
-                                    <i class="fas fa-plus mr-2"></i>Add to Visit List
+                                        class="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 rounded-lg transition-colors flex items-center justify-center gap-2">
+                                    <i class="fas fa-plus"></i>
+                                    Add to Visit List
                                 </button>
                             </form>
+
+                            <p class="text-gray-400 text-xs text-center mt-3">
+                                <i class="fas fa-info-circle mr-1"></i>
+                                No commitment required
+                            </p>
                         </div>
-                    @endif
+                    </div>
+                @endif
                 @endrole
             </div>
         </div>

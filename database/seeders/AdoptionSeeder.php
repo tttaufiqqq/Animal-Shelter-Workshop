@@ -5,47 +5,66 @@ namespace Database\Seeders;
 use Illuminate\Database\Seeder;
 use App\Models\Transaction;
 use App\Models\Booking;
-use App\Models\Animal;
 use App\Models\Adoption;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
+use Carbon\Carbon;
 
 class AdoptionSeeder extends Seeder
 {
     public function run()
     {
-        // Get all successful transactions
-        $transactions = Transaction::where('status', 'Success')->get();
+        // Get all completed bookings that have animals
+        $completedBookings = Booking::whereIn('status', ['completed', 'Completed'])
+            ->whereHas('animals')
+            ->get();
 
-        $usedBookingIds = [];
+        $adoptionCount = 0;
 
-        foreach ($transactions as $tx) {
-            // Only consider bookings where status is completed or Completed
-            $booking = Booking::where('userID', $tx->userID)
-                ->whereIn('status', ['completed', 'Completed'])
-                ->whereNotIn('id', $usedBookingIds)
-                ->inRandomOrder()
+        foreach ($completedBookings as $booking) {
+            $animals = $booking->animals;
+
+            // Calculate total fee based on number of animals
+            $totalFee = $animals->count() * rand(50, 150);
+            $feePerAnimal = round($totalFee / $animals->count(), 2);
+
+            // Find existing transaction or create one
+            $transaction = Transaction::where('userID', $booking->userID)
+                ->where('status', 'Success')
+                ->whereDoesntHave('adoptions')
                 ->first();
 
-            if (!$booking) continue;
+            if (!$transaction) {
+                // Create a transaction for this booking
+                $transaction = Transaction::create([
+                    'amount'       => $totalFee,
+                    'status'       => 'Success',
+                    'remarks'      => 'Adoption fee for booking #' . $booking->id,
+                    'type'         => 'FPX Online Banking',
+                    'bill_code'    => 'BILL-' . strtoupper(Str::random(8)),
+                    'reference_no' => 'REF-' . $booking->created_at->format('Ymd') . '-' . rand(1000, 9999),
+                    'userID'       => $booking->userID,
+                    'created_at'   => $booking->created_at,
+                    'updated_at'   => $booking->created_at,
+                ]);
+            }
 
-            // Mark this booking as used
-            $usedBookingIds[] = $booking->id;
+            // Create one adoption per animal
+            foreach ($animals as $animal) {
+                Adoption::create([
+                    'fee'           => $feePerAnimal,
+                    'remarks'       => $animal->name . ' Adopted',
+                    'bookingID'     => $booking->id,
+                    'transactionID' => $transaction->id,
+                    'created_at'    => $booking->created_at,
+                    'updated_at'    => $booking->created_at,
+                ]);
 
-            // Get related animal
-            $animal = $booking->animal;
-            if (!$animal) continue;
-
-            // Create adoption record
-            Adoption::create([
-                'fee'           => $tx->amount,
-                'remarks'       => $animal->name . ' Adopted',
-                'bookingID'     => $booking->id,
-                'transactionID' => $tx->id,
-                'created_at'    => $tx->created_at,
-                'updated_at'    => $tx->updated_at,
-            ]);
+                // Update animal status
+                $animal->update(['adoption_status' => 'Adopted']);
+                $adoptionCount++;
+            }
         }
 
-        $this->command->info('Adoptions seeded successfully (only completed bookings)!');
+        $this->command->info("{$adoptionCount} adoptions created from {$completedBookings->count()} completed bookings!");
     }
 }
