@@ -38,8 +38,17 @@ Route::middleware('auth')->group(function () {
 
 //Shelter-Management
 Route::middleware('auth')->group(function () {
+
+    // slot main
     Route::get('/slot:main', [ShelterManagementController::class, 'home'])->name('slot:main');
+
+    // add inventory page
+    Route::get('/inventory/create', [ShelterManagementController::class, 'create'])->name('inventory.create');
+
+    // store inventory
+    Route::post('/inventory', [ShelterManagementController::class, 'store'])->name('inventory.store');
 });
+
 
 //Booking-Adoption
 Route::middleware('auth')->group(function () {
