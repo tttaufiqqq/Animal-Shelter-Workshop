@@ -23,7 +23,6 @@ class Role extends Model implements RoleContract
     use HasPermissions;
     use RefreshesPermissionCache;
 
-//  protected $connection = 'pgsql_remote';
     protected $guarded = [];
 
     public function __construct(array $attributes = [])

@@ -12,14 +12,14 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 <body class="bg-white min-h-screen flex flex-col">
-   
+
     <!-- Include Navbar -->
     @include('navbar')
 
     <!-- Main Content -->
     <div class="flex-1 flex items-center justify-center p-4 py-8">
         <div class="w-full max-w-4xl bg-white rounded-2xl shadow-2xl overflow-hidden">
-            
+
             <!-- Header Section -->
             <div class="bg-gradient-to-r from-purple-600 to-purple-700 text-white p-8">
                 <div class="flex items-center mb-2">
@@ -33,7 +33,7 @@
                     <i class="fas fa-paw"></i>
                     <span class="font-bold">View all animals</span>
                 </a>
-            </div>                 
+            </div>
 
             <!-- Form Section -->
             <div class="p-8 md:p-12">
@@ -62,8 +62,8 @@
                         <label class="block text-gray-800 font-semibold mb-2">
                             Name <span class="text-red-600">*</span>
                         </label>
-                        <input type="text" name="name" value="{{ old('name') }}" 
-                            class="w-full border-gray-300 rounded-lg shadow-sm px-4 py-3 border focus:border-purple-500 focus:ring focus:ring-purple-200 transition" 
+                        <input type="text" name="name" value="{{ old('name') }}"
+                            class="w-full border-gray-300 rounded-lg shadow-sm px-4 py-3 border focus:border-purple-500 focus:ring focus:ring-purple-200 transition"
                             placeholder="Give name to the rescued animal" required>
                         @error('name')
                             <p class="text-sm text-red-600 mt-1">{{ $message }}</p>
@@ -75,8 +75,8 @@
                         <label class="block text-gray-800 font-semibold mb-2">
                             Weight (kg) <span class="text-red-600">*</span>
                         </label>
-                        <input type="number" name="weight" min="0" step="0.1" value="{{ old('weight') }}" 
-                            class="w-full border-gray-300 rounded-lg shadow-sm px-4 py-3 border focus:border-purple-500 focus:ring focus:ring-purple-200 transition" 
+                        <input type="number" name="weight" min="0" step="0.1" value="{{ old('weight') }}"
+                            class="w-full border-gray-300 rounded-lg shadow-sm px-4 py-3 border focus:border-purple-500 focus:ring focus:ring-purple-200 transition"
                             placeholder="Enter animal weight in kg" required>
                         @error('weight')
                             <p class="text-sm text-red-600 mt-1">{{ $message }}</p>
@@ -92,7 +92,7 @@
 
                         <select name="species" required
                             class="w-full border-gray-300 rounded-lg shadow-sm px-4 py-3 border focus:border-purple-500 focus:ring focus:ring-purple-200 transition">
-                            
+
                             <option value="" disabled selected>-- Select Species --</option>
                             <option value="Dog" {{ old('species') == 'Dog' ? 'selected' : '' }}>Dog</option>
                             <option value="Cat" {{ old('species') == 'Cat' ? 'selected' : '' }}>Cat</option>
@@ -136,7 +136,7 @@
                                 Gender <span class="text-red-600">*</span>
                             </label>
                             <div class="relative">
-                                <select name="gender" 
+                                <select name="gender"
                                         class="w-full border-gray-300 rounded-lg shadow-sm px-4 py-3 border focus:border-purple-500 focus:ring focus:ring-purple-200 transition appearance-none cursor-pointer bg-white pr-10" required>
                                     <option value="" disabled selected>Select gender</option>
                                     <option value="Male" {{ old('gender') == 'Male' ? 'selected' : '' }}>Male</option>
@@ -158,8 +158,8 @@
                         <label class="block text-gray-800 font-semibold mb-2">
                             Health Details <span class="text-red-600">*</span>
                         </label>
-                        <textarea name="health_details" rows="4" 
-                                  class="w-full border-gray-300 rounded-lg shadow-sm px-4 py-3 border focus:border-purple-500 focus:ring focus:ring-purple-200 transition" 
+                        <textarea name="health_details" rows="4"
+                                  class="w-full border-gray-300 rounded-lg shadow-sm px-4 py-3 border focus:border-purple-500 focus:ring focus:ring-purple-200 transition"
                                   placeholder="Describe the animal's health condition, any injuries, etc..." required>{{ old('health_details') }}</textarea>
                         @error('health_details')
                             <p class="text-sm text-red-600 mt-1">{{ $message }}</p>
@@ -180,8 +180,10 @@
                                 <option value="" selected>No slot selected</option>
                                 @forelse($slots as $slot)
                                     <option value="{{ $slot->id }}" {{ old('slotID') == $slot->id ? 'selected' : '' }}>
-                                        Slot {{ $slot->name ?? $slot->id }} - {{ $slot->section ?? 'N/A' }}
+                                        Slot {{ $slot->name ?? $slot->id }} -
+                                        {{ $slot->section->name ?? 'No Section' }}
                                     </option>
+
                                 @empty
                                     <option value="" disabled>No available slots</option>
                                 @endforelse
@@ -203,10 +205,10 @@
                         <label class="block text-gray-800 font-semibold mb-2">
                             Upload Images <span class="text-red-600">*</span>
                         </label>
-                        <input 
-                            type="file" 
-                            name="images[]" 
-                            multiple 
+                        <input
+                            type="file"
+                            name="images[]"
+                            multiple
                             accept="image/*"
                             class="w-full border-gray-300 rounded-lg shadow-sm px-4 py-3 border focus:border-purple-500 focus:ring focus:ring-purple-200 transition"
                             required
@@ -224,7 +226,7 @@
 
                     {{-- Action Buttons --}}
                     <div class="flex justify-end pt-4">
-                        <button type="submit" 
+                        <button type="submit"
                                 class="px-8 py-3 bg-gradient-to-r from-purple-600 to-purple-700 text-white font-bold rounded-lg hover:from-purple-700 hover:to-purple-800 transition duration-300 shadow-lg">
                             <i class="fas fa-plus mr-2"></i>Add Animal
                         </button>
@@ -252,7 +254,7 @@
             // Form submission validation
             form.addEventListener('submit', function(e) {
                 let allValid = true;
-                
+
                 requiredFields.forEach(field => {
                     if (!field.value.trim()) {
                         allValid = false;
