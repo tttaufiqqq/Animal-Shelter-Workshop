@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class Vet extends Model
 {
-    //  protected $connection = 'pgsql_remote';
+      protected $connection = 'mysql_device_3';
 
     protected $table = 'vet';
     protected $fillable = [

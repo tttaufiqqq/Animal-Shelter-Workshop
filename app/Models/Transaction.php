@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class Transaction extends Model
 {
-    //  protected $connection = 'pgsql_remote';
+      protected $connection = 'sqlsrv_remote';
 
     protected $table = 'transaction';
    protected $fillable = [

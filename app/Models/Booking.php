@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class Booking extends Model
 {
-    //  protected $connection = 'pgsql_remote';
+      protected $connection = 'sqlsrv_remote';
 
     protected $table = 'booking';
     protected $fillable = ['appointment_date', 'appointment_time', 'status', 'animalID', 'userID'];

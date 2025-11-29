@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class Vaccination extends Model
 {
-    //  protected $connection = 'pgsql_remote';
+      protected $connection = 'mysql_device_3';
 
     protected $table = 'vaccination';
     protected $primaryKey = 'id';

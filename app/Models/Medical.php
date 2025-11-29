@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class Medical extends Model
 {
-    //  protected $connection = 'pgsql_remote';
+      protected $connection = 'mysql_device_3';
 
     protected $table = 'medical';
     protected $fillable = [
