@@ -31,7 +31,7 @@ start_tunnel() {
 # Start all tunnels in background
 start_tunnel 3307 3306 "eilya" "172.20.10.2" "Eilya MySQL" &
 start_tunnel 3308 3306 "atiqah" "172.20.10.3" "Atiqah MySQL" &
-start_tunnel 1434 1433 "laptop-4k8hhere\\user" "172.20.10.13" "SQL Server" &
+start_tunnel 1434 1433 "laptop-4k8hhere\\user" "172.20.10.14" "SQL Server" &
 start_tunnel 5433 5432 "taufiq" "172.20.10.10" "Taufiq PostgreSQL" &
 
 echo ""

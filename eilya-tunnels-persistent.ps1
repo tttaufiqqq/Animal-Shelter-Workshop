@@ -27,7 +27,7 @@ function Start-Tunnel {
 Start-Tunnel -Port 3308 -RemotePort 3306 -User "atiqah" -Host "172.20.10.3" -Description "Atiqah MySQL"
 Start-Tunnel -Port 3309 -RemotePort 3306 -User "piqa" -Host "172.20.10.12" -Description "Piqa MySQL"
 Start-Tunnel -Port 1434 -RemotePort 1433 -User "laptop-4k8hhere\\user" -Host "172.20.10.13" -Description "SQL Server"
-Start-Tunnel -Port 5433 -RemotePort 5432 -User "taufiq" -Host "172.20.10.10" -Description "Taufiq PostgreSQL"
+Start-Tunnel -Port 5433 -RemotePort 5432 -User "taufiq" -Host "172.20.10.14" -Description "Taufiq PostgreSQL"
 
 Write-Host "`nAll tunnels started with auto-restart enabled!"
 Write-Host "To stop all tunnels, close this PowerShell window or run: Get-Job | Stop-Job"
