@@ -5,13 +5,17 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 
-
 class AdopterProfile extends Model
 {
-//      protected $connection = 'taufiq';
+    use HasFactory;
+
+    // Specify the database connection for this model
+    protected $connection = 'taufiq';
+
     protected $table = 'adopter_profile';
+
     protected $fillable = [
-        'user_id',
+        'adopterID',
         'housing_type',
         'has_children',
         'has_other_pets',
@@ -19,10 +23,18 @@ class AdopterProfile extends Model
         'experience',
         'preferred_species',
         'preferred_size',
-        'adopterID'
     ];
+
+    protected $casts = [
+        'has_children' => 'boolean',
+        'has_other_pets' => 'boolean',
+    ];
+
+    /**
+     * Relationship to User model (same database - taufiq)
+     */
     public function user()
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(User::class, 'adopterID', 'id');
     }
 }

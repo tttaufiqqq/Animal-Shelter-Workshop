@@ -2,6 +2,19 @@
 
 return [
 
+    /*
+   |--------------------------------------------------------------------------
+   | Database Connection
+   |--------------------------------------------------------------------------
+   |
+   | When using the "HasRoles" trait from this package, we need to know which
+   | connection should be used to retrieve your models. We'll use this connection
+   | for all the operations that are related to permissions and roles.
+   |
+   */
+
+    'database_connection' => 'taufiq', // Set to taufiq connection
+
     'models' => [
 
         /*

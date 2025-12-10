@@ -3,14 +3,27 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class Section extends Model
 {
-//    protected $connection = 'mysql_device_2';
+    use HasFactory;
+
+    // Specify the database connection for this model (Atiqah's database)
+    protected $connection = 'atiqah';
 
     protected $table = 'section';
-    protected $fillable = ['name', 'description'];
-    public function slots(){
-        return $this->hasMany(Slot::class,'sectionID');
+
+    protected $fillable = [
+        'name',
+        'description',
+    ];
+
+    /**
+     * Relationship to Slots (same database - atiqah)
+     */
+    public function slots()
+    {
+        return $this->hasMany(Slot::class, 'sectionID', 'id');
     }
 }

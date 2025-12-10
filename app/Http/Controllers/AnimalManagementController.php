@@ -19,6 +19,7 @@ use Illuminate\Support\Facades\Log;
 use App\Models\AnimalProfile;
 use App\Models\AdopterProfile;
 use Illuminate\Validation\Rule;
+use App\Services\ForeignKeyValidator;
 
 class AnimalManagementController extends Controller
 {
@@ -26,20 +27,20 @@ class AnimalManagementController extends Controller
     {
         $user = Auth::user();
 
-        // Get adopter profile
+        // Get adopter profile (Taufiq's database)
         $adopterProfile = AdopterProfile::where('adopterID', $user->id)->first();
 
         if (!$adopterProfile) {
-           return response()->json([
+            return response()->json([
                 'success' => false,
                 'message' => 'Please complete your adopter profile first to see your matches.'
             ]);
         }
 
-        // Get all available animals with their profiles
+        // Get all available animals with their profiles (Shafiqah's database)
         $animals = Animal::with('profile')
-             ->whereIn('adoption_status', ['Not Adopted', 'not adopted'])
-             ->get();
+            ->whereIn('adoption_status', ['Not Adopted', 'not adopted'])
+            ->get();
 
         // Calculate match scores
         $matches = [];
@@ -186,7 +187,7 @@ class AnimalManagementController extends Controller
             'medical_needs' => ['required', Rule::in(['none', 'minor', 'moderate', 'special'])],
         ]);
 
-        // 2. Find the animal
+        // 2. Find the animal (Shafiqah's database)
         $animal = Animal::find($animalId);
         if (!$animal) {
             return redirect()->back()->with('error', 'Animal not found.');
@@ -202,7 +203,7 @@ class AnimalManagementController extends Controller
 
         $validated['age'] = $ageFromAnimal;
 
-        // 4. Check if profile exists
+        // 4. Check if profile exists (Shafiqah's database)
         $profile = AnimalProfile::firstOrNew(['animalID' => $animalId]);
 
         // 5. Fill and save
@@ -222,7 +223,10 @@ class AnimalManagementController extends Controller
 
     public function create($rescue_id = null)
     {
+        // Rescues from Eilya's database
         $rescues = Rescue::all();
+
+        // Slots from Atiqah's database
         $slots = Slot::where('status', 'Available')->get();
 
         return view('animal-management.create', [
@@ -241,8 +245,31 @@ class AnimalManagementController extends Controller
             'health_details' => 'required|string',
             'age_category' => 'nullable|in:kitten,puppy,adult,senior',
             'gender' => 'required|in:Male,Female,Unknown',
-            'rescueID' => 'required|exists:rescue,id',
-            'slotID' => 'nullable|exists:slot,id',
+            'rescueID' => [
+                'required',
+                function ($attribute, $value, $fail) {
+                    // Validate rescue exists in Eilya's database
+                    if (!ForeignKeyValidator::validateRescue($value)) {
+                        $fail('The selected rescue operation does not exist.');
+                    }
+                },
+            ],
+            'slotID' => [
+                'nullable',
+                function ($attribute, $value, $fail) {
+                    if ($value) {
+                        // Validate slot exists in Atiqah's database
+                        if (!ForeignKeyValidator::validateSlot($value)) {
+                            $fail('The selected slot does not exist.');
+                        }
+
+                        // Check slot capacity
+                        if (!ForeignKeyValidator::slotHasCapacity($value)) {
+                            $fail('The selected slot is at full capacity.');
+                        }
+                    }
+                },
+            ],
             'images' => 'nullable|array|min:1',
             'images.*' => 'nullable|image|mimes:jpeg,jpg,png,gif|max:5120',
         ], [
@@ -252,37 +279,40 @@ class AnimalManagementController extends Controller
             'images.*.max' => 'Each image must not exceed 5MB.',
         ]);
 
-
         $uploadedFiles = [];
 
-        DB::beginTransaction();
+        // Use transactions for both databases
+        DB::connection('shafiqah')->beginTransaction();
+        DB::connection('eilya')->beginTransaction();
+        DB::connection('atiqah')->beginTransaction();
 
         try {
             // Use age category directly
             $age = ucfirst($validated['age_category']);
 
+            // Validate slot availability from Atiqah's database
             $slot = null;
             if ($validated['slotID']) {
                 $slot = Slot::find($validated['slotID']);
                 if (!$slot || $slot->status !== 'available') {
-                    return back()
-                        ->withInput()
-                        ->withErrors(['slotID' => 'Selected slot is not available.']);
+                    throw new \Exception('Selected slot is not available.');
                 }
             }
 
+            // Create animal in Shafiqah's database
             $animal = Animal::create([
                 'name' => $validated['name'],
                 'weight' => $validated['weight'],
                 'species' => $validated['species'],
                 'health_details' => $validated['health_details'],
-                'age' => $age, // Store the category directly
+                'age' => $age,
                 'gender' => $validated['gender'],
                 'adoption_status' => 'Not Adopted',
-                'rescueID' => $validated['rescueID'],
-                'slotID' => $validated['slotID'],
+                'rescueID' => $validated['rescueID'], // Cross-database reference to Eilya
+                'slotID' => $validated['slotID'], // Cross-database reference to Atiqah
             ]);
 
+            // Upload images to Eilya's database
             if ($request->hasFile('images')) {
                 foreach ($request->file('images') as $imageFile) {
                     $filename = time() . '_' . uniqid() . '.' . $imageFile->getClientOriginalExtension();
@@ -290,25 +320,42 @@ class AnimalManagementController extends Controller
                     $uploadedFiles[] = $path;
 
                     Image::create([
-                        'animalID' => $animal->id,
+                        'animalID' => $animal->id, // Cross-database reference to Shafiqah
                         'image_path' => $path,
-                        'filename' => $filename,
-                        'uploaded_at' => now(),
+                        'reportID' => null,
+                        'clinicID' => null,
                     ]);
                 }
             }
 
-            DB::commit();
+            // Update slot status in Atiqah's database if needed
+            if ($slot) {
+                $animalCount = Animal::where('slotID', $slot->id)->count();
+                if ($animalCount >= $slot->capacity) {
+                    $slot->update(['status' => 'occupied']);
+                }
+            }
+
+            DB::connection('shafiqah')->commit();
+            DB::connection('eilya')->commit();
+            DB::connection('atiqah')->commit();
+
+            // Clear cache
+            ForeignKeyValidator::clearAnimalCache($animal->id);
 
             return redirect()->route('animal-management.create', ['rescue_id' => $validated['rescueID']])
                 ->with('success', 'Animal "' . $animal->name . '" added successfully with ' . count($request->file('images') ?? []) . ' image(s)! Do you want to add another animal? If so, please fill all the required fields again.');
 
         } catch (\Exception $e) {
-            DB::rollBack();
+            DB::connection('shafiqah')->rollBack();
+            DB::connection('eilya')->rollBack();
+            DB::connection('atiqah')->rollBack();
 
             foreach ($uploadedFiles as $filePath) {
                 Storage::disk('public')->delete($filePath);
             }
+
+            Log::error('Error creating animal: ' . $e->getMessage());
 
             return back()
                 ->withInput()
@@ -316,143 +363,200 @@ class AnimalManagementController extends Controller
         }
     }
 
-public function update(Request $request, $id)
-{
-    \Log::info('UPDATE REQUEST START', [
-        'animal_id' => $id,
-        'has_images' => $request->hasFile('images'),
-        'image_count' => $request->file('images') ? count($request->file('images')) : 0,
-        'delete_images' => $request->delete_images ?? [],
-        'input' => $request->all(),
-    ]);
-
-    $validated = $request->validate([
-        'name' => 'required|string|max:255',
-        'weight' => 'required|numeric',
-        'species' => 'required|string|max:255',
-        'health_details' => 'required|string',
-        'age_category' => 'required|in:kitten,puppy,adult,senior',
-        'gender' => 'required|in:Male,Female,Unknown',
-        'slotID' => 'nullable|exists:slot,id',
-        'images' => 'nullable|array',
-        'images.*' => 'nullable|image|mimes:jpeg,jpg,png,gif|max:5120',
-        'delete_images' => 'nullable|array',
-        'delete_images.*' => 'exists:image,id',
-    ]);
-
-    DB::beginTransaction();
-
-   try {
-        $animal = Animal::findOrFail($id);
-        $uploadedFiles = [];
-
-        // ----- Age Category -----
-        $age = ucfirst($validated['age_category']); // Directly use the category
-
-        // ----- Safe slot logic -----
-        $slotID = $validated['slotID'] ?? $animal->slotID;
-
-        if (($validated['slotID'] ?? null) !== null && $slotID != $animal->slotID) {
-            $slot = Slot::find($slotID);
-
-            if (!$slot || $slot->status !== 'available') {
-                return back()->withInput()
-                    ->withErrors(['slotID' => 'Selected slot is not available.']);
-            }
-        }
-
-        // ----- Update Animal -----
-        $animal->update([
-            'name' => $validated['name'],
-            'weight' => $validated['weight'],
-            'species' => $validated['species'],
-            'health_details' => $validated['health_details'],
-            'age' => $age, // Store the category directly
-            'gender' => $validated['gender'],
-            'slotID' => $slotID,
+    public function update(Request $request, $id)
+    {
+        Log::info('UPDATE REQUEST START', [
+            'animal_id' => $id,
+            'has_images' => $request->hasFile('images'),
+            'image_count' => $request->file('images') ? count($request->file('images')) : 0,
+            'delete_images' => $request->delete_images ?? [],
+            'input' => $request->all(),
         ]);
 
-        \Log::info('Animal updated basic info.', [
-            'id' => $animal->id,
-            'slotID' => $slotID,
-            'age_category' => $age
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'weight' => 'required|numeric',
+            'species' => 'required|string|max:255',
+            'health_details' => 'required|string',
+            'age_category' => 'required|in:kitten,puppy,adult,senior',
+            'gender' => 'required|in:Male,Female,Unknown',
+            'slotID' => [
+                'nullable',
+                function ($attribute, $value, $fail) {
+                    if ($value) {
+                        if (!ForeignKeyValidator::validateSlot($value)) {
+                            $fail('The selected slot does not exist.');
+                        }
+                    }
+                },
+            ],
+            'images' => 'nullable|array',
+            'images.*' => 'nullable|image|mimes:jpeg,jpg,png,gif|max:5120',
+            'delete_images' => 'nullable|array',
+            'delete_images.*' => [
+                function ($attribute, $value, $fail) {
+                    // Validate image exists in Eilya's database
+                    $exists = DB::connection('eilya')
+                        ->table('image')
+                        ->where('id', $value)
+                        ->exists();
+
+                    if (!$exists) {
+                        $fail('The selected image does not exist.');
+                    }
+                },
+            ],
         ]);
 
-        // ----- Delete Images Optional -----
-        if (!empty($validated['delete_images'])) {
-            foreach ($validated['delete_images'] as $imageId) {
-                $img = Image::where('id', $imageId)
-                    ->where('animalID', $animal->id)
-                    ->first();
+        // Use transactions for multiple databases
+        DB::connection('shafiqah')->beginTransaction();
+        DB::connection('eilya')->beginTransaction();
+        DB::connection('atiqah')->beginTransaction();
 
-                if ($img) {
-                    \Log::info('Deleting image', [
-                        'image_id' => $imageId,
-                        'path' => $img->image_path
-                    ]);
+        try {
+            $animal = Animal::findOrFail($id);
+            $uploadedFiles = [];
 
-                    Storage::disk('public')->delete($img->image_path);
-                    $img->delete();
+            // Age Category
+            $age = ucfirst($validated['age_category']);
+
+            // Safe slot logic
+            $slotID = $validated['slotID'] ?? $animal->slotID;
+
+            if (($validated['slotID'] ?? null) !== null && $slotID != $animal->slotID) {
+                // Validate new slot from Atiqah's database
+                $slot = Slot::find($slotID);
+
+                if (!$slot || $slot->status !== 'available') {
+                    throw new \Exception('Selected slot is not available.');
+                }
+
+                // Check capacity
+                if (!ForeignKeyValidator::slotHasCapacity($slotID)) {
+                    throw new \Exception('Selected slot is at full capacity.');
                 }
             }
-        }
 
-        \Log::info('Remaining after delete', [
-            'count' => Image::where('animalID', $animal->id)->count()
-        ]);
+            // Update Animal in Shafiqah's database
+            $animal->update([
+                'name' => $validated['name'],
+                'weight' => $validated['weight'],
+                'species' => $validated['species'],
+                'health_details' => $validated['health_details'],
+                'age' => $age,
+                'gender' => $validated['gender'],
+                'slotID' => $slotID,
+            ]);
 
-        // ----- Upload New Images Optional -----
-        if ($request->hasFile('images')) {
-            foreach ($request->file('images') as $file) {
-                $filename = time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
-                $path = $file->storeAs('animal_images', $filename, 'public');
+            Log::info('Animal updated basic info.', [
+                'id' => $animal->id,
+                'slotID' => $slotID,
+                'age_category' => $age
+            ]);
 
-                $uploadedFiles[] = $path;
+            // Delete Images from Eilya's database
+            if (!empty($validated['delete_images'])) {
+                foreach ($validated['delete_images'] as $imageId) {
+                    $img = Image::where('id', $imageId)
+                        ->where('animalID', $animal->id)
+                        ->first();
 
-                Image::create([
-                    'animalID' => $animal->id,
-                    'image_path' => $path,
-                    'filename' => $filename,
-                    'uploaded_at' => now(),
+                    if ($img) {
+                        Log::info('Deleting image', [
+                            'image_id' => $imageId,
+                            'path' => $img->image_path
+                        ]);
+
+                        Storage::disk('public')->delete($img->image_path);
+                        $img->delete();
+                    }
+                }
+            }
+
+            Log::info('Remaining after delete', [
+                'count' => Image::where('animalID', $animal->id)->count()
+            ]);
+
+            // Upload New Images to Eilya's database
+            if ($request->hasFile('images')) {
+                foreach ($request->file('images') as $file) {
+                    $filename = time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
+                    $path = $file->storeAs('animal_images', $filename, 'public');
+
+                    $uploadedFiles[] = $path;
+
+                    Image::create([
+                        'animalID' => $animal->id,
+                        'image_path' => $path,
+                        'reportID' => null,
+                        'clinicID' => null,
+                    ]);
+                }
+
+                Log::info('Uploaded images:', [
+                    'files' => $uploadedFiles
                 ]);
             }
 
-            \Log::info('Uploaded images:', [
-                'files' => $uploadedFiles
+            // Update slot statuses in Atiqah's database
+            $previousSlotId = $animal->getOriginal('slotID');
+
+            // Update new slot status
+            if ($slotID) {
+                $newSlot = Slot::find($slotID);
+                if ($newSlot) {
+                    $newSlotAnimalCount = Animal::where('slotID', $slotID)->count();
+                    $newSlot->status = ($newSlotAnimalCount >= $newSlot->capacity) ? 'occupied' : 'available';
+                    $newSlot->save();
+                }
+            }
+
+            // Update old slot status
+            if ($previousSlotId && $previousSlotId != $slotID) {
+                $oldSlot = Slot::find($previousSlotId);
+                if ($oldSlot) {
+                    $oldSlotAnimalCount = Animal::where('slotID', $previousSlotId)->count();
+                    $oldSlot->status = ($oldSlotAnimalCount >= $oldSlot->capacity) ? 'occupied' : 'available';
+                    $oldSlot->save();
+                }
+            }
+
+            DB::connection('shafiqah')->commit();
+            DB::connection('eilya')->commit();
+            DB::connection('atiqah')->commit();
+
+            // Clear cache
+            ForeignKeyValidator::clearAnimalCache($animal->id);
+
+            Log::info('UPDATE SUCCESSFUL', [
+                'animal_id' => $animal->id
             ]);
+
+            return redirect()->back()->with('success', 'Animal updated successfully!');
+
+        } catch (\Exception $e) {
+            DB::connection('shafiqah')->rollBack();
+            DB::connection('eilya')->rollBack();
+            DB::connection('atiqah')->rollBack();
+
+            Log::error('UPDATE FAILED', [
+                'error' => $e->getMessage(),
+                'line' => $e->getLine(),
+                'file' => $e->getFile(),
+            ]);
+
+            foreach ($uploadedFiles as $path) {
+                Storage::disk('public')->delete($path);
+            }
+
+            return back()->withInput()
+                ->withErrors(['error' => $e->getMessage()]);
         }
-
-        // ----- NO MORE "must have at least one image" -----
-
-        DB::commit();
-
-        \Log::info('UPDATE SUCCESSFUL', [
-            'animal_id' => $animal->id
-        ]);
-
-        return redirect()->back()->with('success', 'Animal updated successfully!');
-
-    } catch (\Exception $e) {
-        DB::rollBack();
-
-        \Log::error('UPDATE FAILED', [
-            'error' => $e->getMessage(),
-            'line' => $e->getLine(),
-            'file' => $e->getFile(),
-        ]);
-
-        foreach ($uploadedFiles as $path) {
-            Storage::disk('public')->delete($path);
-        }
-
-        return back()->withInput()
-            ->withErrors(['error' => $e->getMessage()]);
     }
-}
-
 
     public function index(Request $request)
     {
+        // Query from Shafiqah's database
         $query = Animal::with(['images', 'slot']);
 
         // Filters
@@ -472,7 +576,7 @@ public function update(Request $request, $id)
             $query->where('gender', $request->gender);
         }
 
-        // ⭐ PRIORITIZE Not Adopted animals
+        // Prioritize Not Adopted animals
         $query->orderByRaw("CASE WHEN adoption_status = 'Not Adopted' THEN 0 ELSE 1 END");
 
         // Secondary sorting
@@ -480,7 +584,7 @@ public function update(Request $request, $id)
 
         $animals = $query->paginate(12)->appends($request->query());
 
-        // ===== Only for logged-in user =====
+        // Get visit list from Danish's database (only for logged-in user)
         $animalList = collect();
         if (Auth::check()) {
             $user = Auth::user();
@@ -494,25 +598,29 @@ public function update(Request $request, $id)
         return view('animal-management.main', compact('animals', 'animalList'));
     }
 
-
     public function show($id)
     {
+        // Get animal from Shafiqah's database with cross-database relationships
         $animal = Animal::with([
-            'images',
-            'slot',
-            'rescue.report',
+            'images',     // Cross-database to Eilya
+            'slot',       // Cross-database to Atiqah
+            'rescue.report', // Cross-database to Eilya
         ])->findOrFail($id);
 
+        // Get medical records from Shafiqah's database
         $medicals = Medical::with('vet')
             ->where('animalID', $id)
             ->get();
 
+        // Get vaccinations from Shafiqah's database
         $vaccinations = Vaccination::with('vet')
             ->where('animalID', $id)
             ->get();
 
+        // Get vets from Shafiqah's database
         $vets = Vet::all();
-        // Get available slots + the current slot (if any)
+
+        // Get available slots + the current slot from Atiqah's database
         $slots = Slot::with('section')
             ->where(function($query) use ($animal) {
                 $query->where('status', 'available')
@@ -522,6 +630,7 @@ public function update(Request $request, $id)
             ->orderBy('name')
             ->get();
 
+        // Get bookings from Danish's database (cross-database query)
         $bookedSlots = $animal->bookings->map(function($booking) {
             $dateTime = \Carbon\Carbon::parse($booking->appointment_date . ' ' . $booking->appointment_time);
 
@@ -531,16 +640,19 @@ public function update(Request $request, $id)
                 'datetime' => $dateTime->format('Y-m-d\TH:i'),
             ];
         });
+
+        // Get animal profile from Shafiqah's database
         $animalProfile = AnimalProfile::where('animalID', $id)->first();
-        // ===== Only for logged-in user =====
-        $animalList = collect(); // default empty
+
+        // Get visit list from Danish's database (only for logged-in user)
+        $animalList = collect();
         if (Auth::check()) {
             $user = Auth::user();
 
             $visitList = VisitList::with('animals')
                 ->firstOrCreate(['userID' => $user->id]);
 
-            $animalList = $visitList->animals; // only this user's visit list
+            $animalList = $visitList->animals;
         }
 
         return view('animal-management.show', compact('animal', 'vets', 'medicals', 'vaccinations', 'slots', 'bookedSlots', 'animalProfile', 'animalList'));
@@ -549,71 +661,113 @@ public function update(Request $request, $id)
     public function assignSlot(Request $request, $animalId)
     {
         $request->validate([
-            'slot_id' => 'required|exists:slot,id',
+            'slot_id' => [
+                'required',
+                function ($attribute, $value, $fail) {
+                    if (!ForeignKeyValidator::validateSlot($value)) {
+                        $fail('The selected slot does not exist.');
+                    }
+                },
+            ],
         ]);
 
-        $animal = Animal::findOrFail($animalId);
-        $previousSlotId = $animal->slotID;
+        DB::connection('shafiqah')->beginTransaction();
+        DB::connection('atiqah')->beginTransaction();
 
-        $animal->slotID = $request->slot_id;
-        $animal->save();
+        try {
+            // Get animal from Shafiqah's database
+            $animal = Animal::findOrFail($animalId);
+            $previousSlotId = $animal->slotID;
 
-        $newSlot = Slot::findOrFail($request->slot_id);
-        $newSlotAnimalCount = $newSlot->animals()->count();
+            // Update animal's slot (cross-database reference to Atiqah)
+            $animal->slotID = $request->slot_id;
+            $animal->save();
 
-        if ($newSlotAnimalCount >= $newSlot->capacity) {
-            $newSlot->status = 'occupied';
-        } else {
-            $newSlot->status = 'available';
-        }
-        $newSlot->save();
+            // Update new slot status in Atiqah's database
+            $newSlot = Slot::findOrFail($request->slot_id);
+            $newSlotAnimalCount = Animal::where('slotID', $newSlot->id)->count();
 
-        if ($previousSlotId && $previousSlotId != $newSlot->id) {
-            $oldSlot = Slot::find($previousSlotId);
-
-            if ($oldSlot) {
-                $oldSlotAnimalCount = $oldSlot->animals()->count();
-
-                if ($oldSlotAnimalCount >= $oldSlot->capacity) {
-                    $oldSlot->status = 'occupied';
-                } else {
-                    $oldSlot->status = 'available';
-                }
-
-                $oldSlot->save();
+            if ($newSlotAnimalCount >= $newSlot->capacity) {
+                $newSlot->status = 'occupied';
+            } else {
+                $newSlot->status = 'available';
             }
-        }
+            $newSlot->save();
 
-        return back()->with('success', 'Slot assigned successfully!');
+            // Update old slot status in Atiqah's database
+            if ($previousSlotId && $previousSlotId != $newSlot->id) {
+                $oldSlot = Slot::find($previousSlotId);
+
+                if ($oldSlot) {
+                    $oldSlotAnimalCount = Animal::where('slotID', $oldSlot->id)->count();
+
+                    if ($oldSlotAnimalCount >= $oldSlot->capacity) {
+                        $oldSlot->status = 'occupied';
+                    } else {
+                        $oldSlot->status = 'available';
+                    }
+
+                    $oldSlot->save();
+                }
+            }
+
+            DB::connection('shafiqah')->commit();
+            DB::connection('atiqah')->commit();
+
+            return back()->with('success', 'Slot assigned successfully!');
+
+        } catch (\Exception $e) {
+            DB::connection('shafiqah')->rollBack();
+            DB::connection('atiqah')->rollBack();
+
+            Log::error('Error assigning slot: ' . $e->getMessage());
+
+            return back()->withErrors(['error' => 'Failed to assign slot: ' . $e->getMessage()]);
+        }
     }
 
     public function destroy(Animal $animal)
     {
-        DB::beginTransaction();
+        DB::connection('shafiqah')->beginTransaction();
+        DB::connection('eilya')->beginTransaction();
+        DB::connection('atiqah')->beginTransaction();
 
         try {
+            // Delete images from Eilya's database
             foreach ($animal->images as $image) {
                 Storage::disk('public')->delete($image->image_path);
                 $image->delete();
             }
 
+            // Update slot status in Atiqah's database
             $slot = Slot::find($animal->slotID);
             if ($slot) {
-                $slot->update(['status' => 'available']);
+                $animalCount = Animal::where('slotID', $slot->id)->where('id', '!=', $animal->id)->count();
+                $slot->status = ($animalCount >= $slot->capacity) ? 'occupied' : 'available';
+                $slot->save();
             }
 
             $animalName = $animal->name;
+
+            // Delete animal from Shafiqah's database
             $animal->delete();
 
-            DB::commit();
+            DB::connection('shafiqah')->commit();
+            DB::connection('eilya')->commit();
+            DB::connection('atiqah')->commit();
+
+            // Clear cache
+            ForeignKeyValidator::clearAnimalCache($animal->id);
 
             return redirect()->route('animal-management.index')
                 ->with('success', 'Animal "' . $animalName . '" deleted successfully!');
 
         } catch (\Exception $e) {
-            DB::rollBack();
+            DB::connection('shafiqah')->rollBack();
+            DB::connection('eilya')->rollBack();
+            DB::connection('atiqah')->rollBack();
 
-            \Log::error('Error deleting animal: ' . $e->getMessage());
+            Log::error('Error deleting animal: ' . $e->getMessage());
 
             return back()->withErrors(['error' => 'An error occurred while deleting the animal.']);
         }
@@ -621,8 +775,10 @@ public function update(Request $request, $id)
 
     public function indexClinic()
     {
+        // Get clinics and vets from Shafiqah's database
         $clinics = Clinic::all();
         $vets = Vet::with('clinic')->get();
+
         return view('animal-management.main-manage-cv', ['clinics' => $clinics, 'vets' => $vets]);
     }
 
@@ -637,6 +793,7 @@ public function update(Request $request, $id)
                 'longitude' => 'required|numeric|between:-180,180',
             ]);
 
+            // Create clinic in Shafiqah's database
             $clinic = Clinic::create([
                 'name' => $validated['clinic_name'],
                 'address' => $validated['address'],
@@ -666,11 +823,12 @@ public function update(Request $request, $id)
                 'full_name' => 'required|string|max:255',
                 'specialization' => 'required|string|max:255',
                 'license_no' => 'required|string|max:50',
-                'clinicID' => 'nullable|exists:clinic,id',
+                'clinicID' => 'nullable|exists:clinic,id', // Same database (Shafiqah)
                 'phone' => 'required|string|max:20',
                 'email' => 'required|email|max:255|unique:vet,email',
             ]);
 
+            // Create vet in Shafiqah's database
             $dataToInsert = [
                 'name' => $validated['full_name'],
                 'specialization' => $validated['specialization'],
@@ -700,15 +858,16 @@ public function update(Request $request, $id)
     {
         try {
             $validated = $request->validate([
-                'animalID' => 'required|exists:animal,id',
+                'animalID' => 'required|exists:animal,id', // Same database (Shafiqah)
                 'treatment_type' => 'required|string|max:255',
                 'diagnosis' => 'required|string',
                 'action' => 'required|string',
                 'remarks' => 'nullable|string',
-                'vetID' => 'required|exists:vet,id',
+                'vetID' => 'required|exists:vet,id', // Same database (Shafiqah)
                 'costs' => 'nullable|numeric|min:0',
             ]);
 
+            // Create medical record in Shafiqah's database
             $medical = Medical::create($validated);
 
             return redirect()->back()->with('success', 'Medical record added successfully!');
@@ -728,15 +887,16 @@ public function update(Request $request, $id)
     {
         try {
             $validated = $request->validate([
-                'animalID' => 'required|exists:animal,id',
+                'animalID' => 'required|exists:animal,id', // Same database (Shafiqah)
                 'name' => 'required|string|max:255',
                 'type' => 'required|string|max:255',
                 'next_due_date' => 'nullable|date|after:today',
                 'remarks' => 'nullable|string',
-                'vetID' => 'required|exists:vet,id',
+                'vetID' => 'required|exists:vet,id', // Same database (Shafiqah)
                 'costs' => 'nullable|numeric|min:0',
             ]);
 
+            // Create vaccination record in Shafiqah's database
             $vaccination = Vaccination::create($validated);
 
             return redirect()->back()->with('success', 'Vaccination record added successfully!');
@@ -754,6 +914,7 @@ public function update(Request $request, $id)
 
     public function editClinic($id)
     {
+        // Get clinic from Shafiqah's database
         $clinic = Clinic::findOrFail($id);
         return response()->json($clinic);
     }
@@ -768,6 +929,7 @@ public function update(Request $request, $id)
             'longitude' => 'required|numeric',
         ]);
 
+        // Update clinic in Shafiqah's database
         $clinic = Clinic::findOrFail($id);
         $clinic->update([
             'name' => $request->name,
@@ -782,6 +944,7 @@ public function update(Request $request, $id)
 
     public function destroyClinic($id)
     {
+        // Delete clinic from Shafiqah's database
         $clinic = Clinic::findOrFail($id);
         $clinic->delete();
 
@@ -791,6 +954,7 @@ public function update(Request $request, $id)
     public function editVet($id)
     {
         try {
+            // Get vet from Shafiqah's database
             $vet = Vet::findOrFail($id);
 
             return response()->json([
@@ -816,11 +980,12 @@ public function update(Request $request, $id)
             'name' => 'required|string|max:255',
             'specialization' => 'required|string|max:255',
             'license_no' => 'required|string|max:50',
-            'clinicID' => 'required|exists:clinic,id',
+            'clinicID' => 'required|exists:clinic,id', // Same database (Shafiqah)
             'contactNum' => 'required|string|max:20',
             'email' => 'required|email|max:255',
         ]);
 
+        // Update vet in Shafiqah's database
         $vet = Vet::findOrFail($id);
         $vet->update([
             'name' => $request->name,
@@ -836,6 +1001,7 @@ public function update(Request $request, $id)
 
     public function destroyVet($id)
     {
+        // Delete vet from Shafiqah's database
         $vet = Vet::findOrFail($id);
         $vet->delete();
 

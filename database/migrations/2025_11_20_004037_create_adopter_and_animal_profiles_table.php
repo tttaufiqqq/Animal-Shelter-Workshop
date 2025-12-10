@@ -6,9 +6,18 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
+    /**
+     * Run the migrations.
+     * This migration handles tables across multiple databases:
+     * - Taufiq: adopter_profile
+     * - Shafiqah: animal_profile
+     */
     public function up(): void
     {
-        Schema::create('adopter_profile', function (Blueprint $table) {
+        /**
+         * TAUFIQ'S DATABASE - User Management Module
+         */
+        Schema::connection('taufiq')->create('adopter_profile', function (Blueprint $table) {
             $table->id();
             // Adopter matching attributes
             $table->string('housing_type')->nullable(); // condo, landed
@@ -18,15 +27,27 @@ return new class extends Migration
             $table->string('experience')->nullable(); // beginner/intermediate/expert
             $table->string('preferred_species')->nullable(); // cat/dog
             $table->string('preferred_size')->nullable(); // small/medium/large
-            // FK to USERS table
+
+            // FK to users table (same database, OK to use FK)
             $table->unsignedBigInteger('adopterID');
-            $table->foreign('adopterID')
-                ->references('id')->on('users')
-                ->onDelete('cascade');
             $table->timestamps();
+
+            // Index for performance
+            $table->index('adopterID');
         });
 
-        Schema::create('animal_profile', function (Blueprint $table) {
+        // Add FK for adopter_profile -> users (same database, OK to use FK)
+        Schema::connection('taufiq')->table('adopter_profile', function (Blueprint $table) {
+            $table->foreign('adopterID')
+                ->references('id')
+                ->on('users')
+                ->onDelete('cascade');
+        });
+
+        /**
+         * SHAFIQAH'S DATABASE - Animal & Medical Module
+         */
+        Schema::connection('shafiqah')->create('animal_profile', function (Blueprint $table) {
             $table->id();
             // Animal matching attributes
             $table->string('age')->nullable(); // kitten/puppy/adult/senior
@@ -36,18 +57,40 @@ return new class extends Migration
             $table->boolean('good_with_pets')->default(false);
             $table->string('temperament')->nullable(); // calm/active/shy
             $table->string('medical_needs')->nullable();
-            // FK to ANIMALS table
+
+            // FK to animal table (same database, OK to use FK)
             $table->unsignedBigInteger('animalID');
-            $table->foreign('animalID')
-                ->references('id')->on('animal')
-                ->onDelete('cascade');
             $table->timestamps();
+
+            // Index for performance
+            $table->index('animalID');
+        });
+
+        // Add FK for animal_profile -> animal (same database, OK to use FK)
+        Schema::connection('shafiqah')->table('animal_profile', function (Blueprint $table) {
+            $table->foreign('animalID')
+                ->references('id')
+                ->on('animal')
+                ->onDelete('cascade');
         });
     }
 
+    /**
+     * Reverse the migrations.
+     */
     public function down(): void
     {
-        Schema::dropIfExists('adopter_profile');
-        Schema::dropIfExists('animal_profile');
+        // Drop FK first
+        Schema::connection('shafiqah')->table('animal_profile', function (Blueprint $table) {
+            $table->dropForeign(['animalID']);
+        });
+
+        Schema::connection('taufiq')->table('adopter_profile', function (Blueprint $table) {
+            $table->dropForeign(['adopterID']);
+        });
+
+        // Drop tables
+        Schema::connection('shafiqah')->dropIfExists('animal_profile');
+        Schema::connection('taufiq')->dropIfExists('adopter_profile');
     }
 };

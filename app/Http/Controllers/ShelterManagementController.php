@@ -8,40 +8,70 @@ use App\Models\Inventory;
 use App\Models\Animal;
 use App\Models\Section;
 use App\Models\Category;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use App\Services\ForeignKeyValidator;
 
 class ShelterManagementController extends Controller
 {
-    // In your controller
+    /**
+     * Display shelter management index
+     * Sections, Slots, Categories, Inventory from Atiqah's database
+     * Animals from Shafiqah's database (cross-database relationship)
+     */
     public function indexSlot()
     {
-        $sections = Section::all();
+        try {
+            // Get sections from Atiqah's database
+            $sections = Section::all();
 
-        // Get counts BEFORE pagination
-        $totalSlots = Slot::count();
-        $availableSlots = Slot::where('status', 'available')->count();
-        $occupiedSlots = Slot::where('status', 'occupied')->count();
-        $maintenanceSlots = Slot::where('status', 'maintenance')->count();
+            // Get slot counts from Atiqah's database (BEFORE pagination)
+            $totalSlots = Slot::count();
+            $availableSlots = Slot::where('status', 'available')->count();
+            $occupiedSlots = Slot::where('status', 'occupied')->count();
+            $maintenanceSlots = Slot::where('status', 'maintenance')->count();
 
-        // Then paginate
-        $slots = Slot::with(['animals', 'inventories'])
-            ->orderBy('sectionID')
-            ->orderBy('name')
-            ->paginate(9);
+            // Get slots with relationships from Atiqah's database
+            // animals() is a cross-database relationship to Shafiqah
+            $slots = Slot::with(['animals', 'inventories'])
+                ->orderBy('sectionID')
+                ->orderBy('name')
+                ->paginate(9);
 
-        $categories = Category::all();
+            // Get categories from Atiqah's database
+            $categories = Category::all();
 
-        return view('shelter-management.index', compact(
-            'sections',
-            'slots',
-            'categories',
-            'totalSlots',
-            'availableSlots',
-            'occupiedSlots',
-            'maintenanceSlots'
-        ));
+            return view('shelter-management.index', compact(
+                'sections',
+                'slots',
+                'categories',
+                'totalSlots',
+                'availableSlots',
+                'occupiedSlots',
+                'maintenanceSlots'
+            ));
+
+        } catch (\Exception $e) {
+            Log::error('Error loading shelter management index: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return view('shelter-management.index', [
+                'sections' => collect(),
+                'slots' => new \Illuminate\Pagination\LengthAwarePaginator([], 0, 9),
+                'categories' => collect(),
+                'totalSlots' => 0,
+                'availableSlots' => 0,
+                'occupiedSlots' => 0,
+                'maintenanceSlots' => 0,
+            ])->with('error', 'Unable to load shelter data. Please try again.');
+        }
     }
 
-    // SECTION METHODS
+    // ========================================
+    // SECTION METHODS (Atiqah's database)
+    // ========================================
+
     public function storeSection(Request $request)
     {
         $validated = $request->validate([
@@ -49,6 +79,7 @@ class ShelterManagementController extends Controller
             'description' => 'required|string|max:1000',
         ]);
 
+        // Create section in Atiqah's database
         Section::create($validated);
 
         return redirect()->back()->with('success', 'Section created successfully!');
@@ -56,6 +87,7 @@ class ShelterManagementController extends Controller
 
     public function editSection($id)
     {
+        // Get section from Atiqah's database
         $section = Section::findOrFail($id);
         return response()->json($section);
     }
@@ -67,6 +99,7 @@ class ShelterManagementController extends Controller
             'description' => 'required|string|max:1000',
         ]);
 
+        // Update section in Atiqah's database
         $section = Section::findOrFail($id);
         $section->update($validated);
 
@@ -75,9 +108,10 @@ class ShelterManagementController extends Controller
 
     public function deleteSection($id)
     {
+        // Get section from Atiqah's database
         $section = Section::findOrFail($id);
 
-        // Check if section has slots
+        // Check if section has slots (same database check)
         if ($section->slots()->count() > 0) {
             return redirect()->back()->with('error', 'Cannot delete section with existing slots!');
         }
@@ -87,15 +121,20 @@ class ShelterManagementController extends Controller
         return redirect()->back()->with('success', 'Section deleted successfully!');
     }
 
+    // ========================================
+    // SLOT METHODS (Atiqah's database)
+    // ========================================
+
     public function storeSlot(Request $request)
     {
         try {
             $validated = $request->validate([
                 'name' => 'required|string|max:255',
-                'sectionID' => 'required|exists:section,id', // Changed to sectionID and correct table name
+                'sectionID' => 'required|exists:section,id', // Same database validation
                 'capacity' => 'required|integer|min:1',
             ]);
 
+            // Create slot in Atiqah's database
             $validated['status'] = 'available';
             Slot::create($validated);
 
@@ -116,12 +155,13 @@ class ShelterManagementController extends Controller
     public function editSlot($id)
     {
         try {
+            // Get slot from Atiqah's database
             $slot = Slot::findOrFail($id);
 
             return response()->json([
                 'id' => $slot->id,
                 'name' => $slot->name,
-                'sectionID' => $slot->sectionID, // Changed from 'section' to 'sectionID'
+                'sectionID' => $slot->sectionID,
                 'capacity' => $slot->capacity,
                 'status' => $slot->status,
             ]);
@@ -135,21 +175,24 @@ class ShelterManagementController extends Controller
 
     public function updateSlot(Request $request, $id)
     {
+        // Use multi-database transaction (Atiqah for slot, Shafiqah for animal count)
+        DB::connection('atiqah')->beginTransaction();
+
         try {
             $validated = $request->validate([
                 'name' => 'required|string|max:255',
                 'sectionID' => 'required|exists:section,id',
                 'capacity' => 'required|integer|min:1',
-                'status' => 'nullable|in:available,occupied,maintenance', // Made nullable since we'll auto-calculate
+                'status' => 'nullable|in:available,occupied,maintenance',
             ]);
 
+            // Get slot from Atiqah's database
             $slot = Slot::findOrFail($id);
 
-            // Get current animal count
-            $animalCount = $slot->animals()->count();
+            // Get current animal count (cross-database query to Shafiqah)
+            $animalCount = Animal::where('slotID', $slot->id)->count();
 
             // Auto-calculate status based on capacity and animal count
-            // Only respect manual 'maintenance' status, otherwise auto-calculate
             if ($request->status === 'maintenance') {
                 $validated['status'] = 'maintenance';
             } else {
@@ -163,16 +206,23 @@ class ShelterManagementController extends Controller
                 }
             }
 
+            // Update slot in Atiqah's database
             $slot->update($validated);
+
+            DB::connection('atiqah')->commit();
 
             return redirect()->back()->with('success', 'Slot updated successfully!');
 
         } catch (\Illuminate\Validation\ValidationException $e) {
+            DB::connection('atiqah')->rollBack();
+
             return redirect()->back()
                 ->withErrors($e->errors())
                 ->withInput()
                 ->with('error', 'Please check the form and try again.');
         } catch (\Exception $e) {
+            DB::connection('atiqah')->rollBack();
+
             return redirect()->back()
                 ->withInput()
                 ->with('error', 'Failed to update slot: ' . $e->getMessage());
@@ -182,13 +232,18 @@ class ShelterManagementController extends Controller
     public function deleteSlot($id)
     {
         try {
+            // Get slot from Atiqah's database
             $slot = Slot::findOrFail($id);
 
-            if ($slot->animals()->count() > 0) {
+            // Check if slot has animals (cross-database query to Shafiqah)
+            $animalCount = Animal::where('slotID', $slot->id)->count();
+
+            if ($animalCount > 0) {
                 return redirect()->back()
                     ->with('error', 'Cannot delete slot with animals. Please relocate them first.');
             }
 
+            // Delete slot from Atiqah's database
             $slot->delete();
 
             return redirect()->back()->with('success', 'Slot deleted successfully!');
@@ -199,7 +254,10 @@ class ShelterManagementController extends Controller
         }
     }
 
-    // CATEGORY METHODS
+    // ========================================
+    // CATEGORY METHODS (Atiqah's database)
+    // ========================================
+
     public function storeCategory(Request $request)
     {
         $validated = $request->validate([
@@ -207,6 +265,7 @@ class ShelterManagementController extends Controller
             'sub' => 'required|string|max:255',
         ]);
 
+        // Create category in Atiqah's database
         Category::create($validated);
 
         return redirect()->back()->with('success', 'Category created successfully!');
@@ -214,6 +273,7 @@ class ShelterManagementController extends Controller
 
     public function editCategory($id)
     {
+        // Get category from Atiqah's database
         $category = Category::findOrFail($id);
         return response()->json($category);
     }
@@ -225,6 +285,7 @@ class ShelterManagementController extends Controller
             'sub' => 'required|string|max:255',
         ]);
 
+        // Update category in Atiqah's database
         $category = Category::findOrFail($id);
         $category->update($validated);
 
@@ -233,9 +294,10 @@ class ShelterManagementController extends Controller
 
     public function deleteCategory($id)
     {
+        // Get category from Atiqah's database
         $category = Category::findOrFail($id);
 
-        // Check if category has inventories
+        // Check if category has inventories (same database check)
         if ($category->inventories()->count() > 0) {
             return redirect()->back()->with('error', 'Cannot delete category with existing inventory items!');
         }
@@ -245,29 +307,42 @@ class ShelterManagementController extends Controller
         return redirect()->back()->with('success', 'Category deleted successfully!');
     }
 
+    // ========================================
+    // ANIMAL DETAILS (Shafiqah's database)
+    // ========================================
+
     public function getAnimalDetails($id)
     {
         try {
-            $animal = Animal::findOrFail($id);
+            // Validate animal exists in Shafiqah's database
+            if (!ForeignKeyValidator::validateAnimal($id)) {
+                return response()->json([
+                    'error' => 'Animal not found'
+                ], 404);
+            }
 
-            $medicals = $animal->medicals()->with('vet')->get();
-            $vaccinations = $animal->vaccinations()->with('vet')->get();
-            $images = $animal->images()->get();
+            // Get animal from Shafiqah's database with relationships
+            $animal = Animal::with([
+                'medicals.vet',      // Shafiqah -> Shafiqah
+                'vaccinations.vet',  // Shafiqah -> Shafiqah
+                'images'             // Cross-database to Eilya
+            ])->findOrFail($id);
 
             return response()->json([
                 'id' => $animal->id,
                 'name' => $animal->name ?? 'Unknown',
                 'species' => $animal->species ?? 'Unknown',
-                'breed' => $animal->breed ?? 'Unknown',
+                'age' => $animal->age ?? 'Unknown',
+                'gender' => $animal->gender ?? 'Unknown',
                 'adoption_status' => $animal->adoption_status ?? 'unknown',
                 'health_details' => $animal->health_details ?? 'No health details available.',
-                'images' => $images->map(function($image) {
+                'images' => $animal->images->map(function($image) {
                     return [
                         'id' => $image->id,
                         'path' => $image->image_path,
                     ];
                 }),
-                'medicals' => $medicals->map(function($medical) {
+                'medicals' => $animal->medicals->map(function($medical) {
                     return [
                         'id' => $medical->id,
                         'treatment' => $medical->treatment_type ?? 'N/A',
@@ -278,7 +353,7 @@ class ShelterManagementController extends Controller
                         'vet_name' => $medical->vet->name ?? 'Unknown',
                     ];
                 }),
-                'vaccinations' => $vaccinations->map(function($vaccination) {
+                'vaccinations' => $animal->vaccinations->map(function($vaccination) {
                     return [
                         'id' => $vaccination->id,
                         'vaccine_name' => $vaccination->name ?? 'N/A',
@@ -293,7 +368,7 @@ class ShelterManagementController extends Controller
             ]);
 
         } catch (\Exception $e) {
-            \Log::error('Animal details error for ID ' . $id . ': ' . $e->getMessage());
+            Log::error('Animal details error for ID ' . $id . ': ' . $e->getMessage());
             return response()->json([
                 'error' => 'Failed to load animal details',
                 'message' => config('app.debug') ? $e->getMessage() : 'An error occurred'
@@ -301,21 +376,32 @@ class ShelterManagementController extends Controller
         }
     }
 
+    // ========================================
+    // SLOT DETAILS (Atiqah + Shafiqah cross-database)
+    // ========================================
+
     public function getSlotDetails($id)
     {
         try {
-            // Add 'section' relationship to eager load
+            // Validate slot exists in Atiqah's database
+            if (!ForeignKeyValidator::validateSlot($id)) {
+                return response()->json([
+                    'error' => 'Slot not found'
+                ], 404);
+            }
+
+            // Get slot from Atiqah's database with relationships
             $slot = Slot::with([
-                'section', // ADD THIS - to load section relationship
-                'animals.vaccinations',
-                'animals.medicals',
-                'inventories.category'
+                'section',                     // Atiqah -> Atiqah
+                'animals.vaccinations',        // Atiqah -> Shafiqah -> Shafiqah
+                'animals.medicals',            // Atiqah -> Shafiqah -> Shafiqah
+                'inventories.category'         // Atiqah -> Atiqah -> Atiqah
             ])->findOrFail($id);
 
             return response()->json([
                 'id' => $slot->id,
                 'name' => $slot->name,
-                'section' => $slot->section ? [ // CHANGED - return section object
+                'section' => $slot->section ? [
                     'id' => $slot->section->id,
                     'name' => $slot->section->name,
                     'description' => $slot->section->description,
@@ -331,7 +417,6 @@ class ShelterManagementController extends Controller
                         'gender' => $animal->gender,
                         'adoption_status' => $animal->adoption_status,
                         'health_details' => $animal->health_details,
-                        // Optional: Add vaccination and medical counts
                         'vaccinations_count' => $animal->vaccinations->count(),
                         'medicals_count' => $animal->medicals->count(),
                     ];
@@ -345,37 +430,49 @@ class ShelterManagementController extends Controller
                             'sub' => $inventory->category->sub,
                         ] : null,
                         'quantity' => $inventory->quantity,
-                        'unit' => $inventory->unit,
-                        'description' => $inventory->description,
                         'brand' => $inventory->brand,
+                        'weight' => $inventory->weight,
                         'status' => $inventory->status,
                     ];
                 }),
             ]);
 
         } catch (\Exception $e) {
-            \Log::error('Slot details fetch error: ' . $e->getMessage());
+            Log::error('Slot details fetch error: ' . $e->getMessage());
 
             return response()->json([
                 'error' => 'Slot not found',
-                'message' => $e->getMessage() // Add this for debugging
+                'message' => config('app.debug') ? $e->getMessage() : 'An error occurred'
             ], 404);
         }
     }
+
+    // ========================================
+    // INVENTORY METHODS (Atiqah's database)
+    // ========================================
 
     public function storeInventory(Request $request)
     {
         try {
             $validated = $request->validate([
-                'slotID' => 'required|exists:slot,id',
+                'slotID' => [
+                    'required',
+                    function ($attribute, $value, $fail) {
+                        // Validate slot exists in Atiqah's database
+                        if (!ForeignKeyValidator::validateSlot($value)) {
+                            $fail('The selected slot does not exist.');
+                        }
+                    },
+                ],
                 'item_name' => 'required|string|max:255',
-                'categoryID' => 'required|exists:category,id',
+                'categoryID' => 'required|exists:category,id', // Same database
                 'quantity' => 'required|integer|min:0',
                 'weight' => 'nullable|numeric|min:0',
                 'brand' => 'nullable|string|max:255',
                 'status' => 'required|in:available,low,out',
             ]);
 
+            // Create inventory in Atiqah's database
             Inventory::create($validated);
 
             return redirect()->back()->with('success', 'Inventory item added successfully!');
@@ -389,7 +486,8 @@ class ShelterManagementController extends Controller
     public function getInventoryDetails($id)
     {
         try {
-            $inventory = Inventory::with(['category', 'slot'])->findOrFail($id);
+            // Get inventory from Atiqah's database with relationships
+            $inventory = Inventory::with(['category', 'slot.section'])->findOrFail($id);
 
             return response()->json([
                 'id' => $inventory->id,
@@ -401,8 +499,9 @@ class ShelterManagementController extends Controller
                 'categoryID' => $inventory->categoryID,
                 'category_main' => $inventory->category->main ?? null,
                 'category_sub' => $inventory->category->sub ?? null,
+                'slotID' => $inventory->slotID,
                 'slot_name' => $inventory->slot->name ?? null,
-                'slot_section' => $inventory->slot->section ?? null,
+                'slot_section' => $inventory->slot->section->name ?? null,
             ]);
 
         } catch (\Exception $e) {
@@ -422,6 +521,7 @@ class ShelterManagementController extends Controller
                 'status' => 'required|in:available,low,out',
             ]);
 
+            // Update inventory in Atiqah's database
             $inventory = Inventory::findOrFail($id);
             $inventory->update($validated);
 
@@ -437,6 +537,7 @@ class ShelterManagementController extends Controller
     public function deleteInventory($id)
     {
         try {
+            // Delete inventory from Atiqah's database
             $inventory = Inventory::findOrFail($id);
             $inventory->delete();
 

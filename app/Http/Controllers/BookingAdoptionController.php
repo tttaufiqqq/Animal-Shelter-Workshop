@@ -13,36 +13,43 @@ use App\Models\Adoption;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\DB;
+use App\Services\ForeignKeyValidator;
 
 
 class BookingAdoptionController extends Controller
 {
+    /**
+     * Show user's bookings
+     * Bookings from Danish's database, Animals from Shafiqah's database
+     */
     public function userBookings()
     {
+        // Get bookings from Danish's database with cross-database relationship to animals
         $bookings = Booking::with('animals')
             ->where('userID', auth()->id())
-            ->orderBy('appointment_date', 'desc')->get();
+            ->orderBy('appointment_date', 'desc')
+            ->get();
+
         return view('booking-adoption.main', compact('bookings'));
     }
 
-    // Show visit list
     /**
      * Show user's visit list.
+     * Visit List from Danish's database, Animals from Shafiqah's database
      */
-    //BookingAdoptionController.php
     public function indexList()
     {
         $user = Auth::user();
 
-        // Find or create the user's visit list
+        // Find or create the user's visit list in Danish's database
         $visitList = VisitList::firstOrCreate([
             'userID' => $user->id,
         ]);
 
-        // Load animals with their images and pending bookings
+        // Load animals from Shafiqah's database with cross-database relationships
         $animals = $visitList->animals()
             ->with([
-                'images', // Add this to eager load images
+                'images', // Cross-database to Eilya
                 'bookings' => function($query) use ($user) {
                     $query->where('userID', $user->id)
                         ->where('status', 'Pending')
@@ -56,18 +63,25 @@ class BookingAdoptionController extends Controller
 
     /**
      * Add an animal to the user's visit list.
+     * Visit List in Danish's database, Animal in Shafiqah's database
      */
     public function addList($animalId)
     {
         $user = Auth::user();
 
-        // Validate animal exists
+        // Validate animal exists in Shafiqah's database
+        if (!ForeignKeyValidator::validateAnimal($animalId)) {
+            return back()->with('error', 'Animal does not exist.');
+        }
+
+        // Get animal details from Shafiqah's database
         $animal = Animal::find($animalId);
         if (!$animal) {
             return back()->with('error', 'Animal does not exist.');
         }
 
-        // ===== CHECK 1: Prevent adding if user has active booking for this animal =====
+        // CHECK 1: Prevent adding if user has active booking for this animal
+        // Query Danish's database for bookings
         $hasActiveBooking = Booking::where('userID', $user->id)
             ->whereIn('status', ['Pending', 'Confirmed'])
             ->whereHas('animals', function ($query) use ($animalId) {
@@ -78,20 +92,18 @@ class BookingAdoptionController extends Controller
         if ($hasActiveBooking) {
             return back()->with('error', "You already have an active booking for {$animal->name}. You cannot add this animal to your visit list.");
         }
-        // ===== END CHECK 1 =====
 
-        // Ensure visit list exists
+        // Ensure visit list exists in Danish's database
         $visitList = VisitList::firstOrCreate([
             'userID' => $user->id
         ]);
 
-        // ===== CHECK 2: Prevent duplicate in visit list =====
+        // CHECK 2: Prevent duplicate in visit list
         if ($visitList->animals()->where('animalID', $animalId)->exists()) {
             return back()->with('error', 'This animal is already in your visit list.');
         }
-        // ===== END CHECK 2 =====
 
-        // Attach to pivot table
+        // Attach to pivot table in Danish's database (cross-database reference to Shafiqah)
         $visitList->animals()->attach($animalId, [
             'created_at' => now(),
             'updated_at' => now(),
@@ -102,6 +114,7 @@ class BookingAdoptionController extends Controller
 
     /**
      * Remove an animal from the visit list.
+     * Visit List in Danish's database
      */
     public function removeList($animalId)
     {
@@ -112,25 +125,39 @@ class BookingAdoptionController extends Controller
             return back()->with('error', 'Visit list not found.');
         }
 
+        // Remove from pivot table in Danish's database
         $visitList->animals()->detach($animalId);
 
         return back()->with('success', 'Animal removed from your visit list.');
     }
 
-     /* Confirm appointment (convert visit list -> booking + booking_animal)
+    /**
+     * Confirm appointment (convert visit list -> booking + booking_animal)
+     * Multi-database transaction: Danish (bookings, visit lists) and Shafiqah (animals)
      */
     public function confirmAppointment(Request $request)
     {
         try {
-            \Log::info('=== CONFIRM APPOINTMENT STARTED ===');
-            \Log::info('Request data:', $request->all());
+            Log::info('=== CONFIRM APPOINTMENT STARTED ===');
+            Log::info('Request data:', $request->all());
 
             // Validation
             $validated = $request->validate([
                 'appointment_date' => 'required|date|after_or_equal:today',
                 'appointment_time' => 'required',
-                'animal_ids' => 'required|array|min:1',
-                'animal_ids.*' => 'required|exists:animal,id',
+                'animal_ids' => [
+                    'required',
+                    'array',
+                    'min:1',
+                    function ($attribute, $value, $fail) {
+                        // Validate all animals exist in Shafiqah's database
+                        $result = ForeignKeyValidator::validateAnimals($value);
+                        if (!empty($result['invalid'])) {
+                            $fail('Some selected animals do not exist.');
+                        }
+                    },
+                ],
+                'animal_ids.*' => 'required',
                 'remarks' => 'nullable|array',
                 'remarks.*' => 'nullable|string|max:500',
                 'terms' => 'required|accepted',
@@ -142,27 +169,27 @@ class BookingAdoptionController extends Controller
                 'terms.accepted' => 'You must accept the terms and conditions.',
             ]);
 
-            \Log::info('Validation passed');
+            Log::info('Validation passed');
 
             $user = Auth::user();
 
-            // Get the user's VISIT LIST
+            // Get the user's VISIT LIST from Danish's database
             $visitList = VisitList::where('userID', $user->id)->first();
 
             if (!$visitList || $visitList->animals->isEmpty()) {
-                \Log::warning('No visit list found for user', ['user_id' => $user->id]);
+                Log::warning('No visit list found for user', ['user_id' => $user->id]);
                 return back()
                     ->with('error', 'Your visit list is empty.')
                     ->with('open_visit_modal', true);
             }
 
-            \Log::info('Found visit list', ['visit_list_id' => $visitList->id]);
+            Log::info('Found visit list', ['visit_list_id' => $visitList->id]);
 
             // Verify all selected animals are in the visit list
             $visitListAnimalIds = $visitList->animals->pluck('id')->toArray();
             $requestedAnimalIds = $validated['animal_ids'];
 
-            \Log::info('Animal verification', [
+            Log::info('Animal verification', [
                 'visit_list_animals' => $visitListAnimalIds,
                 'requested_animals' => $requestedAnimalIds
             ]);
@@ -170,7 +197,7 @@ class BookingAdoptionController extends Controller
             // Check if all requested animals are in the visit list
             $invalidAnimals = array_diff($requestedAnimalIds, $visitListAnimalIds);
             if (!empty($invalidAnimals)) {
-                \Log::warning('Invalid animals requested', ['invalid_ids' => $invalidAnimals]);
+                Log::warning('Invalid animals requested', ['invalid_ids' => $invalidAnimals]);
                 return back()
                     ->with('error', 'Some selected animals are not in your visit list.')
                     ->with('open_visit_modal', true);
@@ -179,7 +206,8 @@ class BookingAdoptionController extends Controller
             $appointmentDate = $validated['appointment_date'];
             $appointmentTime = $validated['appointment_time'];
 
-            // ===== CHECK 1: ANIMAL AVAILABILITY (Pending/Confirmed bookings) =====
+            // CHECK 1: ANIMAL AVAILABILITY (Pending/Confirmed bookings)
+            // Cross-database query: Animals from Shafiqah, Bookings from Danish
             $conflictingAnimals = Animal::whereIn('id', $requestedAnimalIds)
                 ->whereHas('bookings', function ($query) use ($appointmentDate, $appointmentTime) {
                     $query->where('appointment_date', $appointmentDate)
@@ -190,7 +218,7 @@ class BookingAdoptionController extends Controller
 
             if ($conflictingAnimals->isNotEmpty()) {
                 $animalNames = $conflictingAnimals->pluck('name')->join(', ');
-                \Log::warning('Animals not available - already booked', [
+                Log::warning('Animals not available - already booked', [
                     'conflicting_animals' => $conflictingAnimals->pluck('name')->toArray(),
                     'date' => $appointmentDate,
                     'time' => $appointmentTime
@@ -202,8 +230,8 @@ class BookingAdoptionController extends Controller
                     ->withInput();
             }
 
-            // ===== CHECK 2: PREVENT DUPLICATE BOOKINGS (including cancelled ones) =====
-            // Check if user is trying to rebook the same animals at the same time slot
+            // CHECK 2: PREVENT DUPLICATE BOOKINGS (including cancelled ones)
+            // Query Danish's database for existing bookings
             $existingUserBookings = Booking::where('userID', $user->id)
                 ->where('appointment_date', $appointmentDate)
                 ->where('appointment_time', $appointmentTime)
@@ -228,7 +256,7 @@ class BookingAdoptionController extends Controller
                     $bookingStatuses = $existingUserBookings->pluck('status')->unique()->toArray();
                     $statusText = implode(', ', $bookingStatuses);
 
-                    \Log::warning('Duplicate booking attempt detected', [
+                    Log::warning('Duplicate booking attempt detected', [
                         'user_id' => $user->id,
                         'duplicate_animals' => $duplicateAnimals,
                         'existing_statuses' => $bookingStatuses,
@@ -242,13 +270,13 @@ class BookingAdoptionController extends Controller
                         ->withInput();
                 }
             }
-            // ===== END AVAILABILITY CHECKS =====
 
-            // Use database transaction to ensure data integrity
-            DB::beginTransaction();
+            // Use database transaction for Danish's database only
+            // (Animals in Shafiqah are only read, not modified)
+            DB::connection('danish')->beginTransaction();
 
             try {
-                // Create new booking
+                // Create new booking in Danish's database
                 $booking = Booking::create([
                     'userID' => $user->id,
                     'status' => 'Pending',
@@ -256,9 +284,10 @@ class BookingAdoptionController extends Controller
                     'appointment_time' => $appointmentTime,
                 ]);
 
-                \Log::info('Created booking', ['booking_id' => $booking->id]);
+                Log::info('Created booking', ['booking_id' => $booking->id]);
 
-                // Attach animals with remarks to the booking
+                // Attach animals with remarks to the booking (animal_booking pivot table in Danish)
+                // This creates cross-database references to Shafiqah's animals
                 $animalData = [];
                 foreach ($validated['animal_ids'] as $animalId) {
                     $animalData[$animalId] = [
@@ -269,30 +298,30 @@ class BookingAdoptionController extends Controller
                 }
 
                 $booking->animals()->attach($animalData);
-                \Log::info('Attached animals to booking', ['count' => count($animalData)]);
+                Log::info('Attached animals to booking', ['count' => count($animalData)]);
 
-                // Remove the confirmed animals from the visit list
+                // Remove the confirmed animals from the visit list (Danish's database)
                 $visitList->animals()->detach($validated['animal_ids']);
-                \Log::info('Removed animals from visit list');
+                Log::info('Removed animals from visit list');
 
                 // If visit list has no more animals, delete it
                 if ($visitList->animals()->count() === 0) {
                     $visitList->delete();
-                    \Log::info('Deleted empty visit list');
+                    Log::info('Deleted empty visit list');
                 }
 
-                DB::commit();
-                \Log::info('=== CONFIRM APPOINTMENT COMPLETED SUCCESSFULLY ===');
+                DB::connection('danish')->commit();
+                Log::info('=== CONFIRM APPOINTMENT COMPLETED SUCCESSFULLY ===');
 
                 return redirect()->route('animal-management.index')
                     ->with('success', 'Your visit appointment has been scheduled! View them at My Booking tab');
 
             } catch (\Illuminate\Database\QueryException $e) {
-                DB::rollBack();
+                DB::connection('danish')->rollBack();
 
                 // Check if it's a unique constraint violation
                 if ($e->getCode() == 23000 || strpos($e->getMessage(), 'unique') !== false) {
-                    \Log::error('Duplicate booking detected', [
+                    Log::error('Duplicate booking detected', [
                         'user_id' => $user->id,
                         'date' => $appointmentDate,
                         'time' => $appointmentTime,
@@ -309,7 +338,7 @@ class BookingAdoptionController extends Controller
             }
 
         } catch (\Illuminate\Validation\ValidationException $e) {
-            \Log::error('Validation failed', ['errors' => $e->errors()]);
+            Log::error('Validation failed', ['errors' => $e->errors()]);
 
             return back()
                 ->withErrors($e->errors())
@@ -317,11 +346,11 @@ class BookingAdoptionController extends Controller
                 ->with('open_visit_modal', true);
 
         } catch (\Exception $e) {
-            if (DB::transactionLevel() > 0) {
-                DB::rollBack();
+            if (DB::connection('danish')->transactionLevel() > 0) {
+                DB::connection('danish')->rollBack();
             }
 
-            \Log::error('Booking Confirmation Error: ' . $e->getMessage(), [
+            Log::error('Booking Confirmation Error: ' . $e->getMessage(), [
                 'user_id' => Auth::id(),
                 'trace' => $e->getTraceAsString(),
             ]);
@@ -332,15 +361,20 @@ class BookingAdoptionController extends Controller
         }
     }
 
+    /**
+     * Display user's bookings
+     * Bookings from Danish's database
+     */
     public function index(Request $request)
     {
+        // Query Danish's database with cross-database relationships
         $query = Booking::where('userID', Auth::id())
             ->with([
-                'animals.images',       // For displaying animal photos
-                'animals.medicals',     // For calculating medical fees
-                'animals.vaccinations', // For calculating vaccination fees
-                'user',                 // For booker information
-                'adoptions'             // For showing adoption status
+                'animals.images',       // Danish -> Shafiqah -> Eilya
+                'animals.medicals',     // Danish -> Shafiqah -> Shafiqah
+                'animals.vaccinations', // Danish -> Shafiqah -> Shafiqah
+                'user',                 // Danish -> Taufiq (cross-database)
+                'adoptions'             // Danish -> Danish
             ]);
 
         // Filter by status if provided
@@ -353,7 +387,7 @@ class BookingAdoptionController extends Controller
             ->paginate(40)
             ->appends($request->query());
 
-        // Count statuses for this user only
+        // Count statuses for this user only from Danish's database
         $statusCounts = Booking::where('userID', Auth::id())
             ->select('status', DB::raw('COUNT(*) as total'))
             ->groupBy('status')
@@ -367,15 +401,17 @@ class BookingAdoptionController extends Controller
 
     /**
      * Display a listing of all bookings for admin.
+     * Bookings from Danish's database
      */
     public function indexAdmin(Request $request)
     {
+        // Query Danish's database with cross-database relationships
         $query = Booking::with([
-            'animals.images',
-            'animals.medicals',
-            'animals.vaccinations',
-            'user',
-            'adoptions'
+            'animals.images',       // Danish -> Shafiqah -> Eilya
+            'animals.medicals',     // Danish -> Shafiqah -> Shafiqah
+            'animals.vaccinations', // Danish -> Shafiqah -> Shafiqah
+            'user',                 // Danish -> Taufiq (cross-database)
+            'adoptions'             // Danish -> Danish
         ]);
 
         // Filter by status if provided
@@ -388,6 +424,7 @@ class BookingAdoptionController extends Controller
             ->paginate(40)
             ->appends($request->query());
 
+        // Count statuses from Danish's database
         $statusCounts = Booking::select('status', DB::raw('COUNT(*) as total'))
             ->groupBy('status')
             ->pluck('total', 'status');
@@ -398,25 +435,38 @@ class BookingAdoptionController extends Controller
         return view('booking-adoption.admin', compact('bookings', 'statusCounts', 'totalBookings'));
     }
 
-    // Cancel a booking
+    /**
+     * Cancel a booking
+     * Update booking in Danish's database
+     */
     public function cancel(Booking $booking)
     {
+        // Verify ownership
         if ($booking->userID !== Auth::id()) {
             abort(403, 'Unauthorized action.');
         }
 
+        // Only allow cancellation of Pending or Confirmed bookings
         if (in_array($booking->status, ['Pending', 'Confirmed'])) {
+            // Update booking status in Danish's database
             $booking->update(['status' => 'Cancelled']);
-            return redirect()->route('booking:main')->with('success', 'Booking cancelled successfully!');
+
+            return redirect()->route('booking:main')
+                ->with('success', 'Booking cancelled successfully!');
         }
 
-        return redirect()->route('booking:main')->with('error', 'Cannot cancel this booking.');
+        return redirect()->route('booking:main')
+            ->with('error', 'Cannot cancel this booking.');
     }
 
+    /**
+     * Show adoption fee calculation
+     * Bookings from Danish's database, Animals from Shafiqah's database
+     */
     public function showAdoptionFee(Booking $booking, Request $request)
     {
         try {
-            // Authorization
+            // Authorization - check user owns this booking
             if ($booking->userID !== Auth::id()) {
                 abort(403, 'Unauthorized action.');
             }
@@ -424,10 +474,20 @@ class BookingAdoptionController extends Controller
             // Get selected animals from request (support multiple IDs)
             $animalIds = $request->query('animal_ids', $booking->animals->pluck('id')->toArray());
 
+            // Validate all animal IDs exist in Shafiqah's database
+            $validationResult = ForeignKeyValidator::validateAnimals($animalIds);
+            if (!empty($validationResult['invalid'])) {
+                Log::warning('Invalid animal IDs in fee calculation', [
+                    'invalid_ids' => $validationResult['invalid']
+                ]);
+                return back()->with('error', 'Some selected animals do not exist.');
+            }
+
+            // Get animals from Shafiqah's database with cross-database query
             // Avoid ambiguous 'id' by prefixing table name
             $animals = $booking->animals()
                 ->whereIn('animal.id', $animalIds)
-                ->with(['medicals', 'vaccinations']) // eager load
+                ->with(['medicals', 'vaccinations']) // eager load from Shafiqah's database
                 ->get();
 
             $totalFee = 0;
@@ -448,7 +508,7 @@ class BookingAdoptionController extends Controller
             return view('booking-adoption.main', compact('booking', 'animals', 'allFeeBreakdowns', 'totalFee'));
 
         } catch (\Throwable $e) {
-            \Log::error('Show Adoption Fee Error: BookingID=' . $booking->id . ' | ' . $e->getMessage(), [
+            Log::error('Show Adoption Fee Error: BookingID=' . $booking->id . ' | ' . $e->getMessage(), [
                 'trace' => $e->getTraceAsString(),
             ]);
 
@@ -462,6 +522,10 @@ class BookingAdoptionController extends Controller
         }
     }
 
+    /**
+     * Confirm booking and proceed to payment
+     * Updates Danish's database, validates animals in Shafiqah's database
+     */
     public function confirm(Request $request, $bookingId)
     {
         // Log raw received input
@@ -471,14 +535,27 @@ class BookingAdoptionController extends Controller
             'user' => auth()->id()
         ]);
 
-        try {
+        // Start transaction for Danish's database
+        DB::connection('danish')->beginTransaction();
 
+        try {
             Log::info("Running validation for booking confirmation...", ['booking_id' => $bookingId]);
 
             // Validate
             $validated = $request->validate([
-                'animal_ids' => 'required|array|min:1',
-                'animal_ids.*' => 'required|exists:animal,id',
+                'animal_ids' => [
+                    'required',
+                    'array',
+                    'min:1',
+                    function ($attribute, $value, $fail) {
+                        // Validate all animals exist in Shafiqah's database
+                        $result = ForeignKeyValidator::validateAnimals($value);
+                        if (!empty($result['invalid'])) {
+                            $fail('Some selected animals do not exist.');
+                        }
+                    },
+                ],
+                'animal_ids.*' => 'required',
                 'total_fee'   => 'required|numeric|min:0',
                 'agree_terms' => 'required|accepted',
             ], [
@@ -493,7 +570,7 @@ class BookingAdoptionController extends Controller
                 'validated'  => $validated
             ]);
 
-            // Retrieve booking
+            // Retrieve booking from Danish's database
             $booking = Booking::with('animals')->findOrFail($bookingId);
 
             // Check booking status (case-insensitive)
@@ -505,6 +582,7 @@ class BookingAdoptionController extends Controller
                     'normalized_status' => $currentStatus
                 ]);
 
+                DB::connection('danish')->rollBack();
                 return back()->with('error', 'This booking cannot be confirmed. Current status: ' . $booking->status);
             }
 
@@ -513,12 +591,8 @@ class BookingAdoptionController extends Controller
                 'status' => $booking->status
             ]);
 
-            /*
-            |--------------------------------------------------------------------------
-            | FIX: Avoid ambiguous "id" column
-            | We reference tables explicitly to avoid SQL error 42702.
-            |--------------------------------------------------------------------------
-            */
+            // Get animal IDs from animal_booking pivot table in Danish's database
+            // Avoid ambiguous "id" column by explicitly referencing table
             $bookingAnimalIDs = AnimalBooking::where('animal_booking.bookingID', $bookingId)
                 ->pluck('animal_booking.animalID')
                 ->toArray();
@@ -532,25 +606,27 @@ class BookingAdoptionController extends Controller
             // Ensure ALL selected animals belong to this booking
             foreach ($validated['animal_ids'] as $chosen) {
                 if (!in_array($chosen, $bookingAnimalIDs)) {
-
                     Log::error("Animal ID does not belong to this booking", [
                         'booking_id' => $bookingId,
                         'invalid_animal' => $chosen
                     ]);
 
+                    DB::connection('danish')->rollBack();
                     return back()->with('error', 'Invalid animal selection for this booking.');
                 }
             }
 
-            // Get selected animals for payment
+            // Get selected animals for payment from Shafiqah's database
             $selectedAnimals = Animal::whereIn('id', $validated['animal_ids'])->get();
             $animalNames = $selectedAnimals->pluck('name')->toArray();
 
-            // Update booking to Confirmed status
+            // Update booking to Confirmed status in Danish's database
             $booking->update([
                 'totalFee' => $validated['total_fee'],
-                'status' => 'Confirmed', // Use proper case
+                'status' => 'Confirmed',
             ]);
+
+            DB::connection('danish')->commit();
 
             Log::info("Booking confirmed, preparing for payment", [
                 'booking_id' => $bookingId,
@@ -570,6 +646,7 @@ class BookingAdoptionController extends Controller
             return $this->createBill($booking, $validated['total_fee'], $selectedAnimals);
 
         } catch (\Exception $e) {
+            DB::connection('danish')->rollBack();
 
             Log::error("Booking Confirmation Error: {$e->getMessage()}", [
                 'booking_id' => $bookingId,
@@ -580,13 +657,14 @@ class BookingAdoptionController extends Controller
         }
     }
 
-
-
+    /**
+     * Create ToyyibPay bill for payment
+     */
     public function createBill(Booking $booking, $adoptionFee, $selectedAnimals)
     {
         $user = Auth::user();
 
-        // Get animal names
+        // Get animal names from Shafiqah's database
         $animalNames = $selectedAnimals->pluck('name')->toArray();
         $animalCount = count($animalNames);
 
@@ -616,7 +694,7 @@ class BookingAdoptionController extends Controller
             'billExternalReferenceNo' => $referenceNo,
             'billTo' => $user->name,
             'billEmail' => $user->email,
-            'billPhone' => $user->phone ?? '0000000000',
+            'billPhone' => $user->phoneNum ?? '0000000000',
             'billSplitPayment' => 0,
             'billPaymentChannel' => 0,
             'billChargeToCustomer' => 1,
@@ -645,8 +723,8 @@ class BookingAdoptionController extends Controller
 
             return redirect('https://dev.toyyibpay.com/' . $billCode);
         } else {
-            // If bill creation fails, revert booking status back to Pending
-            $booking->update(['status' => 'Confirmed']);
+            // If bill creation fails, revert booking status back to Pending in Danish's database
+            $booking->update(['status' => 'Pending']);
 
             Log::error('Bill Creation Failed', [
                 'booking_id' => $booking->id,
@@ -657,6 +735,10 @@ class BookingAdoptionController extends Controller
         }
     }
 
+    /**
+     * Handle payment status after ToyyibPay redirect
+     * Multi-database transaction: Danish (bookings, transactions, adoptions) and Shafiqah (animals)
+     */
     public function paymentStatus(Request $request)
     {
         $statusId = $request->input('status_id');
@@ -674,92 +756,113 @@ class BookingAdoptionController extends Controller
         $paymentStatus = $this->getBillTransactions($billCode);
 
         if ($statusId == 1) {
-            // Payment Success
-            if ($bookingId) {
-                $booking = Booking::find($bookingId);
+            // Payment Success - Use multi-database transaction
+            DB::connection('danish')->beginTransaction();
+            DB::connection('shafiqah')->beginTransaction();
 
-                if ($booking) {
-                    // Update booking status to Completed
-                    $booking->update(['status' => 'Completed']);
+            try {
+                if ($bookingId) {
+                    // Get booking from Danish's database
+                    $booking = Booking::find($bookingId);
 
-                    // Update all selected animals to Adopted
-                    foreach ($animalIds as $animalId) {
-                        Animal::where('id', $animalId)->update(['adoption_status' => 'Adopted']);
-                    }
+                    if ($booking) {
+                        // Update booking status to Completed in Danish's database
+                        $booking->update(['status' => 'Completed']);
 
-                    // Create transaction record
-                    $transaction = Transaction::create([
-                        'amount' => $adoptionFee,
-                        'status' => 'Success',
-                        'remarks' => 'Adoption payment for ' . $animalNames . ' (Booking #' . $bookingId . ')',
-                        'type' => 'FPX Online Banking',
-                        'bill_code' => $billCode,
-                        'reference_no' => $referenceNo,
-                        'userID' => Auth::id(),
-                    ]);
+                        // Update all selected animals to Adopted in Shafiqah's database
+                        foreach ($animalIds as $animalId) {
+                            Animal::where('id', $animalId)->update(['adoption_status' => 'Adopted']);
+                        }
 
-                    // Create individual adoption record for EACH animal
-                    foreach ($animalIds as $index => $animalId) {
-                        $animal = Animal::find($animalId);
-                        $animalName = $animal ? $animal->name : 'Unknown';
-
-                        // Get individual fee if available, otherwise divide total equally
-                        $individualFee = isset($feeBreakdowns[$animalId])
-                            ? $feeBreakdowns[$animalId]
-                            : ($adoptionFee / count($animalIds));
-
-                        Adoption::create([
-                            'fee' => $individualFee,
-                            'remarks' => 'Adopted: ' . $animalName,
-                            'bookingID' => $bookingId,
-                            'transactionID' => $transaction->id,
-                            'animalID' => $animalId, // Link to specific animal
+                        // Create transaction record in Danish's database
+                        $transaction = Transaction::create([
+                            'amount' => $adoptionFee,
+                            'status' => 'Success',
+                            'remarks' => 'Adoption payment for ' . $animalNames . ' (Booking #' . $bookingId . ')',
+                            'type' => 'FPX Online Banking',
+                            'bill_code' => $billCode,
+                            'reference_no' => $referenceNo,
+                            'userID' => Auth::id(), // Cross-database reference to Taufiq
                         ]);
 
-                        Log::info('Adoption record created for animal', [
+                        // Create individual adoption record for EACH animal in Danish's database
+                        foreach ($animalIds as $index => $animalId) {
+                            // Get animal name from Shafiqah's database
+                            $animal = Animal::find($animalId);
+                            $animalName = $animal ? $animal->name : 'Unknown';
+
+                            // Get individual fee if available, otherwise divide total equally
+                            $individualFee = isset($feeBreakdowns[$animalId])
+                                ? $feeBreakdowns[$animalId]
+                                : ($adoptionFee / count($animalIds));
+
+                            // Create adoption record in Danish's database
+                            Adoption::create([
+                                'fee' => $individualFee,
+                                'remarks' => 'Adopted: ' . $animalName,
+                                'bookingID' => $bookingId,
+                                'transactionID' => $transaction->id,
+                            ]);
+
+                            Log::info('Adoption record created for animal', [
+                                'booking_id' => $bookingId,
+                                'animal_id' => $animalId,
+                                'animal_name' => $animalName,
+                                'fee' => $individualFee,
+                                'transaction_id' => $transaction->id
+                            ]);
+                        }
+
+                        Log::info('All adoption records created', [
                             'booking_id' => $bookingId,
-                            'animal_id' => $animalId,
-                            'animal_name' => $animalName,
-                            'fee' => $individualFee,
+                            'animal_count' => count($animalIds),
+                            'total_fee' => $adoptionFee,
+                            'animals' => $animalNames,
                             'transaction_id' => $transaction->id
                         ]);
-                    }
 
-                    Log::info('All adoption records created', [
-                        'booking_id' => $bookingId,
-                        'animal_count' => count($animalIds),
-                        'total_fee' => $adoptionFee,
-                        'animals' => $animalNames,
-                        'transaction_id' => $transaction->id
-                    ]);
-
-                    // Update user role
-                    $user = Auth::user();
-                    if ($user->hasRole('public user')) {
-                        $user->removeRole('public user');
-                        $user->assignRole('adopter');
-                    } elseif ($user->hasRole('caretaker')) {
-                        if (!$user->hasRole('adopter')) {
+                        // Update user role in Taufiq's database
+                        $user = Auth::user();
+                        if ($user->hasRole('public user')) {
+                            $user->removeRole('public user');
                             $user->assignRole('adopter');
+                        } elseif ($user->hasRole('caretaker')) {
+                            if (!$user->hasRole('adopter')) {
+                                $user->assignRole('adopter');
+                            }
                         }
+
+                        DB::connection('danish')->commit();
+                        DB::connection('shafiqah')->commit();
+
+                        // Clean up session
+                        session()->forget(['booking_id', 'adoption_fee', 'animal_ids', 'animal_names', 'bill_code', 'reference_no', 'fee_breakdowns']);
+
+                        Log::info('Payment Success', [
+                            'booking_id' => $bookingId,
+                            'amount' => $adoptionFee,
+                            'animal_ids' => $animalIds,
+                            'animal_count' => count($animalIds),
+                            'bill_code' => $billCode,
+                            'reference_no' => $referenceNo
+                        ]);
                     }
-
-                    // Clean up session
-                    session()->forget(['booking_id', 'adoption_fee', 'animal_ids', 'animal_names', 'bill_code', 'reference_no', 'fee_breakdowns']);
-
-                    Log::info('Payment Success', [
-                        'booking_id' => $bookingId,
-                        'amount' => $adoptionFee,
-                        'animal_ids' => $animalIds,
-                        'animal_count' => count($animalIds),
-                        'bill_code' => $billCode,
-                        'reference_no' => $referenceNo
-                    ]);
                 }
+            } catch (\Exception $e) {
+                DB::connection('danish')->rollBack();
+                DB::connection('shafiqah')->rollBack();
+
+                Log::error('Payment processing error: ' . $e->getMessage(), [
+                    'booking_id' => $bookingId,
+                    'trace' => $e->getTraceAsString()
+                ]);
+
+                throw $e;
             }
         } else {
             // Payment Failed/Pending - Booking remains in 'Confirmed' status
             if ($bookingId) {
+                // Get booking from Danish's database
                 $booking = Booking::find($bookingId);
 
                 if ($booking && strtolower($booking->status) == 'confirmed') {
@@ -771,7 +874,7 @@ class BookingAdoptionController extends Controller
                         'reference_no' => $referenceNo
                     ]);
 
-                    // Create failed transaction record
+                    // Create failed transaction record in Danish's database
                     Transaction::create([
                         'amount' => $adoptionFee,
                         'status' => 'Failed',
@@ -779,7 +882,7 @@ class BookingAdoptionController extends Controller
                         'type' => 'Adoption Fee',
                         'bill_code' => $billCode,
                         'reference_no' => $referenceNo,
-                        'userID' => Auth::id(),
+                        'userID' => Auth::id(), // Cross-database reference to Taufiq
                     ]);
                 }
             }
@@ -798,6 +901,10 @@ class BookingAdoptionController extends Controller
         ]);
     }
 
+    /**
+     * Handle ToyyibPay callback
+     * Multi-database update: Danish (bookings, transactions) and Shafiqah (animals)
+     */
     public function callback(Request $request)
     {
         Log::info('ToyyibPay Callback:', $request->all());
@@ -810,36 +917,54 @@ class BookingAdoptionController extends Controller
             $parts = explode('-', $referenceNo);
             if (isset($parts[1])) {
                 $bookingId = $parts[1];
-                $booking = Booking::find($bookingId);
 
-                if ($booking && $statusId == 1) {
-                    // Payment successful - update booking to Completed
-                    $booking->update(['status' => 'Completed']);
+                // Use multi-database transaction
+                DB::connection('danish')->beginTransaction();
+                DB::connection('shafiqah')->beginTransaction();
 
-                    // Update all animals in this booking to Adopted
-                    $animalIds = $booking->animals->pluck('id')->toArray();
-                    foreach ($animalIds as $animalId) {
-                        Animal::where('id', $animalId)->update(['adoption_status' => 'Adopted']);
-                    }
+                try {
+                    // Get booking from Danish's database
+                    $booking = Booking::find($bookingId);
 
-                    // Check if transaction already exists
-                    $existingTransaction = Transaction::where('bill_code', $billCode)->first();
-                    if (!$existingTransaction) {
-                        Transaction::create([
-                            'amount' => $request->input('amount') / 100,
-                            'status' => 'Success',
-                            'remarks' => 'Adoption payment (Callback) - Booking #' . $bookingId . ' (' . count($animalIds) . ' animals)',
-                            'date' => now(),
-                            'type' => 'Adoption Fee',
-                            'bill_code' => $billCode,
-                            'reference_no' => $referenceNo,
-                            'userID' => $booking->userID,
+                    if ($booking && $statusId == 1) {
+                        // Payment successful - update booking to Completed in Danish's database
+                        $booking->update(['status' => 'Completed']);
+
+                        // Update all animals in this booking to Adopted in Shafiqah's database
+                        $animalIds = $booking->animals->pluck('id')->toArray();
+                        foreach ($animalIds as $animalId) {
+                            Animal::where('id', $animalId)->update(['adoption_status' => 'Adopted']);
+                        }
+
+                        // Check if transaction already exists in Danish's database
+                        $existingTransaction = Transaction::where('bill_code', $billCode)->first();
+                        if (!$existingTransaction) {
+                            Transaction::create([
+                                'amount' => $request->input('amount') / 100,
+                                'status' => 'Success',
+                                'remarks' => 'Adoption payment (Callback) - Booking #' . $bookingId . ' (' . count($animalIds) . ' animals)',
+                                'type' => 'Adoption Fee',
+                                'bill_code' => $billCode,
+                                'reference_no' => $referenceNo,
+                                'userID' => $booking->userID, // Cross-database reference to Taufiq
+                            ]);
+                        }
+
+                        DB::connection('danish')->commit();
+                        DB::connection('shafiqah')->commit();
+
+                        Log::info('Callback: Booking Completed', [
+                            'booking_id' => $bookingId,
+                            'animal_count' => count($animalIds),
                         ]);
                     }
+                } catch (\Exception $e) {
+                    DB::connection('danish')->rollBack();
+                    DB::connection('shafiqah')->rollBack();
 
-                    Log::info('Callback: Booking Completed', [
+                    Log::error('Callback processing error: ' . $e->getMessage(), [
                         'booking_id' => $bookingId,
-                        'animal_count' => count($animalIds),
+                        'trace' => $e->getTraceAsString()
                     ]);
                 }
             }
@@ -848,6 +973,9 @@ class BookingAdoptionController extends Controller
         return response()->json(['status' => 'success']);
     }
 
+    /**
+     * Get bill transactions from ToyyibPay
+     */
     private function getBillTransactions($billCode)
     {
         $url = 'https://dev.toyyibpay.com/index.php/api/getBillTransactions';
@@ -858,5 +986,25 @@ class BookingAdoptionController extends Controller
         ]);
 
         return $response->json();
+    }
+
+    /**
+     * Calculate adoption fee based on medical and vaccination records
+     * (Add this method if it doesn't exist in your original controller)
+     */
+    private function calculateAdoptionFee($animal, $medicalRecords, $vaccinationRecords)
+    {
+        $baseFee = 100; // Base adoption fee
+        $medicalCosts = $medicalRecords->sum('costs');
+        $vaccinationCosts = $vaccinationRecords->sum('costs');
+
+        $totalFee = $baseFee + $medicalCosts + $vaccinationCosts;
+
+        return [
+            'base_fee' => $baseFee,
+            'medical_costs' => $medicalCosts,
+            'vaccination_costs' => $vaccinationCosts,
+            'total_fee' => $totalFee,
+        ];
     }
 }

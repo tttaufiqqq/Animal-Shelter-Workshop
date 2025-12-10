@@ -59,6 +59,23 @@ The system provides different roles and dashboards for administrators, caretaker
 
 ---
 
+# Distributed Database Architecture
+
+## Overview
+This project uses a distributed database architecture with 5 separate databases.
+
+## Database Connections
+- **Taufiq (PostgreSQL)**: User Management Module
+- **Eilya (MySQL)**: Stray Reporting Management Module
+- **Atiqah (MySQL)**: Shelter Management Module
+- **Danish (SQL Server)**: Booking Adoption Management Module
+- **Shafiqah (MySQL)**: Animal Management Module
+
+## Developer Guidelines
+1. Always validate foreign keys in application layer
+2. Use ForeignKeyValidator service
+3. Test cross-database queries
+
 ## 🧩 System Architecture
 
 | Layer                   | Technology                                |

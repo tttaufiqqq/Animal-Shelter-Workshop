@@ -5,28 +5,52 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration {
+    /**
+     * Run the migrations.
+     * This migration handles tables across multiple databases:
+     * - Shafiqah: animal, clinic, vet, vaccination
+     * - Atiqah: section, slot
+     * - Eilya: image (but references tables in other databases)
+     */
     public function up(): void
     {
         /**
-         * Step 1: Create tables first (no foreign keys yet)
+         * ATIQAH'S DATABASE - Inventory Module
          */
-        Schema::create('section', function (Blueprint $table) {
+        // Create section table
+        Schema::connection('atiqah')->create('section', function (Blueprint $table) {
             $table->id();
             $table->string('name')->nullable();
             $table->text('description')->nullable();
             $table->timestamps();
         });
 
-        Schema::create('slot', function (Blueprint $table) {
+        // Create slot table
+        Schema::connection('atiqah')->create('slot', function (Blueprint $table) {
             $table->id();
             $table->string('name')->nullable();
             $table->integer('capacity')->nullable();
             $table->string('status')->nullable();
+            $table->unsignedBigInteger('sectionID')->nullable();
             $table->timestamps();
-            $table->unsignedBigInteger('sectionID')->nullable(); // FK later
+
+            // Index for performance
+            $table->index('sectionID');
         });
 
-        Schema::create('clinic', function (Blueprint $table) {
+        // Add FK for slot -> section (same database, OK to use FK)
+        Schema::connection('atiqah')->table('slot', function (Blueprint $table) {
+            $table->foreign('sectionID')
+                ->references('id')
+                ->on('section')
+                ->onDelete('set null');
+        });
+
+        /**
+         * SHAFIQAH'S DATABASE - Animal & Medical Module
+         */
+        // Create clinic table
+        Schema::connection('shafiqah')->create('clinic', function (Blueprint $table) {
             $table->id();
             $table->string('name');
             $table->string('address')->nullable();
@@ -36,7 +60,8 @@ return new class extends Migration {
             $table->timestamps();
         });
 
-        Schema::create('vet', function (Blueprint $table) {
+        // Create vet table
+        Schema::connection('shafiqah')->create('vet', function (Blueprint $table) {
             $table->id();
             $table->string('name');
             $table->string('email')->nullable();
@@ -44,24 +69,23 @@ return new class extends Migration {
             $table->string('specialization')->nullable();
             $table->string('license_no', 50)->nullable();
             $table->decimal('weight', 8, 2)->nullable();
-            $table->unsignedBigInteger('clinicID')->nullable(); // FK later
+            $table->unsignedBigInteger('clinicID')->nullable();
             $table->timestamps();
+
+            // Index for performance
+            $table->index('clinicID');
         });
 
-        Schema::create('vaccination', function (Blueprint $table) {
-            $table->id();
-            $table->string('name');
-            $table->string('type')->nullable();
-            $table->date('next_due_date')->nullable();
-            $table->text('remarks')->nullable();
-            $table->decimal('weight', 8, 2)->nullable();
-            $table->decimal('costs', 10, 2)->nullable();
-            $table->timestamps();
-            $table->unsignedBigInteger('animalID')->nullable(); // FK later
-            $table->unsignedBigInteger('vetID')->nullable();    // FK later
+        // Add FK for vet -> clinic (same database, OK to use FK)
+        Schema::connection('shafiqah')->table('vet', function (Blueprint $table) {
+            $table->foreign('clinicID')
+                ->references('id')
+                ->on('clinic')
+                ->onDelete('set null');
         });
 
-        Schema::create('animal', function (Blueprint $table) {
+        // Create animal table
+        Schema::connection('shafiqah')->create('animal', function (Blueprint $table) {
             $table->id();
             $table->string('name');
             $table->string('species')->nullable();
@@ -70,38 +94,40 @@ return new class extends Migration {
             $table->decimal('weight', 8, 2)->nullable();
             $table->enum('gender', ['Male', 'Female', 'Unknown'])->default('Unknown');
             $table->string('adoption_status')->nullable();
-            $table->unsignedBigInteger('rescueID')->nullable();     // FK later
-            $table->unsignedBigInteger('slotID')->nullable();       // FK later
+
+            // Logical FK - references Eilya's rescue table (cross-database, NO FK constraint)
+            $table->unsignedBigInteger('rescueID')->nullable();
+
+            // Logical FK - references Atiqah's slot table (cross-database, NO FK constraint)
+            $table->unsignedBigInteger('slotID')->nullable();
+
             $table->timestamps();
+
+            // Indexes for performance
+            $table->index('rescueID');
+            $table->index('slotID');
         });
 
-        Schema::create('image', function (Blueprint $table) {
+        // Create vaccination table
+        Schema::connection('shafiqah')->create('vaccination', function (Blueprint $table) {
             $table->id();
-            $table->string('image_path');
-            $table->unsignedBigInteger('animalID')->nullable(); // FK later
-            $table->unsignedBigInteger('reportID')->nullable(); // FK later
-            $table->unsignedBigInteger('clinicID')->nullable(); // FK later
+            $table->string('name');
+            $table->string('type')->nullable();
+            $table->date('next_due_date')->nullable();
+            $table->text('remarks')->nullable();
+            $table->decimal('weight', 8, 2)->nullable();
+            $table->decimal('costs', 10, 2)->nullable();
+            $table->unsignedBigInteger('animalID')->nullable();
+            $table->unsignedBigInteger('vetID')->nullable();
             $table->timestamps();
+
+            // Indexes for performance
+            $table->index('animalID');
+            $table->index('vetID');
         });
 
-        /**
-         * Step 2: Add foreign key constraints
-         */
-        Schema::table('vet', function (Blueprint $table) {
-            $table->foreign('clinicID')
-                ->references('id')
-                ->on('clinic')
-                ->onDelete('set null');
-        });
-
-        Schema::table('slot', function (Blueprint $table) {
-            $table->foreign('sectionID')
-                ->references('id')
-                ->on('section')
-                ->onDelete('set null');
-        });
-
-        Schema::table('vaccination', function (Blueprint $table) {
+        // Add FKs for vaccination (same database, OK to use FK)
+        Schema::connection('shafiqah')->table('vaccination', function (Blueprint $table) {
             $table->foreign('animalID')
                 ->references('id')
                 ->on('animal')
@@ -113,69 +139,83 @@ return new class extends Migration {
                 ->onDelete('set null');
         });
 
-        Schema::table('animal', function (Blueprint $table) {
-            $table->foreign('rescueID')
-                ->references('id')
-                ->on('rescue')
-                ->onDelete('set null');
+        /**
+         * EILYA'S DATABASE - Image table
+         * Images can belong to animals, reports, or clinics (all in different databases)
+         */
+        Schema::connection('eilya')->create('image', function (Blueprint $table) {
+            $table->id();
+            $table->string('image_path');
 
-            $table->foreign('slotID')
-                ->references('id')
-                ->on('slot')
-                ->onDelete('set null');
+            // Logical FK - references Shafiqah's animal table (cross-database, NO FK constraint)
+            $table->unsignedBigInteger('animalID')->nullable();
+
+            // Logical FK - references Eilya's report table (same database, could use FK)
+            $table->unsignedBigInteger('reportID')->nullable();
+
+            // Logical FK - references Shafiqah's clinic table (cross-database, NO FK constraint)
+            $table->unsignedBigInteger('clinicID')->nullable();
+
+            $table->timestamps();
+
+            // Indexes for performance
+            $table->index('animalID');
+            $table->index('reportID');
+            $table->index('clinicID');
         });
 
-        Schema::table('image', function (Blueprint $table) {
-            $table->foreign('animalID')
-                ->references('id')
-                ->on('animal')
-                ->onDelete('cascade');
-
+        // Add FK for image -> report only (same database, OK to use FK)
+        Schema::connection('eilya')->table('image', function (Blueprint $table) {
             $table->foreign('reportID')
                 ->references('id')
                 ->on('report')
                 ->onDelete('cascade');
-            $table->foreign('clinicID')
-                ->references('id')
-                ->on('clinic')
-                ->onDelete('cascade');
         });
     }
 
+    /**
+     * Reverse the migrations.
+     */
     public function down(): void
     {
         /**
-         * Drop FKs first (in reverse order)
+         * Drop FKs first
          */
-        Schema::table('image', function (Blueprint $table) {
-            $table->dropForeign(['animalID']);
+        // Eilya's image table
+        Schema::connection('eilya')->table('image', function (Blueprint $table) {
             $table->dropForeign(['reportID']);
-            $table->dropForeign(['clinicID']);
         });
 
-        Schema::table('animal', function (Blueprint $table) {
-            $table->dropForeign(['rescueID']);
-            $table->dropForeign(['slotID']);
-        });
-
-        Schema::table('vaccination', function (Blueprint $table) {
+        // Shafiqah's vaccination table
+        Schema::connection('shafiqah')->table('vaccination', function (Blueprint $table) {
             $table->dropForeign(['animalID']);
             $table->dropForeign(['vetID']);
         });
 
-        Schema::table('vet', function (Blueprint $table) {
+        // Shafiqah's vet table
+        Schema::connection('shafiqah')->table('vet', function (Blueprint $table) {
             $table->dropForeign(['clinicID']);
+        });
+
+        // Atiqah's slot table
+        Schema::connection('atiqah')->table('slot', function (Blueprint $table) {
+            $table->dropForeign(['sectionID']);
         });
 
         /**
          * Then drop the tables
          */
-        Schema::dropIfExists('image');
-        Schema::dropIfExists('animal');
-        Schema::dropIfExists('vaccination');
-        Schema::dropIfExists('vet');
-        Schema::dropIfExists('clinic');
-        Schema::dropIfExists('slot');
-        Schema::dropIfExists('section');
+        // Eilya's tables
+        Schema::connection('eilya')->dropIfExists('image');
+
+        // Shafiqah's tables
+        Schema::connection('shafiqah')->dropIfExists('vaccination');
+        Schema::connection('shafiqah')->dropIfExists('animal');
+        Schema::connection('shafiqah')->dropIfExists('vet');
+        Schema::connection('shafiqah')->dropIfExists('clinic');
+
+        // Atiqah's tables
+        Schema::connection('atiqah')->dropIfExists('slot');
+        Schema::connection('atiqah')->dropIfExists('section');
     }
 };

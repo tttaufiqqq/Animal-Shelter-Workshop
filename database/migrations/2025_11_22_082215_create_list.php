@@ -8,29 +8,48 @@ return new class extends Migration
 {
     /**
      * Run the migrations.
+     * These tables belong to Danish's database (Booking & Adoption Module)
      */
     public function up(): void
     {
-        Schema::create('visit_list', function (Blueprint $table) {
+        Schema::connection('danish')->create('visit_list', function (Blueprint $table) {
             $table->id();
+
+            // Logical FK - references Taufiq's users table (cross-database, NO FK constraint)
             $table->unsignedBigInteger('userID')->unique(); // one visit list per user
             $table->timestamps();
 
-            $table->foreign('userID')->references('id')->on('users')->onDelete('cascade');
+            // Index for performance
+            $table->index('userID');
         });
 
-        Schema::create('visit_list_animal', function (Blueprint $table) {
+        Schema::connection('danish')->create('visit_list_animal', function (Blueprint $table) {
             $table->id();
+
+            // FK to visit_list table (same database, OK to use FK)
             $table->unsignedBigInteger('listID');
+
+            // Logical FK - references Shafiqah's animal table (cross-database, NO FK constraint)
             $table->unsignedBigInteger('animalID');
+
             $table->text('remarks')->nullable();
             $table->timestamps();
 
-            $table->foreign('listID')->references('id')->on('visit_list')->onDelete('cascade');
-            $table->foreign('animalID')->references('id')->on('animal')->onDelete('cascade');
+            // Indexes for performance
+            $table->index('listID');
+            $table->index('animalID');
 
             // Prevent duplicate animals per visit list
             $table->unique(['listID', 'animalID']);
+        });
+
+        // Add FK for listID only (same database, OK to use FK)
+        // Do NOT add FK for userID or animalID (cross-database)
+        Schema::connection('danish')->table('visit_list_animal', function (Blueprint $table) {
+            $table->foreign('listID')
+                ->references('id')
+                ->on('visit_list')
+                ->onDelete('cascade');
         });
     }
 
@@ -39,9 +58,14 @@ return new class extends Migration
      */
     public function down(): void
     {
+        // Drop FK first
+        Schema::connection('danish')->table('visit_list_animal', function (Blueprint $table) {
+            $table->dropForeign(['listID']);
+        });
+
         // Drop dependent table FIRST
-        Schema::dropIfExists('visit_list_animal');
+        Schema::connection('danish')->dropIfExists('visit_list_animal');
         // Then drop the parent table
-        Schema::dropIfExists('visit_list');
+        Schema::connection('danish')->dropIfExists('visit_list');
     }
 };
