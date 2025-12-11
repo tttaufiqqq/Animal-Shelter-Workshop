@@ -9,9 +9,12 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rules;
 use Illuminate\View\View;
+use App\Services\ForeignKeyValidator;
 
 class NewPasswordController extends Controller
 {
@@ -25,6 +28,7 @@ class NewPasswordController extends Controller
 
     /**
      * Handle an incoming new password request.
+     * Resets password in Taufiq's database
      *
      * @throws \Illuminate\Validation\ValidationException
      */
@@ -36,27 +40,62 @@ class NewPasswordController extends Controller
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
         ]);
 
-        // Here we will attempt to reset the user's password. If it is successful we
-        // will update the password on an actual user model and persist it to the
-        // database. Otherwise we will parse the error and return the response.
-        $status = Password::reset(
-            $request->only('email', 'password', 'password_confirmation', 'token'),
-            function (User $user) use ($request) {
-                $user->forceFill([
-                    'password' => Hash::make($request->password),
-                    'remember_token' => Str::random(60),
-                ])->save();
+        // Use transaction for Taufiq's database
+        DB::connection('taufiq')->beginTransaction();
 
-                event(new PasswordReset($user));
+        try {
+            // Password::reset() automatically uses User model's connection (taufiq)
+            // It queries password_resets table and updates users table in Taufiq's database
+            $status = Password::reset(
+                $request->only('email', 'password', 'password_confirmation', 'token'),
+                function (User $user) use ($request) {
+                    // Update user in Taufiq's database
+                    $user->forceFill([
+                        'password' => Hash::make($request->password),
+                        'remember_token' => Str::random(60),
+                    ])->save();
+
+                    // Fire password reset event
+                    event(new PasswordReset($user));
+
+                    // Log successful password reset
+                    Log::info('Password reset successful', [
+                        'user_id' => $user->id,
+                        'email' => $user->email,
+                        'ip' => $request->ip(),
+                    ]);
+
+                    // Clear user cache
+                    ForeignKeyValidator::clearUserCache($user->id);
+                }
+            );
+
+            DB::connection('taufiq')->commit();
+
+            // If the password was successfully reset, redirect to login
+            if ($status == Password::PASSWORD_RESET) {
+                return redirect()->route('login')
+                    ->with('status', __($status))
+                    ->with('success', 'Your password has been reset successfully. Please login with your new password.');
             }
-        );
 
-        // If the password was successfully reset, we will redirect the user back to
-        // the application's home authenticated view. If there is an error we can
-        // redirect them back to where they came from with their error message.
-        return $status == Password::PASSWORD_RESET
-                    ? redirect()->route('login')->with('status', __($status))
-                    : back()->withInput($request->only('email'))
-                        ->withErrors(['email' => __($status)]);
+            // If reset failed, go back with error
+            return back()
+                ->withInput($request->only('email'))
+                ->withErrors(['email' => __($status)]);
+
+        } catch (\Exception $e) {
+            DB::connection('taufiq')->rollBack();
+
+            Log::error('Password reset failed: ' . $e->getMessage(), [
+                'email' => $request->email,
+                'ip' => $request->ip(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return back()
+                ->withInput($request->only('email'))
+                ->withErrors(['email' => 'Password reset failed. Please try again or contact support.']);
+        }
     }
 }
