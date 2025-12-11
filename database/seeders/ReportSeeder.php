@@ -9,8 +9,16 @@ use Carbon\Carbon;
 
 class ReportSeeder extends Seeder
 {
+    /**
+     * Run the database seeds.
+     * Reports and Images are in Eilya's database
+     * Users are in Taufiq's database (cross-database reference)
+     */
     public function run()
     {
+        $this->command->info('Starting Report Seeder...');
+        $this->command->info('========================================');
+
         // Load CSV
         $csvPath = database_path('seeders/report.csv');
         if (!file_exists($csvPath)) {
@@ -26,16 +34,20 @@ class ReportSeeder extends Seeder
             $data[] = array_combine($header, $row);
         }
 
-        // Get public users (exclude admin & caretaker)
+        // Get public users (exclude admin & caretaker) from Taufiq's database
+        $this->command->info('Fetching eligible users from Taufiq\'s database...');
+
         $excludedRoles = ['admin', 'caretaker'];
         $userIDs = User::whereDoesntHave('roles', function ($q) use ($excludedRoles) {
             $q->whereIn('name', $excludedRoles);
         })->pluck('id')->toArray();
 
         if (empty($userIDs)) {
-            $this->command->info('No eligible users found!');
+            $this->command->error('No eligible users found!');
             return;
         }
+
+        $this->command->info("Found {count($userIDs)} eligible users");
 
         $reportStatuses = ['Pending', 'In Progress', 'Resolved', 'Closed'];
 
@@ -66,9 +78,10 @@ class ReportSeeder extends Seeder
         // Maximum coordinate offset (~1 km)
         $maxOffset = 0.01;
 
-        // Generate 600 reports
-        for ($i = 0; $i < 600; $i++) {
+        $this->command->info('Preparing 600 reports...');
 
+        // Generate 600 reports
+        for ($i = 0; $i < 200; $i++) {
             $row = $data[array_rand($data)]; // pick random CSV row
 
             // Random date in last 2 years
@@ -87,7 +100,7 @@ class ReportSeeder extends Seeder
                 'report_status' => in_array($row['report_status'], $reportStatuses) ? $row['report_status'] : $reportStatuses[array_rand($reportStatuses)],
                 'description'   => $row['description'],
 
-                // Assign random public user if not in CSV
+                // Cross-database reference to Taufiq's users table
                 'userID'        => isset($row['userID']) && in_array($row['userID'], $userIDs) ? $row['userID'] : $userIDs[array_rand($userIDs)],
 
                 'created_at'    => $createdAt,
@@ -95,37 +108,62 @@ class ReportSeeder extends Seeder
             ];
         }
 
-        // Insert reports in chunks to avoid SQL Server 2100 parameter limit
-        // Each report has 10 columns, so chunk size of 100 = 1000 parameters (safe for SQL Server)
-        $chunkSize = 100;
-        $totalInserted = 0;
+        // Use transaction for Eilya's database
+        DB::connection('eilya')->beginTransaction();
 
-        foreach (array_chunk($reports, $chunkSize) as $chunk) {
-            DB::table('report')->insert($chunk);
-            $totalInserted += count($chunk);
-            $this->command->info("Inserted {$totalInserted} / " . count($reports) . " reports...");
+        try {
+            $this->command->info('Inserting reports into Eilya\'s database...');
+
+            // Insert reports in chunks to avoid SQL Server 2100 parameter limit
+            // Each report has 10 columns, so chunk size of 100 = 1000 parameters (safe)
+            $chunkSize = 100;
+            $totalInserted = 0;
+
+            foreach (array_chunk($reports, $chunkSize) as $chunk) {
+                DB::connection('eilya')->table('report')->insert($chunk);
+                $totalInserted += count($chunk);
+                $this->command->info("  Inserted {$totalInserted} / " . count($reports) . " reports...");
+            }
+
+            // Get the IDs of the inserted reports from Eilya's database
+            $insertedReportIDs = DB::connection('eilya')
+                ->table('report')
+                ->orderBy('id', 'desc')
+                ->limit(600)
+                ->pluck('id')
+                ->toArray();
+
+            $this->command->info('');
+            $this->command->info('Assigning images to reports in Eilya\'s database...');
+
+            // Assign images to reports (both in Eilya's database)
+            $this->assignImagesToReports($insertedReportIDs, $imageCategories);
+
+            DB::connection('eilya')->commit();
+
+            $this->command->info('');
+            $this->command->info('=================================');
+            $this->command->info('✓ Report Seeding Completed!');
+            $this->command->info('=================================');
+            $this->command->info("Total reports created: " . count($reports));
+            $this->command->info("Database: Eilya (MySQL)");
+            $this->command->info("User references: Taufiq (PostgreSQL)");
+            $this->command->info('=================================');
+
+        } catch (\Exception $e) {
+            DB::connection('eilya')->rollBack();
+
+            $this->command->error('');
+            $this->command->error('Error seeding reports: ' . $e->getMessage());
+            $this->command->error('Transaction rolled back');
+
+            throw $e;
         }
-
-        // Get the IDs of the inserted reports
-        $insertedReportIDs = DB::table('report')
-            ->orderBy('id', 'desc')
-            ->limit(600)
-            ->pluck('id')
-            ->toArray();
-
-        // ===== ASSIGN IMAGES TO REPORTS =====
-        $this->assignImagesToReports($insertedReportIDs, $imageCategories);
-
-        $this->command->info('');
-        $this->command->info('=================================');
-        $this->command->info('Report Seeding Completed!');
-        $this->command->info('=================================');
-        $this->command->info("Total reports created: " . count($reports));
-        $this->command->info('=================================');
     }
 
     /**
      * Assign images to reports - each report gets images from same category only
+     * Both reports and images are in Eilya's database
      */
     private function assignImagesToReports($reportIDs, $imageCategories)
     {
@@ -155,9 +193,9 @@ class ReportSeeder extends Seeder
             foreach ($selectedImages as $imagePath) {
                 $images[] = [
                     'image_path' => $imagePath,
-                    'animalID'   => null,
-                    'reportID'   => $reportID,
-                    'clinicID'   => null,
+                    'animalID'   => null, // Cross-database reference to Shafiqah (null for now)
+                    'reportID'   => $reportID, // Same database reference to Eilya
+                    'clinicID'   => null, // Cross-database reference to Shafiqah (null for now)
                     'created_at' => now(),
                     'updated_at' => now(),
                 ];
@@ -168,16 +206,18 @@ class ReportSeeder extends Seeder
             $categoryStats[$selectedCategory]++;
         }
 
-        // Insert images in chunks to avoid SQL Server 2100 parameter limit
-        // Each image has 6 columns, so chunk size of 300 = 1800 parameters (safe for SQL Server)
+        // Insert images in chunks to Eilya's database
+        // Each image has 6 columns, so chunk size of 300 = 1800 parameters (safe)
         $chunkSize = 300;
         $totalInsertedImages = 0;
 
         foreach (array_chunk($images, $chunkSize) as $chunk) {
-            DB::table('image')->insert($chunk);
+            DB::connection('eilya')->table('image')->insert($chunk);
             $totalInsertedImages += count($chunk);
+            $this->command->info("  Inserted {$totalInsertedImages} / {$totalImages} images...");
         }
 
+        $this->command->info('');
         $this->command->info("Total images assigned to reports: {$totalImages}");
         $avgImages = round($totalImages / count($reportIDs), 1);
         $this->command->info("Average images per report: {$avgImages}");

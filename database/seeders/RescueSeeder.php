@@ -8,27 +8,44 @@ use Carbon\Carbon;
 
 class RescueSeeder extends Seeder
 {
+    /**
+     * Run the database seeds.
+     * Rescues and Reports are in Eilya's database
+     * Users (caretakers) are in Taufiq's database (cross-database reference)
+     */
     public function run()
     {
-        $reports = DB::table('report')->get();
+        $this->command->info('Starting Rescue Seeder...');
+        $this->command->info('========================================');
+
+        // Get reports from Eilya's database
+        $this->command->info('Fetching reports from Eilya\'s database...');
+        $reports = DB::connection('eilya')->table('report')->get();
 
         if ($reports->isEmpty()) {
-            $this->command->info("No reports found. Seed Reports first.");
+            $this->command->error("No reports found. Seed Reports first.");
             return;
         }
 
-        // Get all caretakers
-        $caretakers = DB::table('users')
+        $this->command->info("Found {$reports->count()} reports");
+
+        // Get all caretakers from Taufiq's database (cross-database query)
+        $this->command->info('Fetching caretakers from Taufiq\'s database...');
+
+        $caretakers = DB::connection('taufiq')->table('users')
             ->join('model_has_roles', 'users.id', '=', 'model_has_roles.model_id')
             ->join('roles', 'model_has_roles.role_id', '=', 'roles.id')
             ->where('roles.name', 'caretaker')
+            ->where('model_has_roles.model_type', 'App\\Models\\User') // Ensure correct model type
             ->pluck('users.id')
             ->toArray();
 
         if (empty($caretakers)) {
-            $this->command->info("No caretakers found. Seed Users & assign caretaker role first.");
+            $this->command->error("No caretakers found. Seed Users & assign caretaker role first.");
             return;
         }
+
+        $this->command->info("Found " . count($caretakers) . " caretakers");
 
         // Remarks templates
         $successRemarks = [
@@ -84,31 +101,22 @@ class RescueSeeder extends Seeder
             'Failed' => 0,
             'Scheduled' => 0,
             'In Progress' => 0,
-            'Pending' => 0,
         ];
 
-        foreach ($reports as $report) {
+        $this->command->info('Generating rescue records...');
 
-            // 🎯 Keep 20% of reports PENDING (no rescue record)
+        foreach ($reports as $report) {
+            // Keep 20% of reports PENDING (no rescue record)
             if (rand(1, 100) <= 20) {
                 continue;
             }
 
             $remarks = '';
 
-            // 🎯 SUCCESS = 40% chance
+            // SUCCESS = 40% chance
             if (rand(1, 100) <= 40) {
                 $status = 'Success';
                 $remarks = $successRemarks[array_rand($successRemarks)];
-
-                // 🔥 Update related report status to Resolved
-                DB::table('report')
-                    ->where('id', $report->id)
-                    ->update([
-                        'report_status' => 'Resolved',
-                        'updated_at'    => now(),
-                    ]);
-
                 $statusCounts['Success']++;
             }
             else {
@@ -116,8 +124,7 @@ class RescueSeeder extends Seeder
                 $statusOptions = [
                     'Failed' => 30,      // 30% chance
                     'Scheduled' => 25,   // 25% chance
-                    'In Progress' => 20, // 20% chance
-                    'Pending' => 25,     // 25% chance
+                    'In Progress' => 45, // 45% chance (to total 100%)
                 ];
 
                 $rand = rand(1, 100);
@@ -142,9 +149,6 @@ class RescueSeeder extends Seeder
                     case 'In Progress':
                         $remarks = $inProgressRemarks[array_rand($inProgressRemarks)];
                         break;
-                    case 'Pending':
-                        $remarks = $pendingRemarks[array_rand($pendingRemarks)];
-                        break;
                 }
 
                 $statusCounts[$status]++;
@@ -156,38 +160,81 @@ class RescueSeeder extends Seeder
             $rescues[] = [
                 'status'      => $status,
                 'remarks'     => $remarks,
-                'reportID'    => $report->id,
-                'caretakerID' => $caretakers[array_rand($caretakers)],
+                'reportID'    => $report->id, // Same database reference to Eilya
+                'caretakerID' => $caretakers[array_rand($caretakers)], // Cross-database reference to Taufiq
                 'created_at'  => $rescueDate,
                 'updated_at'  => $rescueDate,
             ];
         }
 
+        // Use transaction for Eilya's database
+        DB::connection('eilya')->beginTransaction();
 
-        if (!empty($rescues)) {
-            // Insert rescues in chunks to avoid SQL Server 2100 parameter limit
-            // Each rescue has 6 columns, so chunk size of 300 = 1800 parameters (safe for SQL Server)
-            $chunkSize = 300;
-            $totalInserted = 0;
+        try {
+            if (!empty($rescues)) {
+                $this->command->info('Inserting rescue records into Eilya\'s database...');
 
-            foreach (array_chunk($rescues, $chunkSize) as $chunk) {
-                DB::table('rescue')->insert($chunk);
-                $totalInserted += count($chunk);
-                $this->command->info("Inserted {$totalInserted} / " . count($rescues) . " rescues...");
+                // Insert rescues in chunks
+                $chunkSize = 300;
+                $totalInserted = 0;
+
+                foreach (array_chunk($rescues, $chunkSize) as $chunk) {
+                    DB::connection('eilya')->table('rescue')->insert($chunk);
+                    $totalInserted += count($chunk);
+                    $this->command->info("  Inserted {$totalInserted} / " . count($rescues) . " rescues...");
+                }
+
+                // 🔥 Update related report statuses for successful rescues
+                $this->command->info('');
+                $this->command->info('Updating report statuses for successful rescues...');
+
+                $successfulRescueReportIDs = DB::connection('eilya')
+                    ->table('rescue')
+                    ->where('status', 'Success')
+                    ->pluck('reportID')
+                    ->toArray();
+
+                if (!empty($successfulRescueReportIDs)) {
+                    DB::connection('eilya')
+                        ->table('report')
+                        ->whereIn('id', $successfulRescueReportIDs)
+                        ->update([
+                            'report_status' => 'Resolved',
+                            'updated_at'    => now(),
+                        ]);
+
+                    $this->command->info("  Updated " . count($successfulRescueReportIDs) . " reports to 'Resolved' status");
+                }
             }
-        }
 
-        $this->command->info('');
-        $this->command->info('=================================');
-        $this->command->info('Rescue Seeding Completed!');
-        $this->command->info('=================================');
-        $this->command->info("Total rescue records created: " . count($rescues));
-        $this->command->info('');
-        $this->command->info('Status Distribution:');
-        foreach ($statusCounts as $status => $count) {
-            $percentage = count($rescues) > 0 ? round(($count / count($rescues)) * 100, 1) : 0;
-            $this->command->info("  - {$status}: {$count} ({$percentage}%)");
+            DB::connection('eilya')->commit();
+
+            $this->command->info('');
+            $this->command->info('=================================');
+            $this->command->info('✓ Rescue Seeding Completed!');
+            $this->command->info('=================================');
+            $this->command->info("Total rescue records created: " . count($rescues));
+            $this->command->info("Database: Eilya (MySQL)");
+            $this->command->info("Caretaker references: Taufiq (PostgreSQL)");
+            $this->command->info('');
+            $this->command->info('Status Distribution:');
+            foreach ($statusCounts as $status => $count) {
+                $percentage = count($rescues) > 0 ? round(($count / count($rescues)) * 100, 1) : 0;
+                $this->command->info("  - {$status}: {$count} ({$percentage}%)");
+            }
+            $reportedReportsWithoutRescue = $reports->count() - count($rescues);
+            $percentageWithoutRescue = $reports->count() > 0 ? round(($reportedReportsWithoutRescue / $reports->count()) * 100, 1) : 0;
+            $this->command->info("  - No Rescue (Pending): {$reportedReportsWithoutRescue} ({$percentageWithoutRescue}%)");
+            $this->command->info('=================================');
+
+        } catch (\Exception $e) {
+            DB::connection('eilya')->rollBack();
+
+            $this->command->error('');
+            $this->command->error('Error seeding rescues: ' . $e->getMessage());
+            $this->command->error('Transaction rolled back');
+
+            throw $e;
         }
-        $this->command->info('=================================');
     }
 }
