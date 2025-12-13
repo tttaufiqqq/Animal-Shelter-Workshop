@@ -250,8 +250,8 @@ class StrayReportingManagementController extends Controller
                         $fail('The selected caretaker does not exist.');
                     }
 
-                    // Verify user has caretaker role
-                    $user = User::find($value);
+                    // Verify user has caretaker role (explicitly use taufiq connection)
+                    $user = User::on('taufiq')->find($value);
                     if (!$user || !$user->hasRole('caretaker')) {
                         $fail('The selected user is not a caretaker.');
                     }

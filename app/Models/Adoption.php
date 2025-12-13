@@ -18,7 +18,8 @@ class Adoption extends Model
         'fee',
         'remarks',
         'bookingID',
-        'transactionID'
+        'transactionID',
+        'animalID'  // Cross-database reference to Shafiqah's animal table
     ];
 
     protected $casts = [
@@ -39,5 +40,15 @@ class Adoption extends Model
     public function transaction()
     {
         return $this->belongsTo(Transaction::class, 'transactionID', 'id');
+    }
+
+    /**
+     * Relationship to Animal model (cross-database reference to Shafiqah)
+     * Note: No database-level foreign key constraint, enforced at application layer
+     */
+    public function animal()
+    {
+        return $this->setConnection('shafiqah')
+            ->belongsTo(Animal::class, 'animalID', 'id');
     }
 }

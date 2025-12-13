@@ -728,48 +728,99 @@ class AnimalManagementController extends Controller
 
     public function destroy(Animal $animal)
     {
+        // Start transactions on all affected databases
         DB::connection('shafiqah')->beginTransaction();
         DB::connection('eilya')->beginTransaction();
         DB::connection('atiqah')->beginTransaction();
+        DB::connection('danish')->beginTransaction();
 
         try {
-            // Delete images from Eilya's database
+            $animalId = $animal->id;
+            $animalName = $animal->name;
+
+            // ===== DELETE FROM SHAFIQAH DATABASE =====
+            // Delete medical records
+            DB::connection('shafiqah')
+                ->table('medical')
+                ->where('animalID', $animalId)
+                ->delete();
+
+            // Delete vaccination records
+            DB::connection('shafiqah')
+                ->table('vaccination')
+                ->where('animalID', $animalId)
+                ->delete();
+
+            // Delete animal profile
+            DB::connection('shafiqah')
+                ->table('animal_profile')
+                ->where('animalID', $animalId)
+                ->delete();
+
+            // ===== DELETE FROM EILYA DATABASE =====
+            // Delete images (including physical files)
             foreach ($animal->images as $image) {
                 Storage::disk('public')->delete($image->image_path);
                 $image->delete();
             }
 
-            // Update slot status in Atiqah's database
+            // ===== DELETE FROM DANISH DATABASE =====
+            // Delete animal_booking pivot entries
+            DB::connection('danish')
+                ->table('animal_booking')
+                ->where('animalID', $animalId)
+                ->delete();
+
+            // Delete visit_list_animal pivot entries
+            DB::connection('danish')
+                ->table('visit_list_animal')
+                ->where('animalID', $animalId)
+                ->delete();
+
+            // Note: Adoptions are NOT deleted as they are historical records
+            // They will keep the animalID reference for record keeping
+
+            // ===== UPDATE SLOT STATUS IN ATIQAH DATABASE =====
             $slot = Slot::find($animal->slotID);
             if ($slot) {
-                $animalCount = Animal::where('slotID', $slot->id)->where('id', '!=', $animal->id)->count();
+                $animalCount = Animal::where('slotID', $slot->id)->where('id', '!=', $animalId)->count();
                 $slot->status = ($animalCount >= $slot->capacity) ? 'occupied' : 'available';
                 $slot->save();
             }
 
-            $animalName = $animal->name;
-
-            // Delete animal from Shafiqah's database
+            // ===== DELETE ANIMAL FROM SHAFIQAH DATABASE =====
             $animal->delete();
 
+            // Commit all transactions
             DB::connection('shafiqah')->commit();
             DB::connection('eilya')->commit();
             DB::connection('atiqah')->commit();
+            DB::connection('danish')->commit();
 
             // Clear cache
-            ForeignKeyValidator::clearAnimalCache($animal->id);
+            ForeignKeyValidator::clearAnimalCache($animalId);
+
+            Log::info("Animal deleted successfully with cascade", [
+                'animal_id' => $animalId,
+                'animal_name' => $animalName
+            ]);
 
             return redirect()->route('animal-management.index')
-                ->with('success', 'Animal "' . $animalName . '" deleted successfully!');
+                ->with('success', 'Animal "' . $animalName . '" and all related records deleted successfully!');
 
         } catch (\Exception $e) {
+            // Rollback all transactions
             DB::connection('shafiqah')->rollBack();
             DB::connection('eilya')->rollBack();
             DB::connection('atiqah')->rollBack();
+            DB::connection('danish')->rollBack();
 
-            Log::error('Error deleting animal: ' . $e->getMessage());
+            Log::error('Error deleting animal with cascade: ' . $e->getMessage(), [
+                'animal_id' => $animal->id ?? null,
+                'trace' => $e->getTraceAsString()
+            ]);
 
-            return back()->withErrors(['error' => 'An error occurred while deleting the animal.']);
+            return back()->withErrors(['error' => 'An error occurred while deleting the animal: ' . $e->getMessage()]);
         }
     }
 

@@ -127,11 +127,15 @@ return new class extends Migration {
             $table->text('remarks')->nullable();
             $table->unsignedBigInteger('bookingID')->nullable();
             $table->unsignedBigInteger('transactionID')->nullable();
+
+            // Logical FK - references Shafiqah's animal table (cross-database, NO FK constraint)
+            $table->unsignedBigInteger('animalID')->nullable();
             $table->timestamps();
 
             // Indexes for performance
             $table->index('bookingID');
             $table->index('transactionID');
+            $table->index('animalID');
         });
 
         // Add FKs for adoption (same database, OK to use FK)

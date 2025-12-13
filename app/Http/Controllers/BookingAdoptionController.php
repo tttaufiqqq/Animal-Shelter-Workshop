@@ -616,9 +616,34 @@ class BookingAdoptionController extends Controller
                 }
             }
 
-            // Get selected animals for payment from Shafiqah's database
-            $selectedAnimals = Animal::whereIn('id', $validated['animal_ids'])->get();
+            // Get selected animals for payment from Shafiqah's database (with relationships)
+            $selectedAnimals = Animal::with(['medicals', 'vaccinations'])
+                ->whereIn('id', $validated['animal_ids'])
+                ->get();
             $animalNames = $selectedAnimals->pluck('name')->toArray();
+
+            // Calculate fee breakdown for each animal
+            $feeBreakdowns = [];
+            $speciesBaseFees = [
+                'dog' => 20,
+                'cat' => 10,
+            ];
+            $medicalRate = 10;
+            $vaccinationRate = 20;
+
+            foreach ($selectedAnimals as $animal) {
+                $species = strtolower($animal->species);
+                $baseFee = $speciesBaseFees[$species] ?? 100; // default RM 100
+
+                $medicalCount = $animal->medicals ? $animal->medicals->count() : 0;
+                $medicalFee = $medicalCount * $medicalRate;
+
+                $vaccinationCount = $animal->vaccinations ? $animal->vaccinations->count() : 0;
+                $vaccinationFee = $vaccinationCount * $vaccinationRate;
+
+                $animalTotal = $baseFee + $medicalFee + $vaccinationFee;
+                $feeBreakdowns[$animal->id] = $animalTotal;
+            }
 
             // Update booking to Confirmed status in Danish's database
             $booking->update([
@@ -631,15 +656,17 @@ class BookingAdoptionController extends Controller
             Log::info("Booking confirmed, preparing for payment", [
                 'booking_id' => $bookingId,
                 'total_fee' => $validated['total_fee'],
-                'animal_count' => count($validated['animal_ids'])
+                'animal_count' => count($validated['animal_ids']),
+                'fee_breakdowns' => $feeBreakdowns
             ]);
 
-            // Store session info for payment
+            // Store session info for payment (including fee breakdowns)
             session([
                 'booking_id' => $booking->id,
                 'adoption_fee' => $validated['total_fee'],
                 'animal_ids' => $validated['animal_ids'],
                 'animal_names' => implode(', ', $animalNames),
+                'fee_breakdowns' => $feeBreakdowns, // Individual fees per animal
             ]);
 
             // Redirect to payment
@@ -802,6 +829,7 @@ class BookingAdoptionController extends Controller
                                 'remarks' => 'Adopted: ' . $animalName,
                                 'bookingID' => $bookingId,
                                 'transactionID' => $transaction->id,
+                                'animalID' => $animalId,  // Cross-database FK to Shafiqah's animal
                             ]);
 
                             Log::info('Adoption record created for animal', [

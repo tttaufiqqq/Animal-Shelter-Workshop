@@ -238,26 +238,45 @@ class AnimalSeeder extends Seeder
                 ->count();
             $this->command->info("VERIFICATION - Database counts: Not Adopted = {$dbNotAdopted}, Adopted = {$dbAdopted}");
 
-            // Update slot status to 'occupied' for assigned slots ONLY (in Atiqah's database)
+            // ===== CREATE VACCINATION AND MEDICAL RECORDS (Shafiqah database) =====
+            if ($vets->isNotEmpty()) {
+                $this->createVaccinationRecords($createdAnimals, $vets);
+                $this->createMedicalRecords($createdAnimals, $vets);
+            }
+
+            // Commit Shafiqah transaction BEFORE touching other databases
+            DB::connection('shafiqah')->commit();
+            $this->command->info("✓ Shafiqah transaction committed successfully");
+
+        } catch (\Exception $e) {
+            DB::connection('shafiqah')->rollBack();
+            $this->command->error("Failed to create animals in Shafiqah: " . $e->getMessage());
+            throw $e;
+        }
+
+        // ===== UPDATE SLOTS IN ATIQAH DATABASE (separate operation after Shafiqah commit) =====
+        try {
             $assignedSlotIds = array_filter(array_column($animals, 'slotID'));
             if (!empty($assignedSlotIds)) {
                 DB::connection('atiqah')
                     ->table('slot')
                     ->whereIn('id', $assignedSlotIds)
                     ->update(['status' => 'occupied', 'updated_at' => now()]);
-                $this->command->info("Updated " . count($assignedSlotIds) . " slots to 'occupied' status in Atiqah's database");
+                $this->command->info("✓ Updated " . count($assignedSlotIds) . " slots to 'occupied' status in Atiqah's database");
             }
+        } catch (\Exception $e) {
+            $this->command->error("Failed to update slots in Atiqah: " . $e->getMessage());
+            // Don't throw - animals already created successfully
+        }
 
-            // ===== ASSIGN IMAGES TO ANIMALS =====
+        // ===== ASSIGN IMAGES TO ANIMALS IN EILYA DATABASE (separate operation) =====
+        try {
             $this->assignImagesToAnimals($createdAnimals, $catImages, $dogImages);
-
-            // ===== CREATE VACCINATION RECORDS FOR ALL ANIMALS =====
-            if ($vets->isNotEmpty()) {
-                $this->createVaccinationRecords($createdAnimals, $vets);
-                $this->createMedicalRecords($createdAnimals, $vets);
-            }
-
-            DB::connection('shafiqah')->commit();
+            $this->command->info("✓ Images assigned successfully in Eilya's database");
+        } catch (\Exception $e) {
+            $this->command->error("Failed to assign images in Eilya: " . $e->getMessage());
+            // Don't throw - animals already created successfully
+        }
 
         // Statistics
         $actualNotAdoptedCount = count(array_filter($animals, fn($a) => $a['adoption_status'] === 'Not Adopted'));
@@ -296,16 +315,6 @@ class AnimalSeeder extends Seeder
             $this->command->info('Database: Shafiqah (MySQL) - Animals, Medical, Vaccinations');
             $this->command->info('Cross-references: Eilya (Rescues, Images), Atiqah (Slots)');
             $this->command->info('=================================');
-
-        } catch (\Exception $e) {
-            DB::connection('shafiqah')->rollBack();
-
-            $this->command->error('');
-            $this->command->error('Error seeding animals: ' . $e->getMessage());
-            $this->command->error('Transaction rolled back');
-
-            throw $e;
-        }
     }
 
     /**

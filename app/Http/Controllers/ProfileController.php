@@ -11,7 +11,11 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\View\View;
 use App\Models\AdopterProfile;
+use App\Models\Booking;
+use App\Models\Report;
+use App\Models\Transaction;
 use App\Models\User;
+use App\Models\VisitList;
 use Illuminate\Validation\Rule;
 use App\Services\ForeignKeyValidator;
 
@@ -236,34 +240,26 @@ class ProfileController extends Controller
         // Get adopter profile from Taufiq's database
         $adopterProfile = AdopterProfile::where('adopterID', $user->id)->first();
 
-        // Get user's bookings from Danish's database (with cross-database relationships)
-        $bookings = DB::connection('danish')
-            ->table('booking')
-            ->where('userID', $user->id)
+        // Get user's bookings from Danish's database (using Model)
+        $bookings = Booking::where('userID', $user->id)
             ->orderBy('appointment_date', 'desc')
             ->limit(5)
             ->get();
 
-        // Get user's transactions from Danish's database
-        $transactions = DB::connection('danish')
-            ->table('transaction')
-            ->where('userID', $user->id)
+        // Get user's transactions from Danish's database (using Model)
+        $transactions = Transaction::where('userID', $user->id)
             ->orderBy('created_at', 'desc')
             ->limit(5)
             ->get();
 
-        // Get user's visit list from Danish's database
-        $visitListCount = DB::connection('danish')
-            ->table('visit_list')
-            ->join('visit_list_animal', 'visit_list.id', '=', 'visit_list_animal.listID')
-            ->where('visit_list.userID', $user->id)
-            ->count();
+        // Get user's visit list count from Danish's database (using Model)
+        $visitListCount = VisitList::where('userID', $user->id)
+            ->withCount('animals')
+            ->get()
+            ->sum('animals_count');
 
-        // Get reports submitted by user from Eilya's database
-        $reportsCount = DB::connection('eilya')
-            ->table('report')
-            ->where('userID', $user->id)
-            ->count();
+        // Get reports submitted by user from Eilya's database (using Model)
+        $reportsCount = Report::where('userID', $user->id)->count();
 
         return view('profile.show', compact(
             'user',

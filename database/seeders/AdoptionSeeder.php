@@ -126,6 +126,7 @@ class AdoptionSeeder extends Seeder
                         'remarks'       => $animal->name . ' Adopted',
                         'bookingID'     => $completedBooking->id,
                         'transactionID' => $transactionId,
+                        'animalID'      => $animal->id,  // Cross-database reference to Shafiqah's animal
                         'created_at'    => $adoptionDate,
                         'updated_at'    => $adoptionDate,
                     ]);
