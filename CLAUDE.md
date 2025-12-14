@@ -97,18 +97,29 @@ npm run dev
 
 **Fresh Migration (ALL databases):**
 ```bash
-php artisan migrate:fresh
+php artisan db:fresh-all
+# OR using composer:
+composer fresh
 ```
 
 **Fresh Migration + Seed (ALL databases):**
 ```bash
-php artisan migrate:fresh --seed
+php artisan db:fresh-all --seed
+# OR using composer (automatically includes --seed):
+composer fresh
+```
+
+**Standard Migration:**
+```bash
+php artisan migrate
 ```
 
 **Seeding only:**
 ```bash
 php artisan db:seed
 ```
+
+**IMPORTANT:** Use `db:fresh-all` instead of `migrate:fresh` for this project. Laravel's default `migrate:fresh` only drops tables from the default connection, not all 5 distributed databases. The custom `db:fresh-all` command properly drops all tables from all connections (taufiq, eilya, shafiqah, atiqah, danish) before running migrations.
 
 **IMPORTANT:** Seeders must run in a specific order (defined in `DatabaseSeeder.php`) because of cross-database dependencies:
 1. RoleSeeder
