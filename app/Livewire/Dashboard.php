@@ -11,10 +11,12 @@ use Livewire\Attributes\Layout;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
+use App\DatabaseErrorHandler;
 
 #[Layout('layouts.app')]
 class Dashboard extends Component
 {
+    use DatabaseErrorHandler;
     public $selectedYear;
     public $selectedCategory = 'all';
     public $years = [];
@@ -23,13 +25,15 @@ class Dashboard extends Component
     {
         $this->selectedYear = date('Y');
 
-        // Get years from Danish's database (bookings)
-        // Cross-database compatible year extraction
-        $this->years = Booking::selectRaw($this->getYearExpression('created_at', 'danish') . ' as year')
-            ->distinct()
-            ->orderBy('year', 'desc')
-            ->pluck('year')
-            ->toArray();
+        // Get years from Danish's database (bookings) with error handling
+        $this->years = $this->safeQuery(
+            fn() => Booking::selectRaw($this->getYearExpression('created_at', 'danish') . ' as year')
+                ->distinct()
+                ->orderBy('year', 'desc')
+                ->pluck('year')
+                ->toArray(),
+            [date('Y')]
+        );
     }
 
     public function render()
@@ -120,7 +124,10 @@ class Dashboard extends Component
      */
     private function getTotalBookings()
     {
-        return $this->whereYear(Booking::query(), 'created_at', 'danish')->count();
+        return $this->safeQuery(
+            fn() => $this->whereYear(Booking::query(), 'created_at', 'danish')->count(),
+            0
+        );
     }
 
     /**
@@ -128,9 +135,12 @@ class Dashboard extends Component
      */
     private function getSuccessfulBookings()
     {
-        return $this->whereYear(Booking::query(), 'created_at', 'danish')
-            ->where('status', 'Completed')
-            ->count();
+        return $this->safeQuery(
+            fn() => $this->whereYear(Booking::query(), 'created_at', 'danish')
+                ->where('status', 'Completed')
+                ->count(),
+            0
+        );
     }
 
     /**
@@ -138,9 +148,12 @@ class Dashboard extends Component
      */
     private function getCancelledBookings()
     {
-        return $this->whereYear(Booking::query(), 'created_at', 'danish')
-            ->where('status', 'Cancelled')
-            ->count();
+        return $this->safeQuery(
+            fn() => $this->whereYear(Booking::query(), 'created_at', 'danish')
+                ->where('status', 'Cancelled')
+                ->count(),
+            0
+        );
     }
 
     /**
@@ -148,23 +161,25 @@ class Dashboard extends Component
      */
     private function getRepeatCustomerRate()
     {
-        $query = $this->whereYear(Booking::query(), 'created_at', 'danish');
+        return $this->safeQuery(function() {
+            $query = $this->whereYear(Booking::query(), 'created_at', 'danish');
 
-        // Clone query for total customers
-        $totalCustomers = (clone $query)
-            ->distinct()
-            ->count('userID');
+            // Clone query for total customers
+            $totalCustomers = (clone $query)
+                ->distinct()
+                ->count('userID');
 
-        // Get repeat customers using subquery (works across all databases)
-        $repeatCustomers = (clone $query)
-            ->select('userID')
-            ->groupBy('userID')
-            ->havingRaw('COUNT(*) > 1')
-            ->get()
-            ->count();
+            // Get repeat customers using subquery (works across all databases)
+            $repeatCustomers = (clone $query)
+                ->select('userID')
+                ->groupBy('userID')
+                ->havingRaw('COUNT(*) > 1')
+                ->get()
+                ->count();
 
-        return $totalCustomers > 0 ?
-            round(($repeatCustomers / $totalCustomers) * 100, 2) : 0;
+            return $totalCustomers > 0 ?
+                round(($repeatCustomers / $totalCustomers) * 100, 2) : 0;
+        }, 0);
     }
 
     /**
@@ -246,20 +261,22 @@ class Dashboard extends Component
      */
     private function getBookingTypeBreakdown()
     {
-        $query = $this->whereYear(Booking::on('danish'), 'created_at', 'danish');
-        $total = (clone $query)->count();
+        return $this->safeQuery(function() {
+            $query = $this->whereYear(Booking::on('danish'), 'created_at', 'danish');
+            $total = (clone $query)->count();
 
-        $breakdown = (clone $query)
-            ->select('status', DB::raw('count(*) as count'))
-            ->groupBy('status')
-            ->get()
-            ->map(function($item) use ($total) {
-                $item->percentage = $total > 0 ?
-                    round(($item->count / $total) * 100, 2) : 0;
-                return $item;
-            });
+            $breakdown = (clone $query)
+                ->select('status', DB::raw('count(*) as count'))
+                ->groupBy('status')
+                ->get()
+                ->map(function($item) use ($total) {
+                    $item->percentage = $total > 0 ?
+                        round(($item->count / $total) * 100, 2) : 0;
+                    return $item;
+                });
 
-        return $breakdown;
+            return $breakdown;
+        }, collect([]));
     }
 
     /**
@@ -267,20 +284,22 @@ class Dashboard extends Component
      */
     private function getBookingsByMonth()
     {
-        $monthExpression = $this->getMonthExpression('created_at', 'danish');
+        return $this->safeQuery(function() {
+            $monthExpression = $this->getMonthExpression('created_at', 'danish');
 
-        $query = $this->whereYear(Booking::on('danish'), 'created_at', 'danish');
+            $query = $this->whereYear(Booking::on('danish'), 'created_at', 'danish');
 
-        return $query
-            ->selectRaw("{$monthExpression} as month")
-            ->selectRaw('COUNT(*) as count')
-            ->groupBy(DB::raw($monthExpression))
-            ->orderBy('month')
-            ->get()
-            ->map(function($item) {
-                $item->month_name = Carbon::create()->month((int)$item->month)->format('F');
-                return $item;
-            });
+            return $query
+                ->selectRaw("{$monthExpression} as month")
+                ->selectRaw('COUNT(*) as count')
+                ->groupBy(DB::raw($monthExpression))
+                ->orderBy('month')
+                ->get()
+                ->map(function($item) {
+                    $item->month_name = Carbon::create()->month((int)$item->month)->format('F');
+                    return $item;
+                });
+        }, collect([]));
     }
 
     /**
@@ -288,34 +307,36 @@ class Dashboard extends Component
      */
     private function getVolumeVsAverageValue()
     {
-        $monthExpression = $this->getMonthExpression('created_at', 'danish');
-        $yearExpression = $this->getYearExpression('created_at', 'danish');
+        return $this->safeQuery(function() {
+            $monthExpression = $this->getMonthExpression('created_at', 'danish');
+            $yearExpression = $this->getYearExpression('created_at', 'danish');
 
-        $sixMonthsAgo = Carbon::now()->subMonths(5)->startOfMonth();
+            $sixMonthsAgo = Carbon::now()->subMonths(5)->startOfMonth();
 
-        // Debug: check the date
-        Log::info('Six months ago: ' . $sixMonthsAgo);
+            // Debug: check the date
+            Log::info('Six months ago: ' . $sixMonthsAgo);
 
-        // Query Danish's database for adoptions
-        $results = Adoption::on('danish')
-            ->where('created_at', '>=', $sixMonthsAgo)
-            ->selectRaw("{$yearExpression} as year")
-            ->selectRaw("{$monthExpression} as month")
-            ->selectRaw('COUNT(*) as volume')
-            ->selectRaw('AVG(fee) as avg_value')
-            ->groupBy(DB::raw($yearExpression), DB::raw($monthExpression))
-            ->orderBy('year')
-            ->orderBy('month')
-            ->get();
+            // Query Danish's database for adoptions
+            $results = Adoption::on('danish')
+                ->where('created_at', '>=', $sixMonthsAgo)
+                ->selectRaw("{$yearExpression} as year")
+                ->selectRaw("{$monthExpression} as month")
+                ->selectRaw('COUNT(*) as volume')
+                ->selectRaw('AVG(fee) as avg_value')
+                ->groupBy(DB::raw($yearExpression), DB::raw($monthExpression))
+                ->orderBy('year')
+                ->orderBy('month')
+                ->get();
 
-        // Debug: check results
-        Log::info('Volume vs Value Results: ' . $results->toJson());
+            // Debug: check results
+            Log::info('Volume vs Value Results: ' . $results->toJson());
 
-        return $results->map(function($item) {
-            $item->month_name = Carbon::create($item->year, $item->month, 1)->format('M Y');
-            $item->avg_value = round((float) $item->avg_value, 2);
-            return $item;
-        });
+            return $results->map(function($item) {
+                $item->month_name = Carbon::create($item->year, $item->month, 1)->format('M Y');
+                $item->avg_value = round((float) $item->avg_value, 2);
+                return $item;
+            });
+        }, collect([]));
     }
 
     /**

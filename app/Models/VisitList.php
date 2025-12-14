@@ -31,12 +31,13 @@ class VisitList extends Model
 
     /**
      * CROSS-DATABASE: Many-to-many relationship to Animals (Shafiqah's database)
-     * Through visit_list_animal pivot table
+     * Through visit_list_animal pivot table (on danish database)
+     * Uses custom pivot model to specify the correct database connection
      */
     public function animals()
     {
-        return $this->setConnection('shafiqah')
-            ->belongsToMany(Animal::class, 'visit_list_animal', 'listID', 'animalID')
+        return $this->belongsToMany(Animal::class, 'visit_list_animal', 'listID', 'animalID')
+            ->using(VisitListAnimal::class)
             ->withPivot('remarks')
             ->withTimestamps();
     }

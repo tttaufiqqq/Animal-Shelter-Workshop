@@ -5,20 +5,20 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Relations\Pivot;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 
-class AnimalBooking extends Pivot
+class VisitListAnimal extends Pivot
 {
     use HasFactory;
 
     // Specify the database connection for this pivot model (Danish's database)
     protected $connection = 'danish';
 
-    protected $table = 'animal_booking';
+    protected $table = 'visit_list_animal';
 
     // Increment IDs for pivot table
     public $incrementing = true;
 
     protected $fillable = [
-        'bookingID',
+        'listID',
         'animalID',
         'remarks',
     ];
@@ -34,10 +34,10 @@ class AnimalBooking extends Pivot
     }
 
     /**
-     * Relationship to Booking model (same database - danish)
+     * Relationship to VisitList model (same database - danish)
      */
-    public function booking()
+    public function visitList()
     {
-        return $this->belongsTo(Booking::class, 'bookingID', 'id');
+        return $this->belongsTo(VisitList::class, 'listID', 'id');
     }
 }

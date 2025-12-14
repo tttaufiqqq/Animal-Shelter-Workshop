@@ -96,24 +96,26 @@ class Animal extends Model
 
     /**
      * CROSS-DATABASE: Many-to-many relationship to Bookings (Danish's database)
-     * Through animal_booking pivot table
+     * Through animal_booking pivot table (on danish database)
+     * Uses custom pivot model to specify the correct database connection
      */
     public function bookings()
     {
-        return $this->setConnection('danish')
-            ->belongsToMany(Booking::class, 'animal_booking', 'animalID', 'bookingID')
+        return $this->belongsToMany(Booking::class, 'animal_booking', 'animalID', 'bookingID')
+            ->using(AnimalBooking::class)
             ->withPivot('remarks')
             ->withTimestamps();
     }
 
     /**
      * CROSS-DATABASE: Many-to-many relationship to VisitLists (Danish's database)
-     * Through visit_list_animal pivot table
+     * Through visit_list_animal pivot table (on danish database)
+     * Uses custom pivot model to specify the correct database connection
      */
     public function visitLists()
     {
-        return $this->setConnection('danish')
-            ->belongsToMany(VisitList::class, 'visit_list_animal', 'animalID', 'listID')
+        return $this->belongsToMany(VisitList::class, 'visit_list_animal', 'animalID', 'listID')
+            ->using(VisitListAnimal::class)
             ->withPivot('remarks')
             ->withTimestamps();
     }

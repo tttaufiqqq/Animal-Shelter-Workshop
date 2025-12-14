@@ -368,3 +368,368 @@ composer fresh
 - Only drops tables from default connection (sqlite)
 - Leaves tables in remote databases intact
 - Causes "table already exists" errors on next migration
+
+---
+
+## Booking Prevention System
+
+### Overview
+
+The application implements a **multi-layered defense system** to prevent animals from having multiple active bookings simultaneously. This ensures data integrity and prevents booking conflicts.
+
+### Core Rule
+
+**An animal can only have ONE active booking at a time.**
+
+- **Active Booking** = Status is `Pending` or `Confirmed`
+- **Inactive Booking** = Status is `Completed`, `Cancelled`, or `Adopted`
+- Once a booking is completed/cancelled, the animal becomes available for new bookings
+
+### Multi-Layer Defense Architecture
+
+#### Layer 1: Add to Visit List Validation
+
+**Location:** `BookingAdoptionController::addList()` (Lines 118-143)
+
+**Trigger:** User clicks "Add to Visit List" on animal detail page
+
+**Validation:**
+- Checks if animal has ANY active booking from ANY user (not just current user)
+- Prevents adding booked animals to visit list
+- Provides detailed error messages with booking information
+
+**Error Messages:**
+- If booked by current user: Shows booking details and prevents adding
+- If booked by another user: Shows that animal is unavailable
+
+**Code:**
+```php
+$bookedAnimals = $this->getAnimalsWithActiveBookings([$animalId]);
+
+if ($bookedAnimals->isNotEmpty()) {
+    $booking = $bookedAnimals->first()->bookings->first();
+    $isOwnBooking = $booking->userID == $user->id;
+    // Return detailed error message
+}
+```
+
+#### Layer 2: Booking Confirmation Validation
+
+**Location:** `BookingAdoptionController::confirmAppointment()` (Lines 245-265)
+
+**Trigger:** User submits booking from visit list modal
+
+**Validation:**
+- Checks if any selected animals have active bookings (ANY time, not just same slot)
+- Prevents creating booking for animals that are already booked
+- Shows detailed list of all problematic animals
+
+**Error Message Format:**
+> The following animals already have active bookings and cannot be booked again:
+>
+> **Fluffy**: Already booked by you on **Dec 25, 2025 at 2:00 PM** (Booking #123 - Pending)
+> **Max**: Already booked by John Doe on **Dec 26, 2025 at 10:00 AM** (Booking #456 - Confirmed)
+
+**Code:**
+```php
+$animalsWithActiveBookings = $this->getAnimalsWithActiveBookings($requestedAnimalIds);
+
+if ($animalsWithActiveBookings->isNotEmpty()) {
+    $errorMessages = $this->getBookedAnimalsErrorMessage($animalsWithActiveBookings, $user->id);
+    // Return detailed HTML error
+}
+```
+
+#### Layer 3: Time Slot Conflict Check
+
+**Location:** `BookingAdoptionController::confirmAppointment()` (Lines 267-289)
+
+**Trigger:** Secondary safety check during booking confirmation
+
+**Validation:**
+- Additional check for specific time slot conflicts
+- Redundant safety layer in case Layer 2 is bypassed
+- Prevents double-booking at same date/time
+
+### Helper Methods
+
+#### `getAnimalsWithActiveBookings(array $animalIds)`
+
+**Location:** `BookingAdoptionController.php:24-37`
+
+**Purpose:** Central method to check if animals have active bookings
+
+**Returns:** Collection of animals with their active bookings including:
+- Booking ID, date, time, status
+- User who made the booking
+- Ordered by appointment date (earliest first)
+
+**Usage:**
+```php
+$bookedAnimals = $this->getAnimalsWithActiveBookings([1, 2, 3]);
+```
+
+#### `getBookedAnimalsErrorMessage($bookedAnimals, $currentUserId)`
+
+**Location:** `BookingAdoptionController.php:42-66`
+
+**Purpose:** Generate detailed, user-friendly error messages
+
+**Features:**
+- Shows animal name
+- Distinguishes between own bookings and others ("by you" vs "by Another User")
+- Formats dates/times in readable format (e.g., "Dec 25, 2025 at 2:00 PM")
+- Shows booking ID and status
+- Returns HTML-formatted messages for better readability
+
+### Visual Indicators
+
+#### Animal Detail Page Enhancement
+
+**Location:** `AnimalManagementController::show()` (Lines 548-554)
+
+**Added Variable:** `$activeBooking`
+
+**Purpose:** Provides booking status information to the view
+
+**Code:**
+```php
+$activeBooking = $animal->bookings()
+    ->whereIn('status', ['Pending', 'Confirmed'])
+    ->with('user')
+    ->orderBy('appointment_date', 'asc')
+    ->first();
+```
+
+**Suggested Blade Usage:**
+```blade
+@if($activeBooking)
+    <div class="alert alert-warning">
+        <strong>Currently Booked!</strong><br>
+        This animal has an active booking for
+        {{ \Carbon\Carbon::parse($activeBooking->appointment_date)->format('M d, Y') }}
+        at {{ \Carbon\Carbon::parse($activeBooking->appointment_time)->format('g:i A') }}
+    </div>
+
+    <button disabled class="btn btn-secondary">
+        Add to Visit List (Currently Unavailable)
+    </button>
+@else
+    <form action="{{ route('booking-adoption.add-list', $animal->id) }}" method="POST">
+        @csrf
+        <button type="submit" class="btn btn-primary">
+            Add to Visit List
+        </button>
+    </form>
+@endif
+```
+
+### Booking Flow Diagram
+
+```
+1. Browse Animals → 2. View Details → 3. Add to Visit List
+                                            ↓
+                                    [Layer 1 Validation]
+                                            ↓
+                                    Visit List Created
+                                            ↓
+4. Open Visit List Modal → 5. Select Animals → 6. Confirm Appointment
+                                                        ↓
+                                                [Layer 2 Validation]
+                                                        ↓
+                                                [Layer 3 Validation]
+                                                        ↓
+                                                7. Create Booking ✅
+```
+
+### Testing Checklist
+
+- [ ] Try to add an animal with active booking to visit list → Should show error
+- [ ] Add animal to visit list, create booking, try to add same animal again → Should show error
+- [ ] Try to book multiple animals where some have active bookings → Should show detailed error
+- [ ] Complete/cancel a booking, then add animal to visit list → Should work
+- [ ] Two users try to book the same animal → Second user should get error
+- [ ] View animal detail page with active booking → Should show warning (if implemented in view)
+
+---
+
+## Database Connection Usage Guidelines
+
+### When DB::connection() is REQUIRED
+
+#### 1. Transactions Across Databases
+
+Always specify the connection when starting transactions:
+
+```php
+// ❌ WRONG - uses default connection (sqlite)
+DB::beginTransaction();
+
+// ✅ CORRECT - specifies connection
+DB::connection('shafiqah')->beginTransaction();
+DB::connection('eilya')->beginTransaction();
+```
+
+**Example from AnimalManagementController:**
+```php
+// Creating Animal (shafiqah) + Images (eilya)
+DB::connection('shafiqah')->beginTransaction();
+DB::connection('eilya')->beginTransaction();
+
+try {
+    Animal::create([...]);  // → shafiqah
+    Image::create([...]);   // → eilya
+
+    DB::connection('shafiqah')->commit();
+    DB::connection('eilya')->commit();
+} catch (\Exception $e) {
+    DB::connection('shafiqah')->rollBack();
+    DB::connection('eilya')->rollBack();
+}
+```
+
+#### 2. Raw Database Queries
+
+Always specify the connection for raw queries:
+
+```php
+// ❌ WRONG
+DB::select('SELECT * FROM animal WHERE id = ?', [$id]);
+
+// ✅ CORRECT
+DB::connection('shafiqah')->select('SELECT * FROM animal WHERE id = ?', [$id]);
+```
+
+#### 3. Schema Operations
+
+Always specify the connection for schema operations:
+
+```php
+// ✅ CORRECT - from migrations
+Schema::connection('danish')->create('bookings', function (Blueprint $table) {
+    // ...
+});
+```
+
+### When DB::connection() is NOT NEEDED
+
+#### 1. Eloquent Model Operations (90% of cases)
+
+Models automatically use their configured connection:
+
+```php
+// In Animal.php
+class Animal extends Model
+{
+    protected $connection = 'shafiqah';  // ← Connection defined here
+}
+
+// In controllers - NO DB::connection() needed:
+Animal::create([...]);           // ✓ Auto uses 'shafiqah'
+Animal::find($id);               // ✓ Auto uses 'shafiqah'
+Animal::where(...)->get();       // ✓ Auto uses 'shafiqah'
+$animal->update([...]);          // ✓ Auto uses 'shafiqah'
+$animal->delete();               // ✓ Auto uses 'shafiqah'
+```
+
+**All models have connections defined:**
+- Animal, Medical, Vaccination, Clinic, Vet, AnimalProfile → `shafiqah`
+- Report, Rescue, Image → `eilya`
+- Slot, Section, Category, Inventory → `atiqah`
+- Booking, VisitList, Adoption, Transaction → `danish`
+- User, Role, AdopterProfile → `taufiq`
+
+#### 2. Relationship Operations
+
+Relationships automatically handle cross-database queries:
+
+```php
+// Slot model (atiqah) querying Animals (shafiqah)
+$slot->animals()->count();  // ✓ Relationship handles connection
+
+// Animal model (shafiqah) querying Bookings (danish)
+$animal->bookings;          // ✓ Relationship handles connection
+```
+
+#### 3. DB::raw() Within Query Builder
+
+When used inside a query builder, DB::raw() inherits the connection:
+
+```php
+$query = Animal::with(['images', 'slot']);  // Already on 'shafiqah'
+$query->where(DB::raw('LOWER(name)'), 'LIKE', '%' . $search . '%');  // ✓ Inherits 'shafiqah'
+```
+
+### Controller Verification Summary
+
+All controllers are correctly implemented:
+
+| Controller | Uses Transactions | Uses Raw Queries | Status |
+|------------|------------------|------------------|--------|
+| AnimalManagementController | ✅ Yes - with DB::connection() | ❌ No | ✅ CORRECT |
+| BookingAdoptionController | ✅ Yes - with DB::connection() | ❌ No | ✅ CORRECT |
+| StrayReportingManagementController | ❌ No | ❌ No | ✅ CORRECT |
+| ShelterManagementController | ❌ No | ❌ No | ✅ CORRECT |
+| ProfileController | ❌ No | ❌ No | ✅ CORRECT |
+| RescueMapController | ❌ No | ❌ No | ✅ CORRECT |
+
+**No fixes needed!** All controllers follow Laravel best practices:
+- Transactions explicitly specify connections
+- Eloquent operations rely on model-defined connections
+- No unnecessary DB::connection() calls
+
+### The Golden Rule
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  USE DB::connection() when:                                  │
+│    • Starting transactions                                   │
+│    • Running raw queries                                     │
+│    • Performing schema operations                            │
+│                                                              │
+│  DON'T USE DB::connection() when:                            │
+│    • Using Eloquent CRUD (create, find, update, delete)      │
+│    • Using Query Builder on models                           │
+│    • Accessing relationships                                 │
+│    • Using DB::raw() inside query builder                    │
+│                                                              │
+│  WHY: Models have $connection property that handles it!      │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Cross-Database Operation Examples
+
+#### Example 1: Creating Animal with Images
+```php
+// Spans 2 databases: shafiqah + eilya
+DB::connection('shafiqah')->beginTransaction();
+DB::connection('eilya')->beginTransaction();
+
+Animal::create([...]);  // shafiqah - Model handles connection
+Image::create([...]);   // eilya - Model handles connection
+
+DB::connection('shafiqah')->commit();
+DB::connection('eilya')->commit();
+```
+
+#### Example 2: Creating Booking with Animals
+```php
+// All on danish database
+DB::connection('danish')->beginTransaction();
+
+Booking::create([...]);              // danish - Model handles connection
+$booking->animals()->attach([...]);  // danish - Pivot uses custom model
+
+DB::connection('danish')->commit();
+```
+
+#### Example 3: Reading Cross-Database Data
+```php
+// No DB::connection() needed - relationships handle it
+$animal = Animal::with(['bookings', 'images', 'slot'])->find($id);
+
+// $animal is from shafiqah
+// $animal->bookings are from danish (via relationship)
+// $animal->images are from eilya (via relationship)
+// $animal->slot is from atiqah (via relationship)
+```

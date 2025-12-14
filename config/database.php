@@ -40,6 +40,10 @@ return [
             'password' => env('DB1_PASSWORD'),
             'charset' => 'utf8mb4',
             'collation' => 'utf8mb4_unicode_ci',
+            'options' => [
+                PDO::ATTR_TIMEOUT => 3, // Connection timeout in seconds
+                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+            ],
         ],
 
         'atiqah' => [
@@ -49,6 +53,12 @@ return [
             'database' => env('DB2_DATABASE'),
             'username' => env('DB2_USERNAME'),
             'password' => env('DB2_PASSWORD'),
+            'charset' => 'utf8mb4',
+            'collation' => 'utf8mb4_unicode_ci',
+            'options' => [
+                PDO::ATTR_TIMEOUT => 3, // Connection timeout in seconds
+                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+            ],
         ],
 
         'shafiqah' => [
@@ -58,6 +68,12 @@ return [
             'database' => env('DB3_DATABASE'),
             'username' => env('DB3_USERNAME'),
             'password' => env('DB3_PASSWORD'),
+            'charset' => 'utf8mb4',
+            'collation' => 'utf8mb4_unicode_ci',
+            'options' => [
+                PDO::ATTR_TIMEOUT => 3, // Connection timeout in seconds
+                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+            ],
         ],
 
         'danish' => [
@@ -71,6 +87,8 @@ return [
             'trust_server_certificate' => true, // Or this key depending on version
             'options' => [
                 'TrustServerCertificate' => true,
+                'ConnectTimeout' => 3, // SQL Server connection timeout
+                'LoginTimeout' => 3,
             ],
         ],
 
@@ -81,6 +99,13 @@ return [
             'database' => env('DB5_DATABASE'),
             'username' => env('DB5_USERNAME'),
             'password' => env('DB5_PASSWORD'),
+            'charset'  => 'utf8',
+            'schema'   => 'public',
+            'options'  => [
+                PDO::ATTR_TIMEOUT => 3, // Connection timeout in seconds
+                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+            ],
+            'connect_timeout' => 3, // PostgreSQL specific timeout
         ],
         //workshop2
 

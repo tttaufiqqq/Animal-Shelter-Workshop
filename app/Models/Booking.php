@@ -47,12 +47,13 @@ class Booking extends Model
 
     /**
      * CROSS-DATABASE: Many-to-many relationship to Animals (Shafiqah's database)
-     * Through animal_booking pivot table
+     * Through animal_booking pivot table (on danish database)
+     * Uses custom pivot model to specify the correct database connection
      */
     public function animals()
     {
-        return $this->setConnection('shafiqah')
-            ->belongsToMany(Animal::class, 'animal_booking', 'bookingID', 'animalID')
+        return $this->belongsToMany(Animal::class, 'animal_booking', 'bookingID', 'animalID')
+            ->using(AnimalBooking::class)
             ->withPivot('remarks')
             ->withTimestamps();
     }

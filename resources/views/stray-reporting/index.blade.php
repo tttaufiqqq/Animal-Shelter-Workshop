@@ -5,11 +5,23 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Stray Animal Reports - Stray Animals Shelter</title>
 
-    {{-- Tailwind CSS --}}
-    <script src="https://cdn.tailwindcss.com"></script>
+    {{-- Vite Assets (compiled Tailwind) --}}
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
 
-    {{-- Leaflet CSS --}}
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    {{-- Leaflet CSS with error handling --}}
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+          onerror="console.warn('Leaflet CSS failed to load - map features may not work')" />
+
+    {{-- CDN Timeout Handler --}}
+    <style>
+        /* Ensure page is visible even if CDN fails */
+        body { opacity: 1 !important; }
+
+        /* Hide any loading overlays after 3 seconds */
+        @keyframes fadeOut {
+            to { opacity: 0; visibility: hidden; }
+        }
+    </style>
 </head>
 <body class="bg-gray-50 min-h-screen">
 
@@ -131,29 +143,72 @@
     </div>
 </div>
 
-{{-- Leaflet JS --}}
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+{{-- Leaflet JS with error handling --}}
+<script>
+    // Load Leaflet with timeout and error handling
+    (function() {
+        const script = document.createElement('script');
+        script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+        script.onerror = function() {
+            console.warn('Leaflet JS failed to load - map features disabled');
+            window.LEAFLET_AVAILABLE = false;
+        };
+        script.onload = function() {
+            window.LEAFLET_AVAILABLE = true;
+        };
+
+        // Set timeout to prevent hanging
+        const timeout = setTimeout(() => {
+            if (typeof L === 'undefined') {
+                console.warn('Leaflet loading timeout - map features disabled');
+                window.LEAFLET_AVAILABLE = false;
+            }
+        }, 5000);
+
+        script.addEventListener('load', () => clearTimeout(timeout));
+        document.head.appendChild(script);
+    })();
+</script>
 
 <script>
     let modalMapInstance = null;
 
-    // Map modal functions
+    // Ensure page loads even if resources fail
+    window.addEventListener('DOMContentLoaded', function() {
+        // Remove any loading overlays
+        document.body.style.opacity = '1';
+        document.body.style.visibility = 'visible';
+    });
+
+    // Map modal functions with error handling
     function showMapModal(lat, lng, address) {
+        // Check if Leaflet is available
+        if (typeof L === 'undefined' || window.LEAFLET_AVAILABLE === false) {
+            alert('Map feature is currently unavailable. Please check your internet connection.');
+            return;
+        }
+
         document.getElementById('mapModalAddress').textContent = address;
         document.getElementById('mapModal').classList.remove('hidden');
 
         setTimeout(() => {
-            if (modalMapInstance) {
-                modalMapInstance.remove();
+            try {
+                if (modalMapInstance) {
+                    modalMapInstance.remove();
+                }
+
+                modalMapInstance = L.map('modalMap').setView([lat, lng], 15);
+
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '&copy; OpenStreetMap contributors'
+                }).addTo(modalMapInstance);
+
+                L.marker([lat, lng]).addTo(modalMapInstance);
+            } catch (error) {
+                console.error('Map initialization failed:', error);
+                alert('Failed to load map. Please check your internet connection.');
+                closeMapModal();
             }
-
-            modalMapInstance = L.map('modalMap').setView([lat, lng], 15);
-
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                attribution: '&copy; OpenStreetMap contributors'
-            }).addTo(modalMapInstance);
-
-            L.marker([lat, lng]).addTo(modalMapInstance);
         }, 100);
     }
 

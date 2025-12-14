@@ -4,7 +4,11 @@
       "Bash(php -l:*)",
       "Bash(php artisan make:migration:*)",
       "Bash(php artisan make:command:*)",
-      "Bash(php artisan:*)"
+      "Bash(php artisan:*)",
+      "Bash(grep:*)",
+      "Bash(copy:*)",
+      "Bash(move:*)",
+      "Bash(git add:*)"
     ]
   }
 }

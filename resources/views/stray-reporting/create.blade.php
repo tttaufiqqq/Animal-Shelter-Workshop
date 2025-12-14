@@ -2,147 +2,195 @@
 <div id="reportModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4 overflow-y-auto">
     <div class="w-full max-w-4xl bg-white rounded-2xl shadow-2xl overflow-hidden my-8">
         <!-- Header Section -->
-        <div class="bg-gradient-to-r from-purple-600 to-purple-700 text-white p-8 relative">
+        <div class="bg-gradient-to-r from-purple-600 to-purple-700 text-white p-6 relative">
             <button type="button" onclick="closeReportModal()" class="absolute top-4 right-4 text-white hover:text-gray-200 transition">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                 </svg>
             </button>
             <div class="flex items-center mb-2">
-                <span class="text-4xl mr-4">📝</span>
-                <h2 class="text-3xl font-bold">Submit a New Report</h2>
+                <span class="text-3xl mr-3">📝</span>
+                <h2 class="text-2xl font-bold">Submit Stray Animal Report</h2>
             </div>
-            <p class="text-purple-100 text-lg">
+            <p class="text-purple-100">
                 Help us locate and rescue stray animals in your area
             </p>
         </div>
 
+        <!-- Offline Warning -->
+        <div id="offlineWarning" class="hidden bg-yellow-50 border-l-4 border-yellow-400 p-4">
+            <div class="flex">
+                <svg class="h-5 w-5 text-yellow-400 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                </svg>
+                <p class="text-sm text-yellow-700">
+                    <strong>No Internet Connection.</strong> Map features may not work. Please connect to the internet for the best experience.
+                </p>
+            </div>
+        </div>
+
         <!-- Form Section -->
-        <div class="p-8 md:p-12 max-h-[calc(100vh-12rem)] overflow-y-auto">
-            <form action="{{ route('reports.store') }}" method="POST" enctype="multipart/form-data" class="space-y-6">
+        <div class="p-6 md:p-8 max-h-[calc(100vh-12rem)] overflow-y-auto">
+            <form action="{{ route('reports.store') }}" method="POST" enctype="multipart/form-data" id="reportForm" class="space-y-5">
                 @csrf
 
-                <!-- GPS Location Button -->
-                <div class="flex items-center gap-2 mb-4">
-                    <button type="button" id="gpsBtn"
-                            class="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg hover:from-green-600 hover:to-green-700 transition">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                        </svg>
-                        Use Current Location
-                    </button>
-                    <span class="text-sm text-gray-600">or click on map</span>
-                </div>
+                <!-- Step 1: Location -->
+                <div class="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                    <h3 class="text-lg font-semibold text-purple-900 mb-3 flex items-center">
+                        <span class="bg-purple-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm mr-2">1</span>
+                        Pin Location
+                    </h3>
 
-                {{-- Address Search --}}
-                <div>
-                    <label class="block text-gray-800 font-semibold mb-2">Search Address</label>
-                    <div class="flex gap-2">
-                        <input type="text" id="addressSearch" placeholder="Enter address to search..."
-                               class="flex-1 border-gray-300 rounded-lg shadow-sm px-4 py-3 border focus:border-purple-500 focus:ring focus:ring-purple-200 transition">
-                        <button type="button" id="searchBtn"
-                                class="px-6 py-3 bg-gradient-to-r from-purple-600 to-purple-700 text-white font-semibold rounded-lg hover:from-purple-700 hover:to-purple-800 transition duration-300 shadow-lg">
-                            Search
+                    <!-- GPS Button -->
+                    <div class="mb-3">
+                        <button type="button" id="gpsBtn"
+                                class="flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                            </svg>
+                            Use My Current Location
                         </button>
-                    </div>
-                    <p class="text-sm text-gray-600 mt-2">Search for an address or click on the map to pin a location</p>
-                </div>
-
-                {{-- Map --}}
-                <div>
-                    <label class="block text-gray-800 font-semibold mb-2">
-                        Select Location on Map <span class="text-red-600">*</span>
-                    </label>
-                    <div id="map" class="rounded-xl shadow-lg" style="height: 350px;"></div>
-                    <p class="text-sm text-red-600 mt-2 hidden" id="mapError">Please select a location on the map</p>
-                </div>
-
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-gray-800 font-semibold mb-2">
-                            Latitude <span class="text-red-600">*</span>
-                        </label>
-                        <input type="text" name="latitude" class="w-full border-gray-300 rounded-lg shadow-sm px-4 py-3 border bg-gray-50" required readonly>
+                        <p class="text-xs text-gray-600 mt-1">Or click on the map below to pin the location</p>
                     </div>
 
+                    <!-- Map -->
+                    <div class="mb-3">
+                        <div id="map" class="rounded-lg shadow-md border border-gray-300" style="height: 300px;"></div>
+                        <p class="text-xs text-red-600 mt-1 hidden" id="mapError">⚠️ Please select a location on the map</p>
+                    </div>
+
+                    <!-- Coordinates (Read-only) -->
+                    <div class="grid grid-cols-2 gap-3 mb-3">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Latitude</label>
+                            <input type="text" name="latitude" class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-sm" readonly required>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Longitude</label>
+                            <input type="text" name="longitude" class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-sm" readonly required>
+                        </div>
+                    </div>
+
+                    <!-- Address -->
                     <div>
-                        <label class="block text-gray-800 font-semibold mb-2">
-                            Longitude <span class="text-red-600">*</span>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                            Address <span class="text-red-600">*</span>
                         </label>
-                        <input type="text" name="longitude" class="w-full border-gray-300 rounded-lg shadow-sm px-4 py-3 border bg-gray-50" required readonly>
+                        <input type="text" name="address" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent" required>
                     </div>
                 </div>
 
-                <div>
-                    <label class="block text-gray-800 font-semibold mb-2">
-                        Address <span class="text-red-600">*</span>
-                    </label>
-                    <input type="text" name="address" class="w-full border-gray-300 rounded-lg shadow-sm px-4 py-3 border focus:border-purple-500 focus:ring focus:ring-purple-200 transition" required>
-                </div>
+                <!-- Step 2: City & State (Auto-filled and Disabled) -->
+                <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <h3 class="text-lg font-semibold text-blue-900 mb-3 flex items-center">
+                        <span class="bg-blue-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm mr-2">2</span>
+                        Location Details (Auto-filled)
+                    </h3>
 
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-gray-800 font-semibold mb-2">
-                            City <span class="text-red-600">*</span>
-                        </label>
-                        <input type="text" name="city" list="citySuggestions" class="w-full border-gray-300 rounded-lg shadow-sm px-4 py-3 border focus:border-purple-500 focus:ring focus:ring-purple-200 transition" required>
-                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">
+                                City <span class="text-red-600">*</span>
+                            </label>
+                            <input type="text" name="city" id="cityInput"
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 cursor-not-allowed"
+                                   readonly required>
+                            <p class="text-xs text-gray-500 mt-1">⚠️ Auto-filled based on pinned location</p>
+                        </div>
 
-                    <div>
-                        <label class="block text-gray-800 font-semibold mb-2">
-                            State <span class="text-red-600">*</span>
-                        </label>
-                        <div class="relative">
-                            <select name="state" class="w-full border-gray-300 rounded-lg shadow-sm px-4 py-3 border focus:border-purple-500 focus:ring focus:ring-purple-200 transition appearance-none cursor-pointer bg-white pr-10" required>
-                                <option value="" disabled selected>Select your state</option>
-                                <option value="Johor">Johor</option>
-                                <option value="Kedah">Kedah</option>
-                                <option value="Kelantan">Kelantan</option>
-                                <option value="Malacca">Malacca</option>
-                                <option value="Negeri Sembilan">Negeri Sembilan</option>
-                                <option value="Pahang">Pahang</option>
-                                <option value="Penang">Penang</option>
-                                <option value="Perak">Perak</option>
-                                <option value="Perlis">Perlis</option>
-                                <option value="Sabah">Sabah</option>
-                                <option value="Sarawak">Sarawak</option>
-                                <option value="Selangor">Selangor</option>
-                                <option value="Terengganu">Terengganu</option>
-                                <option value="Kuala Lumpur">Kuala Lumpur</option>
-                                <option value="Putrajaya">Putrajaya</option>
-                                <option value="Labuan">Labuan</option>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">
+                                State <span class="text-red-600">*</span>
+                            </label>
+                            <select name="state" id="stateInput"
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 cursor-not-allowed appearance-none"
+                                    disabled required>
+                                <option value="">Select state</option>
+                                @foreach(['Johor', 'Kedah', 'Kelantan', 'Malacca', 'Negeri Sembilan', 'Pahang', 'Penang', 'Perak', 'Perlis', 'Sabah', 'Sarawak', 'Selangor', 'Terengganu', 'Kuala Lumpur', 'Putrajaya', 'Labuan'] as $state)
+                                    <option value="{{ $state }}">{{ $state }}</option>
+                                @endforeach
                             </select>
-                            <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-                                </svg>
-                            </div>
+                            <p class="text-xs text-gray-500 mt-1">⚠️ Auto-filled based on pinned location</p>
                         </div>
                     </div>
                 </div>
 
-                <div>
-                    <label class="block text-gray-800 font-semibold mb-2">
-                        Upload Images <span class="text-red-600">*</span>
-                    </label>
-                    <input type="file" name="images[]" multiple accept="image/*"
-                           class="w-full border-gray-300 rounded-lg shadow-sm px-4 py-3 border focus:border-purple-500 focus:ring focus:ring-purple-200 transition">
-                    <p class="text-sm text-gray-600 mt-2">You can upload multiple images (max 5MB each, hold Ctrl/Cmd to select multiple files)</p>
+                <!-- Step 3: Animal Information -->
+                <div class="bg-green-50 border border-green-200 rounded-lg p-4">
+                    <h3 class="text-lg font-semibold text-green-900 mb-3 flex items-center">
+                        <span class="bg-green-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm mr-2">3</span>
+                        Animal Condition & Priority
+                    </h3>
+
+                    <!-- Priority Description Dropdown -->
+                    <div class="mb-3">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                            Situation / Urgency Level <span class="text-red-600">*</span>
+                        </label>
+                        <select name="description" id="descriptionSelect"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent" required>
+                            <option value="">-- Select situation --</option>
+                            <optgroup label="🚨 URGENT - Immediate Action Required">
+                                <option value="Injured animal - Critical condition" data-priority="critical">🚨 Injured animal - Critical condition</option>
+                                <option value="Trapped animal - Immediate rescue needed" data-priority="critical">🚨 Trapped animal - Immediate rescue needed</option>
+                                <option value="Aggressive animal - Public safety risk" data-priority="critical">🚨 Aggressive animal - Public safety risk</option>
+                            </optgroup>
+                            <optgroup label="⚠️ HIGH PRIORITY - Needs Attention Soon">
+                                <option value="Sick animal - Needs medical attention" data-priority="high">⚠️ Sick animal - Needs medical attention</option>
+                                <option value="Mother with puppies/kittens - Family rescue" data-priority="high">⚠️ Mother with puppies/kittens - Family rescue</option>
+                                <option value="Young animal (puppy/kitten) - Vulnerable" data-priority="high">⚠️ Young animal (puppy/kitten) - Vulnerable</option>
+                                <option value="Malnourished animal - Needs care" data-priority="high">⚠️ Malnourished animal - Needs care</option>
+                            </optgroup>
+                            <optgroup label="ℹ️ STANDARD - Non-urgent">
+                                <option value="Healthy stray - Needs rescue" data-priority="normal">ℹ️ Healthy stray - Needs rescue</option>
+                                <option value="Abandoned pet - Recent" data-priority="normal">ℹ️ Abandoned pet - Recent</option>
+                                <option value="Friendly stray - Approachable" data-priority="normal">ℹ️ Friendly stray - Approachable</option>
+                            </optgroup>
+                            <optgroup label="Other">
+                                <option value="Other" data-priority="normal">Other (please specify in additional notes)</option>
+                            </optgroup>
+                        </select>
+                        <p class="text-xs text-gray-600 mt-1">This helps caretakers prioritize rescues based on urgency</p>
+                    </div>
+
+                    <!-- Additional Notes (Optional) -->
+                    <div id="additionalNotesSection" class="hidden">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                            Additional Notes (Optional)
+                        </label>
+                        <textarea name="additional_notes" rows="2" id="additionalNotes"
+                                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                                  placeholder="Add more details about the animal's condition, behavior, or location..."></textarea>
+                    </div>
                 </div>
 
-                <div>
-                    <label class="block text-gray-800 font-semibold mb-2">
-                        Description <span class="text-red-600">*</span>
-                    </label>
-                    <textarea name="description" rows="4" class="w-full border-gray-300 rounded-lg shadow-sm px-4 py-3 border focus:border-purple-500 focus:ring focus:ring-purple-200 transition" placeholder="Provide details about the animal and situation..." required></textarea>
+                <!-- Step 4: Upload Images -->
+                <div class="bg-orange-50 border border-orange-200 rounded-lg p-4">
+                    <h3 class="text-lg font-semibold text-orange-900 mb-3 flex items-center">
+                        <span class="bg-orange-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm mr-2">4</span>
+                        Upload Images
+                    </h3>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                            Photos of the Animal <span class="text-red-600">*</span>
+                        </label>
+                        <input type="file" name="images[]" multiple accept="image/*" id="imageInput"
+                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent">
+                        <p class="text-xs text-gray-600 mt-1">📷 Upload 1-5 images (max 5MB each). Clear photos help caretakers identify the animal.</p>
+                        <div id="imagePreview" class="mt-2 grid grid-cols-3 gap-2"></div>
+                    </div>
                 </div>
 
-                <div class="flex justify-end gap-4 pt-4">
-                    <button type="button" onclick="closeReportModal()" class="px-8 py-3 bg-gray-200 text-gray-700 font-bold rounded-lg hover:bg-gray-300 transition duration-300">
+                <!-- Submit Buttons -->
+                <div class="flex justify-end gap-3 pt-4 border-t">
+                    <button type="button" onclick="closeReportModal()"
+                            class="px-6 py-2 bg-gray-200 text-gray-700 font-semibold rounded-lg hover:bg-gray-300 transition">
                         Cancel
                     </button>
-                    <button type="submit" class="px-8 py-3 bg-gradient-to-r from-purple-600 to-purple-700 text-white font-bold rounded-lg hover:from-purple-700 hover:to-purple-800 transition duration-300 shadow-lg">
+                    <button type="submit" id="submitBtn"
+                            class="px-6 py-2 bg-gradient-to-r from-purple-600 to-purple-700 text-white font-semibold rounded-lg hover:from-purple-700 hover:to-purple-800 transition shadow-lg">
                         Submit Report
                     </button>
                 </div>
@@ -154,1058 +202,255 @@
 <!-- Toast Container -->
 <div id="toastContainer" class="fixed top-4 right-4 z-[100] space-y-2"></div>
 
-@verbatim
-    <script>
-        // ============================================
-        // GLOBAL VARIABLES AND CONFIGURATION
-        // ============================================
-        let map;
-        let marker;
-        let mapInitialized = false;
-        let lastSearchTime = 0;
-        const SEARCH_COOLDOWN = 2000; // 2 seconds
+<!-- Leaflet CSS -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      onerror="console.warn('Leaflet CSS failed to load')"/>
 
-        // Malaysian states for lookup
-        const malaysianStates = [
-            'Johor', 'Kedah', 'Kelantan', 'Malacca', 'Negeri Sembilan',
-            'Pahang', 'Penang', 'Perak', 'Perlis', 'Sabah',
-            'Sarawak', 'Selangor', 'Terengganu', 'Kuala Lumpur', 'Putrajaya', 'Labuan'
-        ];
+<!-- Scripts -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        onerror="window.LEAFLET_FAILED = true"></script>
+<script src="{{ asset('js/map-utils.js') }}"></script>
 
-        // Comprehensive Malaysian city-state mapping
-        const malaysianCities = {
-            // Johor (200+ cities)
-            'Johor Bahru': 'Johor', 'Johor Baharu': 'Johor', 'JB': 'Johor',
-            'Pasir Gudang': 'Johor', 'Muar': 'Johor', 'Batu Pahat': 'Johor',
-            'Segamat': 'Johor', 'Kluang': 'Johor', 'Kulai': 'Johor',
-            'Pontian': 'Johor', 'Tangkak': 'Johor', 'Mersing': 'Johor',
-            'Kota Tinggi': 'Johor', 'Senai': 'Johor', 'Ulu Tiram': 'Johor',
-            'Skudai': 'Johor', 'Taman Daya': 'Johor', 'Gelang Patah': 'Johor',
-            'Nusajaya': 'Johor', 'Iskandar Puteri': 'Johor',
+<script>
+    let map, marker;
+    let mapInitialized = false;
+    let locationPinned = false;
 
-            // Kedah (150+ cities)
-            'Alor Setar': 'Kedah', 'Sungai Petani': 'Kedah', 'Kulim': 'Kedah',
-            'Jitra': 'Kedah', 'Baling': 'Kedah', 'Bandar Baharu': 'Kedah',
-            'Langkawi': 'Kedah', 'Yan': 'Kedah', 'Sik': 'Kedah',
-
-            // Kelantan
-            'Kota Bharu': 'Kelantan', 'Kuala Krai': 'Kelantan', 'Tanah Merah': 'Kelantan',
-            'Pasir Mas': 'Kelantan', 'Tumpat': 'Kelantan', 'Bachok': 'Kelantan',
-
-            // Malacca
-            'Malacca City': 'Malacca', 'Melaka': 'Malacca', 'Alor Gajah': 'Malacca',
-            'Jasin': 'Malacca', 'Masjid Tanah': 'Malacca', 'Ayer Keroh': 'Malacca',
-
-            // Negeri Sembilan
-            'Seremban': 'Negeri Sembilan', 'Port Dickson': 'Negeri Sembilan',
-            'Nilai': 'Negeri Sembilan', 'Rembau': 'Negeri Sembilan',
-            'Kuala Pilah': 'Negeri Sembilan', 'Tampin': 'Negeri Sembilan',
-            'Bahau': 'Negeri Sembilan', 'Mantin': 'Negeri Sembilan',
-
-            // Pahang
-            'Kuantan': 'Pahang', 'Temerloh': 'Pahang', 'Bentong': 'Pahang',
-            'Raub': 'Pahang', 'Jerantut': 'Pahang', 'Pekan': 'Pahang',
-            'Cameron Highlands': 'Pahang', 'Genting Highlands': 'Pahang',
-
-            // Penang
-            'Georgetown': 'Penang', 'George Town': 'Penang', 'Butterworth': 'Penang',
-            'Bayan Lepas': 'Penang', 'Bukit Mertajam': 'Penang', 'Sungai Ara': 'Penang',
-            'Air Itam': 'Penang', 'Batu Ferringhi': 'Penang', 'Tanjung Bungah': 'Penang',
-
-            // Perak
-            'Ipoh': 'Perak', 'Taiping': 'Perak', 'Sitiawan': 'Perak',
-            'Teluk Intan': 'Perak', 'Kuala Kangsar': 'Perak', 'Batu Gajah': 'Perak',
-            'Kampar': 'Perak', 'Lumut': 'Perak', 'Gopeng': 'Perak',
-
-            // Perlis
-            'Kangar': 'Perlis', 'Arau': 'Perlis', 'Padang Besar': 'Perlis',
-
-            // Sabah
-            'Kota Kinabalu': 'Sabah', 'KK': 'Sabah', 'Sandakan': 'Sabah',
-            'Tawau': 'Sabah', 'Lahad Datu': 'Sabah', 'Keningau': 'Sabah',
-            'Kudat': 'Sabah', 'Semporna': 'Sabah', 'Ranau': 'Sabah',
-
-            // Sarawak
-            'Kuching': 'Sarawak', 'Miri': 'Sarawak', 'Sibu': 'Sarawak',
-            'Bintulu': 'Sarawak', 'Limbang': 'Sarawak', 'Sarikei': 'Sarawak',
-            'Sri Aman': 'Sarawak', 'Kapit': 'Sarawak', 'Samarahan': 'Sarawak',
-
-            // Selangor (250+ cities)
-            'Shah Alam': 'Selangor', 'Petaling Jaya': 'Selangor', 'PJ': 'Selangor',
-            'Subang Jaya': 'Selangor', 'Klang': 'Selangor', 'Kajang': 'Selangor',
-            'Selayang': 'Selangor', 'Rawang': 'Selangor', 'Sungai Buloh': 'Selangor',
-            'Bangi': 'Selangor', 'Ampang': 'Selangor', 'Puchong': 'Selangor',
-            'Cyberjaya': 'Selangor', 'Damansara': 'Selangor', 'Cheras': 'Selangor',
-            'Kepong': 'Selangor', 'Setapak': 'Selangor', 'Gombak': 'Selangor',
-            'Sepang': 'Selangor', 'Kuala Selangor': 'Selangor',
-
-            // Kuala Lumpur (Federal Territory)
-            'Kuala Lumpur': 'Kuala Lumpur', 'KL': 'Kuala Lumpur',
-            'Bukit Bintang': 'Kuala Lumpur', 'KLCC': 'Kuala Lumpur',
-            'Mont Kiara': 'Kuala Lumpur', 'Bangsar': 'Kuala Lumpur',
-            'Desa ParkCity': 'Kuala Lumpur', 'Taman Tun Dr Ismail': 'Kuala Lumpur',
-            'Wangsa Maju': 'Kuala Lumpur', 'Sri Hartamas': 'Kuala Lumpur',
-
-            // Terengganu
-            'Kuala Terengganu': 'Terengganu', 'Chukai': 'Terengganu',
-            'Kemaman': 'Terengganu', 'Dungun': 'Terengganu',
-            'Marang': 'Terengganu', 'Kuala Berang': 'Terengganu',
-
-            // Labuan (Federal Territory)
-            'Labuan': 'Labuan', 'Victoria': 'Labuan',
-
-            // Putrajaya (Federal Territory)
-            'Putrajaya': 'Putrajaya'
+    // Toast notification
+    function showToast(message, type = 'info') {
+        const container = document.getElementById('toastContainer');
+        const colors = {
+            error: 'bg-red-500',
+            success: 'bg-green-500',
+            warning: 'bg-yellow-500',
+            info: 'bg-blue-500'
         };
 
-        // Malaysia bounding box for validation
-        const MALAYSIA_BOUNDS = {
-            north: 7.35,
-            south: 0.85,
-            east: 119.27,
-            west: 99.64
-        };
+        const toast = document.createElement('div');
+        toast.className = `px-4 py-3 rounded-lg shadow-lg text-white font-medium ${colors[type]} transform transition-all`;
+        toast.textContent = message;
 
-        // State capitals for auto-correction
-        const stateCapitals = {
-            'Johor': 'Johor Bahru',
-            'Kedah': 'Alor Setar',
-            'Kelantan': 'Kota Bharu',
-            'Malacca': 'Malacca City',
-            'Negeri Sembilan': 'Seremban',
-            'Pahang': 'Kuantan',
-            'Penang': 'Georgetown',
-            'Perak': 'Ipoh',
-            'Perlis': 'Kangar',
-            'Sabah': 'Kota Kinabalu',
-            'Sarawak': 'Kuching',
-            'Selangor': 'Shah Alam',
-            'Terengganu': 'Kuala Terengganu',
-            'Kuala Lumpur': 'Kuala Lumpur',
-            'Putrajaya': 'Putrajaya',
-            'Labuan': 'Labuan'
-        };
+        container.appendChild(toast);
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            setTimeout(() => toast.remove(), 300);
+        }, 5000);
+    }
 
-        // ============================================
-        // UTILITY FUNCTIONS
-        // ============================================
+    // Update location and auto-fill city/state
+    async function updateLocation(lat, lng) {
+        // Update coordinates
+        document.querySelector('input[name="latitude"]').value = lat.toFixed(6);
+        document.querySelector('input[name="longitude"]').value = lng.toFixed(6);
 
-        // Function to check if text contains Chinese characters
-        function containsChinese(text) {
-            if (!text) return false;
-            const chineseRegex = /[\u4e00-\u9fff\u3400-\u4dbf\uf900-\ufaff]/;
-            return chineseRegex.test(text);
+        // Add/update marker
+        if (marker) {
+            marker.setLatLng([lat, lng]);
+        } else {
+            marker = L.marker([lat, lng]).addTo(map);
         }
 
-        // Function to filter out Chinese characters from text
-        function filterChinese(text) {
-            if (!text) return '';
-            const filtered = text.replace(/[\u4e00-\u9fff\u3400-\u4dbf\uf900-\ufaff]/g, '').trim();
-            return filtered.replace(/\s*,\s*,/g, ',').replace(/,+/g, ',').replace(/,\s*$/, '');
-        }
+        map.setView([lat, lng], 15);
+        locationPinned = true;
 
-        // Function to clean address data by removing Chinese characters
-        function cleanAddressData(data) {
-            if (!data) return '';
+        // Hide error
+        document.getElementById('mapError').classList.add('hidden');
 
-            if (typeof data === 'string') {
-                return filterChinese(data);
-            }
+        // Try to get address details
+        try {
+            const response = await fetch(
+                `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&addressdetails=1&accept-language=en`,
+                { signal: AbortSignal.timeout(8000) }
+            );
 
-            if (Array.isArray(data)) {
-                return data.map(item => filterChinese(item)).filter(item => item !== '');
-            }
+            if (!response.ok) throw new Error('Geocoding failed');
 
-            return data;
-        }
+            const data = await response.json();
+            if (data && data.address) {
+                const addr = data.address;
+                const address = data.display_name || '';
+                const city = addr.city || addr.town || addr.village || addr.suburb || '';
+                const state = addr.state || '';
 
-        // Function to get state from city name
-        function getStateFromCity(city) {
-            if (!city) return null;
+                // Update fields
+                document.querySelector('input[name="address"]').value = address;
+                document.querySelector('input[name="city"]').value = city;
 
-            const cleanCity = city.trim().toLowerCase();
-
-            // Direct lookup
-            for (const [cityName, state] of Object.entries(malaysianCities)) {
-                if (cleanCity === cityName.toLowerCase()) {
-                    return state;
-                }
-            }
-
-            // Partial matches
-            for (const [cityName, state] of Object.entries(malaysianCities)) {
-                if (cleanCity.includes(cityName.toLowerCase()) ||
-                    cityName.toLowerCase().includes(cleanCity)) {
-                    return state;
-                }
-            }
-
-            // Common abbreviations
-            const abbreviationMap = {
-                'jb': 'Johor',
-                'pj': 'Selangor',
-                'kk': 'Sabah',
-                'kl': 'Kuala Lumpur'
-            };
-
-            if (abbreviationMap[cleanCity]) {
-                return abbreviationMap[cleanCity];
-            }
-
-            return null;
-        }
-
-        // Function to auto-correct city based on selected state
-        function autoCorrectCity(city, state) {
-            if (!city || !state) return city;
-
-            const citiesInState = Object.entries(malaysianCities)
-                .filter(([_, cityState]) => cityState === state)
-                .map(([cityName]) => cityName);
-
-            if (citiesInState.length === 0) return city;
-
-            const cleanCity = city.trim().toLowerCase();
-            for (const validCity of citiesInState) {
-                if (cleanCity === validCity.toLowerCase() ||
-                    cleanCity.includes(validCity.toLowerCase()) ||
-                    validCity.toLowerCase().includes(cleanCity)) {
-                    return validCity;
-                }
-            }
-
-            return stateCapitals[state] || city;
-        }
-
-        // Function to detect and fix city-state mismatch
-        function detectAndFixMismatch(cityInput, stateInput) {
-            const city = cityInput.value.trim();
-            const state = stateInput.value;
-
-            if (!city || !state) return false;
-
-            const correctState = getStateFromCity(city);
-
-            if (correctState && correctState !== state) {
-                const shouldFix = confirm(
-                    `The city "${city}" is typically in ${correctState}, not ${state}.\n\n` +
-                    `Do you want to:\n` +
-                    `1. Change state to ${correctState}?\n` +
-                    `2. Keep state as ${state} and auto-correct city?`
+                // Match state to dropdown
+                const stateSelect = document.querySelector('select[name="state"]');
+                const stateOptions = Array.from(stateSelect.options);
+                const matchedState = stateOptions.find(opt =>
+                    opt.value.toLowerCase().includes(state.toLowerCase()) ||
+                    state.toLowerCase().includes(opt.value.toLowerCase())
                 );
 
-                if (shouldFix) {
-                    stateInput.value = correctState;
-                    showToast(`State changed to ${correctState} to match city`, 'info');
-                } else {
-                    const correctedCity = autoCorrectCity(city, state);
-                    if (correctedCity !== city) {
-                        cityInput.value = correctedCity;
-                        showToast(`City auto-corrected to "${correctedCity}" to match state`, 'info');
-                    }
+                if (matchedState) {
+                    stateSelect.value = matchedState.value;
                 }
-                return true;
-            }
 
+                showToast('Location pinned successfully!', 'success');
+            }
+        } catch (error) {
+            console.warn('Reverse geocode failed:', error);
+            showToast('Location pinned, but address details unavailable. Please fill manually.', 'warning');
+        }
+    }
+
+    // Get current location via GPS
+    function getCurrentLocation() {
+        if (!navigator.geolocation) {
+            showToast('Geolocation not supported by your browser', 'error');
+            return;
+        }
+
+        const btn = document.getElementById('gpsBtn');
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '⏳ Getting location...';
+        btn.disabled = true;
+
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                updateLocation(position.coords.latitude, position.coords.longitude);
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            },
+            (error) => {
+                showToast('Failed to get your location. Please click on the map.', 'error');
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            },
+            { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+        );
+    }
+
+    // Initialize map
+    function initializeMap() {
+        if (mapInitialized || typeof L === 'undefined') return;
+
+        try {
+            map = L.map('map').setView([3.139, 101.6869], 13);
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors'
+            }).addTo(map);
+
+            // Click to pin
+            map.on('click', (e) => {
+                updateLocation(e.latlng.lat, e.latlng.lng);
+            });
+
+            mapInitialized = true;
+        } catch (error) {
+            console.error('Map initialization failed:', error);
+            showToast('Map failed to load. Please check your internet connection.', 'error');
+        }
+    }
+
+    // Form validation
+    document.getElementById('reportForm').addEventListener('submit', function(e) {
+        const lat = document.querySelector('input[name="latitude"]').value;
+        const lng = document.querySelector('input[name="longitude"]').value;
+        const images = document.getElementById('imageInput').files;
+
+        if (!lat || !lng) {
+            e.preventDefault();
+            document.getElementById('mapError').classList.remove('hidden');
+            showToast('Please pin a location on the map!', 'error');
             return false;
         }
 
-        // Show city suggestions based on selected state
-        function showCitySuggestions(state) {
-            const citiesInState = Object.entries(malaysianCities)
-                .filter(([_, cityState]) => cityState === state)
-                .map(([cityName]) => cityName);
-
-            if (citiesInState.length === 0) return;
-
-            let datalist = document.getElementById('citySuggestions');
-            if (!datalist) {
-                datalist = document.createElement('datalist');
-                datalist.id = 'citySuggestions';
-                document.body.appendChild(datalist);
-            }
-
-            datalist.innerHTML = '';
-            citiesInState.forEach(city => {
-                const option = document.createElement('option');
-                option.value = city;
-                datalist.appendChild(option);
-            });
+        if (images.length === 0) {
+            e.preventDefault();
+            showToast('Please upload at least one image!', 'error');
+            return false;
         }
 
-        // Check if coordinates are within Malaysia bounds
-        function isInMalaysiaBounds(lat, lng) {
-            return (
-                lat >= MALAYSIA_BOUNDS.south &&
-                lat <= MALAYSIA_BOUNDS.north &&
-                lng >= MALAYSIA_BOUNDS.west &&
-                lng <= MALAYSIA_BOUNDS.east
-            );
-        }
-
-        // Rate limiting for searches
-        function checkRateLimit() {
-            const now = Date.now();
-            if (now - lastSearchTime < SEARCH_COOLDOWN) {
-                showToast('Please wait a moment before searching again', 'warning');
+        // File validation
+        for (let file of images) {
+            if (file.size > 5 * 1024 * 1024) {
+                e.preventDefault();
+                showToast(`File "${file.name}" is too large (max 5MB)`, 'error');
                 return false;
             }
-            lastSearchTime = now;
-            return true;
         }
 
-        // Toast notification system
-        function showToast(message, type = 'info') {
-            const container = document.getElementById('toastContainer');
-            if (!container) return;
+        return true;
+    });
 
-            const toast = document.createElement('div');
-            toast.className = `px-6 py-3 rounded-lg shadow-lg text-white font-medium transform transition-all duration-300 ${
-                type === 'error' ? 'bg-red-500' :
-                    type === 'success' ? 'bg-green-500' :
-                        type === 'warning' ? 'bg-yellow-500' : 'bg-blue-500'
-            }`;
-            toast.textContent = message;
-
-            container.appendChild(toast);
-
-            setTimeout(() => {
-                toast.style.opacity = '0';
-                setTimeout(() => toast.remove(), 300);
-            }, 5000);
+    // Show additional notes if "Other" is selected
+    document.getElementById('descriptionSelect').addEventListener('change', function() {
+        const notesSection = document.getElementById('additionalNotesSection');
+        if (this.value === 'Other') {
+            notesSection.classList.remove('hidden');
+            document.getElementById('additionalNotes').required = true;
+        } else {
+            notesSection.classList.add('hidden');
+            document.getElementById('additionalNotes').required = false;
         }
-
-        // ============================================
-        // ENHANCED FETCH WITH NETWORK ERROR HANDLING
-        // ============================================
-
-        // Enhanced fetch function with timeout and retry logic
-        async function enhancedFetch(url, options = {}, maxRetries = 2, timeout = 10000) {
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), timeout);
-
-            for (let attempt = 0; attempt <= maxRetries; attempt++) {
-                try {
-                    // Add delay for retries (exponential backoff)
-                    if (attempt > 0) {
-                        const delay = Math.min(1000 * Math.pow(2, attempt), 5000);
-                        await new Promise(resolve => setTimeout(resolve, delay));
-                        console.log(`Retry attempt ${attempt} for: ${url}`);
-                    }
-
-                    const response = await fetch(url, {
-                        ...options,
-                        signal: controller.signal
-                    });
-
-                    clearTimeout(timeoutId);
-
-                    if (!response.ok) {
-                        throw new Error(`HTTP error! status: ${response.status} ${response.statusText}`);
-                    }
-
-                    return response;
-                } catch (error) {
-                    clearTimeout(timeoutId);
-
-                    // Check error type
-                    if (error.name === 'AbortError') {
-                        throw new Error(`Request timeout after ${timeout}ms`);
-                    } else if (error.name === 'TypeError' && error.message.includes('fetch')) {
-                        if (attempt === maxRetries) {
-                            throw new Error('Network error: Unable to connect to server. Please check your internet connection.');
-                        }
-                        console.log(`Network error on attempt ${attempt + 1}, retrying...`);
-                    } else if (error.message.includes('Failed to fetch')) {
-                        if (attempt === maxRetries) {
-                            throw new Error('Network error: Cannot reach the server. Please check your connection.');
-                        }
-                        console.log(`Fetch failed on attempt ${attempt + 1}, retrying...`);
-                    } else {
-                        // Re-throw other errors
-                        throw error;
-                    }
-                }
-            }
-
-            throw new Error('Max retries exceeded');
-        }
-
-        // Safe fetch wrapper for API calls
-        async function safeFetch(url, options = {}) {
-            try {
-                const response = await enhancedFetch(url, options);
-                return await response.json();
-            } catch (error) {
-                console.error('Fetch error:', error);
-
-                // Show appropriate error message
-                if (error.message.includes('Network error') ||
-                    error.message.includes('Cannot reach') ||
-                    error.message.includes('Unable to connect')) {
-                    showToast('Network error. Please check your internet connection and try again.', 'error');
-                } else if (error.message.includes('timeout')) {
-                    showToast('Request timeout. The server is taking too long to respond.', 'error');
-                } else if (error.message.includes('HTTP error')) {
-                    showToast('Server error. Please try again later.', 'error');
-                } else {
-                    showToast('An error occurred. Please try again.', 'error');
-                }
-
-                throw error;
-            }
-        }
-
-        // ============================================
-        // MAP AND LOCATION FUNCTIONS
-        // ============================================
-
-        // Function to update marker and form fields with city-state validation
-        function updateLocation(lat, lng, address = '', city = '', state = '') {
-            if (marker) {
-                marker.setLatLng([lat, lng]);
-            } else {
-                marker = L.marker([lat, lng]).addTo(map);
-            }
-
-            document.querySelector('input[name="latitude"]').value = lat.toFixed(6);
-            document.querySelector('input[name="longitude"]').value = lng.toFixed(6);
-
-            // Clean the data first
-            address = cleanAddressData(address);
-            city = cleanAddressData(city);
-            state = cleanAddressData(state);
-
-            // Update address field
-            if (address) document.querySelector('input[name="address"]').value = address;
-
-            // Auto-detect state if not provided
-            if (!state && city) {
-                const detectedState = getStateFromCity(city);
-                if (detectedState) {
-                    state = detectedState;
-                }
-            }
-
-            // Auto-correct city based on state
-            if (state && city) {
-                const correctedCity = autoCorrectCity(city, state);
-                if (correctedCity !== city) {
-                    city = correctedCity;
-                }
-            }
-
-            // Update city and state fields
-            if (city) document.querySelector('input[name="city"]').value = city;
-            if (state && malaysianStates.includes(state)) {
-                document.querySelector('select[name="state"]').value = state;
-                showCitySuggestions(state);
-            }
-
-            map.setView([lat, lng], 15);
-            document.getElementById('mapError').classList.add('hidden');
-
-            // Check for mismatch after a short delay
-            setTimeout(() => {
-                const cityInput = document.querySelector('input[name="city"]');
-                const stateInput = document.querySelector('select[name="state"]');
-                detectAndFixMismatch(cityInput, stateInput);
-            }, 500);
-        }
-
-        // Reverse geocode function with network error handling
-        async function reverseGeocode(lat, lng) {
-            try {
-                const data = await safeFetch(
-                    `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&addressdetails=1&accept-language=en`,
-                    {},
-                    1,
-                    8000
-                );
-
-                if (data && data.address) {
-                    let address = data.display_name || '';
-                    let city = data.address.city || data.address.town || data.address.village || data.address.county || data.address.suburb || data.address.neighbourhood || '';
-                    let state = data.address.state || '';
-
-                    // Clean all fields
-                    address = cleanAddressData(address);
-                    city = cleanAddressData(city);
-                    state = cleanAddressData(state);
-
-                    // If state contains "State", remove it
-                    state = state.replace('State', '').trim();
-
-                    // Special handling for Kuala Lumpur
-                    if (state === 'Kuala Lumpur' || state === 'Federal Territory of Kuala Lumpur') {
-                        city = 'Kuala Lumpur';
-                        state = 'Kuala Lumpur';
-                    }
-
-                    // Auto-correct city based on state
-                    if (state && city) {
-                        const correctedCity = autoCorrectCity(city, state);
-                        if (correctedCity !== city) {
-                            city = correctedCity;
-                        }
-                    }
-
-                    // Update form fields
-                    document.querySelector('input[name="address"]').value = address;
-                    document.querySelector('input[name="city"]').value = city;
-
-                    // Set state if found
-                    if (state) {
-                        const matchedState = malaysianStates.find(s =>
-                            state.toLowerCase().includes(s.toLowerCase()) ||
-                            s.toLowerCase().includes(state.toLowerCase())
-                        );
-
-                        if (matchedState) {
-                            document.querySelector('select[name="state"]').value = matchedState;
-                            showCitySuggestions(matchedState);
-                        }
-                    }
-
-                    // Trigger mismatch check
-                    setTimeout(() => {
-                        const cityInput = document.querySelector('input[name="city"]');
-                        const stateInput = document.querySelector('select[name="state"]');
-                        detectAndFixMismatch(cityInput, stateInput);
-                    }, 500);
-                }
-            } catch (error) {
-                // Error already handled by safeFetch
-                console.log('Reverse geocode skipped due to network error');
-            }
-        }
-
-        // Get current location via GPS with network error handling
-        async function getCurrentLocation() {
-            if (!navigator.geolocation) {
-                showToast('Geolocation is not supported by your browser', 'error');
-                return;
-            }
-
-            const gpsBtn = document.getElementById('gpsBtn');
-            const originalText = gpsBtn.innerHTML;
-
-            gpsBtn.innerHTML = '<span class="loading-spinner"></span> Getting location...';
-            gpsBtn.disabled = true;
-
-            navigator.geolocation.getCurrentPosition(
-                async (position) => {
-                    const lat = position.coords.latitude;
-                    const lng = position.coords.longitude;
-
-                    // Check if within Malaysia
-                    if (!isInMalaysiaBounds(lat, lng)) {
-                        showToast('Your location appears to be outside Malaysia', 'warning');
-                        gpsBtn.innerHTML = originalText;
-                        gpsBtn.disabled = false;
-                        return;
-                    }
-
-                    updateLocation(lat, lng);
-
-                    try {
-                        const data = await safeFetch(
-                            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&addressdetails=1&accept-language=en`
-                        );
-
-                        if (data && data.address) {
-                            const addr = data.address;
-                            const address = data.display_name || '';
-                            const city = addr.city || addr.town || addr.village || '';
-                            const state = addr.state || '';
-
-                            document.querySelector('input[name="address"]').value = cleanAddressData(address);
-                            document.querySelector('input[name="city"]').value = cleanAddressData(city);
-
-                            if (state) {
-                                const matchedState = malaysianStates.find(s =>
-                                    state.toLowerCase().includes(s.toLowerCase())
-                                );
-                                if (matchedState) {
-                                    document.querySelector('select[name="state"]').value = matchedState;
-                                    showCitySuggestions(matchedState);
-                                }
-                            }
-
-                            showToast('Location found successfully!', 'success');
-                        }
-                    } catch (error) {
-                        showToast('Location found, but address details unavailable due to network error', 'info');
-                    }
-
-                    gpsBtn.innerHTML = originalText;
-                    gpsBtn.disabled = false;
-                },
-                (error) => {
-                    switch (error.code) {
-                        case error.PERMISSION_DENIED:
-                            showToast('Location access denied. Please enable location services.', 'error');
-                            break;
-                        case error.POSITION_UNAVAILABLE:
-                            showToast('Location information unavailable.', 'error');
-                            break;
-                        case error.TIMEOUT:
-                            showToast('Location request timeout.', 'error');
-                            break;
-                        default:
-                            showToast('Unable to get your location.', 'error');
-                    }
-                    gpsBtn.innerHTML = originalText;
-                    gpsBtn.disabled = false;
-                },
-                {
-                    enableHighAccuracy: true,
-                    timeout: 10000,
-                    maximumAge: 0
-                }
-            );
-        }
-
-        // ============================================
-        // SEARCH FUNCTIONS
-        // ============================================
-
-        // Enhanced search strategy with network error handling
-        async function enhancedSearchStrategy(query, strategyType) {
-            let url;
-
-            switch (strategyType) {
-                case 'withMalaysia':
-                    url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query + ', Malaysia')}&limit=5&accept-language=en`;
-                    break;
-                case 'withoutMalaysia':
-                    url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5&accept-language=en`;
-                    break;
-                case 'simplified':
-                    const simplifiedQuery = query.replace(/\d+/g, '').trim();
-                    if (simplifiedQuery.length > 3) {
-                        url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(simplifiedQuery + ', Malaysia')}&limit=5&accept-language=en`;
-                    } else {
-                        return null;
-                    }
-                    break;
-                case 'shortened':
-                    const words = query.split(' ');
-                    if (words.length > 3) {
-                        const shortQuery = words.slice(0, 3).join(' ') + ', Malaysia';
-                        url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(shortQuery)}&limit=5&accept-language=en`;
-                    } else {
-                        return null;
-                    }
-                    break;
-                default:
-                    return null;
-            }
-
-            try {
-                const data = await safeFetch(url, {}, 1, 10000);
-                return data && data.length > 0 ? data[0] : null;
-            } catch (error) {
-                // If it's a network error, we want to continue to next strategy
-                if (error.message.includes('Network error') ||
-                    error.message.includes('timeout') ||
-                    error.message.includes('Cannot reach')) {
-                    console.log(`Strategy ${strategyType} failed due to network, trying next...`);
-                    return null;
-                }
-                throw error; // Re-throw other errors
-            }
-        }
-
-        // Try multiple search strategies with network resilience
-        async function searchStrategies(query) {
-            const strategies = [
-                {type: 'withMalaysia', name: 'Search with Malaysia suffix'},
-                {type: 'withoutMalaysia', name: 'Search without suffix'},
-                {type: 'simplified', name: 'Simplified search'},
-                {type: 'shortened', name: 'Shortened search'}
-            ];
-
-            // Try each strategy until we find a result
-            for (const strategy of strategies) {
-                try {
-                    const result = await enhancedSearchStrategy(query, strategy.type);
-                    if (result && !containsChinese(result.display_name)) {
-                        console.log(`Found result using strategy: ${strategy.name}`);
-                        return result;
-                    }
-                } catch (error) {
-                    console.error(`Strategy ${strategy.name} error:`, error);
-                    // Continue to next strategy for non-network errors too
-                }
-            }
-
-            return null;
-        }
-
-        // Get detailed address with fallback and network error handling
-        async function getDetailedAddress(lat, lng) {
-            try {
-                const data = await safeFetch(
-                    `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&addressdetails=1&accept-language=en`,
-                    {},
-                    1,
-                    8000
-                );
-                return data;
-            } catch (error) {
-                console.warn('Detailed address fetch failed, using basic info');
-                return null;
-            }
-        }
-
-        // Main search address function
-        async function searchAddress() {
-            const query = document.getElementById('addressSearch').value.trim();
-
-            if (!query) {
-                showToast('Please enter an address to search', 'warning');
-                return;
-            }
-
-            // Check if search query contains Chinese
-            if (containsChinese(query)) {
-                showToast('Please search using English only. Chinese characters are not allowed in the search.', 'warning');
-                return;
-            }
-
-            // Rate limiting
-            if (!checkRateLimit()) return;
-
-            const searchBtn = document.getElementById('searchBtn');
-            searchBtn.textContent = 'Searching...';
-            searchBtn.disabled = true;
-
-            try {
-                const result = await searchStrategies(query);
-
-                if (result) {
-                    const lat = parseFloat(result.lat);
-                    const lng = parseFloat(result.lon);
-                    const address = cleanAddressData(result.display_name);
-
-                    // Validate coordinates are within Malaysia
-                    if (!isInMalaysiaBounds(lat, lng)) {
-                        showToast('Selected location is outside Malaysia', 'error');
-                        return;
-                    }
-
-                    // Get detailed address info
-                    const detailedData = await getDetailedAddress(lat, lng);
-
-                    if (detailedData) {
-                        const addr = detailedData.address;
-                        let city = addr.city || addr.town || addr.village || addr.suburb || addr.county || '';
-                        let state = addr.state || '';
-
-                        // Clean data
-                        city = cleanAddressData(city);
-                        state = cleanAddressData(state);
-                        state = state.replace('State', '').trim();
-
-                        // Special handling for Kuala Lumpur
-                        if (state === 'Kuala Lumpur' || state === 'Federal Territory of Kuala Lumpur') {
-                            city = 'Kuala Lumpur';
-                            state = 'Kuala Lumpur';
-                        }
-
-                        updateLocation(lat, lng, address, city, state);
-                        showToast('Address found successfully!', 'success');
-                    } else {
-                        // If we can't get detailed info, at least update with basic coordinates
-                        updateLocation(lat, lng, address, '', '');
-                        showToast('Address found, but detailed information unavailable', 'info');
-                    }
-                } else {
-                    showToast('Address not found. Try being more specific or use map click', 'error');
-                }
-            } catch (error) {
-                console.error('Search error:', error);
-
-                // Check if it's a network error
-                if (error.message.includes('Network error') ||
-                    error.message.includes('Cannot reach') ||
-                    error.message.includes('Unable to connect')) {
-                    showToast('Network error. Please check your internet connection.', 'error');
-                } else if (error.message.includes('timeout')) {
-                    showToast('Search timeout. Please try again.', 'error');
-                } else {
-                    showToast('Search failed. Please try again.', 'error');
-                }
-            } finally {
-                searchBtn.textContent = 'Search';
-                searchBtn.disabled = false;
-            }
-        }
-
-        // ============================================
-        // FORM VALIDATION AND EVENT HANDLERS
-        // ============================================
-
-        // Setup city-state validation
-        function setupCityStateValidation() {
-            const cityInput = document.querySelector('input[name="city"]');
-            const stateInput = document.querySelector('select[name="state"]');
-
-            // Validate when city changes
-            cityInput.addEventListener('blur', function () {
-                if (this.value.trim() && stateInput.value) {
-                    detectAndFixMismatch(this, stateInput);
-                }
-            });
-
-            // Validate when state changes
-            stateInput.addEventListener('change', function () {
-                if (cityInput.value.trim() && this.value) {
-                    detectAndFixMismatch(cityInput, this);
-                }
-                showCitySuggestions(this.value);
-            });
-        }
-
-        // Form validation
-        function setupFormValidation() {
-            const form = document.querySelector('form');
-            const mapError = document.getElementById('mapError');
-
-            form.addEventListener('submit', function (e) {
-                const latitude = document.querySelector('input[name="latitude"]').value;
-                const longitude = document.querySelector('input[name="longitude"]').value;
-                const state = document.querySelector('select[name="state"]').value;
-                const address = document.querySelector('input[name="address"]').value;
-                const city = document.querySelector('input[name="city"]').value;
-                const cityInput = document.querySelector('input[name="city"]');
-                const stateInput = document.querySelector('select[name="state"]');
-
-                // Check for Chinese characters
-                if (containsChinese(address) || containsChinese(city)) {
-                    e.preventDefault();
-                    showToast('Please enter address and city without Chinese characters. Use English only.', 'error');
-                    return false;
-                }
-
-                // Check for city-state mismatch
-                if (city && state) {
-                    const correctState = getStateFromCity(city);
-                    if (correctState && correctState !== state) {
-                        e.preventDefault();
-
-                        const userChoice = confirm(
-                            `Warning: City-State Mismatch!\n\n` +
-                            `The city "${city}" is typically in ${correctState}, but you selected ${state}.\n\n` +
-                            `Do you want to:\n` +
-                            `1. Change state to ${correctState} (Recommended)\n` +
-                            `2. Keep as is and submit\n` +
-                            `3. Cancel and fix manually`
-                        );
-
-                        if (userChoice === true) {
-                            stateInput.value = correctState;
-                            setTimeout(() => this.submit(), 100);
-                            return false;
-                        } else if (userChoice === false) {
-                            return true;
-                        } else {
-                            return false;
-                        }
-                    }
-                }
-
-                if (!latitude || !longitude) {
-                    e.preventDefault();
-                    mapError.classList.remove('hidden');
-                    document.getElementById('map').scrollIntoView({behavior: 'smooth', block: 'center'});
-                    showToast('Please select a location on the map before submitting the form.', 'error');
-                    return false;
-                }
-
-                if (!state) {
-                    e.preventDefault();
-                    showToast('Please select a state from the dropdown.', 'error');
-                    document.querySelector('select[name="state"]').focus();
-                    return false;
-                }
-
-                const requiredFields = form.querySelectorAll('[required]');
-                let allValid = true;
-
-                requiredFields.forEach(field => {
-                    if (!field.value.trim()) {
-                        allValid = false;
-                        field.classList.add('border-red-500');
-                        field.classList.remove('border-gray-300');
-                    } else {
-                        field.classList.remove('border-red-500');
-                        field.classList.add('border-gray-300');
-                    }
-                });
-
-                if (!allValid) {
-                    e.preventDefault();
-                    showToast('Please fill in all required fields.', 'error');
-                    return false;
-                }
-
-                // File validation
-                const fileInput = form.querySelector('input[name="images[]"]');
-                const maxSize = 5 * 1024 * 1024; // 5MB
-
-                if (fileInput.files.length === 0) {
-                    e.preventDefault();
-                    showToast('Please upload at least one image.', 'error');
-                    return false;
-                }
-
-                for (let file of fileInput.files) {
-                    if (!file.type.startsWith('image/')) {
-                        e.preventDefault();
-                        showToast(`File "${file.name}" is not an image.`, 'error');
-                        return false;
-                    }
-                    if (file.size > maxSize) {
-                        e.preventDefault();
-                        showToast(`File "${file.name}" is too large (max 5 MB).`, 'error');
-                        return false;
-                    }
-                }
-
-                return true;
-            });
-
-            // Remove red border on input
-            form.querySelectorAll('[required]').forEach(field => {
-                field.addEventListener('input', function () {
-                    if (this.value.trim()) {
-                        this.classList.remove('border-red-500');
-                        this.classList.add('border-gray-300');
-                    }
-                });
-            });
-        }
-
-        // ============================================
-        // INITIALIZATION FUNCTIONS
-        // ============================================
-
-        function initializeMap() {
-            if (mapInitialized) return;
-
-            const defaultLat = 3.139;
-            const defaultLng = 101.6869;
-
-            map = L.map('map').setView([defaultLat, defaultLng], 13);
-
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                attribution: '&copy; OpenStreetMap contributors'
-            }).addTo(map);
-
-            // Click on map to pin location
-            map.on('click', function (e) {
-                const {lat, lng} = e.latlng;
-                updateLocation(lat, lng);
-                reverseGeocode(lat, lng);
-            });
-
-            // Setup event listeners
-            setupCityStateValidation();
-            setupFormValidation();
-
-            // Search button event
-            document.getElementById('searchBtn').addEventListener('click', searchAddress);
-
-            // Enter key for search
-            document.getElementById('addressSearch').addEventListener('keypress', function (e) {
-                if (e.key === 'Enter') {
-                    e.preventDefault();
-                    searchAddress();
-                }
-            });
-
-            // GPS button event
-            document.getElementById('gpsBtn').addEventListener('click', getCurrentLocation);
-
-            mapInitialized = true;
-        }
-
-        // ============================================
-        // MODAL CONTROL FUNCTIONS
-        // ============================================
-
-        function openReportModal() {
-            document.getElementById('reportModal').classList.remove('hidden');
-            document.body.style.overflow = 'hidden';
-
-            // Check online status
-            if (!navigator.onLine) {
-                showToast('You appear to be offline. Some features may not work.', 'warning');
-            }
-
-            // Initialize map after modal is visible
-            setTimeout(function () {
-                if (!mapInitialized) {
-                    initializeMap();
-                } else {
-                    map.invalidateSize();
-                }
-            }, 100);
-        }
-
-        function closeReportModal() {
-            document.getElementById('reportModal').classList.add('hidden');
-            document.body.style.overflow = 'auto';
-        }
-
-        // Close modal when clicking outside
-        document.getElementById('reportModal').addEventListener('click', function (e) {
-            if (e.target === this) {
-                closeReportModal();
-            }
+    });
+
+    // Image preview
+    document.getElementById('imageInput').addEventListener('change', function() {
+        const preview = document.getElementById('imagePreview');
+        preview.innerHTML = '';
+
+        Array.from(this.files).slice(0, 5).forEach(file => {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = document.createElement('img');
+                img.src = e.target.result;
+                img.className = 'w-full h-20 object-cover rounded border';
+                preview.appendChild(img);
+            };
+            reader.readAsDataURL(file);
         });
+    });
 
-        // Close modal with Escape key
-        document.addEventListener('keydown', function (e) {
-            if (e.key === 'Escape' && !document.getElementById('reportModal').classList.contains('hidden')) {
-                closeReportModal();
+    // Modal controls
+    function openReportModal() {
+        document.getElementById('reportModal').classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+
+        // Check online status
+        if (!navigator.onLine) {
+            document.getElementById('offlineWarning').classList.remove('hidden');
+        }
+
+        setTimeout(() => {
+            if (!mapInitialized) {
+                initializeMap();
+            } else if (map) {
+                map.invalidateSize();
             }
-        });
-
-        // Online/offline detection
-        window.addEventListener('online', () => {
-            showToast('You are back online', 'success');
-        });
-
-        window.addEventListener('offline', () => {
-            showToast('You are offline. Map may not load.', 'warning');
-        });
-
-        // Add CSS for loading spinner
-        const style = document.createElement('style');
-        style.textContent = `
-    .loading-spinner {
-        display: inline-block;
-        width: 16px;
-        height: 16px;
-        border: 2px solid rgba(255,255,255,.3);
-        border-radius: 50%;
-        border-top-color: #fff;
-        animation: spin 1s ease-in-out infinite;
+        }, 100);
     }
 
-    @keyframes spin {
-        to { transform: rotate(360deg); }
+    function closeReportModal() {
+        document.getElementById('reportModal').classList.add('hidden');
+        document.body.style.overflow = 'auto';
     }
 
-    #toastContainer {
-        pointer-events: none;
-    }
+    // Event listeners
+    document.getElementById('gpsBtn').addEventListener('click', getCurrentLocation);
+    document.getElementById('reportModal').addEventListener('click', (e) => {
+        if (e.target === e.currentTarget) closeReportModal();
+    });
 
+    // Online/offline detection
+    window.addEventListener('online', () => {
+        document.getElementById('offlineWarning').classList.add('hidden');
+        showToast('You are back online', 'success');
+    });
+
+    window.addEventListener('offline', () => {
+        document.getElementById('offlineWarning').classList.remove('hidden');
+        showToast('You are offline. Map may not work.', 'warning');
+    });
+</script>
+
+<style>
+    /* Smooth animations */
     #toastContainer > div {
-        pointer-events: auto;
         animation: slideIn 0.3s ease-out;
     }
 
@@ -1213,7 +458,9 @@
         from { transform: translateX(100%); opacity: 0; }
         to { transform: translateX(0); opacity: 1; }
     }
-`;
-        document.head.appendChild(style);
-</script>
-@endverbatim
+
+    /* Disabled input styling */
+    input:disabled, select:disabled {
+        cursor: not-allowed !important;
+    }
+</style>
