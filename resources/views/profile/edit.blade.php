@@ -7,43 +7,15 @@
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gradient-to-br from-purple-600 to-purple-800 min-h-screen flex flex-col">
-    
+
     <!-- Include Navbar -->
     @include('navbar')
 
     <!-- Main Content -->
     <div class="flex-1 p-4 py-12">
         <div class="max-w-7xl mx-auto space-y-6">
-            
-            <!-- Page Header -->
-<div class="bg-white rounded-2xl shadow-2xl p-8 mb-6">
-    <div class="flex items-center justify-between flex-wrap gap-4">
-        <!-- Left Section: Title and User Info -->
-        <div class="flex items-start gap-4">
-            <div class="text-5xl">👤</div>
-            <div>
-                <h1 class="text-4xl font-bold text-gray-800 mb-3">Profile</h1>
-                
-                <!-- User Information -->
-                
-            </div>
-        </div>
 
-        <!-- Right Section: Logout Button -->
-        <div class="flex items-start">
-            <form method="POST" action="{{ route('logout') }}">
-                @csrf
-                <button 
-                    type="submit"
-                    class="bg-gradient-to-r from-red-600 to-red-700 text-white font-bold py-3 px-6 rounded-lg hover:from-red-700 hover:to-red-800 transition duration-300 shadow-lg focus:outline-none focus:ring-4 focus:ring-red-300 flex items-center gap-2"
-                >
-                    <span class="text-lg">🚪</span>
-                    {{ __('Log Out') }}
-                </button>
-            </form>
-        </div>
-    </div>
-</div>
+            <!-- Page Header -->
 
             <!-- Update Profile Information Section -->
             <div class="bg-white rounded-2xl shadow-2xl overflow-hidden">

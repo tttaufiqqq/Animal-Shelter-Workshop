@@ -41,6 +41,23 @@
                         Pin Location
                     </h3>
 
+                    <!-- Location Search -->
+                    <div class="mb-3 relative">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                            Search Location
+                        </label>
+                        <div class="relative">
+                            <input type="text" id="locationSearch"
+                                   class="w-full px-3 py-2 pl-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                                   placeholder="Search for city, state, or landmark..." autocomplete="off">
+                            <svg class="w-5 h-5 text-gray-400 absolute left-3 top-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                            </svg>
+                        </div>
+                        <div id="searchResults" class="hidden absolute z-[9999] w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-2xl max-h-60 overflow-y-auto"></div>
+                        <p class="text-xs text-gray-600 mt-1">Type to search for a location in Malaysia</p>
+                    </div>
+
                     <!-- GPS Button -->
                     <div class="mb-3">
                         <button type="button" id="gpsBtn"
@@ -237,6 +254,42 @@
         }, 5000);
     }
 
+    // Malaysian state name variations for better matching
+    const stateVariations = {
+        'Johor': ['johor', 'johore'],
+        'Kedah': ['kedah'],
+        'Kelantan': ['kelantan'],
+        'Malacca': ['malacca', 'melaka'],
+        'Negeri Sembilan': ['negeri sembilan', 'n. sembilan', 'n sembilan'],
+        'Pahang': ['pahang'],
+        'Penang': ['penang', 'pulau pinang', 'p. pinang'],
+        'Perak': ['perak'],
+        'Perlis': ['perlis'],
+        'Sabah': ['sabah'],
+        'Sarawak': ['sarawak'],
+        'Selangor': ['selangor'],
+        'Terengganu': ['terengganu', 'trengganu'],
+        'Kuala Lumpur': ['kuala lumpur', 'kl', 'w.p. kuala lumpur', 'federal territory of kuala lumpur'],
+        'Putrajaya': ['putrajaya', 'w.p. putrajaya'],
+        'Labuan': ['labuan', 'w.p. labuan']
+    };
+
+    // Match state to dropdown options
+    function matchStateToDropdown(stateFromAPI) {
+        const stateSelect = document.querySelector('select[name="state"]');
+        const stateLower = stateFromAPI.toLowerCase();
+
+        // Try to match against variations
+        for (const [officialName, variations] of Object.entries(stateVariations)) {
+            if (variations.some(variant => stateLower.includes(variant))) {
+                stateSelect.value = officialName;
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     // Update location and auto-fill city/state
     async function updateLocation(lat, lng) {
         // Update coordinates
@@ -253,8 +306,9 @@
         map.setView([lat, lng], 15);
         locationPinned = true;
 
-        // Hide error
+        // Hide errors
         document.getElementById('mapError').classList.add('hidden');
+        document.getElementById('cityStateError')?.classList.add('hidden');
 
         // Try to get address details
         try {
@@ -269,26 +323,23 @@
             if (data && data.address) {
                 const addr = data.address;
                 const address = data.display_name || '';
-                const city = addr.city || addr.town || addr.village || addr.suburb || '';
+                const city = addr.city || addr.town || addr.village || addr.suburb || addr.county || '';
                 const state = addr.state || '';
 
                 // Update fields
                 document.querySelector('input[name="address"]').value = address;
                 document.querySelector('input[name="city"]').value = city;
 
-                // Match state to dropdown
-                const stateSelect = document.querySelector('select[name="state"]');
-                const stateOptions = Array.from(stateSelect.options);
-                const matchedState = stateOptions.find(opt =>
-                    opt.value.toLowerCase().includes(state.toLowerCase()) ||
-                    state.toLowerCase().includes(opt.value.toLowerCase())
-                );
+                // Match state using improved logic
+                const stateMatched = matchStateToDropdown(state);
 
-                if (matchedState) {
-                    stateSelect.value = matchedState.value;
+                if (city && stateMatched) {
+                    showToast('Location pinned successfully!', 'success');
+                } else if (city && !stateMatched) {
+                    showToast('Location pinned. Please verify the state manually.', 'warning');
+                } else {
+                    showToast('Location pinned. Please fill city and state manually.', 'warning');
                 }
-
-                showToast('Location pinned successfully!', 'success');
             }
         } catch (error) {
             console.warn('Reverse geocode failed:', error);
@@ -296,7 +347,7 @@
         }
     }
 
-    // Get current location via GPS
+    // Get current location via GPS with timeout handling
     function getCurrentLocation() {
         if (!navigator.geolocation) {
             showToast('Geolocation not supported by your browser', 'error');
@@ -308,14 +359,37 @@
         btn.innerHTML = '⏳ Getting location...';
         btn.disabled = true;
 
+        // Set up 10-second timeout
+        const timeoutId = setTimeout(() => {
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+            showToast('Location detection timed out. Please search manually.', 'error');
+        }, 10000);
+
         navigator.geolocation.getCurrentPosition(
             (position) => {
+                clearTimeout(timeoutId);
                 updateLocation(position.coords.latitude, position.coords.longitude);
                 btn.innerHTML = originalText;
                 btn.disabled = false;
             },
             (error) => {
-                showToast('Failed to get your location. Please click on the map.', 'error');
+                clearTimeout(timeoutId);
+                let errorMessage = 'Failed to get your location. Please search manually.';
+
+                switch(error.code) {
+                    case error.TIMEOUT:
+                        errorMessage = 'Location detection timed out. Please search manually.';
+                        break;
+                    case error.PERMISSION_DENIED:
+                        errorMessage = 'Location permission denied. Please search manually.';
+                        break;
+                    case error.POSITION_UNAVAILABLE:
+                        errorMessage = 'Location unavailable. Please search manually.';
+                        break;
+                }
+
+                showToast(errorMessage, 'error');
                 btn.innerHTML = originalText;
                 btn.disabled = false;
             },
@@ -346,12 +420,15 @@
         }
     }
 
-    // Form validation
+    // Enhanced form validation
     document.getElementById('reportForm').addEventListener('submit', function(e) {
         const lat = document.querySelector('input[name="latitude"]').value;
         const lng = document.querySelector('input[name="longitude"]').value;
+        const city = document.querySelector('input[name="city"]').value;
+        const state = document.querySelector('select[name="state"]').value;
         const images = document.getElementById('imageInput').files;
 
+        // Validate location
         if (!lat || !lng) {
             e.preventDefault();
             document.getElementById('mapError').classList.remove('hidden');
@@ -359,13 +436,36 @@
             return false;
         }
 
+        // Validate city and state together
+        if (!city || !state || state === '') {
+            e.preventDefault();
+
+            // Add error message below state field if not exists
+            let errorDiv = document.getElementById('cityStateError');
+            if (!errorDiv) {
+                errorDiv = document.createElement('p');
+                errorDiv.id = 'cityStateError';
+                errorDiv.className = 'text-xs text-red-600 mt-1';
+                errorDiv.innerHTML = '⚠️ Both city and state are required';
+                document.querySelector('select[name="state"]').parentElement.appendChild(errorDiv);
+            }
+            errorDiv.classList.remove('hidden');
+
+            showToast('Both city and state are required!', 'error');
+
+            // Scroll to the location details section
+            document.querySelector('input[name="city"]').scrollIntoView({ behavior: 'smooth', block: 'center' });
+            return false;
+        }
+
+        // Validate images
         if (images.length === 0) {
             e.preventDefault();
             showToast('Please upload at least one image!', 'error');
             return false;
         }
 
-        // File validation
+        // File size validation
         for (let file of images) {
             if (file.size > 5 * 1024 * 1024) {
                 e.preventDefault();
@@ -404,6 +504,84 @@
             };
             reader.readAsDataURL(file);
         });
+    });
+
+    // Location search functionality
+    let searchTimeout;
+    const searchInput = document.getElementById('locationSearch');
+    const searchResults = document.getElementById('searchResults');
+
+    searchInput.addEventListener('input', function() {
+        clearTimeout(searchTimeout);
+        const query = this.value.trim();
+
+        if (query.length < 3) {
+            searchResults.classList.add('hidden');
+            return;
+        }
+
+        searchTimeout = setTimeout(async () => {
+            try {
+                const response = await fetch(
+                    `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&countrycodes=my&addressdetails=1&limit=5`,
+                    { signal: AbortSignal.timeout(5000) }
+                );
+
+                if (!response.ok) throw new Error('Search failed');
+
+                const results = await response.json();
+
+                if (results.length === 0) {
+                    searchResults.innerHTML = '<div class="p-3 text-sm text-gray-500">No results found</div>';
+                    searchResults.classList.remove('hidden');
+                    return;
+                }
+
+                // Display results
+                searchResults.innerHTML = results.map(result => {
+                    const addr = result.address || {};
+                    const city = addr.city || addr.town || addr.village || addr.suburb || '';
+                    const state = addr.state || '';
+                    const displayName = result.display_name;
+
+                    return `
+                        <div class="p-3 hover:bg-purple-50 cursor-pointer border-b border-gray-200 search-result-item"
+                             data-lat="${result.lat}"
+                             data-lon="${result.lon}"
+                             data-display="${displayName}">
+                            <div class="font-medium text-sm text-gray-900">${city || 'Unknown'}, ${state || 'Unknown'}</div>
+                            <div class="text-xs text-gray-600 mt-1">${displayName}</div>
+                        </div>
+                    `;
+                }).join('');
+
+                searchResults.classList.remove('hidden');
+
+                // Add click handlers to results
+                document.querySelectorAll('.search-result-item').forEach(item => {
+                    item.addEventListener('click', function() {
+                        const lat = parseFloat(this.getAttribute('data-lat'));
+                        const lon = parseFloat(this.getAttribute('data-lon'));
+
+                        updateLocation(lat, lon);
+                        searchInput.value = '';
+                        searchResults.classList.add('hidden');
+                    });
+                });
+
+            } catch (error) {
+                console.error('Location search error:', error);
+                searchResults.innerHTML = '<div class="p-3 text-sm text-red-500">Search failed. Please try again.</div>';
+                searchResults.classList.remove('hidden');
+            }
+        }, 500); // Debounce 500ms
+    });
+
+    // Hide search results when clicking outside
+    document.addEventListener('click', function(e) {
+        if (!searchInput.contains(e.target) && !searchResults.contains(e.target)) {
+            searchResults.classList.add('hidden');
+        }
     });
 
     // Modal controls

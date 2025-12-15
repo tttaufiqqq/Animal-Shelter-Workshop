@@ -436,7 +436,7 @@ class BookingAdoptionController extends Controller
             'bookings' => new \Illuminate\Pagination\LengthAwarePaginator([], 0, 40),
             'statusCounts' => collect([]),
             'totalBookings' => 0
-        ]);
+        ], 'danish'); // Pre-check danish database
 
         return view('booking-adoption.main', $result);
     }
@@ -477,7 +477,7 @@ class BookingAdoptionController extends Controller
             'bookings' => new \Illuminate\Pagination\LengthAwarePaginator([], 0, 40),
             'statusCounts' => collect([]),
             'totalBookings' => 0
-        ]);
+        ], 'danish'); // Pre-check danish database
 
         return view('booking-adoption.admin', $result);
     }

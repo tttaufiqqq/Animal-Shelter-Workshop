@@ -30,12 +30,14 @@ class StrayReportingManagementController extends Controller
                 ->with(['images'])
                 ->orderBy('created_at', 'desc')
                 ->paginate(50),
-            new \Illuminate\Pagination\LengthAwarePaginator([], 0, 50)
+            new \Illuminate\Pagination\LengthAwarePaginator([], 0, 50),
+            'eilya' // Pre-check eilya database
         );
 
         $adopterProfile = $this->safeQuery(
             fn() => AdopterProfile::where('adopterID', auth()->id())->first(),
-            null
+            null,
+            'taufiq' // Pre-check taufiq database
         );
 
         if (!$adopterProfile) {
@@ -53,7 +55,8 @@ class StrayReportingManagementController extends Controller
                         $q->where('size', $adopterProfile->preferred_size);
                     })
                     ->get(),
-                collect([])
+                collect([]),
+                'shafiqah' // Pre-check shafiqah database
             );
         }
 
@@ -114,7 +117,8 @@ class StrayReportingManagementController extends Controller
             fn() => Report::with('images')
                 ->orderBy('created_at', 'desc')
                 ->paginate(50),
-            new \Illuminate\Pagination\LengthAwarePaginator([], 0, 50)
+            new \Illuminate\Pagination\LengthAwarePaginator([], 0, 50),
+            'eilya' // Pre-check eilya database
         );
 
         return view('stray-reporting.index', compact('reports'));
@@ -124,7 +128,8 @@ class StrayReportingManagementController extends Controller
     {
         $report = $this->safeQuery(
             fn() => Report::with(['images', 'rescue.caretaker'])->findOrFail($id),
-            null
+            null,
+            'eilya' // Pre-check eilya database
         );
 
         if (!$report) {
@@ -134,7 +139,8 @@ class StrayReportingManagementController extends Controller
 
         $caretakers = $this->safeQuery(
             fn() => User::role('caretaker')->orderBy('name')->get(),
-            collect([])
+            collect([]),
+            'taufiq' // Pre-check taufiq database
         );
 
         return view('stray-reporting.show', compact('report', 'caretakers'));
@@ -146,7 +152,8 @@ class StrayReportingManagementController extends Controller
             fn() => Report::with(['images', 'user'])
                 ->orderBy('created_at', 'desc')
                 ->paginate(50),
-            new \Illuminate\Pagination\LengthAwarePaginator([], 0, 50)
+            new \Illuminate\Pagination\LengthAwarePaginator([], 0, 50),
+            'eilya' // Pre-check eilya database
         );
 
         return view('stray-reporting.admin-index', compact('reports'));
@@ -209,7 +216,7 @@ class StrayReportingManagementController extends Controller
             }
 
             return $query->orderBy('created_at', 'desc')->paginate(50);
-        }, new \Illuminate\Pagination\LengthAwarePaginator([], 0, 50));
+        }, new \Illuminate\Pagination\LengthAwarePaginator([], 0, 50), 'eilya'); // Pre-check eilya database
 
         return view('stray-reporting.index-caretaker', compact('rescues'));
     }

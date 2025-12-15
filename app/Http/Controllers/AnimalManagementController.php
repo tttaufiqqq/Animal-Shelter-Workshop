@@ -518,7 +518,7 @@ public function update(Request $request, $id)
             $query->orderBy('created_at', 'desc');
 
             return $query->paginate(12)->appends($request->query());
-        }, new \Illuminate\Pagination\LengthAwarePaginator([], 0, 12));
+        }, new \Illuminate\Pagination\LengthAwarePaginator([], 0, 12), 'shafiqah'); // Pre-check shafiqah database
 
         // ===== Only for logged-in user =====
         $animalList = collect();
@@ -529,7 +529,8 @@ public function update(Request $request, $id)
                 fn() => VisitList::with('animals')
                     ->firstOrCreate(['userID' => $user->id])
                     ->animals,
-                collect([])
+                collect([]),
+                'danish' // Pre-check danish database
             );
         }
 
@@ -721,12 +722,14 @@ public function update(Request $request, $id)
     {
         $clinics = $this->safeQuery(
             fn() => Clinic::all(),
-            collect([])
+            collect([]),
+            'shafiqah' // Pre-check shafiqah database
         );
 
         $vets = $this->safeQuery(
             fn() => Vet::with('clinic')->get(),
-            collect([])
+            collect([]),
+            'shafiqah' // Pre-check shafiqah database
         );
 
         return view('animal-management.main-manage-cv', ['clinics' => $clinics, 'vets' => $vets]);

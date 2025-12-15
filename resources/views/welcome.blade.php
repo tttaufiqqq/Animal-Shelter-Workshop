@@ -183,6 +183,9 @@
         </div>
     </div>
 
+    <!-- Database Status Modal (shows on welcome page only if databases are offline) -->
+    <x-database-status-modal />
+
      <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 </body>
 </html>

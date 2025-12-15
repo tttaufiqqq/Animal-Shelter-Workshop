@@ -32,7 +32,8 @@ class Dashboard extends Component
                 ->orderBy('year', 'desc')
                 ->pluck('year')
                 ->toArray(),
-            [date('Y')]
+            [date('Y')],
+            'danish' // Pre-check danish database
         );
     }
 
@@ -126,7 +127,8 @@ class Dashboard extends Component
     {
         return $this->safeQuery(
             fn() => $this->whereYear(Booking::query(), 'created_at', 'danish')->count(),
-            0
+            0,
+            'danish' // Pre-check danish database
         );
     }
 
@@ -139,7 +141,8 @@ class Dashboard extends Component
             fn() => $this->whereYear(Booking::query(), 'created_at', 'danish')
                 ->where('status', 'Completed')
                 ->count(),
-            0
+            0,
+            'danish' // Pre-check danish database
         );
     }
 
@@ -152,7 +155,8 @@ class Dashboard extends Component
             fn() => $this->whereYear(Booking::query(), 'created_at', 'danish')
                 ->where('status', 'Cancelled')
                 ->count(),
-            0
+            0,
+            'danish' // Pre-check danish database
         );
     }
 
@@ -179,7 +183,7 @@ class Dashboard extends Component
 
             return $totalCustomers > 0 ?
                 round(($repeatCustomers / $totalCustomers) * 100, 2) : 0;
-        }, 0);
+        }, 0, 'danish'); // Pre-check danish database
     }
 
     /**
@@ -190,6 +194,12 @@ class Dashboard extends Component
      */
     private function getTopAnimalsByRevenue()
     {
+        // Pre-check both databases before attempting query
+        if (!$this->isDatabaseAvailable('danish') || !$this->isDatabaseAvailable('shafiqah')) {
+            Log::debug('Skipping getTopAnimalsByRevenue - required databases offline');
+            return collect();
+        }
+
         try {
             // Step 1: Get adoptions with animal IDs from Danish's database
             $adoptionsQuery = Adoption::on('danish')
@@ -276,7 +286,7 @@ class Dashboard extends Component
                 });
 
             return $breakdown;
-        }, collect([]));
+        }, collect([]), 'danish'); // Pre-check danish database
     }
 
     /**
@@ -299,7 +309,7 @@ class Dashboard extends Component
                     $item->month_name = Carbon::create()->month((int)$item->month)->format('F');
                     return $item;
                 });
-        }, collect([]));
+        }, collect([]), 'danish'); // Pre-check danish database
     }
 
     /**
@@ -336,7 +346,7 @@ class Dashboard extends Component
                 $item->avg_value = round((float) $item->avg_value, 2);
                 return $item;
             });
-        }, collect([]));
+        }, collect([]), 'danish'); // Pre-check danish database
     }
 
     /**

@@ -93,6 +93,41 @@
     {{-- Navbar --}}
     @include('navbar')
 
+    <!-- Limited Connectivity Warning Banner -->
+    @if(isset($dbDisconnected) && count($dbDisconnected) > 0)
+    <div id="connectivityBanner" class="bg-yellow-50 border-l-4 border-yellow-400 p-4 shadow-sm">
+        <div class="flex items-start">
+            <div class="flex-shrink-0">
+                <svg class="h-6 w-6 text-yellow-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+                </svg>
+            </div>
+            <div class="ml-3 flex-1">
+                <h3 class="text-sm font-semibold text-yellow-800">Limited Connectivity</h3>
+                <p class="text-sm text-yellow-700 mt-1">{{ count($dbDisconnected) }} database(s) currently unavailable. Some features may not work properly.</p>
+                <div class="mt-2 flex flex-wrap gap-2">
+                    @foreach($dbDisconnected as $connection => $info)
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                        {{ $info['module'] }}
+                    </span>
+                    @endforeach
+                </div>
+            </div>
+            <button onclick="closeConnectivityBanner()" class="flex-shrink-0 ml-4 text-yellow-400 hover:text-yellow-600 transition-colors">
+                <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+            </button>
+        </div>
+    </div>
+
+    <script>
+        function closeConnectivityBanner() {
+            document.getElementById('connectivityBanner').style.display = 'none';
+        }
+    </script>
+    @endif
+
     {{-- Main Content Wrapper --}}
     <div class="flex flex-col h-screen">
         <div class="glassmorphism shadow-lg p-6">
@@ -256,8 +291,8 @@
     <script>
         // --- START OF CORRECTED JAVASCRIPT ---
 
-        // 1. Initialize map (KEEP this one)
-        const map = L.map('map', { zoomControl: false }).setView([37.0902, -95.7129], 5);
+        // 1. Initialize map centered on Malaysia
+        const map = L.map('map', { zoomControl: false }).setView([4.2105, 101.9758], 6);
 
         // 2. Add controls and tiles
         L.control.zoom({ position: 'bottomright' }).addTo(map);
@@ -365,6 +400,33 @@
         if (clusters.length > 0) {
             const bounds = L.latLngBounds(clusters.map(c => [c.lat, c.lng]));
             map.fitBounds(bounds, { padding: [50, 50] });
+        } else {
+            // Show message when no reports are available (database offline)
+            const noDataMessage = L.control({ position: 'topright' });
+            noDataMessage.onAdd = function(map) {
+                const div = L.DomUtil.create('div', 'leaflet-control-custom');
+                div.innerHTML = `
+                    <div class="bg-white rounded-xl shadow-2xl p-6 border-l-4 border-yellow-400" style="max-width: 350px;">
+                        <div class="flex items-start gap-3">
+                            <svg class="w-8 h-8 text-yellow-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            </svg>
+                            <div>
+                                <h3 class="font-bold text-gray-800 mb-1">No Reports Available</h3>
+                                <p class="text-sm text-gray-600">
+                                    The database connection is currently unavailable. The map is displaying Malaysia's location.
+                                </p>
+                                <p class="text-xs text-gray-500 mt-2">
+                                    Report markers will appear here when the database is back online.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                div.style.pointerEvents = 'all';
+                return div;
+            };
+            noDataMessage.addTo(map);
         }
 
         function showClusterDetails(cluster) {

@@ -41,7 +41,7 @@ return [
             'charset' => 'utf8mb4',
             'collation' => 'utf8mb4_unicode_ci',
             'options' => [
-                PDO::ATTR_TIMEOUT => 3, // Connection timeout in seconds
+                PDO::ATTR_TIMEOUT => 0.5, // Reduced to 0.5 seconds for faster failure
                 PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
             ],
         ],
@@ -56,7 +56,7 @@ return [
             'charset' => 'utf8mb4',
             'collation' => 'utf8mb4_unicode_ci',
             'options' => [
-                PDO::ATTR_TIMEOUT => 3, // Connection timeout in seconds
+                PDO::ATTR_TIMEOUT => 0.5, // Reduced to 0.5 seconds for faster failure
                 PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
             ],
         ],
@@ -71,7 +71,7 @@ return [
             'charset' => 'utf8mb4',
             'collation' => 'utf8mb4_unicode_ci',
             'options' => [
-                PDO::ATTR_TIMEOUT => 3, // Connection timeout in seconds
+                PDO::ATTR_TIMEOUT => 0.5, // Reduced to 0.5 seconds for faster failure
                 PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
             ],
         ],
@@ -87,8 +87,8 @@ return [
             'trust_server_certificate' => true, // Or this key depending on version
             'options' => [
                 'TrustServerCertificate' => true,
-                'ConnectTimeout' => 3, // SQL Server connection timeout
-                'LoginTimeout' => 3,
+                'ConnectTimeout' => 0.5, // Reduced to 0.5 seconds for faster failure
+                'LoginTimeout' => 0.5,
             ],
         ],
 
@@ -102,10 +102,10 @@ return [
             'charset'  => 'utf8',
             'schema'   => 'public',
             'options'  => [
-                PDO::ATTR_TIMEOUT => 3, // Connection timeout in seconds
+                PDO::ATTR_TIMEOUT => 0.5, // Reduced to 0.5 seconds for faster failure
                 PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
             ],
-            'connect_timeout' => 3, // PostgreSQL specific timeout
+            'connect_timeout' => 0.5, // PostgreSQL specific timeout (reduced to 0.5 seconds)
         ],
         //workshop2
 

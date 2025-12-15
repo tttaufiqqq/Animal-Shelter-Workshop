@@ -19,6 +19,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        // Set max execution time to prevent timeout errors
+        // Especially important for distributed database architecture
+        if (!app()->runningInConsole()) {
+            @set_time_limit(120); // 2 minutes max execution time
+        }
     }
 }

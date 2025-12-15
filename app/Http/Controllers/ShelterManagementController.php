@@ -29,7 +29,7 @@ class ShelterManagementController extends Controller
             $slots = Slot::with(['animals', 'inventories'])
                 ->orderBy('sectionID')
                 ->orderBy('name')
-                ->paginate(9);
+                ->paginate(30);
 
             $categories = Category::all();
 
@@ -50,7 +50,7 @@ class ShelterManagementController extends Controller
             'availableSlots' => 0,
             'occupiedSlots' => 0,
             'maintenanceSlots' => 0,
-        ]);
+        ], 'atiqah'); // Pre-check atiqah database for faster loading
 
         return view('shelter-management.index', $result);
     }
@@ -304,15 +304,17 @@ class ShelterManagementController extends Controller
                         'cost' => $vaccination->costs ?? 0,
                     ];
                 }),
-            ]);
+            ];
+        }, null, 'shafiqah'); // Properly close safeQuery with connection parameter
 
-        } catch (\Exception $e) {
-            \Log::error('Animal details error for ID ' . $id . ': ' . $e->getMessage());
+        if ($data === null) {
             return response()->json([
                 'error' => 'Failed to load animal details',
-                'message' => config('app.debug') ? $e->getMessage() : 'An error occurred'
+                'message' => 'Database connection unavailable or animal not found'
             ], 500);
         }
+
+        return response()->json($data);
     }
 
     public function getSlotDetails($id)
