@@ -15,6 +15,7 @@ return Application::configure(basePath: dirname(__DIR__))
             \App\Http\Middleware\PreventDatabaseTimeout::class,
             \App\Http\Middleware\InjectDatabaseStatus::class,
             \App\Http\Middleware\HandleDatabaseFailures::class,
+            \App\Http\Middleware\CheckDatabaseHealth::class, // Database backup system
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

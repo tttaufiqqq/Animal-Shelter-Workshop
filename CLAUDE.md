@@ -119,7 +119,42 @@ php artisan migrate
 php artisan db:seed
 ```
 
+**Database Connection Status Cache:**
+```bash
+php artisan db:clear-status-cache  # Clear cached connection status and recheck all databases
+```
+
 **IMPORTANT:** Use `db:fresh-all` instead of `migrate:fresh` for this project. Laravel's default `migrate:fresh` only drops tables from the default connection, not all 5 distributed databases. The custom `db:fresh-all` command properly drops all tables from all connections (taufiq, eilya, shafiqah, atiqah, danish) before running migrations.
+
+**IMPORTANT:** The application uses **smart caching** for database connection status in TWO places:
+
+**Cache Duration (Adaptive):**
+- ✅ **All databases online**: Cached for **30 minutes** (stable state, minimal overhead)
+- ⚠️ **Any database offline**: Cached for **60 seconds** (checks frequently for auto-recovery)
+
+**Cache Locations:**
+1. **Laravel Cache** - Cleared with `php artisan db:clear-status-cache`
+2. **Session Storage** - Persists per browser session with smart expiry
+
+**How Smart Caching Works:**
+- When all databases are healthy → Long cache (30 min) for performance
+- When any database is down → Short cache (1 min) to detect recovery quickly
+- Automatically refreshes more frequently during issues
+- Returns to long cache once all databases are back online
+
+**If Modal Shows Wrong Status:**
+
+**Solution 1 (Instant Fix):** Add `?refresh_db_status=1` to the URL
+```
+http://localhost:8000/?refresh_db_status=1
+```
+
+**Solution 2:** Clear cache (already includes session clearing)
+```bash
+php artisan db:clear-status-cache
+```
+
+**Solution 3:** Wait 60 seconds and refresh (if any database is offline, cache auto-expires)
 
 **IMPORTANT:** Seeders must run in a specific order (defined in `DatabaseSeeder.php`) because of cross-database dependencies:
 1. RoleSeeder

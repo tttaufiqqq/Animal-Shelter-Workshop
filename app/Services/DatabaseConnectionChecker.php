@@ -60,8 +60,13 @@ class DatabaseConnectionChecker
             ]);
         }
 
-        // Cache results for 30 minutes (1800 seconds) for much faster subsequent loads
-        Cache::put('db_connection_status', $results, 1800);
+        // Smart cache duration:
+        // - All databases online: 30 minutes (stable state)
+        // - Any database offline: 60 seconds (check frequently for recovery)
+        $allOnline = collect($results)->every(fn($db) => $db['connected']);
+        $cacheDuration = $allOnline ? 1800 : 60;
+
+        Cache::put('db_connection_status', $results, $cacheDuration);
 
         return $results;
     }

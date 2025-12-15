@@ -58,47 +58,111 @@ class ShelterManagementController extends Controller
     // SECTION METHODS
     public function storeSection(Request $request)
     {
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'description' => 'required|string|max:1000',
-        ]);
+        try {
+            $validated = $request->validate([
+                'name' => 'required|string|max:255',
+                'description' => 'required|string|max:1000',
+            ]);
 
-        Section::create($validated);
+            Section::create($validated);
 
-        return redirect()->back()->with('success', 'Section created successfully!');
+            return redirect()->back()->with('success', 'Section created successfully!');
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return redirect()->back()
+                ->withErrors($e->errors())
+                ->withInput()
+                ->with('error', 'Please check the form and try again.');
+        } catch (\Exception $e) {
+            \Log::error('Error creating section: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return redirect()->back()
+                ->withInput()
+                ->with('error', 'Failed to create section: ' . $e->getMessage());
+        }
     }
 
     public function editSection($id)
     {
-        $section = Section::findOrFail($id);
-        return response()->json($section);
+        try {
+            $section = Section::findOrFail($id);
+            return response()->json($section);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            \Log::error('Section not found: ' . $e->getMessage(), ['section_id' => $id]);
+            return response()->json([
+                'error' => 'Section not found',
+                'message' => 'The requested section does not exist or database connection is unavailable.'
+            ], 404);
+        } catch (\Exception $e) {
+            \Log::error('Error fetching section: ' . $e->getMessage(), [
+                'section_id' => $id,
+                'trace' => $e->getTraceAsString()
+            ]);
+            return response()->json([
+                'error' => 'Failed to fetch section',
+                'message' => $e->getMessage()
+            ], 500);
+        }
     }
 
     public function updateSection(Request $request, $id)
     {
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'description' => 'required|string|max:1000',
-        ]);
+        try {
+            $validated = $request->validate([
+                'name' => 'required|string|max:255',
+                'description' => 'required|string|max:1000',
+            ]);
 
-        $section = Section::findOrFail($id);
-        $section->update($validated);
+            $section = Section::findOrFail($id);
+            $section->update($validated);
 
-        return redirect()->back()->with('success', 'Section updated successfully!');
+            return redirect()->back()->with('success', 'Section updated successfully!');
+
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            \Log::error('Section not found for update: ' . $e->getMessage(), ['section_id' => $id]);
+            return redirect()->back()->with('error', 'Section not found or database connection unavailable.');
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return redirect()->back()
+                ->withErrors($e->errors())
+                ->withInput()
+                ->with('error', 'Please check the form and try again.');
+        } catch (\Exception $e) {
+            \Log::error('Error updating section: ' . $e->getMessage(), [
+                'section_id' => $id,
+                'trace' => $e->getTraceAsString()
+            ]);
+            return redirect()->back()
+                ->withInput()
+                ->with('error', 'Failed to update section: ' . $e->getMessage());
+        }
     }
 
     public function deleteSection($id)
     {
-        $section = Section::findOrFail($id);
+        try {
+            $section = Section::findOrFail($id);
 
-        // Check if section has slots
-        if ($section->slots()->count() > 0) {
-            return redirect()->back()->with('error', 'Cannot delete section with existing slots!');
+            // Check if section has slots
+            if ($section->slots()->count() > 0) {
+                return redirect()->back()->with('error', 'Cannot delete section with existing slots! Please delete or move the slots first.');
+            }
+
+            $section->delete();
+
+            return redirect()->back()->with('success', 'Section deleted successfully!');
+
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            \Log::error('Section not found for deletion: ' . $e->getMessage(), ['section_id' => $id]);
+            return redirect()->back()->with('error', 'Section not found or database connection unavailable.');
+        } catch (\Exception $e) {
+            \Log::error('Error deleting section: ' . $e->getMessage(), [
+                'section_id' => $id,
+                'trace' => $e->getTraceAsString()
+            ]);
+            return redirect()->back()->with('error', 'Failed to delete section: ' . $e->getMessage());
         }
-
-        $section->delete();
-
-        return redirect()->back()->with('success', 'Section deleted successfully!');
     }
 
     public function storeSlot(Request $request)
@@ -216,47 +280,111 @@ class ShelterManagementController extends Controller
     // CATEGORY METHODS
     public function storeCategory(Request $request)
     {
-        $validated = $request->validate([
-            'main' => 'required|string|max:255',
-            'sub' => 'required|string|max:255',
-        ]);
+        try {
+            $validated = $request->validate([
+                'main' => 'required|string|max:255',
+                'sub' => 'required|string|max:255',
+            ]);
 
-        Category::create($validated);
+            Category::create($validated);
 
-        return redirect()->back()->with('success', 'Category created successfully!');
+            return redirect()->back()->with('success', 'Category created successfully!');
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return redirect()->back()
+                ->withErrors($e->errors())
+                ->withInput()
+                ->with('error', 'Please check the form and try again.');
+        } catch (\Exception $e) {
+            \Log::error('Error creating category: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return redirect()->back()
+                ->withInput()
+                ->with('error', 'Failed to create category: ' . $e->getMessage());
+        }
     }
 
     public function editCategory($id)
     {
-        $category = Category::findOrFail($id);
-        return response()->json($category);
+        try {
+            $category = Category::findOrFail($id);
+            return response()->json($category);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            \Log::error('Category not found: ' . $e->getMessage(), ['category_id' => $id]);
+            return response()->json([
+                'error' => 'Category not found',
+                'message' => 'The requested category does not exist or database connection is unavailable.'
+            ], 404);
+        } catch (\Exception $e) {
+            \Log::error('Error fetching category: ' . $e->getMessage(), [
+                'category_id' => $id,
+                'trace' => $e->getTraceAsString()
+            ]);
+            return response()->json([
+                'error' => 'Failed to fetch category',
+                'message' => $e->getMessage()
+            ], 500);
+        }
     }
 
     public function updateCategory(Request $request, $id)
     {
-        $validated = $request->validate([
-            'main' => 'required|string|max:255',
-            'sub' => 'required|string|max:255',
-        ]);
+        try {
+            $validated = $request->validate([
+                'main' => 'required|string|max:255',
+                'sub' => 'required|string|max:255',
+            ]);
 
-        $category = Category::findOrFail($id);
-        $category->update($validated);
+            $category = Category::findOrFail($id);
+            $category->update($validated);
 
-        return redirect()->back()->with('success', 'Category updated successfully!');
+            return redirect()->back()->with('success', 'Category updated successfully!');
+
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            \Log::error('Category not found for update: ' . $e->getMessage(), ['category_id' => $id]);
+            return redirect()->back()->with('error', 'Category not found or database connection unavailable.');
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return redirect()->back()
+                ->withErrors($e->errors())
+                ->withInput()
+                ->with('error', 'Please check the form and try again.');
+        } catch (\Exception $e) {
+            \Log::error('Error updating category: ' . $e->getMessage(), [
+                'category_id' => $id,
+                'trace' => $e->getTraceAsString()
+            ]);
+            return redirect()->back()
+                ->withInput()
+                ->with('error', 'Failed to update category: ' . $e->getMessage());
+        }
     }
 
     public function deleteCategory($id)
     {
-        $category = Category::findOrFail($id);
+        try {
+            $category = Category::findOrFail($id);
 
-        // Check if category has inventories
-        if ($category->inventories()->count() > 0) {
-            return redirect()->back()->with('error', 'Cannot delete category with existing inventory items!');
+            // Check if category has inventories
+            if ($category->inventories()->count() > 0) {
+                return redirect()->back()->with('error', 'Cannot delete category with existing inventory items! Please delete or reassign the inventory items first.');
+            }
+
+            $category->delete();
+
+            return redirect()->back()->with('success', 'Category deleted successfully!');
+
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            \Log::error('Category not found for deletion: ' . $e->getMessage(), ['category_id' => $id]);
+            return redirect()->back()->with('error', 'Category not found or database connection unavailable.');
+        } catch (\Exception $e) {
+            \Log::error('Error deleting category: ' . $e->getMessage(), [
+                'category_id' => $id,
+                'trace' => $e->getTraceAsString()
+            ]);
+            return redirect()->back()->with('error', 'Failed to delete category: ' . $e->getMessage());
         }
-
-        $category->delete();
-
-        return redirect()->back()->with('success', 'Category deleted successfully!');
     }
 
     public function getAnimalDetails($id)

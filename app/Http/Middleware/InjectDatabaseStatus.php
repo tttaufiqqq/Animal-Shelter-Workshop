@@ -32,8 +32,7 @@ class InjectDatabaseStatus
      */
     public function handle(Request $request, Closure $next): Response
     {
-        // Only check connections once per session to speed up page loads
-        // Use session storage with 30-minute expiry for much faster page loads
+        // Smart caching: check more frequently when databases are offline
         $sessionKey = 'db_connection_status_checked';
         $expiryKey = 'db_connection_status_expiry';
 
@@ -47,13 +46,18 @@ class InjectDatabaseStatus
             $connected = array_filter($dbStatus, fn($db) => $db['connected']);
             $disconnected = array_filter($dbStatus, fn($db) => !$db['connected']);
 
-            // Store in session for 30 minutes (longer cache = faster pages)
+            // Smart cache duration:
+            // - All online: 30 minutes (stable state, minimal overhead)
+            // - Any offline: 60 seconds (check frequently for recovery)
+            $cacheDuration = count($disconnected) > 0 ? 60 : 1800;
+
+            // Store in session with smart expiry
             session([
                 'db_connection_status' => $dbStatus,
                 'db_connected' => $connected,
                 'db_disconnected' => $disconnected,
                 $sessionKey => true,
-                $expiryKey => time() + 1800, // 30 minutes instead of 5
+                $expiryKey => time() + $cacheDuration,
             ]);
         }
 

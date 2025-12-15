@@ -193,43 +193,60 @@ class AnimalManagementController extends Controller
 
     public function storeOrUpdate(Request $request, $animalId)
     {
-        // 1. Validate other fields (excluding 'age')
-        $validated = $request->validate([
-            'size' => ['required', Rule::in(['small', 'medium', 'large'])],
-            'energy_level' => ['required', Rule::in(['low', 'medium', 'high'])],
-            'good_with_kids' => ['required', 'boolean'],
-            'good_with_pets' => ['required', 'boolean'],
-            'temperament' => ['required', Rule::in(['calm', 'active', 'shy', 'friendly', 'independent'])],
-            'medical_needs' => ['required', Rule::in(['none', 'minor', 'moderate', 'special'])],
-        ]);
+        try {
+            // 1. Validate other fields (excluding 'age')
+            $validated = $request->validate([
+                'size' => ['required', Rule::in(['small', 'medium', 'large'])],
+                'energy_level' => ['required', Rule::in(['low', 'medium', 'high'])],
+                'good_with_kids' => ['required', 'boolean'],
+                'good_with_pets' => ['required', 'boolean'],
+                'temperament' => ['required', Rule::in(['calm', 'active', 'shy', 'friendly', 'independent'])],
+                'medical_needs' => ['required', Rule::in(['none', 'minor', 'moderate', 'special'])],
+            ]);
 
-        // 2. Find the animal
-        $animal = Animal::find($animalId);
-        if (!$animal) {
-            return redirect()->back()->with('error', 'Animal not found.');
-        }
+            // 2. Find the animal
+            $animal = Animal::find($animalId);
+            if (!$animal) {
+                return redirect()->back()->with('error', 'Animal not found or database connection unavailable.');
+            }
 
-        // 3. Validate age from the Animal table (case-insensitive)
-        $allowedAges = ['kitten', 'puppy', 'adult', 'senior'];
-        $ageFromAnimal = strtolower($animal->age); // convert to lower case
+            // 3. Validate age from the Animal table (case-insensitive)
+            $allowedAges = ['kitten', 'puppy', 'adult', 'senior'];
+            $ageFromAnimal = strtolower($animal->age); // convert to lower case
 
-        if (!in_array($ageFromAnimal, $allowedAges)) {
-            return redirect()->back()->with('error', 'Invalid age value in the Animal table.');
-        }
+            if (!in_array($ageFromAnimal, $allowedAges)) {
+                return redirect()->back()->with('error', 'Invalid age value in the Animal table.');
+            }
 
-        $validated['age'] = $ageFromAnimal;
+            $validated['age'] = $ageFromAnimal;
 
-        // 4. Check if profile exists
-        $profile = AnimalProfile::firstOrNew(['animalID' => $animalId]);
+            // 4. Check if profile exists
+            $profile = AnimalProfile::firstOrNew(['animalID' => $animalId]);
 
-        // 5. Fill and save
-        $profile->fill($validated);
-        $saved = $profile->save();
+            // 5. Fill and save
+            $profile->fill($validated);
+            $saved = $profile->save();
 
-        if ($saved) {
-            return redirect()->back()->with('success', 'Animal Profile saved successfully!');
-        } else {
-            return redirect()->back()->with('error', 'Failed to save Animal Profile.');
+            if ($saved) {
+                return redirect()->back()->with('success', 'Animal Profile saved successfully!');
+            } else {
+                return redirect()->back()->with('error', 'Failed to save Animal Profile.');
+            }
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return redirect()->back()
+                ->withErrors($e->errors())
+                ->withInput()
+                ->with('error', 'Please check the form and try again.');
+        } catch (\Exception $e) {
+            \Log::error('Error saving animal profile: ' . $e->getMessage(), [
+                'animal_id' => $animalId,
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return redirect()->back()
+                ->withInput()
+                ->with('error', 'Failed to save Animal Profile: ' . $e->getMessage());
         }
     }
 
@@ -632,43 +649,66 @@ public function update(Request $request, $id)
 
     public function assignSlot(Request $request, $animalId)
     {
-        $request->validate([
-            'slot_id' => 'required|exists:atiqah.slot,id',  // Cross-database: Slot on atiqah
-        ]);
+        try {
+            $request->validate([
+                'slot_id' => 'required|exists:atiqah.slot,id',  // Cross-database: Slot on atiqah
+            ]);
 
-        $animal = Animal::findOrFail($animalId);
-        $previousSlotId = $animal->slotID;
+            $animal = Animal::findOrFail($animalId);
+            $previousSlotId = $animal->slotID;
 
-        $animal->slotID = $request->slot_id;
-        $animal->save();
+            $animal->slotID = $request->slot_id;
+            $animal->save();
 
-        $newSlot = Slot::findOrFail($request->slot_id);
-        $newSlotAnimalCount = $newSlot->animals()->count();
+            $newSlot = Slot::findOrFail($request->slot_id);
+            $newSlotAnimalCount = $newSlot->animals()->count();
 
-        if ($newSlotAnimalCount >= $newSlot->capacity) {
-            $newSlot->status = 'occupied';
-        } else {
-            $newSlot->status = 'available';
-        }
-        $newSlot->save();
-
-        if ($previousSlotId && $previousSlotId != $newSlot->id) {
-            $oldSlot = Slot::find($previousSlotId);
-
-            if ($oldSlot) {
-                $oldSlotAnimalCount = $oldSlot->animals()->count();
-
-                if ($oldSlotAnimalCount >= $oldSlot->capacity) {
-                    $oldSlot->status = 'occupied';
-                } else {
-                    $oldSlot->status = 'available';
-                }
-
-                $oldSlot->save();
+            if ($newSlotAnimalCount >= $newSlot->capacity) {
+                $newSlot->status = 'occupied';
+            } else {
+                $newSlot->status = 'available';
             }
-        }
+            $newSlot->save();
 
-        return back()->with('success', 'Slot assigned successfully!');
+            if ($previousSlotId && $previousSlotId != $newSlot->id) {
+                $oldSlot = Slot::find($previousSlotId);
+
+                if ($oldSlot) {
+                    $oldSlotAnimalCount = $oldSlot->animals()->count();
+
+                    if ($oldSlotAnimalCount >= $oldSlot->capacity) {
+                        $oldSlot->status = 'occupied';
+                    } else {
+                        $oldSlot->status = 'available';
+                    }
+
+                    $oldSlot->save();
+                }
+            }
+
+            return back()->with('success', 'Slot assigned successfully!');
+
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            \Log::error('Animal or Slot not found: ' . $e->getMessage(), [
+                'animal_id' => $animalId,
+                'slot_id' => $request->slot_id
+            ]);
+
+            return back()->with('error', 'Animal or Slot not found. Please check the database connection.');
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return back()
+                ->withErrors($e->errors())
+                ->withInput()
+                ->with('error', 'Please check the form and try again.');
+        } catch (\Exception $e) {
+            \Log::error('Error assigning slot: ' . $e->getMessage(), [
+                'animal_id' => $animalId,
+                'slot_id' => $request->slot_id,
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return back()->with('error', 'Failed to assign slot: ' . $e->getMessage());
+        }
     }
 
     public function destroy(Animal $animal)
@@ -863,38 +903,92 @@ public function update(Request $request, $id)
 
     public function editClinic($id)
     {
-        $clinic = Clinic::findOrFail($id);
-        return response()->json($clinic);
+        try {
+            $clinic = Clinic::findOrFail($id);
+            return response()->json($clinic);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            \Log::error('Clinic not found: ' . $e->getMessage(), ['clinic_id' => $id]);
+            return response()->json([
+                'error' => 'Clinic not found',
+                'message' => 'The requested clinic does not exist or database connection is unavailable.'
+            ], 404);
+        } catch (\Exception $e) {
+            \Log::error('Error fetching clinic: ' . $e->getMessage(), [
+                'clinic_id' => $id,
+                'trace' => $e->getTraceAsString()
+            ]);
+            return response()->json([
+                'error' => 'Failed to fetch clinic',
+                'message' => $e->getMessage()
+            ], 500);
+        }
     }
 
     public function updateClinic(Request $request, $id)
     {
-        $request->validate([
-            'name' => 'required|string|max:255',
-            'address' => 'required|string',
-            'contactNum' => 'required|string|max:20',
-            'latitude' => 'required|numeric',
-            'longitude' => 'required|numeric',
-        ]);
+        try {
+            $request->validate([
+                'name' => 'required|string|max:255',
+                'address' => 'required|string',
+                'contactNum' => 'required|string|max:20',
+                'latitude' => 'required|numeric',
+                'longitude' => 'required|numeric',
+            ]);
 
-        $clinic = Clinic::findOrFail($id);
-        $clinic->update([
-            'name' => $request->name,
-            'address' => $request->address,
-            'contactNum' => $request->contactNum,
-            'latitude' => $request->latitude,
-            'longitude' => $request->longitude,
-        ]);
+            $clinic = Clinic::findOrFail($id);
+            $clinic->update([
+                'name' => $request->name,
+                'address' => $request->address,
+                'contactNum' => $request->contactNum,
+                'latitude' => $request->latitude,
+                'longitude' => $request->longitude,
+            ]);
 
-        return redirect()->back()->with('success', 'Clinic updated successfully!');
+            return redirect()->back()->with('success', 'Clinic updated successfully!');
+
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            \Log::error('Clinic not found for update: ' . $e->getMessage(), ['clinic_id' => $id]);
+            return redirect()->back()->with('error', 'Clinic not found or database connection unavailable.');
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return redirect()->back()
+                ->withErrors($e->errors())
+                ->withInput()
+                ->with('error', 'Please check the form and try again.');
+        } catch (\Exception $e) {
+            \Log::error('Error updating clinic: ' . $e->getMessage(), [
+                'clinic_id' => $id,
+                'trace' => $e->getTraceAsString()
+            ]);
+            return redirect()->back()
+                ->withInput()
+                ->with('error', 'Failed to update clinic: ' . $e->getMessage());
+        }
     }
 
     public function destroyClinic($id)
     {
-        $clinic = Clinic::findOrFail($id);
-        $clinic->delete();
+        try {
+            $clinic = Clinic::findOrFail($id);
 
-        return redirect()->back()->with('success', 'Clinic deleted successfully!');
+            // Check if clinic has associated vets
+            if ($clinic->vets()->count() > 0) {
+                return redirect()->back()->with('error', 'Cannot delete clinic with associated veterinarians. Please reassign or remove vets first.');
+            }
+
+            $clinic->delete();
+
+            return redirect()->back()->with('success', 'Clinic deleted successfully!');
+
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            \Log::error('Clinic not found for deletion: ' . $e->getMessage(), ['clinic_id' => $id]);
+            return redirect()->back()->with('error', 'Clinic not found or database connection unavailable.');
+        } catch (\Exception $e) {
+            \Log::error('Error deleting clinic: ' . $e->getMessage(), [
+                'clinic_id' => $id,
+                'trace' => $e->getTraceAsString()
+            ]);
+            return redirect()->back()->with('error', 'Failed to delete clinic: ' . $e->getMessage());
+        }
     }
 
     public function editVet($id)
@@ -921,33 +1015,74 @@ public function update(Request $request, $id)
 
     public function updateVet(Request $request, $id)
     {
-        $request->validate([
-            'name' => 'required|string|max:255',
-            'specialization' => 'required|string|max:255',
-            'license_no' => 'required|string|max:50',
-            'clinicID' => 'required|exists:clinic,id',
-            'contactNum' => 'required|string|max:20',
-            'email' => 'required|email|max:255',
-        ]);
+        try {
+            $request->validate([
+                'name' => 'required|string|max:255',
+                'specialization' => 'required|string|max:255',
+                'license_no' => 'required|string|max:50',
+                'clinicID' => 'required|exists:clinic,id',
+                'contactNum' => 'required|string|max:20',
+                'email' => 'required|email|max:255',
+            ]);
 
-        $vet = Vet::findOrFail($id);
-        $vet->update([
-            'name' => $request->name,
-            'specialization' => $request->specialization,
-            'license_no' => $request->license_no,
-            'clinicID' => $request->clinicID,
-            'contactNum' => $request->contactNum,
-            'email' => $request->email,
-        ]);
+            $vet = Vet::findOrFail($id);
+            $vet->update([
+                'name' => $request->name,
+                'specialization' => $request->specialization,
+                'license_no' => $request->license_no,
+                'clinicID' => $request->clinicID,
+                'contactNum' => $request->contactNum,
+                'email' => $request->email,
+            ]);
 
-        return redirect()->back()->with('success', 'Veterinarian updated successfully!');
+            return redirect()->back()->with('success', 'Veterinarian updated successfully!');
+
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            \Log::error('Veterinarian not found for update: ' . $e->getMessage(), ['vet_id' => $id]);
+            return redirect()->back()->with('error', 'Veterinarian not found or database connection unavailable.');
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return redirect()->back()
+                ->withErrors($e->errors())
+                ->withInput()
+                ->with('error', 'Please check the form and try again.');
+        } catch (\Exception $e) {
+            \Log::error('Error updating veterinarian: ' . $e->getMessage(), [
+                'vet_id' => $id,
+                'trace' => $e->getTraceAsString()
+            ]);
+            return redirect()->back()
+                ->withInput()
+                ->with('error', 'Failed to update veterinarian: ' . $e->getMessage());
+        }
     }
 
     public function destroyVet($id)
     {
-        $vet = Vet::findOrFail($id);
-        $vet->delete();
+        try {
+            $vet = Vet::findOrFail($id);
 
-        return redirect()->back()->with('success', 'Veterinarian deleted successfully!');
+            // Check if vet has associated medical records or vaccinations
+            $medicalCount = $vet->medicals()->count();
+            $vaccinationCount = $vet->vaccinations()->count();
+
+            if ($medicalCount > 0 || $vaccinationCount > 0) {
+                return redirect()->back()->with('error',
+                    'Cannot delete veterinarian with associated medical records (' . $medicalCount . ') or vaccination records (' . $vaccinationCount . '). Please reassign these records first.');
+            }
+
+            $vet->delete();
+
+            return redirect()->back()->with('success', 'Veterinarian deleted successfully!');
+
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            \Log::error('Veterinarian not found for deletion: ' . $e->getMessage(), ['vet_id' => $id]);
+            return redirect()->back()->with('error', 'Veterinarian not found or database connection unavailable.');
+        } catch (\Exception $e) {
+            \Log::error('Error deleting veterinarian: ' . $e->getMessage(), [
+                'vet_id' => $id,
+                'trace' => $e->getTraceAsString()
+            ]);
+            return redirect()->back()->with('error', 'Failed to delete veterinarian: ' . $e->getMessage());
+        }
     }
 }

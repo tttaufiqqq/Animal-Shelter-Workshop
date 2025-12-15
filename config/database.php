@@ -107,6 +107,26 @@ return [
             ],
             'connect_timeout' => 0.5, // PostgreSQL specific timeout (reduced to 0.5 seconds)
         ],
+
+        // Backup Database Connection (Independent MySQL database for backup admin and logs)
+        // Backup Database Connection (Independent PostgreSQL database for backup admin and logs)
+        'backup' => [
+            'driver' => 'pgsql',
+            'host' => env('BACKUP_DB_HOST', '127.0.0.1'),
+            'port' => env('BACKUP_DB_PORT', 5432),
+            'database' => env('BACKUP_DB_DATABASE', 'backup_system'),
+            'username' => env('BACKUP_DB_USERNAME', 'postgres'),
+            'password' => env('BACKUP_DB_PASSWORD', ''),
+            'charset' => 'utf8',
+            'prefix' => '',
+            'prefix_indexes' => true,
+            'search_path' => 'public',
+            'sslmode' => 'prefer',
+            'options' => [
+                PDO::ATTR_TIMEOUT => 2,
+                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+            ],
+        ],
         //workshop2
 
         'sqlite' => [
