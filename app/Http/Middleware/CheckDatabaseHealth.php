@@ -12,10 +12,19 @@ class CheckDatabaseHealth
 {
     /**
      * Databases to check for existence.
+     * IMPORTANT: ONLY check the 5 main distributed databases.
+     * NEVER check the 'backup' database - it's independent and should always be available.
      *
      * @var array
      */
     protected $connections = ['eilya', 'atiqah', 'shafiqah', 'danish', 'taufiq'];
+
+    /**
+     * Databases to EXCLUDE from checking (backup system database).
+     *
+     * @var array
+     */
+    protected $excludedConnections = ['backup'];
 
     /**
      * Routes that should bypass database health check.
@@ -100,13 +109,30 @@ class CheckDatabaseHealth
         $nonExistentDatabases = [];
 
         foreach ($this->connections as $connection) {
+            // Safeguard: Skip backup database (should never happen, but double-check)
+            if (in_array($connection, $this->excludedConnections)) {
+                \Log::debug("Skipping '{$connection}' database check (excluded)");
+                continue;
+            }
+
             try {
-                // Try to select the database name
+                // Get the expected database name from config
+                $expectedDatabase = config("database.connections.{$connection}.database");
+
+                // Try to select the current database name
                 $result = DB::connection($connection)->select('SELECT DATABASE() as db_name');
 
                 // Check if the result is null (database doesn't exist) or empty
                 if (empty($result) || is_null($result[0]->db_name)) {
+                    \Log::warning("Database check: '{$connection}' - No database selected");
                     $nonExistentDatabases[] = $connection;
+                } elseif ($result[0]->db_name !== $expectedDatabase) {
+                    // Connected but to wrong database (shouldn't happen, but check anyway)
+                    \Log::warning("Database check: '{$connection}' - Connected to '{$result[0]->db_name}' but expected '{$expectedDatabase}'");
+                    $nonExistentDatabases[] = $connection;
+                } else {
+                    // Database exists and is correct
+                    \Log::debug("Database check: '{$connection}' - OK (database: {$result[0]->db_name})");
                 }
             } catch (\PDOException $e) {
                 $errorCode = $e->getCode();
@@ -159,6 +185,13 @@ class CheckDatabaseHealth
                 // Generic error handling - log but don't block
                 \Log::debug("Database health check skipped for {$connection}: " . $e->getMessage());
             }
+        }
+
+        // Log summary
+        if (!empty($nonExistentDatabases)) {
+            \Log::warning("Database Health Check Summary: " . count($nonExistentDatabases) . " databases missing: " . implode(', ', $nonExistentDatabases));
+        } else {
+            \Log::debug("Database Health Check Summary: All databases OK (checked: " . implode(', ', $this->connections) . ")");
         }
 
         return $nonExistentDatabases;

@@ -5,6 +5,7 @@ use App\Http\Controllers\StrayReportingManagementController;
 use App\Http\Controllers\AnimalManagementController;
 use App\Http\Controllers\ShelterManagementController;
 use App\Http\Controllers\BookingAdoptionController;
+use App\Http\Controllers\AuditLogController;
 use Illuminate\Support\Facades\Route;
 use App\Livewire\Dashboard;
 use App\Http\Controllers\RescueMapController;
@@ -151,6 +152,12 @@ Route::middleware('auth')->group(function () {
         Route::get('/status', [BookingAdoptionController::class, 'paymentStatus'])->name('toyyibpay-status');
         Route::post('/callback', [BookingAdoptionController::class, 'callback'])->name('toyyibpay-callback');
     });
+});
+
+// Audit Logs (Admin only)
+Route::middleware(['auth'])->prefix('audit-logs')->group(function () {
+    Route::get('/', [AuditLogController::class, 'index'])->name('audit-logs.index');
+    Route::get('/{id}', [AuditLogController::class, 'show'])->name('audit-logs.show');
 });
 
 // Database Backup System Routes (NO authentication middleware - uses custom login)
