@@ -33,6 +33,16 @@
                 </div>
             @endif
 
+            {{-- Error Alert --}}
+            @if (session('error'))
+                <div class="flex items-start gap-3 p-4 mb-6 bg-red-50 border border-red-200 rounded-xl shadow-sm mx-6 mt-6">
+                    <svg class="w-6 h-6 text-red-600 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                    <p class="font-semibold text-red-700">{{ session('error') }}</p>
+                </div>
+            @endif
+
             <div class="grid grid-cols-1 md:grid-cols-2">
 
                 <!-- Left Section -->
@@ -187,5 +197,14 @@
     <x-database-status-modal />
 
      <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+     <script>
+        // Auto-open report modal if there are validation errors
+        @if ($errors->any() || session('error'))
+            document.addEventListener('DOMContentLoaded', function() {
+                openReportModal();
+            });
+        @endif
+     </script>
 </body>
 </html>

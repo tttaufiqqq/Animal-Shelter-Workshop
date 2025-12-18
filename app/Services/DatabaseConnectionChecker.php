@@ -46,9 +46,27 @@ class DatabaseConnectionChecker
      */
     public function checkAll(bool $useCache = true): array
     {
-        // Use cached results if available and cache is enabled
-        if ($useCache && Cache::has('db_connection_status')) {
-            return Cache::get('db_connection_status');
+        // Smart cache strategy: try database cache first, fallback to file cache
+        // This avoids circular dependency during initial connection checks
+        $cacheKey = 'db_connection_status';
+
+        if ($useCache) {
+            // Try database cache first (faster when online)
+            try {
+                if (Cache::has($cacheKey)) {
+                    return Cache::get($cacheKey);
+                }
+            } catch (\Exception $e) {
+                // Database cache failed, try file cache
+                try {
+                    $fileCache = Cache::store('file');
+                    if ($fileCache->has($cacheKey)) {
+                        return $fileCache->get($cacheKey);
+                    }
+                } catch (\Exception $e2) {
+                    // Both failed, continue to fresh check
+                }
+            }
         }
 
         $results = [];
@@ -66,7 +84,20 @@ class DatabaseConnectionChecker
         $allOnline = collect($results)->every(fn($db) => $db['connected']);
         $cacheDuration = $allOnline ? 1800 : 60;
 
-        Cache::put('db_connection_status', $results, $cacheDuration);
+        // Store in both caches for redundancy
+        // Database cache (when online) - primary
+        try {
+            Cache::put($cacheKey, $results, $cacheDuration);
+        } catch (\Exception $e) {
+            // Database cache failed, not critical
+        }
+
+        // File cache - fallback/backup
+        try {
+            Cache::store('file')->put($cacheKey, $results, $cacheDuration);
+        } catch (\Exception $e) {
+            // File cache failed, not critical
+        }
 
         return $results;
     }
@@ -135,24 +166,61 @@ class DatabaseConnectionChecker
      */
     public function isConnected(string $connection): bool
     {
-        // Check if we have cached status for ALL databases
-        if (Cache::has('db_connection_status')) {
-            $status = Cache::get('db_connection_status');
-            return $status[$connection]['connected'] ?? false;
+        // Smart cache strategy: try database cache first, fallback to file cache
+        $allDbKey = 'db_connection_status';
+        $singleDbKey = "db_connection_status_{$connection}";
+
+        // Try to get from ALL databases cache first (most complete)
+        try {
+            if (Cache::has($allDbKey)) {
+                $status = Cache::get($allDbKey);
+                return $status[$connection]['connected'] ?? false;
+            }
+        } catch (\Exception $e) {
+            // Try file cache
+            try {
+                $fileCache = Cache::store('file');
+                if ($fileCache->has($allDbKey)) {
+                    $status = $fileCache->get($allDbKey);
+                    return $status[$connection]['connected'] ?? false;
+                }
+            } catch (\Exception $e2) {
+                // Continue to individual check
+            }
         }
 
-        // If no cache, only check this specific connection (don't check all)
-        $cacheKey = "db_connection_status_{$connection}";
-
-        if (Cache::has($cacheKey)) {
-            return Cache::get($cacheKey);
+        // Try individual connection cache
+        try {
+            if (Cache::has($singleDbKey)) {
+                return Cache::get($singleDbKey);
+            }
+        } catch (\Exception $e) {
+            // Try file cache
+            try {
+                $fileCache = Cache::store('file');
+                if ($fileCache->has($singleDbKey)) {
+                    return $fileCache->get($singleDbKey);
+                }
+            } catch (\Exception $e2) {
+                // Continue to fresh check
+            }
         }
 
-        // Check only this connection
+        // No cache found, check this connection
         $isConnected = $this->checkConnection($connection);
 
-        // Cache individual connection status for 60 seconds
-        Cache::put($cacheKey, $isConnected, 60);
+        // Cache individual connection status for 60 seconds in both stores
+        try {
+            Cache::put($singleDbKey, $isConnected, 60);
+        } catch (\Exception $e) {
+            // Not critical
+        }
+
+        try {
+            Cache::store('file')->put($singleDbKey, $isConnected, 60);
+        } catch (\Exception $e) {
+            // Not critical
+        }
 
         return $isConnected;
     }
@@ -210,11 +278,61 @@ class DatabaseConnectionChecker
     /**
      * Clear cached connection status
      *
+     * @param string|null $connection Optional specific connection to clear, or null for all
      * @return void
      */
-    public function clearCache(): void
+    public function clearCache(?string $connection = null): void
     {
-        Cache::forget('db_connection_status');
+        if ($connection) {
+            // Clear specific connection cache from both stores
+            $key = "db_connection_status_{$connection}";
+
+            try {
+                Cache::forget($key);
+            } catch (\Exception $e) {
+                // Not critical
+            }
+
+            try {
+                Cache::store('file')->forget($key);
+            } catch (\Exception $e) {
+                // Not critical
+            }
+
+            \Log::info("Cleared cache for database connection: {$connection}");
+        } else {
+            // Clear all connection caches from both stores
+            try {
+                Cache::forget('db_connection_status');
+            } catch (\Exception $e) {
+                // Not critical
+            }
+
+            try {
+                Cache::store('file')->forget('db_connection_status');
+            } catch (\Exception $e) {
+                // Not critical
+            }
+
+            // Also clear individual connection caches
+            foreach (self::CONNECTIONS as $conn => $info) {
+                $key = "db_connection_status_{$conn}";
+
+                try {
+                    Cache::forget($key);
+                } catch (\Exception $e) {
+                    // Not critical
+                }
+
+                try {
+                    Cache::store('file')->forget($key);
+                } catch (\Exception $e) {
+                    // Not critical
+                }
+            }
+
+            \Log::info("Cleared all database connection caches");
+        }
     }
 
     /**

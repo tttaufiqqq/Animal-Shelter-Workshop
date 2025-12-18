@@ -73,13 +73,22 @@ class StrayReportingManagementController extends Controller
 
         try {
             $validator = Validator::make($request->all(), [
-                'latitude' => 'required',
-                'longitude' => 'required',
+                'latitude' => 'required|numeric',
+                'longitude' => 'required|numeric',
                 'address' => 'required|string|max:255',
                 'city' => 'required|string|max:255',
                 'state' => 'required|string|max:255',
-                'description' => 'nullable|string',
-                'images.*' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+                'description' => 'required|string|max:500',
+                'additional_notes' => 'nullable|string|max:1000',
+                'images' => 'required|array|min:1|max:5',
+                'images.*' => 'required|image|mimes:jpeg,png,jpg,gif|max:5120',
+            ], [
+                'latitude.required' => 'Please select a location on the map.',
+                'longitude.required' => 'Please select a location on the map.',
+                'images.required' => 'Please upload at least one image.',
+                'images.min' => 'Please upload at least one image.',
+                'images.*.max' => 'Each image must not exceed 5MB.',
+                'description.required' => 'Please select a situation/urgency level.',
             ]);
 
             if ($validator->fails()) {
@@ -91,6 +100,12 @@ class StrayReportingManagementController extends Controller
 
             $validated = $validator->validated();
 
+            // Combine description and additional notes
+            $fullDescription = $validated['description'];
+            if (!empty($validated['additional_notes'])) {
+                $fullDescription .= "\n\nAdditional Notes: " . $validated['additional_notes'];
+            }
+
             $report = Report::create([
                 'latitude' => $validated['latitude'],
                 'longitude' => $validated['longitude'],
@@ -98,7 +113,7 @@ class StrayReportingManagementController extends Controller
                 'city' => $validated['city'],
                 'state' => $validated['state'],
                 'report_status' => 'Pending',
-                'description' => $validated['description'] ?? null,
+                'description' => $fullDescription,
                 'userID' => Auth::id(),
             ]);
 

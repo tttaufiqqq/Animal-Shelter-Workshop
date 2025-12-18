@@ -11,6 +11,7 @@
         "laravel/tinker": "^2.10.1",
         "league/csv": "^9.27",
         "livewire/livewire": "^3.6",
+        "predis/predis": "^3.3",
         "spatie/laravel-permission": "^6.21"
     },
     "require-dev": {
