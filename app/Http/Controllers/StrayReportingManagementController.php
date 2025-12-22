@@ -421,7 +421,17 @@ class StrayReportingManagementController extends Controller
                 ->paginate(50);
         }, new \Illuminate\Pagination\LengthAwarePaginator([], 0, 50), 'eilya'); // Pre-check eilya database
 
-        return view('stray-reporting.index-caretaker', compact('rescues'));
+        // Get status counts for filter cards
+        $statusCounts = $this->safeQuery(
+            fn() => Rescue::select('status', DB::connection('eilya')->raw('COUNT(*) as total'))
+                ->where('caretakerID', Auth::id())
+                ->groupBy('status')
+                ->pluck('total', 'status'),
+            collect([]),
+            'eilya'
+        );
+
+        return view('stray-reporting.index-caretaker', compact('rescues', 'statusCounts'));
     }
 
     public function updateStatusCaretaker(Request $request, $id)

@@ -656,7 +656,7 @@
                             </div>
 
                             {{-- Reassign Slot Form --}}
-                            @role('admin|caretaker')
+                            @role('caretaker')
                             <div class="border-t border-purple-200 pt-4 mt-4">
                                 <form action="{{ route('animals.assignSlot', $animal->id) }}" method="POST">
                                     @csrf
