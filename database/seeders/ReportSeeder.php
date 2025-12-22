@@ -51,6 +51,25 @@ class ReportSeeder extends Seeder
 
         $reportStatuses = ['Pending', 'In Progress', 'Resolved', 'Closed'];
 
+        // Priority-based descriptions from stray-reporting/create.blade.php
+        $descriptions = [
+            // URGENT - Critical Priority
+            'Injured animal - Critical condition',
+            'Trapped animal - Immediate rescue needed',
+            'Aggressive animal - Public safety risk',
+
+            // HIGH PRIORITY
+            'Sick animal - Needs medical attention',
+            'Mother with puppies/kittens - Family rescue',
+            'Young animal (puppy/kitten) - Vulnerable',
+            'Malnourished animal - Needs care',
+
+            // STANDARD - Normal Priority
+            'Healthy stray - Needs rescue',
+            'Abandoned pet - Recent',
+            'Friendly stray - Approachable',
+        ];
+
         // Define available images by category
         $imageCategories = [
             'cat' => [],
@@ -97,7 +116,7 @@ class ReportSeeder extends Seeder
                 'city'          => $row['city'],
                 'state'         => $row['state'],
                 'report_status' => in_array($row['report_status'], $reportStatuses) ? $row['report_status'] : $reportStatuses[array_rand($reportStatuses)],
-                'description'   => $row['description'],
+                'description'   => $descriptions[array_rand($descriptions)], // Use priority-based descriptions
 
                 // Cross-database reference to Taufiq's users table
                 'userID'        => isset($row['userID']) && in_array($row['userID'], $userIDs) ? $row['userID'] : $userIDs[array_rand($userIDs)],

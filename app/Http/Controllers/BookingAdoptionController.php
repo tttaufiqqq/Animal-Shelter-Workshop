@@ -624,6 +624,24 @@ class BookingAdoptionController extends Controller
                 $query->where('status', $request->status);
             }
 
+            // Search filters
+            if ($request->filled('search')) {
+                $search = $request->search;
+                $query->where(function($q) use ($search) {
+                    $q->where('id', 'LIKE', "%{$search}%")
+                      ->orWhere('appointment_date', 'LIKE', "%{$search}%")
+                      ->orWhere('remarks', 'LIKE', "%{$search}%");
+                });
+            }
+
+            // Date range filter
+            if ($request->filled('date_from')) {
+                $query->where('appointment_date', '>=', $request->date_from);
+            }
+            if ($request->filled('date_to')) {
+                $query->where('appointment_date', '<=', $request->date_to);
+            }
+
             $bookings = $query->orderBy('appointment_date', 'desc')
                 ->orderBy('appointment_time', 'desc')
                 ->paginate(40)
@@ -689,6 +707,41 @@ class BookingAdoptionController extends Controller
             // Filter by status if provided
             if ($request->filled('status')) {
                 $query->where('status', $request->status);
+            }
+
+            // Search by user name or email (cross-database search)
+            if ($request->filled('user_search') && $taufiqOnline) {
+                $userSearch = $request->user_search;
+
+                // Get user IDs from taufiq database that match search
+                $userIds = DB::connection('taufiq')
+                    ->table('users')
+                    ->where(function($q) use ($userSearch) {
+                        $q->where('name', 'LIKE', "%{$userSearch}%")
+                          ->orWhere('email', 'LIKE', "%{$userSearch}%");
+                    })
+                    ->pluck('id')
+                    ->toArray();
+
+                if (!empty($userIds)) {
+                    $query->whereIn('userID', $userIds);
+                } else {
+                    // No users found, return empty result
+                    $query->whereRaw('1 = 0');
+                }
+            }
+
+            // Search by booking ID
+            if ($request->filled('booking_id')) {
+                $query->where('id', $request->booking_id);
+            }
+
+            // Date range filter
+            if ($request->filled('date_from')) {
+                $query->where('appointment_date', '>=', $request->date_from);
+            }
+            if ($request->filled('date_to')) {
+                $query->where('appointment_date', '<=', $request->date_to);
             }
 
             $bookings = $query->orderBy('appointment_date', 'desc')

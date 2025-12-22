@@ -183,21 +183,8 @@
                                 <option value="Abandoned pet - Recent" data-priority="normal">ℹ️ Abandoned pet - Recent</option>
                                 <option value="Friendly stray - Approachable" data-priority="normal">ℹ️ Friendly stray - Approachable</option>
                             </optgroup>
-                            <optgroup label="Other">
-                                <option value="Other" data-priority="normal">Other (please specify in additional notes)</option>
-                            </optgroup>
                         </select>
                         <p class="text-xs text-gray-600 mt-1">This helps caretakers prioritize rescues based on urgency</p>
-                    </div>
-
-                    <!-- Additional Notes (Optional) -->
-                    <div id="additionalNotesSection" class="hidden">
-                        <label class="block text-sm font-medium text-gray-700 mb-1">
-                            Additional Notes (Optional)
-                        </label>
-                        <textarea name="additional_notes" rows="2" id="additionalNotes"
-                                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                                  placeholder="Add more details about the animal's condition, behavior, or location..."></textarea>
                     </div>
                 </div>
 
@@ -500,15 +487,18 @@
         return true;
     });
 
-    // Show additional notes if "Other" is selected
-    document.getElementById('descriptionSelect').addEventListener('change', function() {
-        const notesSection = document.getElementById('additionalNotesSection');
-        if (this.value === 'Other') {
-            notesSection.classList.remove('hidden');
-            document.getElementById('additionalNotes').required = true;
-        } else {
-            notesSection.classList.add('hidden');
-            document.getElementById('additionalNotes').required = false;
+    // Disable typing in description dropdown - only allow selection
+    document.getElementById('descriptionSelect').addEventListener('keypress', function(e) {
+        e.preventDefault();
+        return false;
+    });
+
+    document.getElementById('descriptionSelect').addEventListener('keydown', function(e) {
+        // Allow only navigation keys (arrows, enter, escape, tab)
+        const allowedKeys = ['ArrowUp', 'ArrowDown', 'Enter', 'Escape', 'Tab', ' '];
+        if (!allowedKeys.includes(e.key)) {
+            e.preventDefault();
+            return false;
         }
     });
 

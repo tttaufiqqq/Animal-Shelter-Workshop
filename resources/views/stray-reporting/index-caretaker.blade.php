@@ -25,9 +25,23 @@
                     My Assigned Rescues
                 </h1>
                 <p class="text-purple-100">Manage your assigned animal rescue missions</p>
+                @if(request('priority') || request('status'))
+                    <p class="text-purple-200 text-sm mt-2">
+                        <svg class="w-4 h-4 inline-block mr-1" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clip-rule="evenodd"></path>
+                        </svg>
+                        Showing filtered results
+                    </p>
+                @endif
             </div>
             <div class="bg-white/20 backdrop-blur-sm rounded-lg px-6 py-3">
-                <p class="text-sm font-semibold text-white">Total Assigned: <span class="text-3xl">{{ $rescues->total() }}</span></p>
+                <p class="text-sm font-semibold text-white">
+                    @if(request('priority') || request('status'))
+                        Filtered Results: <span class="text-3xl">{{ $rescues->total() }}</span>
+                    @else
+                        Total Assigned: <span class="text-3xl">{{ $rescues->total() }}</span>
+                    @endif
+                </p>
             </div>
         </div>
     </div>
@@ -42,37 +56,137 @@
         </div>
     @endif
 
+    <!-- Filter Help Notice -->
+    <div class="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-4 mb-4 shadow-sm">
+        <div class="flex items-start gap-3">
+            <div class="flex-shrink-0">
+                <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+            </div>
+            <div class="flex-1">
+                <h4 class="text-sm font-bold text-blue-900 mb-1">How to Use Filters</h4>
+                <p class="text-sm text-blue-800">
+                    <strong>Combine filters</strong> to narrow down rescues. Example: Select <strong>🚨 Critical</strong> + <strong>In Progress</strong> to see urgent rescues currently being handled.
+                    Click <strong>"Clear All Filters"</strong> to reset.
+                </p>
+            </div>
+        </div>
+    </div>
+
     <!-- Filter Tabs -->
     <div class="bg-white rounded-xl shadow-lg overflow-hidden mb-6">
-        <div class="flex flex-wrap gap-2 p-4 border-b border-gray-200">
-            <a href="{{ route('rescues.index') }}"
-               class="px-4 py-2 rounded-lg font-semibold transition {{ !request('status') ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200' }}">
-                All Rescues
-            </a>
-            <a href="{{ route('rescues.index', ['status' => 'Scheduled']) }}"
-               class="px-4 py-2 rounded-lg font-semibold transition {{ request('status') == 'Scheduled' ? 'bg-yellow-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200' }}">
-                Scheduled
-            </a>
-            <a href="{{ route('rescues.index', ['status' => 'In Progress']) }}"
-               class="px-4 py-2 rounded-lg font-semibold transition {{ request('status') == 'In Progress' ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200' }}">
-                In Progress
-            </a>
-            <a href="{{ route('rescues.index', ['status' => 'Success']) }}"
-               class="px-4 py-2 rounded-lg font-semibold transition {{ request('status') == 'Success' ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200' }}">
-                Success
-            </a>
-            <a href="{{ route('rescues.index', ['status' => 'Failed']) }}"
-               class="px-4 py-2 rounded-lg font-semibold transition {{ request('status') == 'Failed' ? 'bg-red-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200' }}">
-                Failed
-            </a>
+        <!-- Priority Filter Section -->
+        <div class="p-4 bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-300">
+            <div class="flex items-center mb-3">
+                <svg class="w-5 h-5 text-purple-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12"></path>
+                </svg>
+                <h3 class="text-sm font-bold text-gray-700 uppercase tracking-wide">Filter by Priority</h3>
+            </div>
+            <div class="flex flex-wrap gap-2">
+                <a href="{{ route('rescues.index', array_filter(['status' => request('status')])) }}"
+                   class="px-4 py-2 rounded-lg font-semibold transition {{ !request('priority') ? 'bg-purple-600 text-white shadow-md' : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300' }}">
+                    All Priorities
+                </a>
+                <a href="{{ route('rescues.index', array_filter(['priority' => 'critical', 'status' => request('status')])) }}"
+                   class="px-4 py-2 rounded-lg font-semibold transition inline-flex items-center {{ request('priority') == 'critical' ? 'bg-red-600 text-white shadow-md' : 'bg-white text-red-700 hover:bg-red-50 border border-red-300' }}">
+                    <span class="text-base mr-1.5">🚨</span> Critical
+                </a>
+                <a href="{{ route('rescues.index', array_filter(['priority' => 'high', 'status' => request('status')])) }}"
+                   class="px-4 py-2 rounded-lg font-semibold transition inline-flex items-center {{ request('priority') == 'high' ? 'bg-orange-600 text-white shadow-md' : 'bg-white text-orange-700 hover:bg-orange-50 border border-orange-300' }}">
+                    <span class="text-base mr-1.5">⚠️</span> High
+                </a>
+                <a href="{{ route('rescues.index', array_filter(['priority' => 'normal', 'status' => request('status')])) }}"
+                   class="px-4 py-2 rounded-lg font-semibold transition inline-flex items-center {{ request('priority') == 'normal' ? 'bg-blue-600 text-white shadow-md' : 'bg-white text-blue-700 hover:bg-blue-50 border border-blue-300' }}">
+                    <span class="text-base mr-1.5">ℹ️</span> Normal
+                </a>
+            </div>
         </div>
+
+        <!-- Status Filter Section -->
+        <div class="p-4">
+            <div class="flex items-center mb-3">
+                <svg class="w-5 h-5 text-purple-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path>
+                </svg>
+                <h3 class="text-sm font-bold text-gray-700 uppercase tracking-wide">Filter by Status</h3>
+            </div>
+            <div class="flex flex-wrap gap-2">
+                <a href="{{ route('rescues.index', array_filter(['priority' => request('priority')])) }}"
+                   class="px-4 py-2 rounded-lg font-semibold transition {{ !request('status') ? 'bg-purple-600 text-white shadow-md' : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300' }}">
+                    All Statuses
+                </a>
+                <a href="{{ route('rescues.index', array_filter(['status' => 'Scheduled', 'priority' => request('priority')])) }}"
+                   class="px-4 py-2 rounded-lg font-semibold transition {{ request('status') == 'Scheduled' ? 'bg-yellow-500 text-white shadow-md' : 'bg-white text-yellow-700 hover:bg-yellow-50 border border-yellow-300' }}">
+                    Scheduled
+                </a>
+                <a href="{{ route('rescues.index', array_filter(['status' => 'In Progress', 'priority' => request('priority')])) }}"
+                   class="px-4 py-2 rounded-lg font-semibold transition {{ request('status') == 'In Progress' ? 'bg-blue-500 text-white shadow-md' : 'bg-white text-blue-700 hover:bg-blue-50 border border-blue-300' }}">
+                    In Progress
+                </a>
+                <a href="{{ route('rescues.index', array_filter(['status' => 'Success', 'priority' => request('priority')])) }}"
+                   class="px-4 py-2 rounded-lg font-semibold transition {{ request('status') == 'Success' ? 'bg-green-500 text-white shadow-md' : 'bg-white text-green-700 hover:bg-green-50 border border-green-300' }}">
+                    Success
+                </a>
+                <a href="{{ route('rescues.index', array_filter(['status' => 'Failed', 'priority' => request('priority')])) }}"
+                   class="px-4 py-2 rounded-lg font-semibold transition {{ request('status') == 'Failed' ? 'bg-red-500 text-white shadow-md' : 'bg-white text-red-700 hover:bg-red-50 border border-red-300' }}">
+                    Failed
+                </a>
+            </div>
+        </div>
+
+        <!-- Active Filters Display -->
+        @if(request('priority') || request('status'))
+        <div class="px-4 pb-4 pt-2">
+            <div class="bg-purple-50 border border-purple-200 rounded-lg p-3">
+                <div class="flex items-center justify-between flex-wrap gap-2">
+                    <div class="flex items-center gap-2">
+                        <svg class="w-4 h-4 text-purple-600" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clip-rule="evenodd"></path>
+                        </svg>
+                        <span class="text-sm font-semibold text-purple-900">Active Filters:</span>
+                        @if(request('priority'))
+                            <span class="px-2.5 py-1 rounded-md text-xs font-bold
+                                @if(request('priority') == 'critical') bg-red-100 text-red-800 border border-red-300
+                                @elseif(request('priority') == 'high') bg-orange-100 text-orange-800 border border-orange-300
+                                @else bg-blue-100 text-blue-800 border border-blue-300
+                                @endif">
+                                Priority: {{ ucfirst(request('priority')) }}
+                            </span>
+                        @endif
+                        @if(request('status'))
+                            <span class="px-2.5 py-1 rounded-md text-xs font-bold bg-purple-100 text-purple-800 border border-purple-300">
+                                Status: {{ request('status') }}
+                            </span>
+                        @endif
+                    </div>
+                    <a href="{{ route('rescues.index') }}" class="text-xs font-semibold text-purple-600 hover:text-purple-800 underline">
+                        Clear All Filters
+                    </a>
+                </div>
+            </div>
+        </div>
+        @endif
     </div>
 
     @if($rescues->isEmpty())
         <div class="bg-white rounded-2xl shadow-2xl p-12 text-center">
-            <div class="text-6xl mb-4">📋</div>
-            <h3 class="text-2xl font-bold text-gray-800 mb-2">No rescues assigned yet</h3>
-            <p class="text-gray-600 mb-6 text-lg">You don't have any rescue missions assigned at the moment.</p>
+            @if(request('priority') || request('status'))
+                <div class="text-6xl mb-4">🔍</div>
+                <h3 class="text-2xl font-bold text-gray-800 mb-2">No rescues match your filters</h3>
+                <p class="text-gray-600 mb-6 text-lg">Try adjusting your filter selection or clear all filters to see more results.</p>
+                <a href="{{ route('rescues.index') }}" class="inline-flex items-center px-6 py-3 bg-purple-600 text-white font-semibold rounded-lg hover:bg-purple-700 transition shadow-lg">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                    Clear All Filters
+                </a>
+            @else
+                <div class="text-6xl mb-4">📋</div>
+                <h3 class="text-2xl font-bold text-gray-800 mb-2">No rescues assigned yet</h3>
+                <p class="text-gray-600 mb-6 text-lg">You don't have any rescue missions assigned at the moment.</p>
+            @endif
         </div>
     @else
         <div class="bg-white rounded-xl shadow-lg overflow-hidden">
@@ -83,6 +197,9 @@
                     <tr>
                         <th class="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-wider">
                             Rescue #
+                        </th>
+                        <th class="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-wider">
+                            Priority
                         </th>
                         <th class="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-wider">
                             Report #
@@ -118,6 +235,21 @@
                                     <span class="text-lg mr-2">🚨</span>
                                     <span class="text-sm font-bold text-gray-900">#{{ $rescue->id }}</span>
                                 </div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                @if($rescue->priority == 'critical')
+                                    <span class="px-3 py-1 inline-flex items-center text-xs leading-5 font-bold rounded-full bg-red-100 text-red-800 border border-red-300">
+                                        <span class="text-base mr-1">🚨</span> CRITICAL
+                                    </span>
+                                @elseif($rescue->priority == 'high')
+                                    <span class="px-3 py-1 inline-flex items-center text-xs leading-5 font-bold rounded-full bg-orange-100 text-orange-800 border border-orange-300">
+                                        <span class="text-base mr-1">⚠️</span> HIGH
+                                    </span>
+                                @else
+                                    <span class="px-3 py-1 inline-flex items-center text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800 border border-blue-300">
+                                        <span class="text-base mr-1">ℹ️</span> NORMAL
+                                    </span>
+                                @endif
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap">
                                 <div class="flex items-center">

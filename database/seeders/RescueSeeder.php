@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
+use App\Models\Rescue;
 
 class RescueSeeder extends Seeder
 {
@@ -157,8 +158,12 @@ class RescueSeeder extends Seeder
             // Rescue should be created some hours after the report
             $rescueDate = Carbon::parse($report->created_at)->addHours(rand(1, 48));
 
+            // Determine priority from report description
+            $priority = Rescue::getPriorityFromDescription($report->description);
+
             $rescues[] = [
                 'status'      => $status,
+                'priority'    => $priority,
                 'remarks'     => $remarks,
                 'reportID'    => $report->id, // Same database reference to Eilya
                 'caretakerID' => $caretakers[array_rand($caretakers)], // Cross-database reference to Taufiq

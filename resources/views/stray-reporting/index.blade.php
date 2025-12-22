@@ -77,6 +77,141 @@
         </div>
     @endif
 
+    <!-- Status Filter Cards -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        <!-- Total Reports -->
+        <a href="{{ route('reports.index') }}"
+           class="bg-white rounded-lg shadow-md p-6 text-center hover:shadow-lg transform hover:-translate-y-1 transition-all duration-300 {{ !request('status') ? 'ring-2 ring-purple-500' : '' }}">
+            <div class="text-3xl mb-2">📋</div>
+            <p class="text-2xl font-bold text-purple-700 mb-1">{{ $totalReports }}</p>
+            <p class="text-gray-600 text-sm">Total</p>
+        </a>
+
+        <!-- Pending -->
+        <a href="{{ route('reports.index', ['status' => 'Pending']) }}"
+           class="bg-white rounded-lg shadow-md p-6 text-center hover:shadow-lg transform hover:-translate-y-1 transition-all duration-300 {{ request('status') == 'Pending' ? 'ring-2 ring-yellow-500' : '' }}">
+            <div class="text-3xl mb-2">⏳</div>
+            <p class="text-2xl font-bold text-yellow-600 mb-1">{{ $statusCounts['Pending'] ?? 0 }}</p>
+            <p class="text-gray-600 text-sm">Pending</p>
+        </a>
+
+        <!-- In Progress -->
+        <a href="{{ route('reports.index', ['status' => 'In Progress']) }}"
+           class="bg-white rounded-lg shadow-md p-6 text-center hover:shadow-lg transform hover:-translate-y-1 transition-all duration-300 {{ request('status') == 'In Progress' ? 'ring-2 ring-blue-500' : '' }}">
+            <div class="text-3xl mb-2">🔄</div>
+            <p class="text-2xl font-bold text-blue-600 mb-1">{{ $statusCounts['In Progress'] ?? 0 }}</p>
+            <p class="text-gray-600 text-sm">In Progress</p>
+        </a>
+
+        <!-- Resolved -->
+        <a href="{{ route('reports.index', ['status' => 'Resolved']) }}"
+           class="bg-white rounded-lg shadow-md p-6 text-center hover:shadow-lg transform hover:-translate-y-1 transition-all duration-300 {{ request('status') == 'Resolved' ? 'ring-2 ring-green-500' : '' }}">
+            <div class="text-3xl mb-2">✅</div>
+            <p class="text-2xl font-bold text-green-600 mb-1">{{ $statusCounts['Resolved'] ?? 0 }}</p>
+            <p class="text-gray-600 text-sm">Resolved</p>
+        </a>
+    </div>
+
+    <!-- Search and Filter Form -->
+    <div class="bg-white rounded-lg shadow-lg p-6 mb-8">
+        <form method="GET" action="{{ route('reports.index') }}" class="space-y-4">
+            <!-- Keep current status filter -->
+            @if(request('status'))
+                <input type="hidden" name="status" value="{{ request('status') }}">
+            @endif
+
+            <div class="flex items-center gap-2 mb-4">
+                <svg class="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                </svg>
+                <h3 class="text-lg font-semibold text-gray-900">Search & Filter Reports</h3>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                <!-- User Search -->
+                <div class="lg:col-span-2">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Reporter Name or Email</label>
+                    <div class="relative">
+                        <input type="text"
+                               name="user_search"
+                               value="{{ request('user_search') }}"
+                               placeholder="Search by reporter name or email..."
+                               class="w-full px-4 py-2 pl-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                        <svg class="absolute left-3 top-2.5 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                        </svg>
+                    </div>
+                </div>
+
+                <!-- Location Search -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Location</label>
+                    <input type="text"
+                           name="location"
+                           value="{{ request('location') }}"
+                           placeholder="City, state, or address..."
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                </div>
+
+                <!-- Report ID -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Report ID</label>
+                    <input type="number"
+                           name="report_id"
+                           value="{{ request('report_id') }}"
+                           placeholder="e.g. 123"
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                </div>
+
+                <!-- Date From -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">From Date</label>
+                    <input type="date"
+                           name="date_from"
+                           value="{{ request('date_from') }}"
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                <!-- Date To (spans to align with From Date) -->
+                <div class="lg:col-start-5">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">To Date</label>
+                    <input type="date"
+                           name="date_to"
+                           value="{{ request('date_to') }}"
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                </div>
+            </div>
+
+            <div class="flex gap-3 pt-2">
+                <button type="submit"
+                        class="px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-semibold transition duration-300 flex items-center gap-2 shadow-md">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                    </svg>
+                    Search
+                </button>
+                <a href="{{ route('reports.index') }}"
+                   class="px-6 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg font-semibold transition duration-300 flex items-center gap-2 shadow-md">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                    Clear Filters
+                </a>
+
+                @if(request()->hasAny(['user_search', 'location', 'report_id', 'date_from', 'date_to']))
+                    <div class="ml-auto flex items-center text-sm text-purple-600 font-medium">
+                        <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path>
+                        </svg>
+                        <span>{{ collect(request()->only(['user_search', 'location', 'report_id', 'date_from', 'date_to']))->filter()->count() }} filter(s) active</span>
+                    </div>
+                @endif
+            </div>
+        </form>
+    </div>
+
     @if($reports->isEmpty())
         <div class="bg-white rounded shadow p-8 text-center">
             <p class="text-gray-600">No stray animal reports have been submitted.</p>
@@ -87,7 +222,7 @@
                 <table class="min-w-full divide-y divide-gray-200">
                     <thead class="bg-gray-100">
                     <tr>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase">Report #</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase">Report </th>
                         <th class="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase">Status</th>
                         <th class="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase">Location</th>
                         <th class="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase">City/State</th>
@@ -99,7 +234,7 @@
                     <tbody class="bg-white divide-y divide-gray-200">
                     @foreach($reports as $report)
                         <tr class="hover:bg-gray-50">
-                            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">#{{ $report->id }}</td>
+                            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">REP {{ $report->id }}</td>
                             <td class="px-4 py-3 whitespace-nowrap">
                                 <span class="px-2 py-1 text-xs rounded
                                     @if($report->report_status == 'Pending') bg-yellow-100 text-yellow-800
@@ -260,15 +395,39 @@
         const container = document.getElementById('imagesContainer');
         container.innerHTML = '';
 
+        if (!images || images.length === 0) {
+            container.innerHTML = '<p class="text-gray-500 col-span-full text-center py-8">No images available</p>';
+            document.getElementById('imagesModal').classList.remove('hidden');
+            return;
+        }
+
         images.forEach(imagePath => {
             const div = document.createElement('div');
-            div.className = 'cursor-pointer';
-            div.innerHTML = `
-                    <img src="${imagePath}"
-                         alt="Report Image"
-                         class="w-full h-40 object-cover rounded border hover:opacity-75"
-                         onclick="openFullImage('${imagePath}')">
-                `;
+            div.className = 'cursor-pointer relative';
+
+            const img = document.createElement('img');
+            img.src = imagePath;
+            img.alt = 'Report Image';
+            img.className = 'w-full h-40 object-cover rounded border hover:opacity-75 transition';
+            img.onclick = () => openFullImage(imagePath);
+
+            // Add error handling for images that fail to load
+            img.onerror = function() {
+                this.onerror = null; // Prevent infinite loop
+                this.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2VlZSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM5OTkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5JbWFnZSBub3QgZm91bmQ8L3RleHQ+PC9zdmc+';
+                this.className = 'w-full h-40 object-contain rounded border bg-gray-100';
+                const errorMsg = document.createElement('p');
+                errorMsg.className = 'text-xs text-red-500 mt-1 text-center';
+                errorMsg.textContent = 'Image not found';
+                this.parentElement.appendChild(errorMsg);
+            };
+
+            // Add loading state
+            img.onload = function() {
+                this.classList.add('loaded');
+            };
+
+            div.appendChild(img);
             container.appendChild(div);
         });
 

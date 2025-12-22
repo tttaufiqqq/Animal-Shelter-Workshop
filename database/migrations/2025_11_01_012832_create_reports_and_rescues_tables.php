@@ -35,6 +35,7 @@ return new class extends Migration {
         Schema::connection('eilya')->create('rescue', function (Blueprint $table) {
             $table->id();
             $table->string('status', 50)->nullable();
+            $table->string('priority', 20)->default('normal'); // critical, high, normal
             $table->text('remarks')->nullable();
 
             // Logical foreign key - references report table (same database - can use FK)
@@ -47,6 +48,7 @@ return new class extends Migration {
             // Add indexes for performance
             $table->index('reportID');
             $table->index('caretakerID');
+            $table->index('priority'); // Index for priority-based queries
         });
 
         // Add foreign key constraint for reportID only (same database)

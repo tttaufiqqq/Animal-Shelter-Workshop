@@ -165,17 +165,81 @@ class StrayReportingManagementController extends Controller
         }
     }
 
-    public function index()
+    public function index(Request $request)
     {
-        $reports = $this->safeQuery(
-            fn() => Report::with('images')
-                ->orderBy('created_at', 'desc')
-                ->paginate(50),
-            new \Illuminate\Pagination\LengthAwarePaginator([], 0, 50),
-            'eilya' // Pre-check eilya database
+        $reports = $this->safeQuery(function() use ($request) {
+            $query = Report::with('images');
+
+            // Check if taufiq database is online for user filtering
+            $taufiqOnline = $this->isDatabaseAvailable('taufiq');
+
+            // Search by user name or email (cross-database search)
+            if ($request->filled('user_search') && $taufiqOnline) {
+                $userSearch = $request->user_search;
+
+                // Get user IDs from taufiq database that match search
+                $userIds = DB::connection('taufiq')
+                    ->table('users')
+                    ->where(function($q) use ($userSearch) {
+                        $q->where('name', 'LIKE', "%{$userSearch}%")
+                          ->orWhere('email', 'LIKE', "%{$userSearch}%");
+                    })
+                    ->pluck('id')
+                    ->toArray();
+
+                if (!empty($userIds)) {
+                    $query->whereIn('userID', $userIds);
+                } else {
+                    // No users found, return empty result
+                    $query->whereRaw('1 = 0');
+                }
+            }
+
+            // Search by report ID
+            if ($request->filled('report_id')) {
+                $query->where('id', $request->report_id);
+            }
+
+            // Search by location (address, city, state)
+            if ($request->filled('location')) {
+                $location = $request->location;
+                $query->where(function($q) use ($location) {
+                    $q->where('address', 'LIKE', "%{$location}%")
+                      ->orWhere('city', 'LIKE', "%{$location}%")
+                      ->orWhere('state', 'LIKE', "%{$location}%");
+                });
+            }
+
+            // Filter by status
+            if ($request->filled('status')) {
+                $query->where('report_status', $request->status);
+            }
+
+            // Date range filter
+            if ($request->filled('date_from')) {
+                $query->whereDate('created_at', '>=', $request->date_from);
+            }
+            if ($request->filled('date_to')) {
+                $query->whereDate('created_at', '<=', $request->date_to);
+            }
+
+            return $query->orderBy('created_at', 'desc')
+                ->paginate(50)
+                ->appends($request->query());
+        }, new \Illuminate\Pagination\LengthAwarePaginator([], 0, 50), 'eilya');
+
+        // Get status counts for filter badges
+        $statusCounts = $this->safeQuery(
+            fn() => Report::select('report_status', DB::connection('eilya')->raw('COUNT(*) as total'))
+                ->groupBy('report_status')
+                ->pluck('total', 'report_status'),
+            collect([]),
+            'eilya'
         );
 
-        return view('stray-reporting.index', compact('reports'));
+        $totalReports = $statusCounts->sum();
+
+        return view('stray-reporting.index', compact('reports', 'statusCounts', 'totalReports'));
     }
 
     public function show($id)
@@ -335,11 +399,26 @@ class StrayReportingManagementController extends Controller
             $query = Rescue::with(['report.images', 'caretaker'])
                 ->where('caretakerID', Auth::id());
 
+            // Filter by priority if provided
+            if ($request->has('priority') && in_array($request->priority, ['critical', 'high', 'normal'])) {
+                $query->where('priority', $request->priority);
+            }
+
+            // Filter by status if provided
             if ($request->has('status')) {
                 $query->where('status', $request->status);
             }
 
-            return $query->orderBy('created_at', 'desc')->paginate(50);
+            // Order by priority (critical=1, high=2, normal=3) then by created_at descending
+            return $query
+                ->orderByRaw("CASE
+                    WHEN priority = 'critical' THEN 1
+                    WHEN priority = 'high' THEN 2
+                    WHEN priority = 'normal' THEN 3
+                    ELSE 4
+                END")
+                ->orderBy('created_at', 'desc')
+                ->paginate(50);
         }, new \Illuminate\Pagination\LengthAwarePaginator([], 0, 50), 'eilya'); // Pre-check eilya database
 
         return view('stray-reporting.index-caretaker', compact('rescues'));
