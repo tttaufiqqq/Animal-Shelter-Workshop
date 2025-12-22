@@ -57,6 +57,12 @@
         </div>
     @endif
 
+    @if (session('error'))
+        <div class="bg-red-100 border-l-4 border-red-600 text-red-700 p-4 rounded-lg mb-6">
+            <p class="font-semibold">{{ session('error') }}</p>
+        </div>
+    @endif
+
     <!-- Stats Overview -->
     <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
         <div class="bg-white rounded-lg shadow p-6">

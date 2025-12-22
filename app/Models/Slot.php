@@ -28,11 +28,14 @@ class Slot extends Model
     /**
      * CROSS-DATABASE: Relationship to Animals (Shafiqah's database)
      * This is a logical relationship - no database-level foreign key
+     *
+     * IMPORTANT: Do NOT use $this->setConnection() as it changes the model's
+     * connection permanently! The Animal model already specifies its connection
+     * as 'shafiqah', so Laravel will query from the correct database.
      */
     public function animals()
     {
-        return $this->setConnection('shafiqah')
-            ->hasMany(Animal::class, 'slotID', 'id');
+        return $this->hasMany(Animal::class, 'slotID', 'id');
     }
 
     /**

@@ -291,40 +291,24 @@ class ShelterManagementController extends Controller
                     },
                 ],
                 'capacity' => 'required|integer|min:1',
-                'status' => 'nullable|in:available,occupied,maintenance', // Made nullable since we'll auto-calculate
+                'status' => 'required|in:available,occupied,maintenance',
             ]);
 
             $slot = Slot::findOrFail($id);
 
-            // Get current animal count (only if shafiqah database is online)
-            $animalCount = 0;
-            if ($this->isDatabaseAvailable('shafiqah')) {
-                try {
-                    $animalCount = $slot->animals()->count();
-                } catch (\Exception $e) {
-                    \Log::warning('Failed to count animals for slot', [
-                        'slot_id' => $id,
-                        'error' => $e->getMessage()
-                    ]);
-                }
-            }
-
-            // Auto-calculate status based on capacity and animal count
-            // Only respect manual 'maintenance' status, otherwise auto-calculate
-            if ($request->status === 'maintenance') {
-                $validated['status'] = 'maintenance';
-            } else {
-                // Auto-calculate status
-                if ($animalCount === 0) {
-                    $validated['status'] = 'available';
-                } elseif ($animalCount >= $validated['capacity']) {
-                    $validated['status'] = 'occupied';
-                } else {
-                    $validated['status'] = 'available';
-                }
-            }
+            // Respect the user's manual status choice from the form
+            // The status field is required in the form, so it will always be present
+            // No auto-calculation - user has full control over the status
 
             $slot->update($validated);
+
+            \Log::info('Slot updated successfully', [
+                'slot_id' => $id,
+                'name' => $validated['name'],
+                'sectionID' => $validated['sectionID'],
+                'capacity' => $validated['capacity'],
+                'status' => $validated['status'],
+            ]);
 
             return redirect()->back()->with('success', 'Slot updated successfully!');
 
@@ -343,18 +327,59 @@ class ShelterManagementController extends Controller
     public function deleteSlot($id)
     {
         try {
+            \Log::info('Attempting to delete slot', ['slot_id' => $id]);
+
             $slot = Slot::findOrFail($id);
 
-            if ($slot->animals()->count() > 0) {
+            \Log::info('Slot found', [
+                'slot_id' => $id,
+                'slot_name' => $slot->name,
+            ]);
+
+            // Check if slot has animals (only if shafiqah database is online)
+            $animalCount = 0;
+            if ($this->isDatabaseAvailable('shafiqah')) {
+                try {
+                    $animalCount = $slot->animals()->count();
+                    \Log::info('Animal count for slot', [
+                        'slot_id' => $id,
+                        'animal_count' => $animalCount
+                    ]);
+                } catch (\Exception $e) {
+                    \Log::warning('Failed to count animals for slot deletion', [
+                        'slot_id' => $id,
+                        'error' => $e->getMessage()
+                    ]);
+                    // If we can't check animals, allow deletion with warning
+                    \Log::warning('Proceeding with deletion despite animal count error');
+                }
+            }
+
+            if ($animalCount > 0) {
+                \Log::warning('Cannot delete slot - has animals', [
+                    'slot_id' => $id,
+                    'animal_count' => $animalCount
+                ]);
                 return redirect()->back()
-                    ->with('error', 'Cannot delete slot with animals. Please relocate them first.');
+                    ->with('error', "Cannot delete slot '{$slot->name}' - it has {$animalCount} animal(s). Please relocate them first.");
             }
 
             $slot->delete();
 
+            \Log::info('Slot deleted successfully', ['slot_id' => $id]);
+
             return redirect()->back()->with('success', 'Slot deleted successfully!');
 
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            \Log::error('Slot not found for deletion', ['slot_id' => $id]);
+            return redirect()->back()
+                ->with('error', 'Slot not found or already deleted.');
         } catch (\Exception $e) {
+            \Log::error('Failed to delete slot', [
+                'slot_id' => $id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
             return redirect()->back()
                 ->with('error', 'Failed to delete slot: ' . $e->getMessage());
         }
