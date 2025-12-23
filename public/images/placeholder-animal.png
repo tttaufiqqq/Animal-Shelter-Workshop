@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400">
+  <!-- Background -->
+  <rect width="400" height="400" fill="#e5e7eb"/>
+
+  <!-- Animal silhouette (generic dog/cat) -->
+  <g transform="translate(200, 200)">
+    <!-- Body -->
+    <ellipse cx="0" cy="20" rx="80" ry="60" fill="#9ca3af"/>
+
+    <!-- Head -->
+    <circle cx="-60" cy="-20" r="45" fill="#9ca3af"/>
+
+    <!-- Ears -->
+    <ellipse cx="-80" cy="-50" rx="15" ry="25" fill="#9ca3af"/>
+    <ellipse cx="-40" cy="-50" rx="15" ry="25" fill="#9ca3af"/>
+
+    <!-- Legs -->
+    <rect x="-50" y="50" width="15" height="40" rx="7" fill="#9ca3af"/>
+    <rect x="-20" y="50" width="15" height="40" rx="7" fill="#9ca3af"/>
+    <rect x="10" y="50" width="15" height="40" rx="7" fill="#9ca3af"/>
+    <rect x="40" y="50" width="15" height="40" rx="7" fill="#9ca3af"/>
+
+    <!-- Tail -->
+    <path d="M 70 10 Q 90 0, 100 -20" stroke="#9ca3af" stroke-width="12" stroke-linecap="round" fill="none"/>
+  </g>
+
+  <!-- Text -->
+  <text x="200" y="350" font-family="Arial, sans-serif" font-size="16" fill="#6b7280" text-anchor="middle">
+    Image Unavailable
+  </text>
+</svg>

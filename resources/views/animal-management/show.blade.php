@@ -114,6 +114,12 @@
         </div>
     @endif
 
+    @php
+        // Safely load images with automatic fallback when Eilya database is offline
+        $animalImages = $animal->getImagesOrEmpty();
+        $hasImages = $animalImages->isNotEmpty();
+    @endphp
+
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <!-- Left Column - Images -->
         <div class="lg:col-span-2 space-y-6">
@@ -121,8 +127,8 @@
                 <!-- Main Image Display -->
                 <div class="relative w-full aspect-video bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
                     <div id="imageSwiperContent" class="w-full h-full flex items-center justify-center transition-all duration-500">
-                        @if($animal->images && $animal->images->count() > 0)
-                            <img src="{{ asset('storage/' . $animal->images->first()->image_path) }}"
+                        @if($hasImages)
+                            <img src="{{ asset('storage/' . $animalImages->first()->image_path) }}"
                                  alt="{{ $animal->name }}"
                                  class="max-w-full max-h-full object-contain transition-opacity duration-500"
                                  id="mainDisplayImage">
@@ -152,11 +158,11 @@
                     <!-- Image Counter -->
                     <div id="imageCounter" class="hidden absolute bottom-4 right-4 glass-effect border border-white/30 text-gray-800 px-4 py-2 rounded-full text-sm font-bold shadow-lg">
                         <i class="fas fa-images mr-2 text-purple-600"></i>
-                        <span id="currentImageIndex">1</span> / <span id="totalImages">{{ $animal->images->count() ?: 1 }}</span>
+                        <span id="currentImageIndex">1</span> / <span id="totalImages">{{ $animalImages->count() ?: 1 }}</span>
                     </div>
 
                     <!-- Fullscreen Button -->
-                    @if($animal->images && $animal->images->count() > 0)
+                    @if($hasImages)
                     <button onclick="toggleFullscreen()" class="absolute top-4 right-4 glass-effect border border-white/30 text-gray-700 hover:text-purple-600 px-3 py-2 rounded-full text-sm font-semibold shadow-lg transition-all hover:scale-110">
                         <i class="fas fa-expand mr-1"></i> View
                     </button>
@@ -166,8 +172,8 @@
                 <!-- Thumbnails -->
                 <div id="thumbnailContainer" class="p-4 bg-gradient-to-r from-gray-50 to-gray-100 border-t border-gray-200">
                     <div id="thumbnailStrip" class="flex gap-3 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-purple-300 scrollbar-track-gray-100">
-                        @if($animal->images && $animal->images->count() > 0)
-                            @foreach($animal->images as $index => $image)
+                        @if($hasImages)
+                            @foreach($animalImages as $index => $image)
                                 <div onclick="goToImage({{ $index }})"
                                      class="group flex-shrink-0 w-24 h-24 cursor-pointer rounded-xl overflow-hidden border-3 transition-all duration-300 {{ $index == 0 ? 'border-purple-600 ring-2 ring-purple-300 shadow-lg' : 'border-gray-300 hover:border-purple-400 hover:shadow-md' }}"
                                      id="thumbnail-{{ $index }}">
@@ -909,7 +915,7 @@
     });
 
     let currentImages = [
-            @foreach($animal->images as $image)
+            @foreach($animalImages as $image)
         { path: "{{ asset('storage/' . $image->image_path) }}" },
         @endforeach
     ];

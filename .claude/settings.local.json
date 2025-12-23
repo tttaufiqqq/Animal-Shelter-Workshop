@@ -31,7 +31,10 @@
       "Bash(php test_danish_connection.php:*)",
       "Bash(php test_checker.php:*)",
       "Bash(curl:*)",
-      "Bash(php artisan db:fresh-all:*)"
+      "Bash(php artisan db:fresh-all:*)",
+      "Bash(composer dump-autoload:*)",
+      "Bash(ipconfig:*)",
+      "Bash(findstr:*)"
     ]
   }
 }

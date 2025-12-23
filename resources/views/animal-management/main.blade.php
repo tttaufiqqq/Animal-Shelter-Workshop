@@ -211,34 +211,34 @@
 
     <!-- Caretaker Toggle (Only visible for caretakers) -->
     @role('caretaker')
-        <div class="bg-gradient-to-r from-purple-100 to-indigo-100 rounded-2xl shadow-lg p-6 mb-6 scale-in border-2 border-purple-300">
-            <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-                <div class="flex items-center gap-3">
-                    <div class="bg-purple-600 text-white p-3 rounded-xl">
-                        <i class="fas fa-filter text-xl"></i>
+        <div class="bg-gradient-to-r from-purple-100 to-indigo-100 rounded-xl shadow-md p-4 mb-4 scale-in border border-purple-300">
+            <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
+                <div class="flex items-center gap-2">
+                    <div class="bg-purple-600 text-white p-2 rounded-lg">
+                        <i class="fas fa-filter text-base"></i>
                     </div>
                     <div>
-                        <h3 class="text-lg font-bold text-gray-800">Caretaker View</h3>
-                        <p class="text-sm text-gray-600">Choose which animals to display</p>
+                        <h3 class="text-sm font-bold text-gray-800">Caretaker View</h3>
+                        <p class="text-xs text-gray-600">Choose which animals to display</p>
                     </div>
                 </div>
-                <div class="flex gap-3 w-full md:w-auto">
+                <div class="flex gap-2 w-full md:w-auto">
                     <a href="{{ route('animal-management.index', array_merge(request()->except('rescued_by_me'), ['rescued_by_me' => 'true'])) }}"
-                       class="flex-1 md:flex-none px-6 py-3 rounded-xl font-bold transition-all duration-300 text-center shadow-md hover:shadow-lg transform hover:-translate-y-1 {{ request('rescued_by_me') === 'true' ? 'bg-gradient-to-r from-purple-600 to-purple-700 text-white' : 'bg-white text-purple-700 hover:bg-purple-50' }}">
-                        <i class="fas fa-user-check mr-2"></i>
+                       class="flex-1 md:flex-none px-4 py-2 rounded-lg text-sm font-bold transition-all duration-300 text-center shadow-sm hover:shadow-md {{ request('rescued_by_me') === 'true' ? 'bg-gradient-to-r from-purple-600 to-purple-700 text-white' : 'bg-white text-purple-700 hover:bg-purple-50' }}">
+                        <i class="fas fa-user-check mr-1 text-xs"></i>
                         My Rescues
                     </a>
                     <a href="{{ route('animal-management.index', request()->except('rescued_by_me')) }}"
-                       class="flex-1 md:flex-none px-6 py-3 rounded-xl font-bold transition-all duration-300 text-center shadow-md hover:shadow-lg transform hover:-translate-y-1 {{ request('rescued_by_me') !== 'true' ? 'bg-gradient-to-r from-purple-600 to-purple-700 text-white' : 'bg-white text-purple-700 hover:bg-purple-50' }}">
-                        <i class="fas fa-paw mr-2"></i>
+                       class="flex-1 md:flex-none px-4 py-2 rounded-lg text-sm font-bold transition-all duration-300 text-center shadow-sm hover:shadow-md {{ request('rescued_by_me') !== 'true' ? 'bg-gradient-to-r from-purple-600 to-purple-700 text-white' : 'bg-white text-purple-700 hover:bg-purple-50' }}">
+                        <i class="fas fa-paw mr-1 text-xs"></i>
                         All Animals
                     </a>
                 </div>
             </div>
 
             @if(request('rescued_by_me') === 'true')
-                <div class="mt-4 bg-white bg-opacity-60 backdrop-blur-sm rounded-xl p-3 flex items-center gap-2 text-sm text-purple-800">
-                    <i class="fas fa-info-circle"></i>
+                <div class="mt-2 bg-white bg-opacity-60 backdrop-blur-sm rounded-lg p-2 flex items-center gap-2 text-xs text-purple-800">
+                    <i class="fas fa-info-circle text-xs"></i>
                     <span>Showing only animals from rescues you've been assigned to</span>
                 </div>
             @endif
@@ -246,29 +246,29 @@
     @endrole
 
     <!-- Filters and Search -->
-    <div class="bg-white rounded-2xl shadow-xl p-6 md:p-8 mb-8 scale-in border border-purple-100">
-        <div class="flex items-center gap-3 mb-6">
-            <div class="bg-purple-100 p-3 rounded-xl">
-                <i class="fas fa-filter text-purple-700 text-xl"></i>
+    <div class="bg-white rounded-xl shadow-md p-4 md:p-5 mb-6 scale-in border border-purple-100">
+        <div class="flex items-center gap-2 mb-4">
+            <div class="bg-purple-100 p-2 rounded-lg">
+                <i class="fas fa-filter text-purple-700 text-base"></i>
             </div>
             <div>
-                <h2 class="text-2xl font-bold text-gray-800">Filter Animals</h2>
-                <p class="text-sm text-gray-600">Find the perfect companion</p>
+                <h2 class="text-lg font-bold text-gray-800">Filter Animals</h2>
+                <p class="text-xs text-gray-600">Find the perfect companion</p>
             </div>
         </div>
 
-        <form method="GET" action="{{ route('animal-management.index') }}" class="space-y-6">
+        <form method="GET" action="{{ route('animal-management.index') }}" class="space-y-4">
             <!-- Hidden field to preserve rescued_by_me filter -->
             @if(request('rescued_by_me'))
                 <input type="hidden" name="rescued_by_me" value="{{ request('rescued_by_me') }}">
             @endif
 
             <!-- Filter Grid -->
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
                 <!-- Search -->
                 <div class="xl:col-span-2">
-                    <label class="block text-sm font-bold text-gray-700 mb-2 flex items-center gap-2">
-                        <i class="fas fa-search text-purple-600"></i>
+                    <label class="block text-xs font-bold text-gray-700 mb-1.5 flex items-center gap-1.5">
+                        <i class="fas fa-search text-purple-600 text-xs"></i>
                         Search by Name
                     </label>
                     <div class="relative">
@@ -276,19 +276,19 @@
                                name="search"
                                value="{{ request('search') }}"
                                placeholder="Type animal name..."
-                               class="w-full pl-10 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all duration-200">
-                        <i class="fas fa-search absolute left-3 top-4 text-gray-400"></i>
+                               class="w-full pl-8 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-1 focus:ring-purple-500 focus:border-purple-500 transition-all duration-200">
+                        <i class="fas fa-search absolute left-2.5 top-2.5 text-gray-400 text-xs"></i>
                     </div>
                 </div>
 
                 <!-- Species -->
                 <div>
-                    <label class="block text-sm font-bold text-gray-700 mb-2 flex items-center gap-2">
-                        <i class="fas fa-dog text-purple-600"></i>
+                    <label class="block text-xs font-bold text-gray-700 mb-1.5 flex items-center gap-1.5">
+                        <i class="fas fa-dog text-purple-600 text-xs"></i>
                         Species
                     </label>
                     <select name="species"
-                            class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all duration-200 appearance-none bg-white cursor-pointer">
+                            class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-1 focus:ring-purple-500 focus:border-purple-500 transition-all duration-200 appearance-none bg-white cursor-pointer">
                         <option value="">All Species</option>
                         <option value="Dog" {{ request('species') == 'Dog' ? 'selected' : '' }}>🐕 Dog</option>
                         <option value="Cat" {{ request('species') == 'Cat' ? 'selected' : '' }}>🐈 Cat</option>
@@ -297,12 +297,12 @@
 
                 <!-- Health Condition -->
                 <div>
-                    <label class="block text-sm font-bold text-gray-700 mb-2 flex items-center gap-2">
-                        <i class="fas fa-heartbeat text-purple-600"></i>
+                    <label class="block text-xs font-bold text-gray-700 mb-1.5 flex items-center gap-1.5">
+                        <i class="fas fa-heartbeat text-purple-600 text-xs"></i>
                         Health
                     </label>
                     <select name="health_details"
-                            class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all duration-200 appearance-none bg-white cursor-pointer">
+                            class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-1 focus:ring-purple-500 focus:border-purple-500 transition-all duration-200 appearance-none bg-white cursor-pointer">
                         <option value="">All Conditions</option>
                         <option value="Healthy" {{ request('health_details') == 'Healthy' ? 'selected' : '' }}>✅ Healthy</option>
                         <option value="Sick" {{ request('health_details') == 'Sick' ? 'selected' : '' }}>🤒 Sick</option>
@@ -312,12 +312,12 @@
 
                 <!-- Adoption Status -->
                 <div>
-                    <label class="block text-sm font-bold text-gray-700 mb-2 flex items-center gap-2">
-                        <i class="fas fa-home text-purple-600"></i>
+                    <label class="block text-xs font-bold text-gray-700 mb-1.5 flex items-center gap-1.5">
+                        <i class="fas fa-home text-purple-600 text-xs"></i>
                         Adoption Availability
                     </label>
                     <select name="adoption_status"
-                            class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all duration-200 appearance-none bg-white cursor-pointer">
+                            class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-1 focus:ring-purple-500 focus:border-purple-500 transition-all duration-200 appearance-none bg-white cursor-pointer">
                         <option value="">All Status</option>
                         <option value="Not Adopted" {{ request('adoption_status') == 'Not Adopted' ? 'selected' : '' }}>💚 Available for Adoption</option>
                         <option value="Adopted" {{ request('adoption_status') == 'Adopted' ? 'selected' : '' }}>💙 Adopted</option>
@@ -326,12 +326,12 @@
 
                 <!-- Gender -->
                 <div>
-                    <label class="block text-sm font-bold text-gray-700 mb-2 flex items-center gap-2">
-                        <i class="fas fa-venus-mars text-purple-600"></i>
+                    <label class="block text-xs font-bold text-gray-700 mb-1.5 flex items-center gap-1.5">
+                        <i class="fas fa-venus-mars text-purple-600 text-xs"></i>
                         Gender
                     </label>
                     <select name="gender"
-                            class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all duration-200 appearance-none bg-white cursor-pointer">
+                            class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-1 focus:ring-purple-500 focus:border-purple-500 transition-all duration-200 appearance-none bg-white cursor-pointer">
                         <option value="">All Genders</option>
                         <option value="Male" {{ request('gender') == 'Male' ? 'selected' : '' }}>♂️ Male</option>
                         <option value="Female" {{ request('gender') == 'Female' ? 'selected' : '' }}>♀️ Female</option>
@@ -340,22 +340,22 @@
             </div>
 
             <!-- Action Buttons -->
-            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pt-4 border-t-2 border-gray-100">
-                <div class="flex flex-wrap gap-3">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pt-3 border-t border-gray-200">
+                <div class="flex flex-wrap gap-2">
                     <button type="submit"
-                            class="bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white px-8 py-3 rounded-xl font-bold transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-1 flex items-center gap-2">
-                        <i class="fas fa-search"></i>
+                            class="bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white px-5 py-2 text-sm rounded-lg font-bold transition-all duration-300 shadow-md hover:shadow-lg flex items-center gap-1.5">
+                        <i class="fas fa-search text-xs"></i>
                         Apply Filters
                     </button>
                     <a href="{{ route('animal-management.index') }}"
-                       class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-8 py-3 rounded-xl font-bold transition-all duration-300 shadow-md hover:shadow-lg transform hover:-translate-y-1 flex items-center gap-2">
-                        <i class="fas fa-redo"></i>
+                       class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-5 py-2 text-sm rounded-lg font-bold transition-all duration-300 shadow-sm hover:shadow-md flex items-center gap-1.5">
+                        <i class="fas fa-redo text-xs"></i>
                         Clear All
                     </a>
                 </div>
-                <div class="flex items-center gap-2 bg-purple-50 px-4 py-2 rounded-xl border border-purple-200">
-                    <i class="fas fa-paw text-purple-600"></i>
-                    <p class="text-gray-700">
+                <div class="flex items-center gap-1.5 bg-purple-50 px-3 py-1.5 rounded-lg border border-purple-200">
+                    <i class="fas fa-paw text-purple-600 text-xs"></i>
+                    <p class="text-gray-700 text-xs">
                         Showing <span class="font-bold text-purple-700">{{ $animals->total() }}</span> animal{{ $animals->total() != 1 ? 's' : '' }}
                     </p>
                 </div>
