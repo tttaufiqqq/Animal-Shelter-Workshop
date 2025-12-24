@@ -12,3 +12,9 @@ danimran74
 
 ssh -N -L 5434:127.0.0.1:5432 taufi@10.18.26.156
 taufiq@716544
+
+
+http://127.0.0.1:8000/animal/create/rescue-23 to upload image, it does not open window to upload files
+http://127.0.0.1:8000/admin/audit - add back button to go to the page before at the left side of system overview text, make the UI and UX good
+http://127.0.0.1:8000/shelter-management/slots add filter and search by name feature, make the UI and UX good and not too big
+shafiqah use ubuntu, she can login but the log does not record it

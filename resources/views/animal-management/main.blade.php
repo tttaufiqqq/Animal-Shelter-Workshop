@@ -182,30 +182,20 @@
 
     <!-- Success/Error Messages -->
     @if (session('success'))
-        <div class="bg-gradient-to-r from-green-50 to-emerald-50 border-l-4 border-green-500 text-green-800 p-4 rounded-xl mb-6 shadow-lg slide-down">
-            <div class="flex items-center gap-3">
-                <div class="bg-green-500 text-white p-2 rounded-full">
-                    <i class="fas fa-check-circle text-lg"></i>
-                </div>
-                <p class="font-semibold flex-1">{{ session('success') }}</p>
-                <button onclick="this.parentElement.parentElement.remove()" class="text-green-700 hover:text-green-900 transition">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
+        <div class="flex items-start gap-3 p-4 mb-6 bg-green-50 border border-green-200 rounded-xl shadow-sm">
+            <svg class="w-6 h-6 text-green-600 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+            </svg>
+            <p class="font-semibold text-green-700">{{ session('success') }}</p>
         </div>
     @endif
 
     @if (session('error'))
-        <div class="bg-gradient-to-r from-red-50 to-rose-50 border-l-4 border-red-500 text-red-800 p-4 rounded-xl mb-6 shadow-lg slide-down">
-            <div class="flex items-center gap-3">
-                <div class="bg-red-500 text-white p-2 rounded-full">
-                    <i class="fas fa-exclamation-circle text-lg"></i>
-                </div>
-                <p class="font-semibold flex-1">{{ session('error') }}</p>
-                <button onclick="this.parentElement.parentElement.remove()" class="text-red-700 hover:text-red-900 transition">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
+        <div class="flex items-start gap-3 p-4 mb-6 bg-red-50 border border-red-200 rounded-xl shadow-sm">
+            <svg class="w-6 h-6 text-red-600 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+            <p class="font-semibold text-red-700">{{ session('error') }}</p>
         </div>
     @endif
 

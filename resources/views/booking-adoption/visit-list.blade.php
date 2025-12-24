@@ -28,23 +28,21 @@
         <div class="overflow-y-auto flex-1 p-6">
             <!-- Error Message -->
             @if (session('error'))
-                <div class="bg-red-50 border-l-4 border-red-500 text-red-800 p-4 rounded-lg mb-6 flex items-start gap-3 animate-slideIn">
-                    <i class="fas fa-exclamation-triangle text-red-500 text-xl mt-0.5"></i>
-                    <div>
-                        <p class="font-semibold">Booking Conflict</p>
-                        <p class="text-sm">{{ session('error') }}</p>
-                    </div>
+                <div class="flex items-start gap-3 p-4 mb-6 bg-red-50 border border-red-200 rounded-xl shadow-sm">
+                    <svg class="w-6 h-6 text-red-600 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                    <p class="font-semibold text-red-700">{{ session('error') }}</p>
                 </div>
             @endif
 
             <!-- Success Message -->
             @if (session('success'))
-                <div class="bg-green-50 border-l-4 border-green-500 text-green-800 p-4 rounded-lg mb-6 flex items-start gap-3 animate-slideIn">
-                    <i class="fas fa-check-circle text-green-500 text-xl mt-0.5"></i>
-                    <div>
-                        <p class="font-semibold">Success!</p>
-                        <p class="text-sm">{{ session('success') }}</p>
-                    </div>
+                <div class="flex items-start gap-3 p-4 mb-6 bg-green-50 border border-green-200 rounded-xl shadow-sm">
+                    <svg class="w-6 h-6 text-green-600 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                    <p class="font-semibold text-green-700">{{ session('success') }}</p>
                 </div>
             @endif
 

@@ -54,12 +54,11 @@
     </div>
     <div class="container mx-auto px-4 py-4 max-w-7xl">
         @if(session('success'))
-            <div class="mb-6 px-6 py-4 rounded-2xl bg-green-100 border-l-4 border-green-500 text-green-700 flex items-center gap-3 shadow-lg">
-                <i class="fas fa-check-circle text-lg"></i>
-                <span>{{ session('success') }}</span>
-                <button onclick="this.parentElement.remove()" class="ml-auto text-green-700 hover:text-green-900">
-                    <i class="fas fa-times"></i>
-                </button>
+            <div class="flex items-start gap-3 p-4 mb-6 bg-green-50 border border-green-200 rounded-xl shadow-sm">
+                <svg class="w-6 h-6 text-green-600 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+                <p class="font-semibold text-green-700">{{ session('success') }}</p>
             </div>
         @endif
 

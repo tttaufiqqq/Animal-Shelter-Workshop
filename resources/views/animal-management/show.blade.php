@@ -92,25 +92,19 @@
 <!-- Main Content -->
 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
     @if (session('success'))
-        <div class="fade-in bg-gradient-to-r from-green-50 to-emerald-50 border-l-4 border-green-600 text-green-800 p-5 rounded-xl mb-6 shadow-lg flex items-center gap-3">
-            <div class="bg-green-100 rounded-full p-2">
-                <i class="fas fa-check-circle text-green-600 text-xl"></i>
-            </div>
-            <div>
-                <p class="font-bold text-sm text-green-600 uppercase tracking-wide">Success</p>
-                <p class="font-semibold">{{ session('success') }}</p>
-            </div>
+        <div class="flex items-start gap-3 p-4 mb-6 bg-green-50 border border-green-200 rounded-xl shadow-sm">
+            <svg class="w-6 h-6 text-green-600 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+            </svg>
+            <p class="font-semibold text-green-700">{{ session('success') }}</p>
         </div>
     @endif
     @if (session('error'))
-        <div class="fade-in bg-gradient-to-r from-red-50 to-rose-50 border-l-4 border-red-600 text-red-800 p-5 rounded-xl mb-6 shadow-lg flex items-center gap-3">
-            <div class="bg-red-100 rounded-full p-2">
-                <i class="fas fa-exclamation-circle text-red-600 text-xl"></i>
-            </div>
-            <div>
-                <p class="font-bold text-sm text-red-600 uppercase tracking-wide">Error</p>
-                <p class="font-semibold">{{ session('error') }}</p>
-            </div>
+        <div class="flex items-start gap-3 p-4 mb-6 bg-red-50 border border-red-200 rounded-xl shadow-sm">
+            <svg class="w-6 h-6 text-red-600 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+            <p class="font-semibold text-red-700">{{ session('error') }}</p>
         </div>
     @endif
 
