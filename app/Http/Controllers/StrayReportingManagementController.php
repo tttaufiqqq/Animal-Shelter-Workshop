@@ -7,6 +7,7 @@ use App\Models\Report;
 use App\Models\Image;
 use App\Models\AdopterProfile;
 use App\Models\AnimalProfile;
+use App\Services\AuditService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Storage;
@@ -19,11 +20,6 @@ use App\DatabaseErrorHandler;
 class StrayReportingManagementController extends Controller
 {
     use DatabaseErrorHandler;
-    public function home()
-    {
-        return view('stray-reporting.main');
-    }
-
     public function indexUser()
     {
         $userReports = $this->safeQuery(
@@ -346,16 +342,45 @@ class StrayReportingManagementController extends Controller
             $rescue = Rescue::where('reportID', $report->id)->first();
 
             if ($rescue) {
+                $oldCaretakerId = $rescue->caretakerID;
                 $rescue->update([
                     'caretakerID' => $request->caretaker_id
                 ]);
+
+                // AUDIT: Caretaker reassigned
+                AuditService::logRescue(
+                    'caretaker_reassigned',
+                    $rescue->id,
+                    ['caretaker_id' => $oldCaretakerId],
+                    ['caretaker_id' => $request->caretaker_id],
+                    [
+                        'report_id' => $report->id,
+                        'new_caretaker_name' => $caretaker->name,
+                        'address' => $report->address,
+                        'priority' => $rescue->priority ?? 'normal',
+                    ]
+                );
             } else {
-                Rescue::create([
+                $rescue = Rescue::create([
                     'reportID' => $report->id,
                     'caretakerID' => $request->caretaker_id,
                     'status' => Rescue::STATUS_SCHEDULED,
                     'date' => null
                 ]);
+
+                // AUDIT: Caretaker assigned (new rescue)
+                AuditService::logRescue(
+                    'caretaker_assigned',
+                    $rescue->id,
+                    null,
+                    ['caretaker_id' => $request->caretaker_id, 'status' => Rescue::STATUS_SCHEDULED],
+                    [
+                        'report_id' => $report->id,
+                        'caretaker_name' => $caretaker->name,
+                        'address' => $report->address,
+                        'priority' => $rescue->priority ?? 'normal',
+                    ]
+                );
             }
 
             $report->update([
@@ -463,6 +488,9 @@ class StrayReportingManagementController extends Controller
                 ->where('caretakerID', Auth::id())
                 ->firstOrFail();
 
+            $oldStatus = $rescue->status;
+            $oldRemarks = $rescue->remarks;
+
             $updateData = ['status' => $request->status];
 
             if ($request->filled('remarks')) {
@@ -470,6 +498,20 @@ class StrayReportingManagementController extends Controller
             }
 
             $rescue->update($updateData);
+
+            // AUDIT: Rescue status updated
+            AuditService::logRescue(
+                'status_updated',
+                $rescue->id,
+                ['status' => $oldStatus, 'remarks' => $oldRemarks],
+                ['status' => $request->status, 'remarks' => $request->remarks ?? $oldRemarks],
+                [
+                    'priority' => $rescue->priority ?? 'normal',
+                    'report_id' => $rescue->reportID,
+                    'caretaker_name' => Auth::user()->name,
+                    'address' => $rescue->report->address ?? 'Unknown',
+                ]
+            );
 
             // Case-insensitive status comparison for cross-RDBMS compatibility
             $currentStatus = strtolower($request->status);

@@ -10,6 +10,7 @@ use App\Models\AnimalBooking;
 use App\Models\Transaction;
 use App\Models\Booking;
 use App\Models\Adoption;
+use App\Services\AuditService;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\DB;
@@ -510,6 +511,21 @@ class BookingAdoptionController extends Controller
 
                 \Log::info('Created booking', ['booking_id' => $booking->id]);
 
+                // AUDIT: Booking created
+                $animalNames = Animal::whereIn('id', $validated['animal_ids'])->pluck('name')->toArray();
+                AuditService::log('payment', 'booking_created', [
+                    'entity_type' => 'Booking',
+                    'entity_id' => $booking->id,
+                    'source_database' => 'danish',
+                    'metadata' => [
+                        'appointment_date' => $appointmentDate,
+                        'appointment_time' => $appointmentTime,
+                        'animal_ids' => $validated['animal_ids'],
+                        'animal_names' => $animalNames,
+                        'animal_count' => count($validated['animal_ids']),
+                    ],
+                ]);
+
                 // Attach animals with remarks to the booking
                 $animalData = [];
                 foreach ($validated['animal_ids'] as $animalId) {
@@ -966,6 +982,16 @@ class BookingAdoptionController extends Controller
                 'animal_count' => count($validated['animal_ids'])
             ]);
 
+            // AUDIT: Booking confirmed
+            AuditService::logPayment(
+                'booking_confirmed',
+                $bookingId,
+                $validated['total_fee'],
+                $validated['animal_ids'],
+                null, // Bill code not yet generated
+                'success'
+            );
+
             // Store session info for payment
             session([
                 'booking_id' => $booking->id,
@@ -1108,9 +1134,38 @@ class BookingAdoptionController extends Controller
                     // Update booking status to Completed
                     $booking->update(['status' => 'Completed']);
 
+                    // AUDIT: Payment completed
+                    AuditService::logPayment(
+                        'payment_completed',
+                        $bookingId,
+                        $adoptionFee,
+                        $animalIds,
+                        $billCode,
+                        'success'
+                    );
+
                     // Update all selected animals to Adopted
                     foreach ($animalIds as $animalId) {
-                        Animal::where('id', $animalId)->update(['adoption_status' => 'Adopted']);
+                        $animal = Animal::find($animalId);
+                        if ($animal) {
+                            $oldStatus = $animal->adoption_status;
+                            Animal::where('id', $animalId)->update(['adoption_status' => 'Adopted']);
+
+                            // AUDIT: Animal adoption status changed
+                            AuditService::logAnimal(
+                                'adoption_status_changed',
+                                $animalId,
+                                $animal->name,
+                                ['adoption_status' => $oldStatus],
+                                ['adoption_status' => 'Adopted'],
+                                [
+                                    'booking_id' => $bookingId,
+                                    'adopter_id' => Auth::id(),
+                                    'adopter_name' => Auth::user()->name,
+                                    'adoption_fee' => $adoptionFee / count($animalIds),
+                                ]
+                            );
+                        }
                     }
 
                     // Create transaction record
@@ -1134,7 +1189,7 @@ class BookingAdoptionController extends Controller
                             ? $feeBreakdowns[$animalId]
                             : ($adoptionFee / count($animalIds));
 
-                        Adoption::create([
+                        $adoption = Adoption::create([
                             'fee' => $individualFee,
                             'remarks' => 'Adopted: ' . $animalName,
                             'bookingID' => $bookingId,
@@ -1148,6 +1203,22 @@ class BookingAdoptionController extends Controller
                             'animal_name' => $animalName,
                             'fee' => $individualFee,
                             'transaction_id' => $transaction->id
+                        ]);
+
+                        // AUDIT: Adoption finalized
+                        AuditService::log('payment', 'adoption_completed', [
+                            'entity_type' => 'Adoption',
+                            'entity_id' => $adoption->id,
+                            'source_database' => 'danish',
+                            'metadata' => [
+                                'animal_id' => $animalId,
+                                'animal_name' => $animalName,
+                                'adoption_fee' => $individualFee,
+                                'booking_id' => $bookingId,
+                                'transaction_id' => $transaction->id,
+                                'adopter_id' => Auth::id(),
+                                'adopter_name' => Auth::user()->name,
+                            ],
                         ]);
                     }
 
@@ -1207,6 +1278,16 @@ class BookingAdoptionController extends Controller
                         'reference_no' => $referenceNo,
                         'userID' => Auth::id(),
                     ]);
+
+                    // AUDIT: Payment failed
+                    AuditService::logPayment(
+                        'payment_failed',
+                        $bookingId,
+                        $adoptionFee,
+                        $animalIds,
+                        $billCode,
+                        'failure'
+                    );
                 }
             }
         }

@@ -12,9 +12,3 @@ danimran74
 
 ssh -N -L 5434:127.0.0.1:5432 taufi@10.18.26.156
 taufiq@716544
-
-http://127.0.0.1:8000/bookings/index
-http://127.0.0.1:8000/bookings/all add search function to search booking made by user, search by their name, email address
-
-
-http://127.0.0.1:8000/reports/all add search function that is useful for admin to use, add filter options similar to http://127.0.0.1:8000/bookings/all

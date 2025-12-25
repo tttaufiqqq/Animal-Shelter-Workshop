@@ -21,6 +21,33 @@
         @keyframes fadeOut {
             to { opacity: 0; visibility: hidden; }
         }
+        /* Smooth line clamp */
+        .line-clamp-2 {
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #9333ea;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #7e22ce;
+        }
     </style>
 </head>
 <body class="bg-gray-50 min-h-screen">
@@ -72,8 +99,11 @@
 
 <div class="max-w-7xl mx-auto mt-10 p-4 md:p-6 pb-10">
     @if (session('success'))
-        <div class="bg-green-50 border-l-4 border-green-500 text-green-700 p-4 mb-4">
-            <p>{{ session('success') }}</p>
+        <div class="flex items-start gap-3 p-4 mb-6 bg-green-50 border border-green-200 rounded-xl shadow-sm">
+            <svg class="w-6 h-6 text-green-600 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+            </svg>
+            <p class="font-semibold text-green-700">{{ session('success') }}</p>
         </div>
     @endif
 
@@ -127,9 +157,9 @@
                 <h3 class="text-lg font-semibold text-gray-900">Search & Filter Reports</h3>
             </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <!-- User Search -->
-                <div class="lg:col-span-2">
+                <div class="md:col-span-2">
                     <label class="block text-sm font-medium text-gray-700 mb-2">Reporter Name or Email</label>
                     <div class="relative">
                         <input type="text"
@@ -141,46 +171,6 @@
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
                         </svg>
                     </div>
-                </div>
-
-                <!-- Location Search -->
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Location</label>
-                    <input type="text"
-                           name="location"
-                           value="{{ request('location') }}"
-                           placeholder="City, state, or address..."
-                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
-                </div>
-
-                <!-- Report ID -->
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Report ID</label>
-                    <input type="number"
-                           name="report_id"
-                           value="{{ request('report_id') }}"
-                           placeholder="e.g. 123"
-                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
-                </div>
-
-                <!-- Date From -->
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">From Date</label>
-                    <input type="date"
-                           name="date_from"
-                           value="{{ request('date_from') }}"
-                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
-                </div>
-            </div>
-
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-                <!-- Date To (spans to align with From Date) -->
-                <div class="lg:col-start-5">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">To Date</label>
-                    <input type="date"
-                           name="date_to"
-                           value="{{ request('date_to') }}"
-                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
                 </div>
             </div>
 
@@ -200,12 +190,12 @@
                     Clear Filters
                 </a>
 
-                @if(request()->hasAny(['user_search', 'location', 'report_id', 'date_from', 'date_to']))
+                @if(request('user_search'))
                     <div class="ml-auto flex items-center text-sm text-purple-600 font-medium">
                         <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
                             <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path>
                         </svg>
-                        <span>{{ collect(request()->only(['user_search', 'location', 'report_id', 'date_from', 'date_to']))->filter()->count() }} filter(s) active</span>
+                        <span>1 filter active</span>
                     </div>
                 @endif
             </div>
@@ -217,23 +207,23 @@
             <p class="text-gray-600">No stray animal reports have been submitted.</p>
         </div>
     @else
-        <div class="bg-white rounded shadow overflow-hidden">
+        <div class="bg-white rounded-lg shadow-lg overflow-hidden">
             <div class="overflow-x-auto">
                 <table class="min-w-full divide-y divide-gray-200">
-                    <thead class="bg-gray-100">
+                    <thead class="bg-gradient-to-r from-purple-500 to-purple-600">
                     <tr>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase">Report </th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase">Status</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase">Location</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase">City/State</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase">Submitted</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase">Images</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase">Actions</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider">Report </th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider">Status</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider">Location</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider">City/State</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider">Submitted</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider">Images</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider">Actions</th>
                     </tr>
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-200">
                     @foreach($reports as $report)
-                        <tr class="hover:bg-gray-50">
+                        <tr class="hover:bg-gray-50 transition-colors duration-150">
                             <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">REP {{ $report->id }}</td>
                             <td class="px-4 py-3 whitespace-nowrap">
                                 <span class="px-2 py-1 text-xs rounded
@@ -255,11 +245,19 @@
                             </td>
                             <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
                                 @if($report->images->count() > 0)
-                                    <a href="#" onclick="event.preventDefault(); showImagesModal({{ $report->id }}, {{ json_encode($report->images->map(fn($img) => asset('storage/' . $img->image_path))) }})" class="text-purple-600 hover:underline">
-                                        {{ $report->images->count() }} image(s)
-                                    </a>
+                                    <div class="flex items-center gap-1 cursor-pointer" onclick="event.preventDefault(); showImagesModal({{ $report->id }}, {{ json_encode($report->images->map(fn($img) => asset('storage/' . $img->image_path))) }})">
+                                        @foreach($report->images->take(3) as $image)
+                                            <img src="{{ asset('storage/' . $image->image_path) }}"
+                                                 alt="Report image"
+                                                 class="w-8 h-8 rounded-full object-cover border-2 border-white shadow-sm hover:scale-110 transition-transform"
+                                                 onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjMyIiBoZWlnaHQ9IjMyIiBmaWxsPSIjZTVlN2ViIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxMCIgZmlsbD0iIzk5OSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPj88L3RleHQ+PC9zdmc+'">
+                                        @endforeach
+                                        @if($report->images->count() > 3)
+                                            <span class="text-xs text-gray-500 font-medium ml-1">+{{ $report->images->count() - 3 }}</span>
+                                        @endif
+                                    </div>
                                 @else
-                                    <span class="text-gray-400">None</span>
+                                    <span class="text-gray-400 text-xs">-</span>
                                 @endif
                             </td>
                             <td class="px-4 py-3 whitespace-nowrap text-sm">

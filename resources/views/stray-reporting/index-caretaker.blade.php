@@ -10,6 +10,35 @@
 
     {{-- Leaflet CSS --}}
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        /* Smooth line clamp */
+        .line-clamp-2 {
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #9333ea;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #7e22ce;
+        }
+    </style>
 </head>
 <body class="bg-gray-50 min-h-screen">
 
@@ -25,8 +54,11 @@
 
 <div class="max-w-7xl mx-auto mt-10 p-4 md:p-6 pb-10">
     @if (session('success'))
-        <div class="bg-green-50 border-l-4 border-green-500 text-green-700 p-4 mb-4">
-            <p>{{ session('success') }}</p>
+        <div class="flex items-start gap-3 p-4 mb-6 bg-green-50 border border-green-200 rounded-xl shadow-sm">
+            <svg class="w-6 h-6 text-green-600 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+            </svg>
+            <p class="font-semibold text-green-700">{{ session('success') }}</p>
         </div>
     @endif
 
@@ -105,24 +137,24 @@
             <p class="text-gray-600">No rescues assigned yet.</p>
         </div>
     @else
-        <div class="bg-white rounded shadow overflow-hidden">
+        <div class="bg-white rounded-lg shadow-lg overflow-hidden">
             <div class="overflow-x-auto">
                 <table class="min-w-full divide-y divide-gray-200">
-                    <thead class="bg-gray-100">
+                    <thead class="bg-gradient-to-r from-purple-500 to-purple-600">
                     <tr>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase">Rescue #</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase">Priority</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase">Report #</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase">Status</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase">Location</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase">City/State</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase">Assigned On</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase">Actions</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider">Rescue #</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider">Priority</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider">Report #</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider">Status</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider">Location</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider">City/State</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider">Assigned On</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider">Actions</th>
                     </tr>
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-200">
                     @foreach($rescues as $rescue)
-                        <tr class="hover:bg-gray-50">
+                        <tr class="hover:bg-gray-50 transition-colors duration-150">
                             <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">RES {{ $rescue->id }}</td>
                             <td class="px-4 py-3 whitespace-nowrap">
                                 @if($rescue->priority == 'critical')

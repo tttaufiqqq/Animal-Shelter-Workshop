@@ -34,7 +34,7 @@ class ShelterManagementController extends Controller
             $slots = $query->with($with)
                 ->orderBy('sectionID')
                 ->orderBy('name')
-                ->paginate(30);
+                ->paginate(100);
 
             // Manually load animals for each slot to avoid cross-database JOIN
             if ($this->isDatabaseAvailable('shafiqah')) {

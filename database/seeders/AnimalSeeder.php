@@ -189,12 +189,9 @@ class AnimalSeeder extends Seeder
                     'species'         => $chosenSpecies,
                     'age'             => $age,
                     'health_details'  => fake()->randomElement([
-                        'Healthy and active',
-                        'Needs regular vaccination',
-                        'Recovering from minor injuries',
-                        'Excellent condition, ready for adoption',
-                        'Under medical observation',
-                        'Fully vaccinated and healthy'
+                        'Healthy',
+                        'Sick',
+                        'Need Observation'
                     ]),
                     'weight'          => $weight,
                     'gender'          => $genders[array_rand($genders)],

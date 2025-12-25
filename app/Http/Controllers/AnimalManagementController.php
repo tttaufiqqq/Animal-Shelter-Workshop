@@ -12,6 +12,7 @@ use App\Models\Vet;
 use App\Models\Medical;
 use App\Models\Vaccination;
 use App\Models\VisitList;
+use App\Services\AuditService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
@@ -350,6 +351,23 @@ class AnimalManagementController extends Controller
             DB::connection('shafiqah')->commit();
             DB::connection('eilya')->commit();
 
+            // AUDIT: Animal created
+            AuditService::logAnimal(
+                'animal_created',
+                $animal->id,
+                $animal->name,
+                null, // No old values for new creation
+                $animal->toArray(),
+                [
+                    'rescue_id' => $validated['rescueID'],
+                    'slot_id' => $validated['slotID'],
+                    'image_count' => count($request->file('images') ?? []),
+                    'species' => $validated['species'],
+                    'age' => $age,
+                    'gender' => $validated['gender'],
+                ]
+            );
+
             return redirect()->route('animal-management.create', ['rescue_id' => $validated['rescueID']])
                 ->with('success', 'Animal "' . $animal->name . '" added successfully with ' . count($request->file('images') ?? []) . ' image(s)! Do you want to add another animal? If so, please fill all the required fields again.');
 
@@ -519,6 +537,7 @@ public function update(Request $request, $id)
             // Only load cross-database relationships if those databases are online
             if ($this->isDatabaseAvailable('eilya')) {
                 $with[] = 'images';
+                $with[] = 'rescue'; // Load rescue relationship for caretaker filter
             }
 
             if ($this->isDatabaseAvailable('atiqah')) {
@@ -527,6 +546,32 @@ public function update(Request $request, $id)
 
             $query = Animal::with($with);
 
+            // Caretaker Filter: Show only animals rescued by the logged-in caretaker
+            if ($request->filled('rescued_by_me') && $request->rescued_by_me === 'true' && Auth::check()) {
+                $user = Auth::user();
+
+                // Check if user has caretaker role
+                if ($user->hasRole('caretaker')) {
+                    // Get rescue IDs where the current user is the caretaker
+                    $rescueIds = $this->safeQuery(
+                        fn() => DB::connection('eilya')
+                            ->table('rescue')
+                            ->where('caretakerID', $user->id)
+                            ->pluck('id')
+                            ->toArray(),
+                        [],
+                        'eilya'
+                    );
+
+                    if (!empty($rescueIds)) {
+                        $query->whereIn('rescueID', $rescueIds);
+                    } else {
+                        // No rescues by this caretaker, return empty result
+                        $query->whereRaw('1 = 0');
+                    }
+                }
+            }
+
             // Filters
             if ($request->filled('search')) {
                 $query->where(DB::raw('LOWER(name)'), 'LIKE', '%' . strtolower($request->search) . '%');
@@ -534,6 +579,10 @@ public function update(Request $request, $id)
 
             if ($request->filled('species')) {
                 $query->where(DB::raw('LOWER(species)'), 'LIKE', '%' . strtolower($request->species) . '%');
+            }
+
+            if ($request->filled('health_details')) {
+                $query->where('health_details', $request->health_details);
             }
 
             if ($request->filled('adoption_status')) {
@@ -550,7 +599,10 @@ public function update(Request $request, $id)
             // Secondary sorting
             $query->orderBy('created_at', 'desc');
 
-            return $query->paginate(12)->appends($request->query());
+            // Pagination: 50 items for caretaker table view, 12 for card view
+            $perPage = ($request->filled('rescued_by_me') && $request->rescued_by_me === 'true' && Auth::check() && Auth::user()->hasRole('caretaker')) ? 50 : 12;
+
+            return $query->paginate($perPage)->appends($request->query());
         }, new \Illuminate\Pagination\LengthAwarePaginator([], 0, 12), 'shafiqah'); // Pre-check shafiqah database
 
         // ===== Only for logged-in user =====
@@ -977,6 +1029,24 @@ public function update(Request $request, $id)
 
             $medical = Medical::create($validated);
 
+            // AUDIT: Medical record added
+            $animal = Animal::find($validated['animalID']);
+            $vet = Vet::find($validated['vetID']);
+            AuditService::logMedical(
+                'medical_added',
+                $validated['animalID'],
+                $animal->name,
+                $medical->id,
+                [
+                    'treatment_type' => $validated['treatment_type'],
+                    'diagnosis' => $validated['diagnosis'],
+                    'action' => $validated['action'],
+                    'vet_id' => $validated['vetID'],
+                    'vet_name' => $vet->name,
+                    'costs' => $validated['costs'] ?? 0,
+                ]
+            );
+
             return redirect()->back()->with('success', 'Medical record added successfully!');
         } catch (\Illuminate\Validation\ValidationException $e) {
             return redirect()->back()
@@ -1004,6 +1074,24 @@ public function update(Request $request, $id)
             ]);
 
             $vaccination = Vaccination::create($validated);
+
+            // AUDIT: Vaccination record added
+            $animal = Animal::find($validated['animalID']);
+            $vet = Vet::find($validated['vetID']);
+            AuditService::logVaccination(
+                'vaccination_added',
+                $validated['animalID'],
+                $animal->name,
+                $vaccination->id,
+                [
+                    'vaccination_name' => $validated['name'],
+                    'type' => $validated['type'],
+                    'next_due_date' => $validated['next_due_date'] ?? 'Not set',
+                    'vet_id' => $validated['vetID'],
+                    'vet_name' => $vet->name,
+                    'costs' => $validated['costs'] ?? 0,
+                ]
+            );
 
             return redirect()->back()->with('success', 'Vaccination record added successfully!');
         } catch (\Illuminate\Validation\ValidationException $e) {
