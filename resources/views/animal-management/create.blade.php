@@ -27,19 +27,6 @@
             transform: scale(1.05);
         }
 
-        /* Custom file upload */
-        .file-upload-wrapper {
-            position: relative;
-        }
-
-        .file-upload-wrapper input[type="file"] {
-            position: absolute;
-            opacity: 0;
-            width: 100%;
-            height: 100%;
-            cursor: pointer;
-        }
-
         /* Progress bar */
         .progress-step {
             transition: all 0.3s ease;
@@ -99,13 +86,11 @@
 
         <!-- Messages -->
         @if (session('success'))
-            <div class="m-6 bg-gradient-to-r from-green-50 to-emerald-50 border-l-4 border-green-500 text-green-800 p-4 rounded-xl shadow-md fade-in">
-                <div class="flex items-center gap-3">
-                    <div class="bg-green-500 text-white p-2 rounded-full">
-                        <i class="fas fa-check-circle"></i>
-                    </div>
-                    <p class="font-semibold">{{ session('success') }}</p>
-                </div>
+            <div class="flex items-start gap-3 p-4 mb-6 bg-green-50 border border-green-200 rounded-xl shadow-sm mx-6 mt-6">
+                <svg class="w-6 h-6 text-green-600 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+                <p class="font-semibold text-green-700">{{ session('success') }}</p>
             </div>
         @endif
 
@@ -361,24 +346,25 @@
 
                 <!-- File Upload -->
                 <div>
-                    <label class="flex items-center gap-2 text-gray-800 font-semibold mb-2">
+                    <div class="flex items-center gap-2 text-gray-800 font-semibold mb-2">
                         <i class="fas fa-camera text-purple-600"></i>
                         Upload Images <span class="text-red-600">*</span>
-                    </label>
+                    </div>
 
                     <div class="file-upload-wrapper">
-                        <div class="border-2 border-dashed border-purple-300 rounded-xl p-8 text-center bg-purple-50 hover:bg-purple-100 transition cursor-pointer">
-                            <i class="fas fa-cloud-upload-alt text-5xl text-purple-600 mb-3"></i>
+                        <label for="imageInput" class="border-2 border-dashed border-purple-300 rounded-xl p-8 text-center bg-purple-50 hover:bg-purple-100 transition cursor-pointer block">
+                            <i class="fas fa-cloud-upload-alt text-5xl text-purple-600 mb-3 block"></i>
                             <p class="text-gray-700 font-semibold mb-1">Click to upload images</p>
                             <p class="text-sm text-gray-500">or drag and drop</p>
                             <p class="text-xs text-gray-400 mt-2">PNG, JPG, GIF up to 10MB each</p>
-                            <input type="file"
-                                   name="images[]"
-                                   id="imageInput"
-                                   multiple
-                                   accept="image/*"
-                                   required>
-                        </div>
+                        </label>
+                        <input type="file"
+                               name="images[]"
+                               id="imageInput"
+                               multiple
+                               accept="image/*"
+                               class="hidden"
+                               required>
                     </div>
 
                     <p class="text-sm text-gray-600 mt-3 flex items-center gap-2">

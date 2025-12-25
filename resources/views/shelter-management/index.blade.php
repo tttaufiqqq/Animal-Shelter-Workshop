@@ -7,6 +7,35 @@
     <title>Shelter Slots Management</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <style>
+        /* Smooth line clamp */
+        .line-clamp-2 {
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #9333ea;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #7e22ce;
+        }
+    </style>
 </head>
 <body class="bg-gray-50">
 @include('navbar')
@@ -43,28 +72,55 @@
 <div class="mb-8 bg-gradient-to-r from-purple-600 to-purple-800 shadow-lg p-8 py-12">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <h1 class="text-4xl font-bold text-white mb-2">
-            <i class="fas fa-door-open text-purple-900 mr-3"></i>
-            Shelter Slots Management
+            <i class="fas fa-warehouse text-purple-900 mr-3"></i>
+            Shelter Management
         </h1>
-        <p class="text-purple-100">Manage all shelter slots and their capacities</p>
+        <p class="text-purple-100">Manage sections, slots, categories, and inventory</p>
     </div>
 </div>
 
 <div class="container mx-auto px-4 py-8">
     @if (session('success'))
-        <div class="bg-green-100 border-l-4 border-green-600 text-green-700 p-4 rounded-lg mb-6">
-            <p class="font-semibold">{{ session('success') }}</p>
+        <div class="flex items-start gap-3 p-4 mb-6 bg-green-50 border border-green-200 rounded-xl shadow-sm">
+            <svg class="w-6 h-6 text-green-600 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+            </svg>
+            <p class="font-semibold text-green-700">{{ session('success') }}</p>
         </div>
     @endif
 
     @if (session('error'))
-        <div class="bg-red-100 border-l-4 border-red-600 text-red-700 p-4 rounded-lg mb-6">
-            <p class="font-semibold">{{ session('error') }}</p>
+        <div class="flex items-start gap-3 p-4 mb-6 bg-red-50 border border-red-200 rounded-xl shadow-sm">
+            <svg class="w-6 h-6 text-red-600 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+            <p class="font-semibold text-red-700">{{ session('error') }}</p>
         </div>
     @endif
 
-    <!-- Stats Overview -->
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+    <!-- View Switcher Tabs -->
+    <div class="bg-white rounded-lg shadow-md mb-6 p-2">
+        <div class="flex gap-2">
+            <button onclick="switchView('sections')" id="sectionsTab" class="view-tab flex-1 px-6 py-3 rounded-lg font-semibold transition-all duration-200 flex items-center justify-center gap-2">
+                <i class="fas fa-layer-group"></i>
+                <span>Sections</span>
+                <span class="ml-2 px-2 py-0.5 text-xs rounded-full bg-white/20">{{ $sections->count() }}</span>
+            </button>
+            <button onclick="switchView('slots')" id="slotsTab" class="view-tab flex-1 px-6 py-3 rounded-lg font-semibold transition-all duration-200 flex items-center justify-center gap-2 bg-gradient-to-r from-purple-500 to-purple-600 text-white shadow-md">
+                <i class="fas fa-door-open"></i>
+                <span>Slots</span>
+                <span class="ml-2 px-2 py-0.5 text-xs rounded-full bg-white/20">{{ $totalSlots }}</span>
+            </button>
+            <button onclick="switchView('categories')" id="categoriesTab" class="view-tab flex-1 px-6 py-3 rounded-lg font-semibold transition-all duration-200 flex items-center justify-center gap-2">
+                <i class="fas fa-tags"></i>
+                <span>Categories</span>
+                <span class="ml-2 px-2 py-0.5 text-xs rounded-full bg-white/20">{{ $categories->count() }}</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Stats Overview - Slots View -->
+    <div id="slotsStats" class="stats-section grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
         <div class="bg-white rounded-lg shadow p-6">
             <div class="flex items-center justify-between">
                 <div>
@@ -114,23 +170,289 @@
         </div>
     </div>
 
+    <!-- Stats Overview - Sections View -->
+    <div id="sectionsStats" class="stats-section hidden grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-gray-500 text-sm">Total Sections</p>
+                    <p class="text-3xl font-bold text-gray-800">{{ $sections->count() }}</p>
+                </div>
+                <div class="bg-indigo-100 p-3 rounded-full">
+                    <i class="fas fa-layer-group text-indigo-600 text-2xl"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-gray-500 text-sm">Total Slots</p>
+                    <p class="text-3xl font-bold text-purple-600">{{ $totalSlots }}</p>
+                </div>
+                <div class="bg-purple-100 p-3 rounded-full">
+                    <i class="fas fa-door-open text-purple-600 text-2xl"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-gray-500 text-sm">Avg Slots/Section</p>
+                    <p class="text-3xl font-bold text-blue-600">{{ $sections->count() > 0 ? number_format($totalSlots / $sections->count(), 1) : 0 }}</p>
+                </div>
+                <div class="bg-blue-100 p-3 rounded-full">
+                    <i class="fas fa-chart-bar text-blue-600 text-2xl"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-gray-500 text-sm">Categories</p>
+                    <p class="text-3xl font-bold text-pink-600">{{ $categories->count() }}</p>
+                </div>
+                <div class="bg-pink-100 p-3 rounded-full">
+                    <i class="fas fa-tags text-pink-600 text-2xl"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stats Overview - Categories View -->
+    <div id="categoriesStats" class="stats-section hidden grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-gray-500 text-sm">Total Categories</p>
+                    <p class="text-3xl font-bold text-gray-800">{{ $categories->count() }}</p>
+                </div>
+                <div class="bg-indigo-100 p-3 rounded-full">
+                    <i class="fas fa-tags text-indigo-600 text-2xl"></i>
+                </div>
+            </div>
+        </div>
+
+        @php
+            $mainCategories = $categories->pluck('main')->unique()->count();
+        @endphp
+
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-gray-500 text-sm">Main Categories</p>
+                    <p class="text-3xl font-bold text-purple-600">{{ $mainCategories }}</p>
+                </div>
+                <div class="bg-purple-100 p-3 rounded-full">
+                    <i class="fas fa-folder text-purple-600 text-2xl"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-gray-500 text-sm">Sub Categories</p>
+                    <p class="text-3xl font-bold text-pink-600">{{ $categories->count() }}</p>
+                </div>
+                <div class="bg-pink-100 p-3 rounded-full">
+                    <i class="fas fa-sitemap text-pink-600 text-2xl"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Search and Filter Section - Slots View -->
+    <div id="slotsFilters" class="search-filter-section bg-white rounded-lg shadow-md p-4 mb-6">
+        <div class="flex flex-col md:flex-row gap-3 items-center">
+            <div class="flex-1 w-full md:w-auto">
+                <div class="relative">
+                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <i class="fas fa-search text-gray-400"></i>
+                    </div>
+                    <input type="text"
+                           id="searchSlotsInput"
+                           placeholder="Search by slot name..."
+                           class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition"
+                           onkeyup="filterSlots()">
+                </div>
+            </div>
+            <div class="w-full md:w-48">
+                <select id="statusFilter"
+                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition"
+                        onchange="filterSlots()">
+                    <option value="">All Statuses</option>
+                    <option value="available">Available</option>
+                    <option value="occupied">Occupied</option>
+                    <option value="maintenance">Maintenance</option>
+                </select>
+            </div>
+            <div class="w-full md:w-48">
+                <select id="sectionFilter"
+                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition"
+                        onchange="filterSlots()">
+                    <option value="">All Sections</option>
+                    @foreach($sections as $section)
+                        <option value="{{ $section->name }}">{{ $section->name }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <button onclick="clearFilters()"
+                    class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition duration-200 whitespace-nowrap">
+                <i class="fas fa-times mr-1"></i>Clear
+            </button>
+        </div>
+        <div id="slotsResultsCount" class="mt-3 text-sm text-gray-600"></div>
+    </div>
+
+    <!-- Search and Filter Section - Sections View -->
+    <div id="sectionsFilters" class="search-filter-section hidden bg-white rounded-lg shadow-md p-4 mb-6">
+        <div class="flex flex-col md:flex-row gap-3 items-center">
+            <div class="flex-1 w-full md:w-auto">
+                <div class="relative">
+                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <i class="fas fa-search text-gray-400"></i>
+                    </div>
+                    <input type="text"
+                           id="searchSectionsInput"
+                           placeholder="Search by section name..."
+                           class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition"
+                           onkeyup="filterSections()">
+                </div>
+            </div>
+            <button onclick="clearFilters()"
+                    class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition duration-200 whitespace-nowrap">
+                <i class="fas fa-times mr-1"></i>Clear
+            </button>
+        </div>
+        <div id="sectionsResultsCount" class="mt-3 text-sm text-gray-600"></div>
+    </div>
+
+    <!-- Search and Filter Section - Categories View -->
+    <div id="categoriesFilters" class="search-filter-section hidden bg-white rounded-lg shadow-md p-4 mb-6">
+        <div class="flex flex-col md:flex-row gap-3 items-center">
+            <div class="flex-1 w-full md:w-auto">
+                <div class="relative">
+                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <i class="fas fa-search text-gray-400"></i>
+                    </div>
+                    <input type="text"
+                           id="searchCategoriesInput"
+                           placeholder="Search categories..."
+                           class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition"
+                           onkeyup="filterCategories()">
+                </div>
+            </div>
+            <button onclick="clearFilters()"
+                    class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition duration-200 whitespace-nowrap">
+                <i class="fas fa-times mr-1"></i>Clear
+            </button>
+        </div>
+        <div id="categoriesResultsCount" class="mt-3 text-sm text-gray-600"></div>
+    </div>
+
     <!-- Action Buttons -->
     @role('admin')
-    <div class="mb-6 flex gap-3 flex-wrap">
-        <button onclick="openSectionModal()" class="px-6 py-3 bg-gradient-to-r from-indigo-500 to-indigo-600 text-white font-semibold rounded-lg hover:from-indigo-600 hover:to-indigo-700 transition duration-300 shadow-md">
+    <div class="mb-6">
+        <button id="addSectionBtn" onclick="openSectionModal()" class="action-btn hidden px-6 py-3 bg-gradient-to-r from-indigo-500 to-indigo-600 text-white font-semibold rounded-lg hover:from-indigo-600 hover:to-indigo-700 transition duration-300 shadow-md">
             <i class="fas fa-plus mr-2"></i>Add Section
         </button>
-        <button onclick="openSlotModal()" class="px-6 py-3 bg-gradient-to-r from-purple-500 to-purple-600 text-white font-semibold rounded-lg hover:from-purple-600 hover:to-purple-700 transition duration-300 shadow-md">
+        <button id="addSlotBtn" onclick="openSlotModal()" class="action-btn px-6 py-3 bg-gradient-to-r from-purple-500 to-purple-600 text-white font-semibold rounded-lg hover:from-purple-600 hover:to-purple-700 transition duration-300 shadow-md">
             <i class="fas fa-plus mr-2"></i>Add Slot
         </button>
-        <button onclick="openCategoryModal()" class="px-6 py-3 bg-gradient-to-r from-pink-500 to-pink-600 text-white font-semibold rounded-lg hover:from-pink-600 hover:to-pink-700 transition duration-300 shadow-md">
+        <button id="addCategoryBtn" onclick="openCategoryModal()" class="action-btn hidden px-6 py-3 bg-gradient-to-r from-pink-500 to-pink-600 text-white font-semibold rounded-lg hover:from-pink-600 hover:to-pink-700 transition duration-300 shadow-md">
             <i class="fas fa-plus mr-2"></i>Add Category
         </button>
     </div>
     @endrole
 
-    <!-- Slots Table -->
-    <div class="bg-white rounded-lg shadow-lg overflow-hidden">
+    <!-- ========================= SECTIONS VIEW ========================= -->
+    <div id="sectionsContent" class="content-section hidden">
+        <div class="bg-white rounded-lg shadow-lg overflow-hidden">
+            @if($sections->count() > 0)
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gradient-to-r from-gray-50 to-gray-100">
+                        <tr>
+                            <th class="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+                                Section Name
+                            </th>
+                            <th class="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+                                Description
+                            </th>
+                            <th class="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+                                Slots
+                            </th>
+                            <th class="px-6 py-4 text-right text-xs font-bold text-gray-700 uppercase tracking-wider">
+                                Actions
+                            </th>
+                        </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200">
+                        @foreach($sections as $section)
+                            @php
+                                $sectionSlots = $section->slots ?? collect([]);
+                                $slotCount = $sectionSlots->count();
+                            @endphp
+                            <tr class="section-row hover:bg-gray-50 transition duration-150"
+                                data-section-name="{{ strtolower($section->name) }}">
+                                <td class="px-6 py-4">
+                                    <div class="flex items-center">
+                                        <i class="fas fa-layer-group text-indigo-500 mr-3 text-lg"></i>
+                                        <div class="text-sm font-bold text-gray-900">{{ $section->name }}</div>
+                                    </div>
+                                </td>
+                                <td class="px-6 py-4">
+                                    <div class="text-sm text-gray-700">{{ $section->description }}</div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="flex items-center">
+                                        <i class="fas fa-door-open text-purple-500 mr-2"></i>
+                                        <span class="text-sm font-semibold text-gray-700">{{ $slotCount }}</span>
+                                        <span class="text-xs text-gray-500 ml-1">slot{{ $slotCount != 1 ? 's' : '' }}</span>
+                                    </div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                    <div class="flex items-center justify-end gap-2">
+                                        @role('admin')
+                                        <button onclick="editSection({{ $section->id }})"
+                                                class="text-gray-600 hover:text-gray-900 transition duration-150"
+                                                title="Edit Section">
+                                            <i class="fas fa-edit text-lg"></i>
+                                        </button>
+                                        <button onclick="deleteSection({{ $section->id }})"
+                                                class="text-red-600 hover:text-red-900 transition duration-150"
+                                                title="Delete Section">
+                                            <i class="fas fa-trash text-lg"></i>
+                                        </button>
+                                        @endrole
+                                    </div>
+                                </td>
+                            </tr>
+                        @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            @else
+                <div class="p-12 text-center">
+                    <div class="text-6xl mb-4">🏢</div>
+                    <h3 class="text-xl font-bold text-gray-800 mb-2">No Sections Yet</h3>
+                    <p class="text-gray-600 mb-6">Create your first section to organize shelter slots.</p>
+                    @role('admin')
+                    <button onclick="openSectionModal()" class="px-6 py-3 bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-semibold rounded-lg hover:from-indigo-600 hover:to-purple-700 transition duration-300">
+                        <i class="fas fa-plus mr-2"></i>Add Your First Section
+                    </button>
+                    @endrole
+                </div>
+            @endif
+        </div>
+    </div>
+
+    <!-- ========================= SLOTS VIEW ========================= -->
+    <div id="slotsContent" class="content-section">
+        <div class="bg-white rounded-lg shadow-lg overflow-hidden">
         @if($slots->count() > 0)
             <div class="overflow-x-auto">
                 <table class="min-w-full divide-y divide-gray-200">
@@ -175,7 +497,10 @@
                             $occupancy = $slot->relationLoaded('animals') ? $slot->animals->count() : null;
                             $occupancyPercent = ($occupancy !== null && $slot->capacity > 0) ? ($occupancy / $slot->capacity) * 100 : 0;
                         @endphp
-                        <tr class="hover:bg-gray-50 transition duration-150">
+                        <tr class="slot-row hover:bg-gray-50 transition duration-150"
+                            data-slot-name="{{ strtolower($slot->name) }}"
+                            data-slot-status="{{ $slot->status }}"
+                            data-slot-section="{{ $slot->section->name ?? '' }}">
                             <td class="px-6 py-4 whitespace-nowrap">
                                 <div class="flex items-center">
                                     <div class="text-sm font-bold text-gray-900">{{ $slot->name }}</div>
@@ -273,9 +598,95 @@
         @endif
     </div>
 
-    <!-- Pagination -->
-    <div class="mt-6">
-        {{ $slots->links() }}
+        <!-- Pagination -->
+        <div class="mt-6">
+            {{ $slots->links() }}
+        </div>
+    </div>
+
+    <!-- ========================= CATEGORIES VIEW ========================= -->
+    <div id="categoriesContent" class="content-section hidden">
+        <div class="bg-white rounded-lg shadow-lg overflow-hidden">
+            @if($categories->count() > 0)
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gradient-to-r from-gray-50 to-gray-100">
+                        <tr>
+                            <th class="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+                                Main Category
+                            </th>
+                            <th class="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+                                Sub Category
+                            </th>
+                            <th class="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+                                Inventory Items
+                            </th>
+                            <th class="px-6 py-4 text-right text-xs font-bold text-gray-700 uppercase tracking-wider">
+                                Actions
+                            </th>
+                        </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200">
+                        @foreach($categories as $category)
+                            @php
+                                $inventoryCount = $category->inventories ? $category->inventories->count() : 0;
+                            @endphp
+                            <tr class="category-row hover:bg-gray-50 transition duration-150"
+                                data-category-main="{{ strtolower($category->main) }}"
+                                data-category-sub="{{ strtolower($category->sub) }}">
+                                <td class="px-6 py-4">
+                                    <div class="flex items-center">
+                                        <i class="fas fa-folder text-purple-500 mr-3 text-lg"></i>
+                                        <div class="text-sm font-bold text-gray-900">{{ $category->main }}</div>
+                                    </div>
+                                </td>
+                                <td class="px-6 py-4">
+                                    <div class="flex items-center">
+                                        <i class="fas fa-tag text-pink-500 mr-2"></i>
+                                        <div class="text-sm text-gray-700">{{ $category->sub }}</div>
+                                    </div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="flex items-center">
+                                        <i class="fas fa-box text-gray-400 mr-2"></i>
+                                        <span class="text-sm font-semibold text-gray-700">{{ $inventoryCount }}</span>
+                                        <span class="text-xs text-gray-500 ml-1">item{{ $inventoryCount != 1 ? 's' : '' }}</span>
+                                    </div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                    <div class="flex items-center justify-end gap-2">
+                                        @role('admin')
+                                        <button onclick="editCategory({{ $category->id }})"
+                                                class="text-gray-600 hover:text-gray-900 transition duration-150"
+                                                title="Edit Category">
+                                            <i class="fas fa-edit text-lg"></i>
+                                        </button>
+                                        <button onclick="deleteCategory({{ $category->id }})"
+                                                class="text-red-600 hover:text-red-900 transition duration-150"
+                                                title="Delete Category">
+                                            <i class="fas fa-trash text-lg"></i>
+                                        </button>
+                                        @endrole
+                                    </div>
+                                </td>
+                            </tr>
+                        @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            @else
+                <div class="p-12 text-center">
+                    <div class="text-6xl mb-4">🏷️</div>
+                    <h3 class="text-xl font-bold text-gray-800 mb-2">No Categories Yet</h3>
+                    <p class="text-gray-600 mb-6">Create categories to organize your inventory items.</p>
+                    @role('admin')
+                    <button onclick="openCategoryModal()" class="px-6 py-3 bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-semibold rounded-lg hover:from-indigo-600 hover:to-purple-700 transition duration-300">
+                        <i class="fas fa-plus mr-2"></i>Add Your First Category
+                    </button>
+                    @endrole
+                </div>
+            @endif
+        </div>
     </div>
 </div>
 
@@ -454,6 +865,173 @@
 @include('shelter-management.animal-detail-modal')
 
     <script>
+        // ==================== VIEW SWITCHING FUNCTIONS ====================
+        let currentView = 'slots'; // Default view
+
+        function switchView(view) {
+            currentView = view;
+
+            // Update tabs
+            document.querySelectorAll('.view-tab').forEach(tab => {
+                tab.classList.remove('bg-gradient-to-r', 'from-purple-500', 'to-purple-600', 'text-white', 'shadow-md');
+                tab.classList.add('text-gray-600', 'hover:bg-gray-100');
+            });
+
+            // Highlight active tab
+            const activeTab = document.getElementById(view + 'Tab');
+            activeTab.classList.remove('text-gray-600', 'hover:bg-gray-100');
+            activeTab.classList.add('bg-gradient-to-r', 'from-purple-500', 'to-purple-600', 'text-white', 'shadow-md');
+
+            // Hide all content sections
+            document.querySelectorAll('.content-section').forEach(section => {
+                section.classList.add('hidden');
+            });
+
+            // Hide all stats sections
+            document.querySelectorAll('.stats-section').forEach(section => {
+                section.classList.add('hidden');
+            });
+
+            // Hide all filter sections
+            document.querySelectorAll('.search-filter-section').forEach(section => {
+                section.classList.add('hidden');
+            });
+
+            // Hide all action buttons
+            document.querySelectorAll('.action-btn').forEach(btn => {
+                btn.classList.add('hidden');
+            });
+
+            // Show active content, stats, filters, and button
+            document.getElementById(view + 'Content').classList.remove('hidden');
+            document.getElementById(view + 'Stats').classList.remove('hidden');
+            document.getElementById(view + 'Filters').classList.remove('hidden');
+            document.getElementById('add' + view.charAt(0).toUpperCase() + view.slice(1, -1) + 'Btn').classList.remove('hidden');
+
+            // Clear filters when switching views
+            clearFilters();
+        }
+
+        // ==================== FILTER FUNCTIONS ====================
+        function filterSlots() {
+            const searchTerm = document.getElementById('searchSlotsInput').value.toLowerCase();
+            const statusFilter = document.getElementById('statusFilter').value.toLowerCase();
+            const sectionFilter = document.getElementById('sectionFilter').value;
+
+            const rows = document.querySelectorAll('.slot-row');
+            let visibleCount = 0;
+
+            rows.forEach(row => {
+                const slotName = row.getAttribute('data-slot-name') || '';
+                const slotStatus = row.getAttribute('data-slot-status') || '';
+                const slotSection = row.getAttribute('data-slot-section') || '';
+
+                const matchesSearch = slotName.includes(searchTerm);
+                const matchesStatus = !statusFilter || slotStatus === statusFilter;
+                const matchesSection = !sectionFilter || slotSection === sectionFilter;
+
+                if (matchesSearch && matchesStatus && matchesSection) {
+                    row.style.display = '';
+                    visibleCount++;
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+
+            updateResultsCount('slots', visibleCount, rows.length);
+        }
+
+        function filterSections() {
+            const searchTerm = document.getElementById('searchSectionsInput').value.toLowerCase();
+            const rows = document.querySelectorAll('.section-row');
+            let visibleCount = 0;
+
+            rows.forEach(row => {
+                const sectionName = row.getAttribute('data-section-name') || '';
+                const matchesSearch = sectionName.includes(searchTerm);
+
+                if (matchesSearch) {
+                    row.style.display = '';
+                    visibleCount++;
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+
+            updateResultsCount('sections', visibleCount, rows.length);
+        }
+
+        function filterCategories() {
+            const searchTerm = document.getElementById('searchCategoriesInput').value.toLowerCase();
+            const rows = document.querySelectorAll('.category-row');
+            let visibleCount = 0;
+
+            rows.forEach(row => {
+                const categoryMain = row.getAttribute('data-category-main') || '';
+                const categorySub = row.getAttribute('data-category-sub') || '';
+                const matchesSearch = categoryMain.includes(searchTerm) || categorySub.includes(searchTerm);
+
+                if (matchesSearch) {
+                    row.style.display = '';
+                    visibleCount++;
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+
+            updateResultsCount('categories', visibleCount, rows.length);
+        }
+
+        function clearFilters() {
+            // Clear all search inputs
+            const searchInputs = ['searchSlotsInput', 'searchSectionsInput', 'searchCategoriesInput'];
+            searchInputs.forEach(id => {
+                const input = document.getElementById(id);
+                if (input) input.value = '';
+            });
+
+            // Clear slot-specific filters
+            const statusFilter = document.getElementById('statusFilter');
+            const sectionFilter = document.getElementById('sectionFilter');
+            if (statusFilter) statusFilter.value = '';
+            if (sectionFilter) sectionFilter.value = '';
+
+            // Trigger appropriate filter
+            if (currentView === 'slots') filterSlots();
+            else if (currentView === 'sections') filterSections();
+            else if (currentView === 'categories') filterCategories();
+        }
+
+        function updateResultsCount(view, visible, total) {
+            const resultsDiv = document.getElementById(view + 'ResultsCount');
+            if (!resultsDiv) return;
+
+            const viewLabels = {
+                'slots': 'slot',
+                'sections': 'section',
+                'categories': 'categor'
+            };
+            const label = viewLabels[view];
+            const pluralLabel = label + (label.endsWith('r') ? 'ies' : 's');
+
+            if (visible === total) {
+                resultsDiv.innerHTML = `<i class="fas fa-check-circle text-green-600 mr-1"></i>Showing all <strong>${total}</strong> ${total === 1 ? label : pluralLabel}`;
+            } else {
+                resultsDiv.innerHTML = `<i class="fas fa-filter text-purple-600 mr-1"></i>Showing <strong>${visible}</strong> of <strong>${total}</strong> ${pluralLabel}`;
+            }
+        }
+
+        // Initialize results counts on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            const slotsCount = document.querySelectorAll('.slot-row').length;
+            const sectionsCount = document.querySelectorAll('.section-row').length;
+            const categoriesCount = document.querySelectorAll('.category-row').length;
+
+            updateResultsCount('slots', slotsCount, slotsCount);
+            updateResultsCount('sections', sectionsCount, sectionsCount);
+            updateResultsCount('categories', categoriesCount, categoriesCount);
+        });
+
         // Section Modal Functions
         function openSectionModal() {
             document.getElementById('sectionModal').classList.remove('hidden');

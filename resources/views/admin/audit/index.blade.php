@@ -5,11 +5,19 @@
 
     <x-slot name="header">
         <div class="flex items-center justify-between">
-            <div>
-                <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-                    Audit Trail Dashboard
-                </h2>
-                <p class="text-sm text-gray-600 mt-1">Monitor system activity and security events across all modules</p>
+            <div class="flex items-center gap-4">
+                <button onclick="history.back()"
+                        class="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-white hover:bg-gray-50 border border-gray-200 shadow-sm transition-all duration-200 hover:shadow-md group">
+                    <svg class="w-5 h-5 text-gray-600 group-hover:text-gray-900 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                    </svg>
+                </button>
+                <div>
+                    <h2 class="font-semibold text-xl text-gray-800 leading-tight">
+                        Audit Trail Dashboard
+                    </h2>
+                    <p class="text-sm text-gray-600 mt-1">Monitor system activity and security events across all modules</p>
+                </div>
             </div>
             <div class="text-sm text-gray-500">
                 <svg class="inline-block w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">

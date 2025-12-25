@@ -34,7 +34,8 @@
       "Bash(php artisan db:fresh-all:*)",
       "Bash(composer dump-autoload:*)",
       "Bash(ipconfig:*)",
-      "Bash(findstr:*)"
+      "Bash(findstr:*)",
+      "Bash(php artisan serve:*)"
     ]
   }
 }

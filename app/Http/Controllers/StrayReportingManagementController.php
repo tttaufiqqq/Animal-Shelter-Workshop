@@ -20,11 +20,6 @@ use App\DatabaseErrorHandler;
 class StrayReportingManagementController extends Controller
 {
     use DatabaseErrorHandler;
-    public function home()
-    {
-        return view('stray-reporting.main');
-    }
-
     public function indexUser()
     {
         $userReports = $this->safeQuery(

@@ -25,6 +25,40 @@
 
         <!-- Detail Content -->
         <div id="inventoryDetailContent" class="hidden">
+            <!-- Animal Compatibility Section -->
+            <div id="compatibilitySection" class="hidden mx-6 mt-6 bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-5 border-2 border-green-300">
+                <div class="flex items-start gap-4">
+                    <div class="bg-green-600 text-white rounded-full p-3">
+                        <i class="fas fa-check-circle text-xl"></i>
+                    </div>
+                    <div class="flex-1">
+                        <h3 class="text-lg font-bold text-gray-800 mb-2 flex items-center gap-2">
+                            <i class="fas fa-paw text-green-600"></i>
+                            Animal Compatibility Analysis
+                        </h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+                            <div class="bg-white rounded-lg p-3 border border-green-100">
+                                <p class="text-xs text-gray-600 mb-1">Animal in Slot</p>
+                                <p class="font-bold text-gray-800" id="compatAnimalName"></p>
+                            </div>
+                            <div class="bg-white rounded-lg p-3 border border-green-100">
+                                <p class="text-xs text-gray-600 mb-1">Health Status</p>
+                                <p class="font-bold" id="compatHealthStatus"></p>
+                            </div>
+                        </div>
+                        <div id="compatibilityStatus" class="mt-3"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- No Animal Warning -->
+            <div id="noAnimalCompatSection" class="hidden mx-6 mt-6 bg-gray-50 rounded-xl p-4 border border-gray-200">
+                <p class="text-gray-600 flex items-center gap-2">
+                    <i class="fas fa-info-circle"></i>
+                    <span>No animal assigned to this slot. Inventory is available for general use.</span>
+                </p>
+            </div>
+
             <!-- Inventory Information -->
             <div class="p-6 space-y-4">
                 <div class="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-xl p-6 border border-blue-200">
@@ -202,8 +236,201 @@
         statusEl.textContent = data.status ? data.status.charAt(0).toUpperCase() + data.status.slice(1) : 'N/A';
         statusEl.className = `font-bold ${statusColors[data.status] || 'text-gray-600'}`;
 
+        // Display animal compatibility analysis
+        if (data.animal) {
+            displayCompatibilityAnalysis(data.animal, data);
+        } else {
+            document.getElementById('compatibilitySection').classList.add('hidden');
+            document.getElementById('noAnimalCompatSection').classList.remove('hidden');
+        }
+
         // Update form action
         document.getElementById('updateInventoryForm').action = `/shelter-management/inventory/${data.id}`;
+    }
+
+    function displayCompatibilityAnalysis(animal, inventoryData) {
+        document.getElementById('compatibilitySection').classList.remove('hidden');
+        document.getElementById('noAnimalCompatSection').classList.add('hidden');
+
+        // Populate animal info
+        document.getElementById('compatAnimalName').textContent = `${animal.name} (${animal.species})`;
+
+        const healthEl = document.getElementById('compatHealthStatus');
+        const healthColors = {
+            'Healthy': 'text-green-600',
+            'Sick': 'text-red-600',
+            'Recovering': 'text-orange-600',
+            'Critical': 'text-red-700'
+        };
+        healthEl.textContent = animal.health_status || 'Unknown';
+        healthEl.className = `font-bold ${healthColors[animal.health_status] || 'text-gray-600'}`;
+
+        // Analyze compatibility
+        const compatibility = analyzeCompatibility(animal, inventoryData);
+        displayCompatibilityResult(compatibility);
+    }
+
+    function analyzeCompatibility(animal, inventory) {
+        const itemName = inventory.item_name.toLowerCase();
+        const brand = (inventory.brand || '').toLowerCase();
+        const category = (inventory.category_main || '').toLowerCase();
+        const species = animal.species || 'Unknown';
+        const health = animal.health_status || 'Healthy';
+        const age = animal.age_category || 'Adult';
+
+        let status = 'suitable';
+        let messages = [];
+
+        // Define compatibility rules
+        const rules = {
+            // Species-specific restrictions
+            'Cat': {
+                unsuitable: ['dog food', 'dog treat', 'dog toy', 'canine', 'puppy'],
+                warnings: ['xylitol', 'chocolate', 'onion', 'garlic']
+            },
+            'Dog': {
+                unsuitable: ['cat food', 'cat litter', 'feline', 'kitten'],
+                warnings: ['xylitol', 'chocolate', 'grapes', 'raisins', 'onion', 'garlic']
+            }
+        };
+
+        // Health-based recommendations
+        if (health === 'Sick' || health === 'Critical') {
+            if (!itemName.includes('veterinary') && !itemName.includes('recovery') && !itemName.includes('medical') && category === 'food') {
+                status = 'warning';
+                messages.push('⚠️ Consider using veterinary-prescribed recovery diet for sick animals');
+            }
+            if (itemName.includes('recovery') || itemName.includes('veterinary') || brand.includes('veterinary')) {
+                status = 'excellent';
+                messages.push('✅ Excellent choice! This is a specialized recovery product suitable for sick animals');
+            }
+        }
+
+        // Age-based recommendations
+        if (age === 'Kitten' || age === 'Puppy') {
+            if (itemName.includes('adult') && !itemName.includes('kitten') && !itemName.includes('puppy')) {
+                status = 'warning';
+                messages.push('⚠️ This product is for adults. Consider using age-appropriate formula for young animals');
+            }
+            if (itemName.includes(age.toLowerCase())) {
+                messages.push('✅ Perfect! This product is specifically formulated for young animals');
+            }
+        }
+
+        if (age === 'Senior') {
+            if (itemName.includes('senior') || itemName.includes('7+')) {
+                messages.push('✅ Great! This product supports senior animal health needs');
+            }
+        }
+
+        // Species compatibility check
+        if (rules[species]) {
+            // Check unsuitable items
+            for (const unsuitable of rules[species].unsuitable) {
+                if (itemName.includes(unsuitable) || brand.includes(unsuitable)) {
+                    status = 'unsuitable';
+                    messages.push(`❌ UNSUITABLE: This product is not appropriate for ${species.toLowerCase()}s`);
+                    break;
+                }
+            }
+
+            // Check warnings
+            for (const warning of rules[species].warnings) {
+                if (itemName.includes(warning) || brand.includes(warning)) {
+                    status = 'danger';
+                    messages.push(`🚫 DANGER: Contains ${warning} which is toxic to ${species.toLowerCase()}s`);
+                    break;
+                }
+            }
+        }
+
+        // If no specific messages, add general compatibility
+        if (messages.length === 0) {
+            messages.push(`✅ This item appears suitable for ${animal.name} (${species} - ${health})`);
+        }
+
+        return { status, messages };
+    }
+
+    function displayCompatibilityResult(compatibility) {
+        const container = document.getElementById('compatibilityStatus');
+        const compatSection = document.getElementById('compatibilitySection');
+
+        const statusConfig = {
+            'excellent': {
+                bg: 'from-green-50 to-emerald-50',
+                border: 'border-green-300',
+                icon: 'check-circle',
+                iconColor: 'text-green-600',
+                containerBg: 'bg-green-600'
+            },
+            'suitable': {
+                bg: 'from-green-50 to-emerald-50',
+                border: 'border-green-300',
+                icon: 'check-circle',
+                iconColor: 'text-green-600',
+                containerBg: 'bg-green-600'
+            },
+            'warning': {
+                bg: 'from-orange-50 to-amber-50',
+                border: 'border-orange-300',
+                icon: 'exclamation-triangle',
+                iconColor: 'text-orange-600',
+                containerBg: 'bg-orange-600'
+            },
+            'unsuitable': {
+                bg: 'from-red-50 to-pink-50',
+                border: 'border-red-300',
+                icon: 'times-circle',
+                iconColor: 'text-red-600',
+                containerBg: 'bg-red-600'
+            },
+            'danger': {
+                bg: 'from-red-50 to-pink-50',
+                border: 'border-red-400',
+                icon: 'skull-crossbones',
+                iconColor: 'text-red-700',
+                containerBg: 'bg-red-700'
+            }
+        };
+
+        const config = statusConfig[compatibility.status];
+
+        // Update section background
+        compatSection.className = `mx-6 mt-6 bg-gradient-to-br ${config.bg} rounded-xl p-5 border-2 ${config.border}`;
+
+        // Update icon
+        const iconContainer = compatSection.querySelector('.bg-green-600, .bg-orange-600, .bg-red-600, .bg-red-700');
+        if (iconContainer) {
+            iconContainer.className = `${config.containerBg} text-white rounded-full p-3`;
+            const icon = iconContainer.querySelector('i');
+            if (icon) {
+                icon.className = `fas fa-${config.icon} text-xl`;
+            }
+        }
+
+        // Display messages
+        container.innerHTML = compatibility.messages.map(msg => {
+            let bgColor = 'bg-white';
+            let borderColor = 'border-gray-200';
+
+            if (msg.includes('❌') || msg.includes('🚫')) {
+                bgColor = 'bg-red-100';
+                borderColor = 'border-red-300';
+            } else if (msg.includes('⚠️')) {
+                bgColor = 'bg-orange-100';
+                borderColor = 'border-orange-300';
+            } else if (msg.includes('✅')) {
+                bgColor = 'bg-green-100';
+                borderColor = 'border-green-300';
+            }
+
+            return `
+                <div class="${bgColor} rounded-lg p-3 border ${borderColor} mb-2">
+                    <p class="text-sm font-semibold text-gray-800">${msg}</p>
+                </div>
+            `;
+        }).join('');
     }
 
     function toggleInventoryEdit() {
