@@ -9,6 +9,54 @@
 
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 </head>
+<style>
+    /* Custom scrollbar */
+    ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 10px;
+    }
+
+    ::-webkit-scrollbar-thumb {
+        background: #9333ea;
+        border-radius: 10px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+        background: #7e22ce;
+    }
+    /* Smooth line clamp */
+    .line-clamp-2 {
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+
+    /* Custom scrollbar */
+    ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 10px;
+    }
+
+    ::-webkit-scrollbar-thumb {
+        background: #9333ea;
+        border-radius: 10px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+        background: #7e22ce;
+    }
+</style>
 <body class="bg-gray-50 min-h-screen">
 
 <!-- Navbar -->
@@ -21,12 +69,12 @@
             <div>
                 <div class="flex items-center gap-3">
                     <h1 class="text-2xl font-semibold text-white">Rescue #{{ $rescue->id }}</h1>
-                    <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium
-                        @if($rescue->status === 'Scheduled') bg-yellow-100 text-yellow-800
-                        @elseif($rescue->status === 'In Progress') bg-blue-100 text-blue-800
-                        @elseif($rescue->status === 'Success') bg-green-100 text-green-800
-                        @elseif($rescue->status === 'Failed') bg-red-100 text-red-800
-                        @else bg-gray-100 text-gray-800 @endif">
+                    <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold shadow-sm
+                        @if($rescue->status === 'Scheduled') bg-amber-200 text-amber-900 border border-amber-300
+                        @elseif($rescue->status === 'In Progress') bg-sky-200 text-sky-900 border border-sky-300
+                        @elseif($rescue->status === 'Success') bg-emerald-200 text-emerald-900 border border-emerald-300
+                        @elseif($rescue->status === 'Failed') bg-rose-200 text-rose-900 border border-rose-300
+                        @else bg-gray-200 text-gray-800 border border-gray-300 @endif">
                         {{ $rescue->status }}
                     </span>
                 </div>
@@ -169,7 +217,7 @@
                         <!-- Main Image Display -->
                         <div id="rescueImageSwiperContent" class="w-full h-full flex items-center justify-center">
                             @if($rescue->report->images && $rescue->report->images->count() > 0)
-                                <img src="{{ asset('storage/' . $rescue->report->images->first()->image_path) }}"
+                                <img src="{{ $rescue->report->images->first()->url }}"
                                     alt="Report Image 1"
                                     class="max-w-full max-h-full object-contain cursor-pointer"
                                     onclick="openImageModal(this.src)">
@@ -211,7 +259,7 @@
                                     <div onclick="rescueGoToImage({{ $index }})"
                                         class="flex-shrink-0 w-16 h-16 cursor-pointer rounded overflow-hidden border-2 {{ $index == 0 ? 'border-purple-500' : 'border-gray-200 hover:border-purple-300' }}"
                                         id="rescueThumbnail-{{ $index }}">
-                                        <img src="{{ asset('storage/' . $image->image_path) }}"
+                                        <img src="{{ $image->url }}"
                                             alt="Thumbnail {{ $loop->iteration }}"
                                             class="w-full h-full object-cover">
                                     </div>
@@ -245,24 +293,28 @@
                             @method('PATCH')
 
                             <div class="grid grid-cols-2 gap-2">
-                                <button type="button" onclick="updateStatus('Scheduled')"
-                                        class="bg-yellow-100 hover:bg-yellow-200 text-yellow-800 px-3 py-2 rounded-lg text-sm font-medium transition-colors">
-                                    Scheduled
+                                <button type="button" onclick="updateStatus('Scheduled')" id="statusScheduledBtn"
+                                        class="bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-white px-3 py-2 rounded-lg text-sm font-bold transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2">
+                                    <span class="inline-block w-2 h-2 rounded-full bg-amber-200"></span>
+                                    <span id="statusScheduledText">Scheduled</span>
                                 </button>
 
-                                <button type="button" onclick="updateStatus('In Progress')"
-                                        class="bg-blue-100 hover:bg-blue-200 text-blue-800 px-3 py-2 rounded-lg text-sm font-medium transition-colors">
-                                    In Progress
+                                <button type="button" onclick="updateStatus('In Progress')" id="statusProgressBtn"
+                                        class="bg-gradient-to-r from-sky-500 to-sky-600 hover:from-sky-600 hover:to-sky-700 text-white px-3 py-2 rounded-lg text-sm font-bold transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2">
+                                    <span class="inline-block w-2 h-2 rounded-full bg-sky-200"></span>
+                                    <span id="statusProgressText">In Progress</span>
                                 </button>
 
-                                <button type="button" onclick="updateStatus('Success')"
-                                        class="bg-green-100 hover:bg-green-200 text-green-800 px-3 py-2 rounded-lg text-sm font-medium transition-colors">
-                                    Success
+                                <button type="button" onclick="updateStatus('Success')" id="statusSuccessBtn"
+                                        class="bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white px-3 py-2 rounded-lg text-sm font-bold transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2">
+                                    <span class="inline-block w-2 h-2 rounded-full bg-emerald-200"></span>
+                                    <span id="statusSuccessText">Success</span>
                                 </button>
 
-                                <button type="button" onclick="updateStatus('Failed')"
-                                        class="bg-red-100 hover:bg-red-200 text-red-800 px-3 py-2 rounded-lg text-sm font-medium transition-colors">
-                                    Failed
+                                <button type="button" onclick="updateStatus('Failed')" id="statusFailedBtn"
+                                        class="bg-gradient-to-r from-rose-500 to-rose-600 hover:from-rose-600 hover:to-rose-700 text-white px-3 py-2 rounded-lg text-sm font-bold transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2">
+                                    <span class="inline-block w-2 h-2 rounded-full bg-rose-200"></span>
+                                    <span id="statusFailedText">Failed</span>
                                 </button>
                             </div>
                         </form>
@@ -270,6 +322,18 @@
                 </div>
             </div>
         </div>
+    </div>
+</div>
+
+<!-- Loading Overlay (Full Screen) -->
+<div id="loadingOverlay" class="fixed inset-0 bg-white bg-opacity-90 backdrop-blur-md hidden z-[99999] flex items-center justify-center" style="backdrop-filter: blur(8px);">
+    <div class="bg-white rounded-lg shadow-2xl p-8 flex flex-col items-center gap-4 border-2 border-gray-200">
+        <svg class="animate-spin h-16 w-16 text-purple-600" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+        <p class="text-gray-800 font-bold text-xl">Updating rescue status...</p>
+        <p class="text-gray-600 text-base">Please wait</p>
     </div>
 </div>
 
@@ -318,13 +382,13 @@
 
                 <!-- Modal Actions -->
                 <div class="flex gap-3">
-                    <button type="button" onclick="closeRemarksModal()"
+                    <button type="button" onclick="closeRemarksModal()" id="modalCancelBtn"
                             class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-2 rounded-lg transition-colors text-sm">
                         Cancel
                     </button>
                     <button type="submit" id="submitBtn"
-                            class="flex-1 font-medium py-2 rounded-lg transition-colors text-sm text-white">
-                        Confirm
+                            class="flex-1 font-medium py-2 rounded-lg transition-colors text-sm text-white flex items-center justify-center gap-2">
+                        <span id="submitBtnText">Confirm</span>
                     </button>
                 </div>
             </form>
@@ -373,7 +437,7 @@ function closeImageModal() {
 let rescueImages = [
     @if($rescue->report->images && $rescue->report->images->count() > 0)
         @foreach($rescue->report->images as $image)
-            { path: "{{ asset('storage/' . $image->image_path) }}" },
+            { path: "{{ $image->url }}" },
         @endforeach
     @endif
 ];
@@ -497,6 +561,15 @@ function submitStatusUpdate(event) {
         return;
     }
 
+    // Close the remarks modal
+    closeRemarksModal();
+
+    // Show full-screen loading overlay with blur
+    const loadingOverlay = document.getElementById('loadingOverlay');
+    loadingOverlay.classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+
+    // Continue with form submission
     const form = document.getElementById('statusForm');
 
     const statusInput = document.createElement('input');
@@ -511,7 +584,11 @@ function submitStatusUpdate(event) {
 
     form.appendChild(statusInput);
     form.appendChild(remarksInput);
-    form.submit();
+
+    // Submit form after a short delay to ensure overlay is visible
+    setTimeout(() => {
+        form.submit();
+    }, 100);
 }
 
 function submitStatusDirectly(status) {
@@ -523,8 +600,59 @@ function submitStatusDirectly(status) {
     statusInput.value = status;
 
     form.appendChild(statusInput);
+
+    // Show loading state on the clicked button
+    showStatusButtonLoading(status);
+
     form.submit();
 }
+
+// ==================== LOADING STATE FUNCTIONS ====================
+
+function showStatusButtonLoading(status) {
+    // Map status to button ID and text ID
+    const buttonMap = {
+        'Scheduled': { btnId: 'statusScheduledBtn', textId: 'statusScheduledText' },
+        'In Progress': { btnId: 'statusProgressBtn', textId: 'statusProgressText' },
+        'Success': { btnId: 'statusSuccessBtn', textId: 'statusSuccessText' },
+        'Failed': { btnId: 'statusFailedBtn', textId: 'statusFailedText' }
+    };
+
+    const mapping = buttonMap[status];
+    if (!mapping) return;
+
+    const btn = document.getElementById(mapping.btnId);
+    const textSpan = document.getElementById(mapping.textId);
+
+    if (btn && textSpan) {
+        // Disable all status buttons
+        Object.values(buttonMap).forEach(m => {
+            const button = document.getElementById(m.btnId);
+            if (button) button.disabled = true;
+        });
+
+        // Show spinner in the clicked button
+        btn.innerHTML = `
+            <svg class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <span>Updating...</span>
+        `;
+    }
+}
 </script>
+
+<style>
+    /* Spinner animation */
+    .animate-spin {
+        animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+</style>
 </body>
 </html>

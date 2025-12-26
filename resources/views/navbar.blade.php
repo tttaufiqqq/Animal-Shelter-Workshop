@@ -30,6 +30,15 @@
                 </a>
             @endrole
 
+           {{-- Public User and Adopter: Submit Report (not on welcome page) --}}
+           @role('public user|adopter')
+           @unless(request()->routeIs('welcome'))
+               <a href="{{ route('welcome') }}" class="text-purple-100 hover:text-white transition duration-300 font-medium px-3 py-2">
+                   Submit Report
+               </a>
+           @endunless
+           @endrole
+
             {{-- ADMIN + CARETAKER + USER: Animal --}}
             <a href="{{ route('animal:main') }}" class="text-purple-100 hover:text-white transition duration-300 font-medium px-3 py-2">
                 Animal

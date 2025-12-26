@@ -35,7 +35,19 @@
       "Bash(composer dump-autoload:*)",
       "Bash(ipconfig:*)",
       "Bash(findstr:*)",
-      "Bash(php artisan serve:*)"
+      "Bash(php artisan serve:*)",
+      "Bash(php test_password_reset.php:*)",
+      "Bash(del test_password_reset.php list_users.php)",
+      "Bash(composer require:*)",
+      "Bash(php artisan vendor:publish:*)",
+      "Bash(php update-cloudinary-views.php:*)",
+      "Bash(composer show:*)",
+      "Bash(cat:*)",
+      "Bash(php test-cloudinary.php:*)",
+      "Bash(php fix-ssl.php:*)",
+      "Bash(php -i:*)",
+      "Bash(php fix-missing-cloudinary-images.php:*)",
+      "Bash(find:*)"
     ]
   }
 }

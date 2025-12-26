@@ -71,6 +71,14 @@
             <p class="text-sm font-medium text-green-800">{{ session('success') }}</p>
         </div>
     @endif
+        @if (session('error'))
+            <div class="flex items-start gap-3 p-4 mb-6 bg-red-50 border border-red-200 rounded-xl shadow-sm mx-6 mt-6">
+                <svg class="w-6 h-6 text-red-600 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+                <p class="font-semibold text-red-700">{{ session('error') }}</p>
+            </div>
+        @endif
     <!-- Main Content -->
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <!-- Report Details -->
@@ -171,7 +179,7 @@
                         <!-- Main Image Display -->
                         <div id="imageSwiperContent" class="w-full h-full flex items-center justify-center">
                             @if($report->images && $report->images->count() > 0)
-                                <img src="{{ asset('storage/' . $report->images->first()->image_path) }}"
+                                <img src="{{ $report->images->first()->url }}"
                                     alt="Report Image 1"
                                     class="max-w-full max-h-full object-contain cursor-pointer"
                                     onclick="openImageModal(this.src)">
@@ -213,7 +221,7 @@
                                     <div onclick="goToImage({{ $index }})"
                                         class="flex-shrink-0 w-16 h-16 cursor-pointer rounded overflow-hidden border-2 {{ $index == 0 ? 'border-purple-500' : 'border-gray-200 hover:border-purple-300' }}"
                                         id="thumbnail-{{ $index }}">
-                                        <img src="{{ asset('storage/' . $image->image_path) }}"
+                                        <img src="{{ $image->url }}"
                                             alt="Thumbnail {{ $loop->iteration }}"
                                             class="w-full h-full object-cover">
                                     </div>
@@ -237,21 +245,25 @@
 
                         <label class="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Assign to Caretaker</label>
                         <div class="flex gap-2">
-                            <select name="caretaker_id" required
-                                    class="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                            <select name="caretaker_id" required id="caretakerSelect"
+                                    class="flex-1 px-3 py-2 text-sm border @error('caretaker_id') border-red-500 @else border-gray-300 @enderror rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
                                 <option value="">Select caretaker...</option>
                                 @foreach($caretakers as $caretaker)
                                     <option value="{{ $caretaker->id }}"
-                                            {{ $report->rescue && $report->rescue->caretakerID == $caretaker->id ? 'selected' : '' }}>
+                                            {{ old('caretaker_id') == $caretaker->id || ($report->rescue && $report->rescue->caretakerID == $caretaker->id) ? 'selected' : '' }}>
                                         {{ $caretaker->name }}
                                     </option>
                                 @endforeach
                             </select>
-                            <button type="submit"
-                                    class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
-                                Assign
+                            <button type="submit" id="assignBtn"
+                                    class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2">
+                                <span id="assignBtnText">Assign</span>
                             </button>
                         </div>
+
+                        @error('caretaker_id')
+                            <p class="mt-2 text-xs text-red-600">{{ $message }}</p>
+                        @enderror
 
                         @if($report->rescue && $report->rescue->caretaker)
                             <p class="mt-2 text-xs text-gray-600">
@@ -261,18 +273,14 @@
                     </form>
 
                     <!-- Delete Button -->
-                    <form action="{{ route('reports.destroy', $report->id) }}" method="POST"
-                          onsubmit="return confirm('Are you sure you want to delete this report? This action cannot be undone.');"
-                          class="pt-4 border-t border-gray-200">
-                        @csrf
-                        @method('DELETE')
-                        <button type="submit" class="w-full bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2">
+                    <div class="pt-4 border-t border-gray-200">
+                        <button type="button" onclick="openDeleteModal()" class="w-full bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
                             </svg>
-                            Delete Report
+                            <span>Delete Report</span>
                         </button>
-                    </form>
+                    </div>
                 </div>
             </div>
         </div>
@@ -280,14 +288,81 @@
 </div>
 
 <!-- Image Modal -->
-<div id="imageModal" class="fixed inset-0 bg-black bg-opacity-90 hidden z-50 flex items-center justify-center p-4" onclick="closeImageModal()">
-    <div class="max-w-6xl max-h-full relative" onclick="event.stopPropagation()">
+<div id="imageModal" class="fixed inset-0 bg-black bg-opacity-90 backdrop-blur-md hidden z-[9999] flex items-center justify-center p-4 opacity-0 transition-opacity duration-300" onclick="closeImageModal()">
+    <div class="max-w-6xl max-h-full relative transform scale-95 transition-transform duration-300" onclick="event.stopPropagation()" id="imageModalContent">
         <button onclick="closeImageModal()" class="absolute -top-10 right-0 text-white hover:text-gray-300 transition">
             <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
             </svg>
         </button>
         <img id="modalImage" src="" alt="Enlarged view" class="max-w-full max-h-screen rounded">
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div id="deleteConfirmModal" class="modal-backdrop hidden fixed inset-0 bg-black bg-opacity-50 backdrop-blur-md flex items-center justify-center z-[9999] p-4 opacity-0 transition-opacity duration-300">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full transform scale-95 transition-transform duration-300" onclick="event.stopPropagation()" id="deleteModalContent">
+        <!-- Header -->
+        <div class="bg-gradient-to-r from-red-600 to-red-700 text-white p-6 rounded-t-2xl">
+            <div class="flex items-center gap-3">
+                <div class="bg-white bg-opacity-20 p-3 rounded-full">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                    </svg>
+                </div>
+                <div>
+                    <h2 class="text-xl font-bold">Delete Report</h2>
+                    <p class="text-red-100 text-sm">Report #{{ $report->id }}</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Body -->
+        <div class="p-6">
+            <p class="text-gray-700 mb-4 text-lg font-medium">Are you sure you want to delete this report?</p>
+            <div class="bg-red-50 border-l-4 border-red-500 p-4 mb-4 rounded">
+                <div class="flex items-start gap-2">
+                    <svg class="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                    </svg>
+                    <div>
+                        <p class="text-sm font-semibold text-red-800 mb-1">Warning: This action cannot be undone!</p>
+                        <p class="text-sm text-red-700">All information associated with this report will be permanently deleted, including:</p>
+                        <ul class="mt-2 text-sm text-red-700 list-disc list-inside space-y-1">
+                            <li>Report details and location</li>
+                            <li>All uploaded images</li>
+                            <li>Assignment history</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="bg-gray-50 p-6 border-t border-gray-200 flex gap-3 rounded-b-2xl">
+            <button type="button"
+                    onclick="closeDeleteModal()"
+                    id="cancelDeleteBtn"
+                    class="flex-1 px-6 py-3 bg-gray-600 hover:bg-gray-700 text-white font-semibold rounded-lg transition duration-300">
+                <svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+                No, Keep Report
+            </button>
+
+            <form action="{{ route('reports.destroy', $report->id) }}" method="POST" class="flex-1" id="deleteReportForm">
+                @csrf
+                @method('DELETE')
+                <button type="submit"
+                        id="confirmDeleteBtn"
+                        class="w-full px-6 py-3 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg transition duration-300 flex items-center gap-2 justify-center">
+                    <svg class="w-5 h-5" id="deleteIcon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                    </svg>
+                    <span id="confirmDeleteBtnText">Yes, Delete Report</span>
+                </button>
+            </form>
+        </div>
     </div>
 </div>
 
@@ -321,21 +396,91 @@ const circle = L.circle([{{ $report->latitude }}, {{ $report->longitude }}], {
     radius: 100
 }).addTo(map);
 
+// Disable/Enable Map Interactions
+function disableMapInteractions() {
+    // Close any open popups
+    map.closePopup();
+
+    // Disable all interactions
+    map.dragging.disable();
+    map.touchZoom.disable();
+    map.doubleClickZoom.disable();
+    map.scrollWheelZoom.disable();
+    map.boxZoom.disable();
+    map.keyboard.disable();
+    if (map.tap) map.tap.disable();
+
+    // Make map completely non-interactive
+    document.getElementById('map').style.pointerEvents = 'none';
+    document.getElementById('map').style.zIndex = '1';
+
+    // Disable marker interactions
+    marker.closePopup();
+    marker.off('click');
+}
+
+function enableMapInteractions() {
+    // Re-enable all interactions
+    map.dragging.enable();
+    map.touchZoom.enable();
+    map.doubleClickZoom.enable();
+    map.scrollWheelZoom.enable();
+    map.boxZoom.enable();
+    map.keyboard.enable();
+    if (map.tap) map.tap.enable();
+
+    // Restore interactivity
+    document.getElementById('map').style.pointerEvents = 'auto';
+    document.getElementById('map').style.zIndex = '';
+
+    // Re-enable marker click
+    marker.on('click', function() {
+        this.openPopup();
+    });
+}
+
 // Image Modal Functions
 function openImageModal(imageSrc) {
+    const modal = document.getElementById('imageModal');
+    const modalContent = document.getElementById('imageModalContent');
+
     document.getElementById('modalImage').src = imageSrc;
-    document.getElementById('imageModal').classList.remove('hidden');
+    modal.classList.remove('hidden');
     document.body.style.overflow = 'hidden';
+
+    // Disable map interactions
+    disableMapInteractions();
+
+    // Trigger animation
+    setTimeout(() => {
+        modal.classList.remove('opacity-0');
+        modalContent.classList.remove('scale-95');
+        modalContent.classList.add('scale-100');
+    }, 10);
 }
 
 function closeImageModal() {
-    document.getElementById('imageModal').classList.add('hidden');
-    document.body.style.overflow = 'auto';
+    const modal = document.getElementById('imageModal');
+    const modalContent = document.getElementById('imageModalContent');
+
+    // Trigger close animation
+    modal.classList.add('opacity-0');
+    modalContent.classList.remove('scale-100');
+    modalContent.classList.add('scale-95');
+
+    // Re-enable map interactions
+    enableMapInteractions();
+
+    // Hide after animation completes
+    setTimeout(() => {
+        modal.classList.add('hidden');
+        document.body.style.overflow = 'auto';
+    }, 300);
 }
 
 // Close modal with Escape key
 document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape') {
+    if (e.key === 'Escape' && !document.getElementById('imageModal').classList.contains('hidden')) {
         closeImageModal();
     }
 });
@@ -344,7 +489,7 @@ document.addEventListener('keydown', function(e) {
 let currentImages = [
     @if($report->images && $report->images->count() > 0)
         @foreach($report->images as $image)
-            { path: "{{ asset('storage/' . $image->image_path) }}" },
+            { path: "{{ $image->url }}" },
         @endforeach
     @endif
 ];
@@ -409,6 +554,122 @@ function prevImage() {
 
 // Initialize on page load
 displayCurrentImage();
+
+// ==================== FORM SUBMISSION LOADING STATES ====================
+
+// Assign Caretaker Form
+document.querySelector('form[action*="assign-caretaker"]').addEventListener('submit', function(e) {
+    const assignBtn = document.getElementById('assignBtn');
+    const assignBtnText = document.getElementById('assignBtnText');
+    const caretakerSelect = document.getElementById('caretakerSelect');
+
+    // Disable button and select
+    assignBtn.disabled = true;
+    caretakerSelect.disabled = true;
+
+    // Add spinner and update text
+    assignBtn.innerHTML = `
+        <svg class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+        <span>Assigning...</span>
+    `;
+
+    // Allow form to submit
+    return true;
+});
+
+// ==================== DELETE MODAL FUNCTIONS ====================
+
+// Open delete confirmation modal
+function openDeleteModal() {
+    const modal = document.getElementById('deleteConfirmModal');
+    const modalContent = document.getElementById('deleteModalContent');
+
+    modal.classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+
+    // Disable map interactions
+    disableMapInteractions();
+
+    // Trigger animation
+    setTimeout(() => {
+        modal.classList.remove('opacity-0');
+        modalContent.classList.remove('scale-95');
+        modalContent.classList.add('scale-100');
+    }, 10);
+}
+
+// Close delete confirmation modal
+function closeDeleteModal() {
+    const modal = document.getElementById('deleteConfirmModal');
+    const modalContent = document.getElementById('deleteModalContent');
+
+    // Trigger close animation
+    modal.classList.add('opacity-0');
+    modalContent.classList.remove('scale-100');
+    modalContent.classList.add('scale-95');
+
+    // Re-enable map interactions
+    enableMapInteractions();
+
+    // Hide after animation completes
+    setTimeout(() => {
+        modal.classList.add('hidden');
+        document.body.style.overflow = 'auto';
+    }, 300);
+}
+
+// Delete Report Form submission with loading state
+document.getElementById('deleteReportForm').addEventListener('submit', function(e) {
+    const deleteBtn = document.getElementById('confirmDeleteBtn');
+    const cancelBtn = document.getElementById('cancelDeleteBtn');
+    const deleteIcon = document.getElementById('deleteIcon');
+    const deleteText = document.getElementById('confirmDeleteBtnText');
+
+    // Disable buttons
+    deleteBtn.disabled = true;
+    cancelBtn.disabled = true;
+
+    // Replace content with spinner
+    deleteBtn.innerHTML = `
+        <svg class="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+        <span>Deleting...</span>
+    `;
+
+    // Allow form to submit
+    return true;
+});
+
+// Close modal when clicking outside
+document.getElementById('deleteConfirmModal')?.addEventListener('click', function(e) {
+    if (e.target === this) {
+        closeDeleteModal();
+    }
+});
+
+// Close modal with Escape key
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape' && !document.getElementById('deleteConfirmModal')?.classList.contains('hidden')) {
+        closeDeleteModal();
+    }
+});
 </script>
+
+<style>
+    /* Spinner animation */
+    .animate-spin {
+        animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+</style>
 </body>
 </html>

@@ -34,7 +34,6 @@
 
     <div class="py-8">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
-
             <!-- Results Table -->
             <div class="bg-white border border-gray-200 rounded-lg shadow-sm">
                 <div class="px-6 py-4 border-b border-gray-200 bg-gray-50">
@@ -179,4 +178,10 @@
             </div>
         </div>
     </div>
+
+    <script>
+        function closeConnectivityBanner() {
+            document.getElementById('connectivityBanner').style.display = 'none';
+        }
+    </script>
 </x-app-layout>

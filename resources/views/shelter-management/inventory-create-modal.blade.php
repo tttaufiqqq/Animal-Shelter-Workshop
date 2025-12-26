@@ -137,11 +137,12 @@
 
             <!-- Modal Footer -->
             <div class="flex justify-end gap-3 pt-4 border-t">
-                <button type="button" onclick="closeInventoryModal()" class="px-6 py-3 bg-gray-200 text-gray-700 font-semibold rounded-lg hover:bg-gray-300 transition duration-300">
+                <button type="button" onclick="closeInventoryModal()" id="inventoryCancelBtn" class="px-6 py-3 bg-gray-200 text-gray-700 font-semibold rounded-lg hover:bg-gray-300 transition duration-300">
                     Cancel
                 </button>
-                <button type="submit" class="px-6 py-3 bg-gradient-to-r from-blue-500 to-cyan-600 text-white font-semibold rounded-lg hover:from-blue-600 hover:to-cyan-700 transition duration-300">
-                    <i class="fas fa-save mr-2"></i>Add Inventory
+                <button type="submit" id="inventorySubmitBtn" class="px-6 py-3 bg-gradient-to-r from-blue-500 to-cyan-600 text-white font-semibold rounded-lg hover:from-blue-600 hover:to-cyan-700 transition duration-300 flex items-center gap-2">
+                    <i class="fas fa-save" id="inventorySubmitIcon"></i>
+                    <span id="inventorySubmitText">Add Inventory</span>
                 </button>
             </div>
         </form>
@@ -396,4 +397,35 @@
             closeInventoryModal();
         }
     });
+
+    // Handle form submission with loading state
+    document.getElementById('inventoryForm').addEventListener('submit', function(e) {
+        const submitBtn = document.getElementById('inventorySubmitBtn');
+        const submitIcon = document.getElementById('inventorySubmitIcon');
+        const submitText = document.getElementById('inventorySubmitText');
+        const cancelBtn = document.getElementById('inventoryCancelBtn');
+
+        // Disable buttons
+        submitBtn.disabled = true;
+        cancelBtn.disabled = true;
+
+        // Change icon to spinner
+        submitIcon.className = 'fas fa-spinner fa-spin';
+        submitText.textContent = 'Adding...';
+
+        // Allow form to submit
+        return true;
+    });
 </script>
+
+<style>
+    /* Spinner animation */
+    .fa-spin {
+        animation: fa-spin 1s infinite linear;
+    }
+
+    @keyframes fa-spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+</style>

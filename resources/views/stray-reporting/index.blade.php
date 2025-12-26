@@ -98,15 +98,22 @@
 </div>
 
 <div class="max-w-7xl mx-auto mt-10 p-4 md:p-6 pb-10">
-    @if (session('success'))
-        <div class="flex items-start gap-3 p-4 mb-6 bg-green-50 border border-green-200 rounded-xl shadow-sm">
-            <svg class="w-6 h-6 text-green-600 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+    @if(session('success'))
+        <div class="flex items-start gap-3 p-4 mb-6 bg-green-50 border-l-4 border-green-500 rounded">
+            <svg class="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
             </svg>
-            <p class="font-semibold text-green-700">{{ session('success') }}</p>
+            <p class="text-sm font-medium text-green-800">{{ session('success') }}</p>
         </div>
     @endif
-
+        @if (session('error'))
+            <div class="flex items-start gap-3 p-4 mb-6 bg-red-50 border border-red-200 rounded-xl shadow-sm mx-6 mt-6">
+                <svg class="w-6 h-6 text-red-600 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+                <p class="font-semibold text-red-700">{{ session('error') }}</p>
+            </div>
+        @endif
     <!-- Status Filter Cards -->
     <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
         <!-- Total Reports -->
@@ -245,9 +252,9 @@
                             </td>
                             <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
                                 @if($report->images->count() > 0)
-                                    <div class="flex items-center gap-1 cursor-pointer" onclick="event.preventDefault(); showImagesModal({{ $report->id }}, {{ json_encode($report->images->map(fn($img) => asset('storage/' . $img->image_path))) }})">
+                                    <div class="flex items-center gap-1 cursor-pointer" onclick="event.preventDefault(); showImagesModal({{ $report->id }}, {{ json_encode($report->images->map(fn($img) => $img->url)) }})">
                                         @foreach($report->images->take(3) as $image)
-                                            <img src="{{ asset('storage/' . $image->image_path) }}"
+                                            <img src="{{ $image->url }}"
                                                  alt="Report image"
                                                  class="w-8 h-8 rounded-full object-cover border-2 border-white shadow-sm hover:scale-110 transition-transform"
                                                  onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjMyIiBoZWlnaHQ9IjMyIiBmaWxsPSIjZTVlN2ViIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxMCIgZmlsbD0iIzk5OSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPj88L3RleHQ+PC9zdmc+'">

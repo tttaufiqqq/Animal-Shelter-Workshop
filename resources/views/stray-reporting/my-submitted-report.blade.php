@@ -117,10 +117,10 @@
                                             <div class="flex items-center gap-2">
                                                 <div class="flex -space-x-2">
                                                     @foreach($report->images->take(3) as $image)
-                                                        <img src="{{ asset('storage/' . $image->image_path) }}"
+                                                        <img src="{{ $image->url }}"
                                                              alt="Report Image"
                                                              class="w-8 h-8 rounded-full object-cover border-2 border-white cursor-pointer hover:scale-110 transition-transform shadow-sm"
-                                                             onclick="openImageModal('{{ asset('storage/' . $image->image_path) }}')">
+                                                             onclick="openImageModal('{{ $image->url }}')">
                                                     @endforeach
                                                 </div>
                                                 @if($report->images->count() > 3)
@@ -235,10 +235,10 @@
                     </h4>
                     <div class="grid grid-cols-4 gap-3">
                         ${report.images.map(img => `
-                            <img src="/storage/${img.image_path}"
+                            <img src="${img.url}"
                                  alt="Report Image"
                                  class="w-full h-32 object-cover rounded-lg cursor-pointer hover:opacity-75 transition shadow-md"
-                                 onclick="openImageModal('/storage/${img.image_path}')">
+                                 onclick="openImageModal('${img.url}')">
                         `).join('')}
                     </div>
                 </div>

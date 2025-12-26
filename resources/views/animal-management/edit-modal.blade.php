@@ -254,7 +254,7 @@
                                 <span class="text-xs bg-purple-200 text-purple-800 px-2 py-1 rounded-full font-semibold">Main</span>
                             </div>
                             <div class="relative image-preview-container rounded-xl overflow-hidden shadow-xl group">
-                                <img src="{{ asset('storage/' . $firstImage->image_path) }}"
+                                <img src="{{ $firstImage->url }}"
                                      alt="Primary image for {{ $animal->name }}"
                                      class="w-full h-72 object-cover image-preview">
 
@@ -291,7 +291,7 @@
                                 <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
                                     @foreach($remainingImages as $image)
                                         <div class="relative group image-preview-container rounded-xl overflow-hidden shadow-lg border-2 border-gray-200 hover:border-purple-400 transition-all">
-                                            <img src="{{ asset('storage/' . $image->image_path) }}"
+                                            <img src="{{ $image->url }}"
                                                  alt="Animal image"
                                                  class="w-full h-36 object-cover image-preview">
 

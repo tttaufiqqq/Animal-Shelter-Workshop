@@ -333,9 +333,19 @@ class AnimalManagementController extends Controller
             ]);
 
             if ($request->hasFile('images')) {
+                $imageIndex = 1;
                 foreach ($request->file('images') as $imageFile) {
-                    $filename = time() . '_' . uniqid() . '.' . $imageFile->getClientOriginalExtension();
-                    $path = $imageFile->storeAs('animal_images', $filename, 'public');
+                    // Create descriptive filename: animal_1_fluffy_dog_1
+                    $sanitizedName = strtolower(preg_replace('/[^a-zA-Z0-9]/', '_', $animal->name));
+                    $sanitizedSpecies = strtolower(preg_replace('/[^a-zA-Z0-9]/', '_', $animal->species));
+                    $filename = "animal_{$animal->id}_{$sanitizedName}_{$sanitizedSpecies}_{$imageIndex}";
+
+                    // Upload to Cloudinary
+                    $uploadResult = cloudinary()->uploadApi()->upload($imageFile->getRealPath(), [
+                        'folder' => 'animal_images',
+                        'public_id' => $filename,
+                    ]);
+                    $path = $uploadResult['public_id'];
                     $uploadedFiles[] = $path;
 
                     Image::create([
@@ -344,6 +354,8 @@ class AnimalManagementController extends Controller
                         'filename' => $filename,
                         'uploaded_at' => now(),
                     ]);
+
+                    $imageIndex++;
                 }
             }
 
@@ -377,7 +389,7 @@ class AnimalManagementController extends Controller
             DB::connection('eilya')->rollBack();
 
             foreach ($uploadedFiles as $filePath) {
-                Storage::disk('public')->delete($filePath);
+                cloudinary()->uploadApi()->destroy($filePath);
             }
 
             return back()
@@ -463,7 +475,11 @@ public function update(Request $request, $id)
                         'path' => $img->image_path
                     ]);
 
-                    Storage::disk('public')->delete($img->image_path);
+                    try {
+                        cloudinary()->uploadApi()->destroy($img->image_path);
+                    } catch (\Exception $e) {
+                        // Continue even if Cloudinary deletion fails
+                    }
                     $img->delete();
                 }
             }
@@ -475,9 +491,22 @@ public function update(Request $request, $id)
 
         // ----- Upload New Images Optional -----
         if ($request->hasFile('images')) {
+            // Get current image count to continue numbering
+            $existingImageCount = $animal->images()->count();
+            $imageIndex = $existingImageCount + 1;
+
             foreach ($request->file('images') as $file) {
-                $filename = time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
-                $path = $file->storeAs('animal_images', $filename, 'public');
+                // Create descriptive filename: animal_1_fluffy_dog_3
+                $sanitizedName = strtolower(preg_replace('/[^a-zA-Z0-9]/', '_', $animal->name));
+                $sanitizedSpecies = strtolower(preg_replace('/[^a-zA-Z0-9]/', '_', $animal->species));
+                $filename = "animal_{$animal->id}_{$sanitizedName}_{$sanitizedSpecies}_{$imageIndex}";
+
+                // Upload to Cloudinary
+                $uploadResult = cloudinary()->uploadApi()->upload($file->getRealPath(), [
+                    'folder' => 'animal_images',
+                    'public_id' => $filename,
+                ]);
+                $path = $uploadResult['public_id'];
 
                 $uploadedFiles[] = $path;
 
@@ -487,6 +516,8 @@ public function update(Request $request, $id)
                     'filename' => $filename,
                     'uploaded_at' => now(),
                 ]);
+
+                $imageIndex++;
             }
 
             \Log::info('Uploaded images:', [
@@ -518,7 +549,7 @@ public function update(Request $request, $id)
         ]);
 
         foreach ($uploadedFiles as $path) {
-            Storage::disk('public')->delete($path);
+            cloudinary()->uploadApi()->destroy($path);
         }
 
         return back()->withInput()
@@ -863,7 +894,11 @@ public function update(Request $request, $id)
             if ($eilyaOnline) {
                 try {
                     foreach ($animal->images as $image) {
-                        Storage::disk('public')->delete($image->image_path);
+                        try {
+                            cloudinary()->uploadApi()->destroy($image->image_path);
+                        } catch (\Exception $e) {
+                            // Continue even if Cloudinary deletion fails
+                        }
                         $image->delete();
                     }
                 } catch (\Exception $e) {

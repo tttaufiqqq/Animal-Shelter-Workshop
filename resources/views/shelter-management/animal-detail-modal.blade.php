@@ -433,11 +433,11 @@
         // Generate thumbnails
         if (images.length > 1) {
             const thumbnailsHtml = images.map((image, index) => `
-                <div onclick="goToImage(${index})" 
-                     class="flex-shrink-0 w-20 h-20 cursor-pointer rounded-lg overflow-hidden border-2 transition duration-300 ${index === 0 ? 'border-green-600' : 'border-gray-300 hover:border-green-400'}" 
+                <div onclick="goToImage(${index})"
+                     class="flex-shrink-0 w-20 h-20 cursor-pointer rounded-lg overflow-hidden border-2 transition duration-300 ${index === 0 ? 'border-green-600' : 'border-gray-300 hover:border-green-400'}"
                      id="thumbnail-${index}">
-                    <img src="/storage/${image.path}" 
-                         alt="Thumbnail ${index + 1}" 
+                    <img src="${image.url || image.path}"
+                         alt="Thumbnail ${index + 1}"
                          class="w-full h-full object-cover">
                 </div>
             `).join('');
@@ -455,8 +455,8 @@
         const image = currentImages[currentImageIndex];
 
         imageSwiperContent.innerHTML = `
-            <img src="/storage/${image.path}" 
-                 alt="${image.description || 'Animal image'}" 
+            <img src="${image.url || image.path}"
+                 alt="${image.description || 'Animal image'}"
                  class="max-w-full max-h-full object-contain"
                  onerror="this.src='/images/placeholder.jpg'">
         `;

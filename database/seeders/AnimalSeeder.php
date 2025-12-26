@@ -11,10 +11,60 @@ use App\Models\Vaccination;
 use App\Models\Medical;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Carbon\Carbon;
 
 class AnimalSeeder extends Seeder
 {
+    /**
+     * Cache for uploaded Cloudinary paths to avoid re-uploading the same image
+     */
+    private $cloudinaryCache = [];
+
+    /**
+     * Upload a local seed image to Cloudinary
+     * Returns the Cloudinary path, or null if upload fails
+     */
+    private function uploadToCloudinary($localPath)
+    {
+        // Check cache first
+        if (isset($this->cloudinaryCache[$localPath])) {
+            return $this->cloudinaryCache[$localPath];
+        }
+
+        try {
+            $fullPath = storage_path('app/public/' . $localPath);
+
+            if (!file_exists($fullPath)) {
+                $this->command->warn("  Image not found: {$localPath}");
+                return null;
+            }
+
+            // Extract folder and filename
+            $folder = dirname($localPath); // 'reports' or 'animal_images'
+            $fileName = pathinfo($localPath, PATHINFO_FILENAME); // Without extension
+
+            // Upload to Cloudinary using the Upload API
+            $result = cloudinary()->uploadApi()->upload($fullPath, [
+                'folder' => $folder,
+                'public_id' => $fileName,
+            ]);
+
+            // Store the public_id (Cloudinary path) instead of full URL
+            // Format: folder/filename
+            $cloudinaryPath = $folder . '/' . $fileName;
+
+            // Cache the result
+            $this->cloudinaryCache[$localPath] = $cloudinaryPath;
+
+            return $cloudinaryPath;
+
+        } catch (\Exception $e) {
+            $this->command->error("  Failed to upload {$localPath}: " . $e->getMessage());
+            return null;
+        }
+    }
+
     /**
      * Run the database seeds.
      * Animals, Medical Records, and Vaccinations are in Shafiqah's database
@@ -268,6 +318,9 @@ class AnimalSeeder extends Seeder
 
         // ===== ASSIGN IMAGES TO ANIMALS IN EILYA DATABASE (separate operation) =====
         try {
+            $this->command->info('');
+            $this->command->info('Uploading animal seed images to Cloudinary...');
+            $this->command->info('(This may take a moment for first-time uploads)');
             $this->assignImagesToAnimals($createdAnimals, $catImages, $dogImages);
             $this->command->info("✓ Images assigned successfully in Eilya's database");
         } catch (\Exception $e) {
@@ -339,8 +392,17 @@ class AnimalSeeder extends Seeder
             }
 
             foreach ($selectedImages as $imagePath) {
+                // Upload image to Cloudinary
+                $cloudinaryPath = $this->uploadToCloudinary($imagePath);
+
+                // Skip if upload failed
+                if ($cloudinaryPath === null) {
+                    $this->command->warn("  Skipping image for animal {$animal->id}: {$imagePath}");
+                    continue;
+                }
+
                 $images[] = [
-                    'image_path' => $imagePath,
+                    'image_path' => $cloudinaryPath, // Store Cloudinary path
                     'animalID'   => $animal->id, // Cross-database reference to Shafiqah
                     'reportID'   => null,
                     'clinicID'   => null,
