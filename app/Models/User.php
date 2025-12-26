@@ -28,6 +28,16 @@ class User extends Authenticatable
         'state',
         'address',
         'phoneNum',
+        // Account management fields (added for admin user management)
+        'account_status',
+        'suspended_at',
+        'suspended_by',
+        'suspension_reason',
+        'locked_until',
+        'lock_reason',
+        'failed_login_attempts',
+        'last_failed_login_at',
+        'require_password_reset',
     ];
 
     /**
@@ -50,6 +60,11 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'suspended_at' => 'datetime',
+            'locked_until' => 'datetime',
+            'last_failed_login_at' => 'datetime',
+            'require_password_reset' => 'boolean',
+            'failed_login_attempts' => 'integer',
         ];
     }
 
@@ -110,5 +125,64 @@ class User extends Authenticatable
     {
         return $this->setConnection('danish')
             ->hasMany(Transaction::class, 'userID', 'id');
+    }
+
+    /**
+     * Relationship to UserAdminNotes (same database - taufiq)
+     * Get all admin notes about this user
+     */
+    public function adminNotes()
+    {
+        return $this->hasMany(UserAdminNote::class, 'user_id', 'id')
+            ->with('admin')
+            ->latest();
+    }
+
+    /**
+     * Relationship to UserAdminNotes (same database - taufiq)
+     * Get notes created by this admin
+     */
+    public function createdNotes()
+    {
+        return $this->hasMany(UserAdminNote::class, 'admin_id', 'id')
+            ->with('user')
+            ->latest();
+    }
+
+    /**
+     * Check if account is currently suspended
+     */
+    public function isSuspended(): bool
+    {
+        return $this->account_status === 'suspended';
+    }
+
+    /**
+     * Check if account is currently locked
+     */
+    public function isLocked(): bool
+    {
+        if ($this->account_status === 'locked' && $this->locked_until) {
+            // Check if lock has expired
+            if (now()->greaterThan($this->locked_until)) {
+                // Auto-unlock if expired
+                $this->update([
+                    'account_status' => 'active',
+                    'locked_until' => null,
+                    'lock_reason' => null,
+                ]);
+                return false;
+            }
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Check if account can login (not suspended or locked)
+     */
+    public function canLogin(): bool
+    {
+        return !$this->isSuspended() && !$this->isLocked();
     }
 }

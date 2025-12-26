@@ -16,6 +16,7 @@ return Application::configure(basePath: dirname(__DIR__))
             \App\Http\Middleware\InjectDatabaseStatus::class,
             \App\Http\Middleware\HandleDatabaseFailures::class,
             \App\Http\Middleware\CorrelateAuditTrail::class, // Audit trail correlation ID generation
+            \App\Http\Middleware\RequirePasswordChange::class, // Force password change when required
             // \App\Http\Middleware\CheckDatabaseHealth::class, // DISABLED: Database backup system (uncomment to enable)
         ]);
     })

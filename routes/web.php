@@ -10,6 +10,8 @@ use App\Livewire\Dashboard;
 use App\Http\Controllers\RescueMapController;
 use App\Services\DatabaseConnectionChecker;
 use App\Http\Controllers\Admin\AuditController;
+use App\Http\Controllers\Admin\CaretakerController;
+use App\Http\Controllers\Admin\UserManagementController;
 
 Route::get('/rescue-map', [RescueMapController::class, 'index'])->name('rescue.map');
 Route::get('/api/rescue-clusters', [RescueMapController::class, 'getClusterData'])->name('rescue.clusters');
@@ -36,7 +38,12 @@ Route::get('/', [StrayReportingManagementController::class, 'indexUser'])->name(
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
+    Route::put('/profile/password', [ProfileController::class, 'updateProfilePassword'])->name('profile.password.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+
+    // Forced password change routes (after admin reset)
+    Route::get('/password/change', [ProfileController::class, 'showChangePasswordForm'])->name('password.change');
+    Route::post('/password/change', [ProfileController::class, 'updatePassword'])->name('password.update');
 });
 
 Route::get('/about', function () {
@@ -180,6 +187,20 @@ Route::middleware(['auth'])->prefix('admin/audit')->name('admin.audit.')->group(
     Route::get('/rescues', [AuditController::class, 'rescues'])->name('rescues');
     Route::get('/timeline/{correlationId}', [AuditController::class, 'timeline'])->name('timeline');
     Route::get('/export/{category}', [AuditController::class, 'export'])->name('export');
+});
+
+// Admin Caretaker Management Routes
+Route::middleware(['auth'])->prefix('admin/caretaker')->name('admin.caretaker.')->group(function () {
+    Route::post('/store', [CaretakerController::class, 'store'])->name('store');
+});
+
+// Admin User Management Routes
+Route::middleware(['auth'])->prefix('admin/users')->name('admin.users.')->group(function () {
+    Route::get('/{userId}/activity', [UserManagementController::class, 'getUserActivity'])->name('activity');
+    Route::post('/{userId}/suspend', [UserManagementController::class, 'suspendUser'])->name('suspend');
+    Route::post('/{userId}/lock', [UserManagementController::class, 'lockUser'])->name('lock');
+    Route::post('/{userId}/unlock', [UserManagementController::class, 'unlockUser'])->name('unlock');
+    Route::post('/{userId}/force-password-reset', [UserManagementController::class, 'forcePasswordReset'])->name('force-password-reset');
 });
 
 require __DIR__.'/auth.php';

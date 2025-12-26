@@ -35,7 +35,9 @@
       "Bash(composer dump-autoload:*)",
       "Bash(ipconfig:*)",
       "Bash(findstr:*)",
-      "Bash(php artisan serve:*)"
+      "Bash(php artisan serve:*)",
+      "Bash(php test_password_reset.php:*)",
+      "Bash(del test_password_reset.php list_users.php)"
     ]
   }
 }

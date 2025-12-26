@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\AuditLog;
 use App\Models\Animal;
+use App\Models\User;
 use App\Models\Vet;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
@@ -41,18 +42,6 @@ class AuditService
         // Check for X-Real-IP header
         if ($request->header('X-Real-IP')) {
             return $request->header('X-Real-IP');
-        }
-
-        // If user is logged in, try to map to team member IP (for SSH tunnel scenario)
-        if ($user && $user->email) {
-            $emailPrefix = strtolower(explode('@', $user->email)[0]);
-
-            // Check if email matches any team member
-            foreach (self::$teamIpMapping as $teamMember => $ip) {
-                if (str_contains($emailPrefix, $teamMember)) {
-                    return $ip;
-                }
-            }
         }
 
         // Check REMOTE_ADDR (standard IP detection)
@@ -172,21 +161,48 @@ class AuditService
         $request = request();
         $user = Auth::user();
 
-        // If login failed and we have an email, create temporary object for IP mapping
+        // If login failed and we have an email, we need to manually set user_email since Auth::user() is null
         if ($action === 'login_failed' && $email && !$user) {
             $tempUser = (object) ['email' => $email];
             $ipAddress = self::getRealIpAddress($request, $tempUser);
 
-            // Manually build the audit data to override IP
-            return self::log('authentication', $action, [
+            // Find the user to get their name for the audit log
+            $userRecord = User::where('email', $email)->first();
+
+            // Manually create the audit log with email override
+            return AuditLog::create([
+                // User context - OVERRIDE with attempted email
+                'user_id' => $userRecord?->id,
+                'user_name' => $userRecord?->name,
+                'user_email' => $email,  // ← CRITICAL: Set email even when not authenticated
+                'user_role' => $userRecord ? $userRecord->getRoleNames()->first() : null,
+
+                // Action context
+                'category' => 'authentication',
+                'action' => $action,
+                'entity_type' => null,
+                'entity_id' => null,
                 'source_database' => 'taufiq',
+
+                // Request context
+                'performed_at' => now(),
+                'ip_address' => $ipAddress,
+                'user_agent' => $request->userAgent(),
+                'request_url' => $request->fullUrl(),
+                'http_method' => $request->method(),
+
+                // Data context
+                'old_values' => null,
+                'new_values' => null,
                 'metadata' => [
                     'email_attempted' => $email,
                     'mapped_ip' => $ipAddress,
                 ],
+
+                // Outcome
+                'status' => 'failure',
                 'error_message' => $error,
-                // This will be overridden by getRealIpAddress in the main log method
-            ], 'failure');
+            ]);
         }
 
         return self::log('authentication', $action, [

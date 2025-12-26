@@ -95,6 +95,14 @@
             <p class="font-semibold text-green-700">{{ session('success') }}</p>
         </div>
     @endif
+        @if (session('error'))
+            <div class="flex items-start gap-3 p-4 mb-6 bg-red-50 border border-red-200 rounded-xl shadow-sm mx-6 mt-6">
+                <svg class="w-6 h-6 text-red-600 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+                <p class="font-semibold text-red-700">{{ session('error') }}</p>
+            </div>
+        @endif
 
     <!-- Stats Cards as Filter Buttons -->
     <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
