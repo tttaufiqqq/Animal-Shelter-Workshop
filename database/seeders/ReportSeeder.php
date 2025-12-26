@@ -4,11 +4,61 @@ namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use App\Models\User;
 use Carbon\Carbon;
 
 class ReportSeeder extends Seeder
 {
+    /**
+     * Cache for uploaded Cloudinary paths to avoid re-uploading the same image
+     */
+    private $cloudinaryCache = [];
+
+    /**
+     * Upload a local seed image to Cloudinary
+     * Returns the Cloudinary path, or null if upload fails
+     */
+    private function uploadToCloudinary($localPath)
+    {
+        // Check cache first
+        if (isset($this->cloudinaryCache[$localPath])) {
+            return $this->cloudinaryCache[$localPath];
+        }
+
+        try {
+            $fullPath = storage_path('app/public/' . $localPath);
+
+            if (!file_exists($fullPath)) {
+                $this->command->warn("  Image not found: {$localPath}");
+                return null;
+            }
+
+            // Extract folder and filename
+            $folder = dirname($localPath); // 'reports' or 'animal_images'
+            $fileName = pathinfo($localPath, PATHINFO_FILENAME); // Without extension
+
+            // Upload to Cloudinary using the Upload API
+            $result = cloudinary()->uploadApi()->upload($fullPath, [
+                'folder' => $folder,
+                'public_id' => $fileName,
+            ]);
+
+            // Store the public_id (Cloudinary path) instead of full URL
+            // Format: folder/filename
+            $cloudinaryPath = $folder . '/' . $fileName;
+
+            // Cache the result
+            $this->cloudinaryCache[$localPath] = $cloudinaryPath;
+
+            return $cloudinaryPath;
+
+        } catch (\Exception $e) {
+            $this->command->error("  Failed to upload {$localPath}: " . $e->getMessage());
+            return null;
+        }
+    }
+
     /**
      * Run the database seeds.
      * Reports and Images are in Eilya's database
@@ -152,7 +202,8 @@ class ReportSeeder extends Seeder
                 ->toArray();
 
             $this->command->info('');
-            $this->command->info('Assigning images to reports in Eilya\'s database...');
+            $this->command->info('Uploading seed images to Cloudinary and assigning to reports...');
+            $this->command->info('(This may take a moment for first-time uploads)');
 
             // Assign images to reports (both in Eilya's database)
             $this->assignImagesToReports($insertedReportIDs, $imageCategories);
@@ -209,8 +260,17 @@ class ReportSeeder extends Seeder
             }
 
             foreach ($selectedImages as $imagePath) {
+                // Upload image to Cloudinary
+                $cloudinaryPath = $this->uploadToCloudinary($imagePath);
+
+                // Skip if upload failed
+                if ($cloudinaryPath === null) {
+                    $this->command->warn("  Skipping image for report {$reportID}: {$imagePath}");
+                    continue;
+                }
+
                 $images[] = [
-                    'image_path' => $imagePath,
+                    'image_path' => $cloudinaryPath, // Store Cloudinary path
                     'animalID'   => null, // Cross-database reference to Shafiqah (null for now)
                     'reportID'   => $reportID, // Same database reference to Eilya
                     'clinicID'   => null, // Cross-database reference to Shafiqah (null for now)

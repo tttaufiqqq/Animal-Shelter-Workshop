@@ -122,7 +122,7 @@
                                     @endif
 
                                     @if($animal->images && $animal->images->count() > 0)
-                                        <img src="{{ asset('storage/' . $animal->images->first()->image_path) }}"
+                                        <img src="{{ $animal->images->first()->url }}"
                                              alt="{{ $animal->name }}"
                                              class="w-full h-40 object-cover rounded-lg mb-3">
                                     @else
@@ -251,19 +251,20 @@
 
             @if(in_array(strtolower($booking->status), ['pending', 'confirmed']))
                 @if($animals->isNotEmpty())
-                    <button type="button" onclick="openAdoptionFeeModal({{ $booking->id }})"
-                            class="px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg transition duration-300 shadow-md">
-                        Confirm & Pay
+                    <button type="button"
+                            onclick="openAdoptionFeeModal({{ $booking->id }})"
+                            id="confirmPayBtn-{{ $booking->id }}"
+                            class="px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg transition duration-300 shadow-md flex items-center gap-2">
+                        <span id="confirmPayBtnText-{{ $booking->id }}">Confirm & Pay</span>
                     </button>
                 @endif
 
-                <form action="{{ route('bookings.cancel', $booking->id) }}" method="POST" class="inline" onsubmit="return confirm('Are you sure you want to cancel this booking?');">
-                    @csrf
-                    @method('PATCH')
-                    <button type="submit" class="px-6 py-3 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg transition duration-300 shadow-md">
-                        Cancel Booking
-                    </button>
-                </form>
+                <button type="button"
+                        onclick="openCancelModal({{ $booking->id }})"
+                        id="cancelBookingBtn-{{ $booking->id }}"
+                        class="px-6 py-3 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg transition duration-300 shadow-md flex items-center gap-2">
+                    <span id="cancelBookingBtnText-{{ $booking->id }}">Cancel Booking</span>
+                </button>
             @endif
         </div>
     </div>
@@ -350,12 +351,138 @@
                         </button>
                         <button type="submit"
                                 id="submitBtn-{{ $booking->id }}"
-                                class="px-6 py-3 bg-gradient-to-r from-green-600 to-green-700 text-white font-semibold rounded-lg hover:from-green-700 hover:to-green-800 transition duration-300 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed">
-                            Complete Adoptions
+                                class="px-6 py-3 bg-gradient-to-r from-green-600 to-green-700 text-white font-semibold rounded-lg hover:from-green-700 hover:to-green-800 transition duration-300 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 justify-center">
+                            <span id="submitBtnText-{{ $booking->id }}">Complete Adoptions</span>
                         </button>
                     </div>
                 </div>
             </form>
         </div>
     </div>
+
+    <!-- Cancel Confirmation Modal -->
+    <div id="cancelConfirmModal-{{ $booking->id }}" class="modal-backdrop hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full" onclick="event.stopPropagation()">
+            <!-- Header -->
+            <div class="bg-gradient-to-r from-red-600 to-red-700 text-white p-6 rounded-t-2xl">
+                <div class="flex items-center gap-3">
+                    <span class="text-3xl">⚠️</span>
+                    <div>
+                        <h2 class="text-xl font-bold">Cancel Booking</h2>
+                        <p class="text-red-100 text-sm">Booking #{{ $booking->id }}</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Body -->
+            <div class="p-6">
+                <p class="text-gray-700 mb-4">Are you sure you want to cancel this booking?</p>
+                <div class="bg-yellow-50 border-l-4 border-yellow-500 p-4 mb-4">
+                    <p class="text-sm text-yellow-800">
+                        <strong>⚠️ Warning:</strong> This action cannot be undone. Your appointment will be cancelled and the time slot will be made available to others.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="bg-gray-50 p-6 border-t border-gray-200 flex gap-3 rounded-b-2xl">
+                <button type="button"
+                        onclick="closeCancelModal({{ $booking->id }})"
+                        id="cancelModalNoBtn-{{ $booking->id }}"
+                        class="flex-1 px-6 py-3 bg-gray-600 hover:bg-gray-700 text-white font-semibold rounded-lg transition duration-300">
+                    No, Keep Booking
+                </button>
+
+                <form action="{{ route('bookings.cancel', $booking->id) }}" method="POST" class="flex-1" id="cancelForm-{{ $booking->id }}">
+                    @csrf
+                    @method('PATCH')
+                    <button type="submit"
+                            id="confirmCancelBtn-{{ $booking->id }}"
+                            class="w-full px-6 py-3 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg transition duration-300 flex items-center gap-2 justify-center">
+                        <span id="confirmCancelBtnText-{{ $booking->id }}">Yes, Cancel Booking</span>
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
 @endif
+
+<style>
+    /* Loading spinner animation */
+    @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+
+    .animate-spin {
+        animation: spin 1s linear infinite;
+    }
+</style>
+
+<script>
+    // Open cancel confirmation modal
+    function openCancelModal(bookingId) {
+        document.getElementById('cancelConfirmModal-' + bookingId).classList.remove('hidden');
+        document.getElementById('cancelConfirmModal-' + bookingId).classList.add('flex');
+    }
+
+    // Close cancel confirmation modal
+    function closeCancelModal(bookingId) {
+        document.getElementById('cancelConfirmModal-' + bookingId).classList.add('hidden');
+        document.getElementById('cancelConfirmModal-' + bookingId).classList.remove('flex');
+    }
+
+    // Handle cancel booking form submission
+    document.addEventListener('DOMContentLoaded', function() {
+        // Handle all cancel forms
+        document.querySelectorAll('[id^="cancelForm-"]').forEach(form => {
+            form.addEventListener('submit', function(e) {
+                const bookingId = this.id.replace('cancelForm-', '');
+                const submitBtn = document.getElementById('confirmCancelBtn-' + bookingId);
+                const noBtn = document.getElementById('cancelModalNoBtn-' + bookingId);
+
+                // Disable buttons
+                submitBtn.disabled = true;
+                noBtn.disabled = true;
+
+                // Show loading spinner
+                submitBtn.innerHTML = `
+                    <svg class="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span>Cancelling...</span>
+                `;
+
+                // Allow form to submit
+                return true;
+            });
+        });
+
+        // Handle all adoption fee forms (Complete Adoptions button)
+        document.querySelectorAll('[id^="adoptionFeeModal-"]').forEach(modal => {
+            const form = modal.querySelector('form');
+            if (form) {
+                form.addEventListener('submit', function(e) {
+                    const bookingId = modal.id.replace('adoptionFeeModal-', '');
+                    const submitBtn = document.getElementById('submitBtn-' + bookingId);
+
+                    // Disable button
+                    submitBtn.disabled = true;
+
+                    // Show loading spinner
+                    submitBtn.innerHTML = `
+                        <svg class="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <span>Processing...</span>
+                    `;
+
+                    // Allow form to submit
+                    return true;
+                });
+            }
+        });
+    });
+</script>

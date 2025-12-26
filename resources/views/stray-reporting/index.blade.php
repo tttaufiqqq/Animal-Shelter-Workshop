@@ -252,9 +252,9 @@
                             </td>
                             <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
                                 @if($report->images->count() > 0)
-                                    <div class="flex items-center gap-1 cursor-pointer" onclick="event.preventDefault(); showImagesModal({{ $report->id }}, {{ json_encode($report->images->map(fn($img) => asset('storage/' . $img->image_path))) }})">
+                                    <div class="flex items-center gap-1 cursor-pointer" onclick="event.preventDefault(); showImagesModal({{ $report->id }}, {{ json_encode($report->images->map(fn($img) => $img->url)) }})">
                                         @foreach($report->images->take(3) as $image)
-                                            <img src="{{ asset('storage/' . $image->image_path) }}"
+                                            <img src="{{ $image->url }}"
                                                  alt="Report image"
                                                  class="w-8 h-8 rounded-full object-cover border-2 border-white shadow-sm hover:scale-110 transition-transform"
                                                  onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjMyIiBoZWlnaHQ9IjMyIiBmaWxsPSIjZTVlN2ViIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxMCIgZmlsbD0iIzk5OSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPj88L3RleHQ+PC9zdmc+'">

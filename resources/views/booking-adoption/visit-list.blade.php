@@ -108,7 +108,7 @@
                                         <div class="flex-shrink-0">
                                             <div class="w-24 h-24 rounded-xl overflow-hidden bg-gray-200 ring-4 ring-purple-100 group-hover:ring-purple-300 transition-all duration-300">
                                                 @if($animal->images && $animal->images->count() > 0)
-                                                    <img src="{{ asset('storage/' . $animal->images->first()->image_path) }}"
+                                                    <img src="{{ $animal->images->first()->url }}"
                                                          alt="{{ $animal->name }}"
                                                          class="w-full h-full object-cover transform group-hover:scale-110 transition-transform duration-300">
                                                 @else

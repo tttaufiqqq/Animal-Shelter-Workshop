@@ -456,7 +456,7 @@
                                                 @foreach($booking->animals as $animal)
                                                     <div class="bg-white rounded-xl p-4 shadow-md">
                                                         @if($animal->images && $animal->images->count() > 0)
-                                                            <img src="{{ asset('storage/' . $animal->images->first()->image_path) }}"
+                                                            <img src="{{ $animal->images->first()->url }}"
                                                                  alt="{{ $animal->name }}"
                                                                  class="w-full h-32 object-cover rounded-lg mb-3">
                                                         @endif

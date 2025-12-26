@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Support\Facades\Storage;
 
 class Image extends Model
 {
@@ -20,6 +21,27 @@ class Image extends Model
         'reportID',
         'clinicID',
     ];
+
+    /**
+     * Append custom attributes to the model's array form
+     */
+    protected $appends = ['url'];
+
+    /**
+     * Get the full URL for the image (Cloudinary URL)
+     * This automatically generates the correct URL whether using local or cloud storage
+     */
+    public function getUrlAttribute()
+    {
+        try {
+            // Generate Cloudinary URL using the image() method
+            return cloudinary()->image($this->image_path)->toUrl();
+        } catch (\Exception $e) {
+            // Handle any errors (missing images, network issues, etc.)
+            \Log::warning("Failed to generate Cloudinary URL for: {$this->image_path} (ID: {$this->id}) - " . $e->getMessage());
+            return 'https://via.placeholder.com/400x300?text=Image+Not+Found';
+        }
+    }
 
     /**
      * CROSS-DATABASE: Relationship to Animal model (Shafiqah's database)

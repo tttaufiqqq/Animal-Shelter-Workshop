@@ -168,7 +168,7 @@
                 <div class="relative w-full aspect-video bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
                     <div id="imageSwiperContent" class="w-full h-full flex items-center justify-center transition-all duration-500">
                         @if($hasImages)
-                            <img src="{{ asset('storage/' . $animalImages->first()->image_path) }}"
+                            <img src="{{ $animalImages->first()->url }}"
                                  alt="{{ $animal->name }}"
                                  class="max-w-full max-h-full object-contain transition-opacity duration-500"
                                  id="mainDisplayImage">
@@ -217,7 +217,7 @@
                                 <div onclick="goToImage({{ $index }})"
                                      class="group flex-shrink-0 w-24 h-24 cursor-pointer rounded-xl overflow-hidden border-3 transition-all duration-300 {{ $index == 0 ? 'border-purple-600 ring-2 ring-purple-300 shadow-lg' : 'border-gray-300 hover:border-purple-400 hover:shadow-md' }}"
                                      id="thumbnail-{{ $index }}">
-                                    <img src="{{ asset('storage/' . $image->image_path) }}"
+                                    <img src="{{ $image->url }}"
                                          alt="{{ $animal->name }}"
                                          class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300">
                                 </div>
@@ -956,7 +956,7 @@
 
     let currentImages = [
             @foreach($animalImages as $image)
-        { path: "{{ asset('storage/' . $image->image_path) }}" },
+        { path: "{{ $image->url }}" },
         @endforeach
     ];
     let currentImageIndex = 0;

@@ -255,22 +255,22 @@
                                     {{-- Buttons for adopters (visible even if they are caretakers) --}}
                                     @role('adopter')
                                         <button onclick="openAdopterModal()"
-                                                class="flex items-center justify-center gap-3 bg-gradient-to-r from-purple-600 to-purple-700 text-white font-semibold px-5 py-3.5 rounded-lg shadow-md hover:from-purple-700 hover:to-purple-800 hover:shadow-lg transition-all duration-200 group w-full">
+                                                class="flex items-center justify-center gap-2 sm:gap-3 bg-gradient-to-r from-purple-600 to-purple-700 text-white font-semibold px-4 sm:px-5 py-3.5 rounded-lg shadow-md hover:from-purple-700 hover:to-purple-800 hover:shadow-lg transition-all duration-200 group w-full min-h-[56px]">
                                             <svg class="w-5 h-5 flex-shrink-0 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
                                             </svg>
-                                            <span class="whitespace-nowrap flex-1 text-center">Help Us Know You Better</span>
+                                            <span class="flex-1 text-center text-sm sm:text-base leading-tight">Help Us Know You Better</span>
                                             <svg class="w-4 h-4 flex-shrink-0 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
                                             </svg>
                                         </button>
                                     @include('adopter-animal-matching.result')
                                         <button onclick="openResultModal()"
-                                                class="flex items-center justify-center gap-3 bg-gradient-to-r from-purple-600 to-purple-700 text-white font-semibold px-5 py-3.5 rounded-lg shadow-md hover:from-purple-700 hover:to-purple-800 hover:shadow-lg transition-all duration-200 group w-full">
+                                                class="flex items-center justify-center gap-2 sm:gap-3 bg-gradient-to-r from-purple-600 to-purple-700 text-white font-semibold px-4 sm:px-5 py-3.5 rounded-lg shadow-md hover:from-purple-700 hover:to-purple-800 hover:shadow-lg transition-all duration-200 group w-full min-h-[56px]">
                                             <svg class="w-5 h-5 flex-shrink-0 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path>
                                             </svg>
-                                            <span class="whitespace-nowrap flex-1 text-center">Animals You Might Want To Adopt</span>
+                                            <span class="flex-1 text-center text-sm sm:text-base leading-tight">Animals You Might Want To Adopt</span>
                                             <svg class="w-4 h-4 flex-shrink-0 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
                                             </svg>
@@ -280,11 +280,11 @@
                                     {{-- Button for caretakers --}}
                                     @role('caretaker')
                                         <a href="{{ route('rescues.index') }}"
-                                           class="flex items-center justify-center gap-3 bg-gradient-to-r from-teal-600 to-teal-700 text-white font-semibold px-5 py-3.5 rounded-lg shadow-md hover:from-teal-700 hover:to-teal-800 hover:shadow-lg transition-all duration-200 group w-full">
+                                           class="flex items-center justify-center gap-2 sm:gap-3 bg-gradient-to-r from-teal-600 to-teal-700 text-white font-semibold px-4 sm:px-5 py-3.5 rounded-lg shadow-md hover:from-teal-700 hover:to-teal-800 hover:shadow-lg transition-all duration-200 group w-full min-h-[56px]">
                                             <svg class="w-5 h-5 flex-shrink-0 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
                                             </svg>
-                                            <span class="whitespace-nowrap flex-1 text-center">View Assigned Rescue Reports</span>
+                                            <span class="flex-1 text-center text-sm sm:text-base leading-tight">View Assigned Rescue Reports</span>
                                             <svg class="w-4 h-4 flex-shrink-0 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
                                             </svg>

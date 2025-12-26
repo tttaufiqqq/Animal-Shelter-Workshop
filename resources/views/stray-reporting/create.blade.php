@@ -227,13 +227,13 @@
 
                 <!-- Submit Buttons -->
                 <div class="flex justify-end gap-3 pt-4 border-t">
-                    <button type="button" onclick="closeReportModal()"
+                    <button type="button" onclick="closeReportModal()" id="cancelBtn"
                             class="px-6 py-2 bg-gray-200 text-gray-700 font-semibold rounded-lg hover:bg-gray-300 transition">
                         Cancel
                     </button>
                     <button type="submit" id="submitBtn"
-                            class="px-6 py-2 bg-gradient-to-r from-purple-600 to-purple-700 text-white font-semibold rounded-lg hover:from-purple-700 hover:to-purple-800 transition shadow-lg">
-                        Submit Report
+                            class="px-6 py-2 bg-gradient-to-r from-purple-600 to-purple-700 text-white font-semibold rounded-lg hover:from-purple-700 hover:to-purple-800 transition shadow-lg flex items-center gap-2 justify-center">
+                        <span id="submitBtnText">Submit Report</span>
                     </button>
                 </div>
             </form>
@@ -625,9 +625,10 @@
                 }).addTo(map);
 
                 // Allow dragging to adjust
-                marker.on('dragend', function(e) {
+                marker.on('dragend', async function(e) {
                     const newPos = e.target.getLatLng();
-                    updateLocationOnMap(newPos.lat, newPos.lng, accuracy);
+                    await updateLocationOnMap(newPos.lat, newPos.lng, accuracy);
+                    await getAddressDetails(newPos.lat, newPos.lng);
                 });
             }
 
@@ -748,8 +749,9 @@
             }).addTo(map);
 
             // Click to pin location
-            map.on('click', function(e) {
-                updateLocationOnMap(e.latlng.lat, e.latlng.lng, 50);
+            map.on('click', async function(e) {
+                await updateLocationOnMap(e.latlng.lat, e.latlng.lng, 50);
+                await getAddressDetails(e.latlng.lat, e.latlng.lng);
             });
 
             mapInitialized = true;
@@ -828,6 +830,24 @@
                     return false;
                 }
 
+                // Show loading spinner on submit button
+                const submitBtn = document.getElementById('submitBtn');
+                const submitBtnText = document.getElementById('submitBtnText');
+                const cancelBtn = document.getElementById('cancelBtn');
+
+                submitBtn.disabled = true;
+                cancelBtn.disabled = true;
+
+                submitBtn.innerHTML = `
+                    <svg class="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span>Submitting Report...</span>
+                `;
+
+                showToast('Submitting your report...', 'info');
+
                 return true;
             });
         }
@@ -883,5 +903,121 @@
                 });
             });
         }
+
+        // Location search functionality
+        const locationSearch = document.getElementById('locationSearch');
+        const searchResults = document.getElementById('searchResults');
+        let searchTimeout;
+
+        if (locationSearch && searchResults) {
+            locationSearch.addEventListener('input', function() {
+                const query = this.value.trim();
+
+                // Clear previous timeout
+                clearTimeout(searchTimeout);
+
+                // Hide results if query is empty
+                if (query.length < 3) {
+                    searchResults.classList.add('hidden');
+                    searchResults.innerHTML = '';
+                    return;
+                }
+
+                // Show loading state
+                searchResults.classList.remove('hidden');
+                searchResults.innerHTML = '<div class="p-3 text-gray-600 text-sm">🔍 Searching...</div>';
+
+                // Debounce search - wait 500ms after user stops typing
+                searchTimeout = setTimeout(async () => {
+                    try {
+                        // Search using Nominatim API (restricted to Malaysia)
+                        const response = await fetch(
+                            `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&countrycodes=my&limit=10&addressdetails=1`,
+                            {
+                                headers: {
+                                    'User-Agent': 'StrayAnimalRescueApp/1.0'
+                                }
+                            }
+                        );
+
+                        if (!response.ok) throw new Error('Search failed');
+
+                        const results = await response.json();
+
+                        // Display results
+                        if (results.length === 0) {
+                            searchResults.innerHTML = '<div class="p-3 text-gray-500 text-sm">❌ No locations found. Try a different search.</div>';
+                        } else {
+                            searchResults.innerHTML = results.map(result => `
+                                <div class="search-result-item p-3 hover:bg-purple-50 cursor-pointer border-b last:border-b-0 transition"
+                                     data-lat="${result.lat}"
+                                     data-lon="${result.lon}"
+                                     data-name="${escapeHtml(result.display_name)}">
+                                    <div class="flex items-start gap-2">
+                                        <svg class="w-4 h-4 text-purple-600 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd"/>
+                                        </svg>
+                                        <div class="flex-1 min-w-0">
+                                            <div class="text-sm font-medium text-gray-900 truncate">${escapeHtml(result.display_name)}</div>
+                                            <div class="text-xs text-gray-500 mt-0.5">
+                                                ${result.type ? escapeHtml(result.type) : 'Location'} •
+                                                ${result.lat.substring(0, 8)}, ${result.lon.substring(0, 8)}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            `).join('');
+
+                            // Add click handlers to results
+                            document.querySelectorAll('.search-result-item').forEach(item => {
+                                item.addEventListener('click', async function() {
+                                    const lat = parseFloat(this.dataset.lat);
+                                    const lon = parseFloat(this.dataset.lon);
+                                    const name = this.dataset.name;
+
+                                    // Update map
+                                    await updateLocationOnMap(lat, lon, 50);
+                                    await getAddressDetails(lat, lon);
+
+                                    // Update search input
+                                    locationSearch.value = name;
+
+                                    // Hide results
+                                    searchResults.classList.add('hidden');
+                                    searchResults.innerHTML = '';
+
+                                    // Show success message
+                                    showToast('Location selected successfully', 'success');
+                                });
+                            });
+                        }
+                    } catch (error) {
+                        console.error('Search error:', error);
+                        searchResults.innerHTML = '<div class="p-3 text-red-600 text-sm">⚠️ Search failed. Please try again.</div>';
+                    }
+                }, 500);
+            });
+
+            // Hide results when clicking outside
+            document.addEventListener('click', function(e) {
+                if (!locationSearch.contains(e.target) && !searchResults.contains(e.target)) {
+                    searchResults.classList.add('hidden');
+                }
+            });
+
+            // Show results again when focusing on search input
+            locationSearch.addEventListener('focus', function() {
+                if (searchResults.innerHTML && !searchResults.classList.contains('hidden')) {
+                    searchResults.classList.remove('hidden');
+                }
+            });
+        }
     });
+
+    // Helper function to escape HTML
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
 </script>

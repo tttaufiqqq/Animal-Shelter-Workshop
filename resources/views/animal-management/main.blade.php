@@ -394,7 +394,7 @@
                                             <div class="h-12 w-12 flex-shrink-0 rounded-full overflow-hidden border-2 border-purple-200 shadow-sm">
                                                 @if($animal->relationLoaded('images') && $animal->images && $animal->images->count() > 0)
                                                     <img class="h-full w-full object-cover"
-                                                         src="{{ asset('storage/' . $animal->images->first()->image_path) }}"
+                                                         src="{{ $animal->images->first()->url }}"
                                                          alt="{{ $animal->name }}">
                                                 @else
                                                     <div class="h-full w-full bg-gradient-to-br from-purple-200 to-indigo-200 flex items-center justify-center text-2xl">
@@ -518,7 +518,7 @@
                     <!-- Animal Image -->
                     <div class="h-56 bg-gradient-to-br from-purple-200 via-purple-300 to-indigo-300 flex items-center justify-center overflow-hidden relative group">
                         @if($animal->relationLoaded('images') && $animal->images && $animal->images->count() > 0)
-                            <img src="{{ asset('storage/' . $animal->images->first()->image_path) }}"
+                            <img src="{{ $animal->images->first()->url }}"
                                  alt="{{ $animal->name }}"
                                  class="animal-image w-full h-full object-cover">
                         @else

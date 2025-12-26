@@ -736,11 +736,11 @@
             </div>
 
             <div class="flex justify-end gap-3 pt-4">
-                <button type="button" onclick="closeSectionModal()" class="px-6 py-3 bg-gray-200 text-gray-700 font-semibold rounded-lg hover:bg-gray-300 transition duration-300">
+                <button type="button" onclick="closeSectionModal()" id="sectionCancelBtn" class="px-6 py-3 bg-gray-200 text-gray-700 font-semibold rounded-lg hover:bg-gray-300 transition duration-300">
                     Cancel
                 </button>
-                <button type="submit" class="px-6 py-3 bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-semibold rounded-lg hover:from-indigo-600 hover:to-purple-700 transition duration-300">
-                    <i class="fas fa-save mr-2"></i>
+                <button type="submit" id="sectionSubmitBtn" class="px-6 py-3 bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-semibold rounded-lg hover:from-indigo-600 hover:to-purple-700 transition duration-300 flex items-center gap-2">
+                    <i class="fas fa-save" id="sectionSubmitIcon"></i>
                     <span id="sectionSubmitButtonText">Add Section</span>
                 </button>
             </div>
@@ -809,11 +809,11 @@
             </div>
 
             <div class="flex justify-end gap-3 pt-4">
-                <button type="button" onclick="closeSlotModal()" class="px-6 py-3 bg-gray-200 text-gray-700 font-semibold rounded-lg hover:bg-gray-300 transition duration-300">
+                <button type="button" onclick="closeSlotModal()" id="slotCancelBtn" class="px-6 py-3 bg-gray-200 text-gray-700 font-semibold rounded-lg hover:bg-gray-300 transition duration-300">
                     Cancel
                 </button>
-                <button type="submit" class="px-6 py-3 bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-semibold rounded-lg hover:from-indigo-600 hover:to-purple-700 transition duration-300">
-                    <i class="fas fa-save mr-2"></i>
+                <button type="submit" id="slotSubmitBtn" class="px-6 py-3 bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-semibold rounded-lg hover:from-indigo-600 hover:to-purple-700 transition duration-300 flex items-center gap-2">
+                    <i class="fas fa-save" id="slotSubmitIcon"></i>
                     <span id="slotSubmitButtonText">Add Slot</span>
                 </button>
             </div>
@@ -855,11 +855,11 @@
             </div>
 
             <div class="flex justify-end gap-3 pt-4">
-                <button type="button" onclick="closeCategoryModal()" class="px-6 py-3 bg-gray-200 text-gray-700 font-semibold rounded-lg hover:bg-gray-300 transition duration-300">
+                <button type="button" onclick="closeCategoryModal()" id="categoryCancelBtn" class="px-6 py-3 bg-gray-200 text-gray-700 font-semibold rounded-lg hover:bg-gray-300 transition duration-300">
                     Cancel
                 </button>
-                <button type="submit" class="px-6 py-3 bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-semibold rounded-lg hover:from-indigo-600 hover:to-purple-700 transition duration-300">
-                    <i class="fas fa-save mr-2"></i>
+                <button type="submit" id="categorySubmitBtn" class="px-6 py-3 bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-semibold rounded-lg hover:from-indigo-600 hover:to-purple-700 transition duration-300 flex items-center gap-2">
+                    <i class="fas fa-save" id="categorySubmitIcon"></i>
                     <span id="categorySubmitButtonText">Add Category</span>
                 </button>
             </div>
@@ -1302,6 +1302,86 @@
             document.getElementById('slotModal').classList.add('hidden');
             document.body.style.overflow = 'auto';
         }
+
+        // ==================== FORM SUBMISSION LOADING STATES ====================
+
+        // Section Form Submission
+        document.getElementById('sectionForm').addEventListener('submit', function(e) {
+            const submitBtn = document.getElementById('sectionSubmitBtn');
+            const submitIcon = document.getElementById('sectionSubmitIcon');
+            const submitText = document.getElementById('sectionSubmitButtonText');
+            const cancelBtn = document.getElementById('sectionCancelBtn');
+
+            // Disable buttons
+            submitBtn.disabled = true;
+            cancelBtn.disabled = true;
+
+            // Change icon to spinner
+            submitIcon.className = 'fas fa-spinner fa-spin';
+
+            // Update text based on mode (Add or Update)
+            const isUpdate = document.getElementById('sectionFormMethod').value === 'PUT';
+            submitText.textContent = isUpdate ? 'Updating...' : 'Adding...';
+
+            // Allow form to submit
+            return true;
+        });
+
+        // Slot Form Submission
+        document.getElementById('slotForm').addEventListener('submit', function(e) {
+            const submitBtn = document.getElementById('slotSubmitBtn');
+            const submitIcon = document.getElementById('slotSubmitIcon');
+            const submitText = document.getElementById('slotSubmitButtonText');
+            const cancelBtn = document.getElementById('slotCancelBtn');
+
+            // Disable buttons
+            submitBtn.disabled = true;
+            cancelBtn.disabled = true;
+
+            // Change icon to spinner
+            submitIcon.className = 'fas fa-spinner fa-spin';
+
+            // Update text based on mode (Add or Update)
+            const isUpdate = document.getElementById('slotFormMethod').value === 'PUT';
+            submitText.textContent = isUpdate ? 'Updating...' : 'Adding...';
+
+            // Allow form to submit
+            return true;
+        });
+
+        // Category Form Submission
+        document.getElementById('categoryForm').addEventListener('submit', function(e) {
+            const submitBtn = document.getElementById('categorySubmitBtn');
+            const submitIcon = document.getElementById('categorySubmitIcon');
+            const submitText = document.getElementById('categorySubmitButtonText');
+            const cancelBtn = document.getElementById('categoryCancelBtn');
+
+            // Disable buttons
+            submitBtn.disabled = true;
+            cancelBtn.disabled = true;
+
+            // Change icon to spinner
+            submitIcon.className = 'fas fa-spinner fa-spin';
+
+            // Update text based on mode (Add or Update)
+            const isUpdate = document.getElementById('categoryFormMethod').value === 'PUT';
+            submitText.textContent = isUpdate ? 'Updating...' : 'Adding...';
+
+            // Allow form to submit
+            return true;
+        });
     </script>
+
+    <style>
+        /* Spinner animation for FontAwesome */
+        .fa-spin {
+            animation: fa-spin 1s infinite linear;
+        }
+
+        @keyframes fa-spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
 </body>
 </html>

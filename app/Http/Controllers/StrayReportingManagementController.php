@@ -114,8 +114,19 @@ class StrayReportingManagementController extends Controller
             ]);
 
             if ($request->hasFile('images')) {
+                $imageIndex = 1;
                 foreach ($request->file('images') as $image) {
-                    $path = $image->store('reports', 'public');
+                    // Create descriptive filename: report_1_kuala_lumpur_selangor_1
+                    $sanitizedCity = strtolower(preg_replace('/[^a-zA-Z0-9]/', '_', $validated['city']));
+                    $sanitizedState = strtolower(preg_replace('/[^a-zA-Z0-9]/', '_', $validated['state']));
+                    $filename = "report_{$report->id}_{$sanitizedCity}_{$sanitizedState}_{$imageIndex}";
+
+                    // Upload to Cloudinary and get the public_id
+                    $uploadResult = cloudinary()->uploadApi()->upload($image->getRealPath(), [
+                        'folder' => 'reports',
+                        'public_id' => $filename,
+                    ]);
+                    $path = $uploadResult['public_id'];
                     $uploadedFiles[] = $path;
 
                     Image::create([
@@ -123,6 +134,8 @@ class StrayReportingManagementController extends Controller
                         'reportID' => $report->id,
                         'animalID' => null,
                     ]);
+
+                    $imageIndex++;
                 }
             }
 
@@ -135,7 +148,7 @@ class StrayReportingManagementController extends Controller
 
             // Clean up uploaded files
             foreach ($uploadedFiles as $filePath) {
-                Storage::disk('public')->delete($filePath);
+                cloudinary()->uploadApi()->destroy($filePath);
             }
 
             return redirect()->back()
@@ -147,7 +160,7 @@ class StrayReportingManagementController extends Controller
 
             // Clean up uploaded files
             foreach ($uploadedFiles as $filePath) {
-                Storage::disk('public')->delete($filePath);
+                cloudinary()->uploadApi()->destroy($filePath);
             }
 
             \Log::error('Error submitting stray report: ' . $e->getMessage(), [
@@ -287,8 +300,10 @@ class StrayReportingManagementController extends Controller
             }
 
             foreach ($report->images as $image) {
-                if (Storage::disk('public')->exists($image->image_path)) {
-                    Storage::disk('public')->delete($image->image_path);
+                try {
+                    cloudinary()->uploadApi()->destroy($image->image_path);
+                } catch (\Exception $e) {
+                    // Continue even if Cloudinary deletion fails
                 }
                 $image->delete();
             }
@@ -322,13 +337,14 @@ class StrayReportingManagementController extends Controller
         DB::connection('eilya')->beginTransaction();
 
         try {
-            $request->validate([
-                'caretaker_id' => 'required|exists:taufiq.users,id'  // Cross-database: User on taufiq
+            // Validate basic input (removed cross-database exists rule as it doesn't work with PostgreSQL)
+            $validated = $request->validate([
+                'caretaker_id' => 'required|integer|min:1'
             ]);
 
             $report = Report::findOrFail($id);
 
-            // Verify caretaker exists in taufiq database
+            // Verify caretaker exists in taufiq database (cross-database validation)
             $caretaker = $this->safeQuery(
                 fn() => User::findOrFail($request->caretaker_id),
                 null,
@@ -336,7 +352,9 @@ class StrayReportingManagementController extends Controller
             );
 
             if (!$caretaker) {
-                return redirect()->back()->with('error', 'Selected caretaker not found or database connection unavailable.');
+                return redirect()->back()
+                    ->withInput()
+                    ->with('error', 'Selected caretaker not found or database connection unavailable.');
             }
 
             $rescue = Rescue::where('reportID', $report->id)->first();
@@ -399,15 +417,22 @@ class StrayReportingManagementController extends Controller
         } catch (\Illuminate\Validation\ValidationException $e) {
             DB::connection('eilya')->rollBack();
 
+            \Log::error('Validation failed for caretaker assignment', [
+                'report_id' => $id,
+                'errors' => $e->errors(),
+                'input' => $request->all()
+            ]);
+
             return redirect()->back()
                 ->withErrors($e->errors())
                 ->withInput()
-                ->with('error', 'Please check the form and try again.');
+                ->with('error', 'Validation failed: ' . implode(', ', $e->validator->errors()->all()));
         } catch (\Exception $e) {
             DB::connection('eilya')->rollBack();
 
             \Log::error('Error assigning caretaker: ' . $e->getMessage(), [
                 'report_id' => $id,
+                'input' => $request->all(),
                 'caretaker_id' => $request->caretaker_id,
                 'trace' => $e->getTraceAsString()
             ]);

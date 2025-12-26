@@ -82,8 +82,9 @@
                             <span id="detailInventoryCount" class="ml-2 bg-blue-600 text-white px-3 py-1 rounded-full text-sm">0</span>
                         </h3>
                         @role('admin|caretaker')
-                        <button onclick="openInventoryModalForSlot()" class="px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-semibold rounded-lg hover:from-blue-600 hover:to-blue-700 transition duration-300 shadow-sm">
-                            <i class="fas fa-plus mr-2"></i>Add Inventory
+                        <button onclick="openInventoryModalForSlot()" id="addInventoryBtn" class="px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-semibold rounded-lg hover:from-blue-600 hover:to-blue-700 transition duration-300 shadow-sm flex items-center gap-2">
+                            <i class="fas fa-plus" id="addInventoryIcon"></i>
+                            <span id="addInventoryText">Add Inventory</span>
                         </button>
                         @endrole
                     </div>
@@ -350,10 +351,30 @@
     function openInventoryModalForSlot() {
         if (!currentSlotId) return;
 
+        const addInventoryBtn = document.getElementById('addInventoryBtn');
+        const addInventoryIcon = document.getElementById('addInventoryIcon');
+        const addInventoryText = document.getElementById('addInventoryText');
+
+        // Show loading state
+        if (addInventoryBtn) {
+            addInventoryBtn.disabled = true;
+            addInventoryIcon.className = 'fas fa-spinner fa-spin';
+            addInventoryText.textContent = 'Loading...';
+        }
+
         const slotName = document.getElementById('detailSlotName').textContent;
         if (typeof openInventoryModal === 'function') {
             openInventoryModal(currentSlotId, slotName);
         }
+
+        // Reset button state after a brief moment (modal is now open)
+        setTimeout(() => {
+            if (addInventoryBtn) {
+                addInventoryBtn.disabled = false;
+                addInventoryIcon.className = 'fas fa-plus';
+                addInventoryText.textContent = 'Add Inventory';
+            }
+        }, 500);
     }
 
     function viewInventoryDetails(inventoryId) {
@@ -376,3 +397,15 @@
         }
     });
 </script>
+
+<style>
+    /* Spinner animation */
+    .fa-spin {
+        animation: fa-spin 1s infinite linear;
+    }
+
+    @keyframes fa-spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+</style>
