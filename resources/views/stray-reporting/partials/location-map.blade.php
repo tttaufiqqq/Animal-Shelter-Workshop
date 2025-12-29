@@ -13,6 +13,6 @@
         </a>
     </div>
     <div class="p-6">
-        <div id="map" class="h-96 rounded border border-gray-200 bg-gray-100"></div>
+        <div id="map-{{ $mapId ?? 'default' }}" class="leaflet-map h-96 rounded border border-gray-200 bg-gray-100"></div>
     </div>
 </div>

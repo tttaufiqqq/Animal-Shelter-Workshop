@@ -915,16 +915,33 @@ public function update(Request $request, $id)
                 ]);
             }
 
-            // Update slot status if atiqah is online
-            if ($animal->slotID && $atiqahOnline) {
-                $slot = Slot::find($animal->slotID);
+            $animalName = $animal->name;
+            $slotID = $animal->slotID; // Store slot ID before deletion
+            $animal->delete();
+
+            // Update slot status based on remaining animal count if atiqah is online
+            if ($slotID && $atiqahOnline) {
+                $slot = Slot::find($slotID);
                 if ($slot) {
-                    $slot->update(['status' => 'available']);
+                    // Count remaining animals in this slot (after deletion)
+                    $remainingAnimals = Animal::where('slotID', $slotID)->count();
+
+                    // Auto-calculate status based on remaining occupancy
+                    if ($remainingAnimals >= $slot->capacity) {
+                        $slot->status = 'occupied';
+                    } else {
+                        $slot->status = 'available';
+                    }
+                    $slot->save();
+
+                    \Log::info('Slot status updated after animal deletion', [
+                        'slot_id' => $slotID,
+                        'remaining_animals' => $remainingAnimals,
+                        'capacity' => $slot->capacity,
+                        'new_status' => $slot->status,
+                    ]);
                 }
             }
-
-            $animalName = $animal->name;
-            $animal->delete();
 
             // Commit all transactions
             DB::connection('shafiqah')->commit();

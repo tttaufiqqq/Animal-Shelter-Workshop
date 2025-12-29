@@ -31,7 +31,9 @@ Route::get('/api/database-status', function (DatabaseConnectionChecker $checker)
     ]);
 })->name('api.database.status');
 
-Route::get('/dashboard', Dashboard::class)->name('dashboard');
+Route::get('/dashboard', function () {
+    return view('admin.dashboard');
+})->middleware(['auth', 'role:admin'])->name('dashboard');
 
 Route::get('/', [StrayReportingManagementController::class, 'indexUser'])->name('welcome');
 

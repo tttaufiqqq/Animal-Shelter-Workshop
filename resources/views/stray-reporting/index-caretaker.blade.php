@@ -220,9 +220,15 @@
                             <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
                                 {{ $rescue->created_at->format('M d, Y') }}
                             </td>
-                            <td class="px-4 py-3 whitespace-nowrap text-sm">
-                                <a href="{{ route('rescues.show', $rescue->id) }}" class="text-purple-600 hover:underline mr-3">View</a>
-                                <a href="#" onclick="event.preventDefault(); showMapModal({{ $rescue->report->latitude }}, {{ $rescue->report->longitude }}, '{{ addslashes($rescue->report->address) }}')" class="text-purple-600 hover:underline">Map</a>
+                            <td class="px-4 py-3 whitespace-nowrap text-center">
+                                <a href="{{ route('rescues.show', $rescue->id) }}"
+                                   class="inline-flex items-center gap-1 bg-purple-600 hover:bg-purple-700 text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition duration-200 shadow-sm hover:shadow-md">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                                    </svg>
+                                    View
+                                </a>
                             </td>
                         </tr>
                     @endforeach

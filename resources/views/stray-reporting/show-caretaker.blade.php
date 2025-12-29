@@ -40,10 +40,18 @@
         overflow: hidden;
     }
 
-    /* Ensure map stays below modals and overlays */
-    #map {
+    /* Ensure maps stay below modals and overlays */
+    .leaflet-map {
         position: relative;
         z-index: 1;
+        width: 100%;
+        height: 100%;
+    }
+
+    /* Fix Leaflet container styling */
+    .leaflet-container {
+        height: 100%;
+        width: 100%;
     }
 
     /* Ensure loading overlay is above everything */
@@ -121,18 +129,35 @@
         </div>
     @endif
 
-    <!-- Main Content Grid -->
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <!-- Left Column: Report Details & Map -->
-        <div class="lg:col-span-2 space-y-6">
-            @include('stray-reporting.partials.report-details')
-            @include('stray-reporting.partials.location-map')
-        </div>
+    <!-- Responsive Layout: Mobile-First, Desktop-Optimized -->
+    <div class="max-w-7xl mx-auto">
+        <!-- Mobile: Single Column | Desktop: 2 Columns (60/40 split) -->
+        <div class="grid grid-cols-1 lg:grid-cols-5 gap-6">
 
-        <!-- Right Column: Images & Status Update -->
-        <div class="lg:col-span-1 space-y-6">
-            @include('stray-reporting.partials.rescue-images')
-            @include('stray-reporting.partials.status-update')
+            <!-- Left Column: Main Content (Mobile: Full Width | Desktop: 3/5 = 60%) -->
+            <div class="lg:col-span-3 space-y-6">
+                <!-- 1. PHOTOS: See what you're looking for (Large display) -->
+                @include('stray-reporting.partials.rescue-images')
+
+                <!-- 2. RESCUE DETAILS: Location, Navigation, Contact -->
+                @include('stray-reporting.partials.report-details')
+
+                <!-- MAP: Mobile only - show below details -->
+                <div class="block lg:hidden">
+                    @include('stray-reporting.partials.location-map', ['mapId' => 'mobile'])
+                </div>
+            </div>
+
+            <!-- Right Column: Sidebar (Mobile: Full Width | Desktop: 2/5 = 40%) -->
+            <div class="lg:col-span-2 space-y-6">
+                <!-- 3. MAP: Visual reference (desktop only in sidebar) -->
+                <div class="hidden lg:block">
+                    @include('stray-reporting.partials.location-map', ['mapId' => 'desktop'])
+                </div>
+
+                <!-- 4. UPDATE STATUS: Action buttons (prominent in sidebar) -->
+                @include('stray-reporting.partials.status-update')
+            </div>
         </div>
     </div>
 </div>
@@ -165,28 +190,42 @@
 // Rescue ID for this page
 const rescueId = {{ $rescue->id }};
 
-// Initialize the Leaflet map
-const map = L.map('map').setView([{{ $rescue->report->latitude }}, {{ $rescue->report->longitude }}], 15);
+// Initialize the Leaflet maps (both mobile and desktop)
+function initializeMap(mapId) {
+    const mapElement = document.getElementById('map-' + mapId);
+    if (!mapElement) return null;
 
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-}).addTo(map);
+    const map = L.map('map-' + mapId).setView([{{ $rescue->report->latitude }}, {{ $rescue->report->longitude }}], 15);
 
-const marker = L.marker([{{ $rescue->report->latitude }}, {{ $rescue->report->longitude }}]).addTo(map);
-marker.bindPopup(`
-    <div class="p-2">
-        <strong class="text-sm">Rescue Location</strong><br>
-        <span class="text-xs">{{ $rescue->report->address }}</span><br>
-        <span class="text-xs">{{ $rescue->report->city }}, {{ $rescue->report->state }}</span>
-    </div>
-`).openPopup();
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+    }).addTo(map);
 
-const circle = L.circle([{{ $rescue->report->latitude }}, {{ $rescue->report->longitude }}], {
-    color: '#9333ea',
-    fillColor: '#9333ea',
-    fillOpacity: 0.15,
-    radius: 100
-}).addTo(map);
+    const marker = L.marker([{{ $rescue->report->latitude }}, {{ $rescue->report->longitude }}]).addTo(map);
+    marker.bindPopup(`
+        <div class="p-2">
+            <strong class="text-sm">Rescue Location</strong><br>
+            <span class="text-xs">{{ $rescue->report->address }}</span><br>
+            <span class="text-xs">{{ $rescue->report->city }}, {{ $rescue->report->state }}</span>
+        </div>
+    `).openPopup();
+
+    const circle = L.circle([{{ $rescue->report->latitude }}, {{ $rescue->report->longitude }}], {
+        color: '#9333ea',
+        fillColor: '#9333ea',
+        fillOpacity: 0.15,
+        radius: 100
+    }).addTo(map);
+
+    return map;
+}
+
+// Initialize both maps after DOM is loaded
+let mobileMap, desktopMap;
+document.addEventListener('DOMContentLoaded', function() {
+    mobileMap = initializeMap('mobile');
+    desktopMap = initializeMap('desktop');
+});
 
 // Initialize rescue images array from Blade template
 let rescueImages = [

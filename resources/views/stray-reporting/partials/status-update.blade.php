@@ -33,44 +33,60 @@
                 @csrf
                 @method('PATCH')
 
-                <div class="grid grid-cols-2 gap-2">
-                    <button type="button" onclick="updateStatus('Scheduled')" id="statusScheduledBtn"
-                            class="bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-white px-3 py-2 rounded-lg text-sm font-bold transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2">
-                        <span class="inline-block w-2 h-2 rounded-full bg-amber-200"></span>
-                        <span id="statusScheduledText">Scheduled</span>
-                    </button>
-
-                    <button type="button" onclick="updateStatus('In Progress')" id="statusProgressBtn"
-                            class="bg-gradient-to-r from-sky-500 to-sky-600 hover:from-sky-600 hover:to-sky-700 text-white px-3 py-2 rounded-lg text-sm font-bold transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2">
-                        <span class="inline-block w-2 h-2 rounded-full bg-sky-200"></span>
-                        <span id="statusProgressText">In Progress</span>
-                    </button>
-
-                    <button type="button"
-                            @if(!$canCompleteRescue)
-                                disabled
-                                title="Cannot complete rescue: Required databases are offline"
-                                class="bg-gray-400 text-gray-200 px-3 py-2 rounded-lg text-sm font-bold cursor-not-allowed flex items-center justify-center gap-2 opacity-60"
-                            @else
-                                onclick="updateStatus('Success')"
-                                class="bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white px-3 py-2 rounded-lg text-sm font-bold transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2"
-                            @endif
-                            id="statusSuccessBtn">
-                        <span class="inline-block w-2 h-2 rounded-full {{ $canCompleteRescue ? 'bg-emerald-200' : 'bg-gray-300' }}"></span>
-                        <span id="statusSuccessText">Success</span>
-                        @if(!$canCompleteRescue)
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+                {{-- Smart Progressive Workflow for Caretakers --}}
+                @if($rescue->status === 'Scheduled')
+                    {{-- Just Assigned: Start rescue or mark as failed if can't start --}}
+                    <div class="grid grid-cols-1 gap-3">
+                        <button type="button" onclick="updateStatus('In Progress')" id="statusProgressBtn"
+                                class="bg-gradient-to-r from-sky-500 to-sky-600 hover:from-sky-600 hover:to-sky-700 text-white px-4 py-3 rounded-lg text-base font-bold transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
                             </svg>
-                        @endif
-                    </button>
+                            <span id="statusProgressText">Start Rescue</span>
+                        </button>
 
-                    <button type="button" onclick="updateStatus('Failed')" id="statusFailedBtn"
-                            class="bg-gradient-to-r from-rose-500 to-rose-600 hover:from-rose-600 hover:to-rose-700 text-white px-3 py-2 rounded-lg text-sm font-bold transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2">
-                        <span class="inline-block w-2 h-2 rounded-full bg-rose-200"></span>
-                        <span id="statusFailedText">Failed</span>
-                    </button>
-                </div>
+                        <button type="button" onclick="updateStatus('Failed')" id="statusFailedBtn"
+                                class="bg-gradient-to-r from-rose-500 to-rose-600 hover:from-rose-600 hover:to-rose-700 text-white px-4 py-3 rounded-lg text-sm font-semibold transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                            </svg>
+                            <span id="statusFailedText">Mark as Failed (Can't Start)</span>
+                        </button>
+                    </div>
+
+                @elseif($rescue->status === 'In Progress')
+                    {{-- Currently Working: Complete successfully or mark as failed --}}
+                    <div class="grid grid-cols-1 gap-3">
+                        <button type="button"
+                                @if(!$canCompleteRescue)
+                                    disabled
+                                    title="Cannot complete rescue: Required databases are offline"
+                                    class="bg-gray-400 text-gray-200 px-4 py-3 rounded-lg text-base font-bold cursor-not-allowed flex items-center justify-center gap-2 opacity-60"
+                                @else
+                                    onclick="updateStatus('Success')"
+                                    class="bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white px-4 py-3 rounded-lg text-base font-bold transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2"
+                                @endif
+                                id="statusSuccessBtn">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            </svg>
+                            <span id="statusSuccessText">Mark as Successful</span>
+                            @if(!$canCompleteRescue)
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+                                </svg>
+                            @endif
+                        </button>
+
+                        <button type="button" onclick="updateStatus('Failed')" id="statusFailedBtn"
+                                class="bg-gradient-to-r from-rose-500 to-rose-600 hover:from-rose-600 hover:to-rose-700 text-white px-4 py-3 rounded-lg text-sm font-semibold transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                            </svg>
+                            <span id="statusFailedText">Mark as Failed</span>
+                        </button>
+                    </div>
+                @endif
             </form>
         @endif
     </div>

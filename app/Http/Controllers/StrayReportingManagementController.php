@@ -116,7 +116,7 @@ class StrayReportingManagementController extends Controller
                 'address' => $validated['address'],
                 'city' => $validated['city'],
                 'state' => $validated['state'],
-                'report_status' => 'Pending',
+                'report_status' => Report::STATUS_PENDING,
                 'description' => $fullDescription,
                 'userID' => Auth::id(),
             ]);
@@ -432,7 +432,7 @@ class StrayReportingManagementController extends Controller
             }
 
             $report->update([
-                'report_status' => 'In Progress'
+                'report_status' => Report::STATUS_ASSIGNED
             ]);
 
             DB::connection('eilya')->commit();
@@ -585,15 +585,58 @@ class StrayReportingManagementController extends Controller
                 ]
             );
 
+            // Update report status based on rescue status (sync them)
             // Case-insensitive status comparison for cross-RDBMS compatibility
             $currentStatus = strtolower($request->status);
+            $inProgressStatus = strtolower(Rescue::STATUS_IN_PROGRESS);
             $successStatus = strtolower(Rescue::STATUS_SUCCESS);
             $failedStatus = strtolower(Rescue::STATUS_FAILED);
 
-            if ($currentStatus === $successStatus || $currentStatus === $failedStatus) {
+            // When caretaker starts working → Report: "In Progress"
+            if ($currentStatus === $inProgressStatus) {
+                $oldReportStatus = $rescue->report->report_status;
                 $rescue->report->update([
-                    'report_status' => 'Resolved'
+                    'report_status' => Report::STATUS_IN_PROGRESS
                 ]);
+
+                // AUDIT: Report status changed to "In Progress" (synced with rescue)
+                AuditService::logRescue(
+                    'report_status_synced_in_progress',
+                    $rescue->id,
+                    ['report_status' => $oldReportStatus],
+                    ['report_status' => Report::STATUS_IN_PROGRESS],
+                    [
+                        'report_id' => $rescue->reportID,
+                        'rescue_status' => $request->status,
+                        'caretaker_name' => Auth::user()->name,
+                        'address' => $rescue->report->address ?? 'Unknown',
+                        'sync_trigger' => 'Caretaker started rescue operation',
+                    ]
+                );
+            }
+
+            // When rescue is completed (success or failed) → Report: "Completed"
+            if ($currentStatus === $successStatus || $currentStatus === $failedStatus) {
+                $oldReportStatus = $rescue->report->report_status;
+                $rescue->report->update([
+                    'report_status' => Report::STATUS_COMPLETED
+                ]);
+
+                // AUDIT: Report status changed to "Completed" (synced with rescue)
+                AuditService::logRescue(
+                    'report_status_synced_completed',
+                    $rescue->id,
+                    ['report_status' => $oldReportStatus],
+                    ['report_status' => Report::STATUS_COMPLETED],
+                    [
+                        'report_id' => $rescue->reportID,
+                        'rescue_status' => $request->status,
+                        'rescue_final_status' => $request->status, // "Success" or "Failed"
+                        'caretaker_name' => Auth::user()->name,
+                        'address' => $rescue->report->address ?? 'Unknown',
+                        'sync_trigger' => 'Rescue operation completed',
+                    ]
+                );
             }
 
             DB::connection('eilya')->commit();
@@ -775,15 +818,34 @@ class StrayReportingManagementController extends Controller
             }
 
             // Update rescue status
+            $oldRescueStatus = $rescue->status;
             $rescue->update([
                 'status' => $request->status,
                 'remarks' => $request->remarks
             ]);
 
             // Update report status
+            $oldReportStatus = $rescue->report->report_status;
             $rescue->report->update([
-                'report_status' => 'Resolved'
+                'report_status' => Report::STATUS_COMPLETED
             ]);
+
+            // AUDIT: Report status synced to "Completed" (with animals added)
+            AuditService::logRescue(
+                'report_status_synced_completed_with_animals',
+                $rescue->id,
+                ['report_status' => $oldReportStatus],
+                ['report_status' => Report::STATUS_COMPLETED],
+                [
+                    'report_id' => $rescue->reportID,
+                    'rescue_status' => $request->status,
+                    'rescue_final_status' => 'Success',
+                    'caretaker_name' => Auth::user()->name,
+                    'address' => $rescue->report->address ?? 'Unknown',
+                    'sync_trigger' => 'Rescue completed successfully with animals added',
+                    'animals_count' => count($animalsData),
+                ]
+            );
 
             // Create animals
             foreach ($animalsData as $index => $animalData) {
