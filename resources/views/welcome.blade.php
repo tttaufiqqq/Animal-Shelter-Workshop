@@ -61,8 +61,14 @@
         <div class="absolute top-1/2 left-1/3 w-24 h-24 bg-indigo-400 opacity-5 rounded-full blur-2xl"></div>
     </div>
 
-    <!-- Include Navbar -->
-    @include('navbar')
+    <!-- Include Navbar (hidden for admin users) -->
+    @guest
+        @include('navbar')
+    @else
+        @unlessrole('admin')
+            @include('navbar')
+        @endunlessrole
+    @endguest
     @include('stray-reporting.create')
     @include('stray-reporting.my-submitted-report')
 

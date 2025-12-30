@@ -1,13 +1,17 @@
-<x-app-layout>
-    <x-slot name="title">
-        Audit Log - Timeline
-    </x-slot>
+@php
+$breadcrumbs = [
+    ['label' => 'Audit Log', 'url' => route('admin.audit.index')],
+    ['label' => 'Timeline']
+];
+@endphp
 
-    <x-slot name="header">
-        <h2 class="font-semibold text-xl text-gray-800 leading-tight">Correlated Audit Timeline</h2>
-    </x-slot>
-    <div class="py-12">
-        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
+<x-admin-layout title="Correlated Audit Timeline" :breadcrumbs="$breadcrumbs">
+
+    <!-- Page Header (no export button for timeline) -->
+    <div class="mb-6">
+        <h1 class="text-2xl font-bold text-gray-900">Correlated Audit Timeline</h1>
+        <p class="text-gray-600 mt-1">View complete audit trail for correlated operations</p>
+    </div>
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg mb-6 p-6">
                 <h3 class="font-semibold text-lg mb-2">Correlation ID: {{ $correlationId }}</h3>
                 <p>Total Operations: {{ $logs->count() }} | Duration: {{ $duration }} seconds | Status: {{ collect($statusCounts)->map(function($count, $status) { return ucfirst($status) . ': ' . $count; })->implode(', ') }}</p>
@@ -35,6 +39,4 @@
                     @endforeach
                 </div>
             </div>
-        </div>
-    </div>
-</x-app-layout>
+</x-admin-layout>

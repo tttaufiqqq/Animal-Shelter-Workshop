@@ -53,72 +53,6 @@
     }">
         {{-- Must be logged in for everything except Contact Us --}}
         @auth
-            {{-- ADMIN ONLY: Dashboard, Report, Slots --}}
-            @role('admin')
-                <div class="relative">
-                    <a href="{{ route('dashboard') }}"
-                       class="text-purple-100 hover:text-white transition duration-300 font-medium px-3 py-2 inline-block"
-                       @mouseenter="tooltip.dashboard = true"
-                       @mouseleave="tooltip.dashboard = false">
-                        Dashboard
-                    </a>
-                    <div x-show="tooltip.dashboard"
-                         x-transition:enter="transition ease-out duration-200"
-                         x-transition:enter-start="opacity-0 translate-y-1"
-                         x-transition:enter-end="opacity-100 translate-y-0"
-                         x-transition:leave="transition ease-in duration-150"
-                         x-transition:leave-start="opacity-100 translate-y-0"
-                         x-transition:leave-end="opacity-0 translate-y-1"
-                         class="absolute left-1/2 transform -translate-x-1/2 top-full mt-2 px-3 py-2 bg-white text-gray-700 text-xs font-medium rounded-lg shadow-lg border border-purple-200 whitespace-nowrap z-50"
-                         style="display: none;">
-                        <span class="text-purple-900">View analytics and statistics</span>
-                        <div class="absolute left-1/2 transform -translate-x-1/2 -top-1 w-2 h-2 bg-white border-l border-t border-purple-200 rotate-45"></div>
-                    </div>
-                </div>
-
-                <div class="relative">
-                    <a href="{{ route('rescue.map') }}"
-                       class="text-purple-100 hover:text-white transition duration-300 font-medium px-3 py-2 inline-block"
-                       @mouseenter="tooltip.map = true"
-                       @mouseleave="tooltip.map = false">
-                        Map
-                    </a>
-                    <div x-show="tooltip.map"
-                         x-transition:enter="transition ease-out duration-200"
-                         x-transition:enter-start="opacity-0 translate-y-1"
-                         x-transition:enter-end="opacity-100 translate-y-0"
-                         x-transition:leave="transition ease-in duration-150"
-                         x-transition:leave-start="opacity-100 translate-y-0"
-                         x-transition:leave-end="opacity-0 translate-y-1"
-                         class="absolute left-1/2 transform -translate-x-1/2 top-full mt-2 px-3 py-2 bg-white text-gray-700 text-xs font-medium rounded-lg shadow-lg border border-purple-200 whitespace-nowrap z-50"
-                         style="display: none;">
-                        <span class="text-purple-900">View rescue locations on map</span>
-                        <div class="absolute left-1/2 transform -translate-x-1/2 -top-1 w-2 h-2 bg-white border-l border-t border-purple-200 rotate-45"></div>
-                    </div>
-                </div>
-
-                <div class="relative">
-                    <a href="{{ route('reports.index') }}"
-                       class="text-purple-100 hover:text-white transition duration-300 font-medium px-3 py-2 inline-block"
-                       @mouseenter="tooltip.report = true"
-                       @mouseleave="tooltip.report = false">
-                        Report
-                    </a>
-                    <div x-show="tooltip.report"
-                         x-transition:enter="transition ease-out duration-200"
-                         x-transition:enter-start="opacity-0 translate-y-1"
-                         x-transition:enter-end="opacity-100 translate-y-0"
-                         x-transition:leave="transition ease-in duration-150"
-                         x-transition:leave-start="opacity-100 translate-y-0"
-                         x-transition:leave-end="opacity-0 translate-y-1"
-                         class="absolute left-1/2 transform -translate-x-1/2 top-full mt-2 px-3 py-2 bg-white text-gray-700 text-xs font-medium rounded-lg shadow-lg border border-purple-200 whitespace-nowrap z-50"
-                         style="display: none;">
-                        <span class="text-purple-900">Manage stray animal reports</span>
-                        <div class="absolute left-1/2 transform -translate-x-1/2 -top-1 w-2 h-2 bg-white border-l border-t border-purple-200 rotate-45"></div>
-                    </div>
-                </div>
-            @endrole
-
            {{-- Public User and Adopter: Submit Report (not on welcome page) --}}
            @role('public user|adopter')
            @unless(request()->routeIs('welcome'))
@@ -166,30 +100,6 @@
                     <div class="absolute left-1/2 transform -translate-x-1/2 -top-1 w-2 h-2 bg-white border-l border-t border-purple-200 rotate-45"></div>
                 </div>
             </div>
-
-            {{-- ADMIN ONLY: Bookings --}}
-            @role('admin')
-            <div class="relative">
-                <a href="{{ route('bookings.index-admin') }}"
-                   class="text-purple-100 hover:text-white transition duration-300 font-medium px-3 py-2 inline-block"
-                   @mouseenter="tooltip.bookings = true"
-                   @mouseleave="tooltip.bookings = false">
-                    Bookings
-                </a>
-                <div x-show="tooltip.bookings"
-                     x-transition:enter="transition ease-out duration-200"
-                     x-transition:enter-start="opacity-0 translate-y-1"
-                     x-transition:enter-end="opacity-100 translate-y-0"
-                     x-transition:leave="transition ease-in duration-150"
-                     x-transition:leave-start="opacity-100 translate-y-0"
-                     x-transition:leave-end="opacity-0 translate-y-1"
-                     class="absolute left-1/2 transform -translate-x-1/2 top-full mt-2 px-3 py-2 bg-white text-gray-700 text-xs font-medium rounded-lg shadow-lg border border-purple-200 whitespace-nowrap z-50"
-                     style="display: none;">
-                    <span class="text-purple-900">Manage all adoption bookings</span>
-                    <div class="absolute left-1/2 transform -translate-x-1/2 -top-1 w-2 h-2 bg-white border-l border-t border-purple-200 rotate-45"></div>
-                </div>
-            </div>
-            @endrole
 
             {{-- ADMIN + CARETAKER: Clinics & Vets --}}
             @role('admin|caretaker')
@@ -262,28 +172,26 @@
         @endauth
 
         {{-- Public: Contact Us --}}
-        @unlessrole('admin')
-            <div class="relative">
-                <a href="{{ route('contact') }}"
-                   class="text-purple-100 hover:text-white transition duration-300 font-medium px-3 py-2 inline-block"
-                   @mouseenter="tooltip.contact = true"
-                   @mouseleave="tooltip.contact = false">
-                    Contact Us
-                </a>
-                <div x-show="tooltip.contact"
-                     x-transition:enter="transition ease-out duration-200"
-                     x-transition:enter-start="opacity-0 translate-y-1"
-                     x-transition:enter-end="opacity-100 translate-y-0"
-                     x-transition:leave="transition ease-in duration-150"
-                     x-transition:leave-start="opacity-100 translate-y-0"
-                     x-transition:leave-end="opacity-0 translate-y-1"
-                     class="absolute left-1/2 transform -translate-x-1/2 top-full mt-2 px-3 py-2 bg-white text-gray-700 text-xs font-medium rounded-lg shadow-lg border border-purple-200 whitespace-nowrap z-50"
-                     style="display: none;">
-                    <span class="text-purple-900">Get in touch with us</span>
-                    <div class="absolute left-1/2 transform -translate-x-1/2 -top-1 w-2 h-2 bg-white border-l border-t border-purple-200 rotate-45"></div>
-                </div>
+        <div class="relative">
+            <a href="{{ route('contact') }}"
+               class="text-purple-100 hover:text-white transition duration-300 font-medium px-3 py-2 inline-block"
+               @mouseenter="tooltip.contact = true"
+               @mouseleave="tooltip.contact = false">
+                Contact Us
+            </a>
+            <div x-show="tooltip.contact"
+                 x-transition:enter="transition ease-out duration-200"
+                 x-transition:enter-start="opacity-0 translate-y-1"
+                 x-transition:enter-end="opacity-100 translate-y-0"
+                 x-transition:leave="transition ease-in duration-150"
+                 x-transition:leave-start="opacity-100 translate-y-0"
+                 x-transition:leave-end="opacity-0 translate-y-1"
+                 class="absolute left-1/2 transform -translate-x-1/2 top-full mt-2 px-3 py-2 bg-white text-gray-700 text-xs font-medium rounded-lg shadow-lg border border-purple-200 whitespace-nowrap z-50"
+                 style="display: none;">
+                <span class="text-purple-900">Get in touch with us</span>
+                <div class="absolute left-1/2 transform -translate-x-1/2 -top-1 w-2 h-2 bg-white border-l border-t border-purple-200 rotate-45"></div>
             </div>
-        @endunlessrole
+        </div>
     </div>
 
 

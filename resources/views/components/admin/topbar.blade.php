@@ -30,11 +30,19 @@
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
                             </svg>
                             @if(isset($crumb['url']))
-                                <a href="{{ $crumb['url'] }}" class="text-gray-500 hover:text-gray-700 font-medium transition">
+                                <a href="{{ $crumb['url'] }}" class="text-gray-500 hover:text-gray-700 font-medium transition flex items-center gap-1.5">
+                                    @if(isset($crumb['icon']))
+                                        {!! $crumb['icon'] !!}
+                                    @endif
                                     {{ $crumb['label'] }}
                                 </a>
                             @else
-                                <span class="text-gray-900 font-semibold">{{ $crumb['label'] }}</span>
+                                <span class="text-gray-900 font-semibold flex items-center gap-1.5">
+                                    @if(isset($crumb['icon']))
+                                        {!! $crumb['icon'] !!}
+                                    @endif
+                                    {{ $crumb['label'] }}
+                                </span>
                             @endif
                         @endforeach
                     @else

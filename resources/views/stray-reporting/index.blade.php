@@ -38,21 +38,36 @@
     {{-- Database Warning Banner --}}
     @if(isset($dbDisconnected) && count($dbDisconnected) > 0)
         <div class="mb-4 flex items-center gap-2 p-3 bg-yellow-50 border-l-4 border-yellow-400 rounded-lg">
-            <svg class="w-5 h-5 text-yellow-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
-            </svg>
-            <div class="flex-1">
-                <p class="text-xs font-semibold text-yellow-800">Limited Connectivity - {{ count($dbDisconnected) }} database(s) unavailable. Some features may not work.</p>
+            <div class="flex-shrink-0">
+                <svg class="h-6 w-6 text-yellow-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+                </svg>
             </div>
+            <div class="flex-1">
+                <h3 class="text-sm font-semibold text-yellow-800">Limited Connectivity</h3>
+                <p class="text-sm text-yellow-700 mt-1">{{ count($dbDisconnected) }} database(s) currently unavailable. Some features may not work properly.</p>
+                <div class="mt-2 flex flex-wrap gap-2">
+                    @foreach($dbDisconnected as $connection => $info)
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                            {{ $info['module'] }}
+                        </span>
+                    @endforeach
+                </div>
+            </div>
+            <button onclick="this.parentElement.remove()" class="flex-shrink-0 text-yellow-400 hover:text-yellow-600 transition-colors">
+                <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+            </button>
         </div>
     @endif
 
     {{-- Page Content --}}
     <div class="space-y-4">
         {{-- Page Header --}}
-        <div class="bg-purple-600 shadow p-4 -mx-6 -mt-6 mb-6 rounded-b-xl">
-            <h1 class="text-2xl font-bold text-white">Stray Animal Reports</h1>
-            <p class="text-purple-100 text-xs mt-1">View and manage all submitted reports</p>
+        <div class="mb-6">
+            <h1 class="text-2xl font-bold text-gray-900">Stray Animal Reports</h1>
+            <p class="text-sm text-gray-600 mt-1">View and manage all submitted reports</p>
         </div>
 
         {{-- Success/Error Messages --}}
@@ -79,7 +94,11 @@
             <!-- Total Reports -->
             <a href="{{ route('reports.index') }}"
                class="bg-white rounded-lg shadow-md p-4 text-center hover:shadow-lg transform hover:-translate-y-1 transition-all duration-300 {{ !request('status') ? 'ring-2 ring-purple-500' : '' }}">
-                <div class="text-2xl mb-1">📋</div>
+                <div class="flex justify-center mb-2">
+                    <svg class="w-8 h-8 text-purple-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                    </svg>
+                </div>
                 <p class="text-xl font-bold text-purple-700 mb-0.5">{{ $totalReports }}</p>
                 <p class="text-gray-600 text-xs">Total</p>
             </a>
@@ -87,7 +106,11 @@
             <!-- Pending -->
             <a href="{{ route('reports.index', ['status' => 'Pending']) }}"
                class="bg-white rounded-lg shadow-md p-4 text-center hover:shadow-lg transform hover:-translate-y-1 transition-all duration-300 {{ request('status') == 'Pending' ? 'ring-2 ring-yellow-500' : '' }}">
-                <div class="text-2xl mb-1">⏳</div>
+                <div class="flex justify-center mb-2">
+                    <svg class="w-8 h-8 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                </div>
                 <p class="text-xl font-bold text-yellow-600 mb-0.5">{{ $statusCounts['Pending'] ?? 0 }}</p>
                 <p class="text-gray-600 text-xs">Pending</p>
             </a>
@@ -95,7 +118,11 @@
             <!-- Assigned -->
             <a href="{{ route('reports.index', ['status' => 'Assigned']) }}"
                class="bg-white rounded-lg shadow-md p-4 text-center hover:shadow-lg transform hover:-translate-y-1 transition-all duration-300 {{ request('status') == 'Assigned' ? 'ring-2 ring-blue-500' : '' }}">
-                <div class="text-2xl mb-1">📋</div>
+                <div class="flex justify-center mb-2">
+                    <svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                    </svg>
+                </div>
                 <p class="text-xl font-bold text-blue-600 mb-0.5">{{ $statusCounts['Assigned'] ?? 0 }}</p>
                 <p class="text-gray-600 text-xs">Assigned</p>
             </a>
@@ -103,7 +130,11 @@
             <!-- In Progress -->
             <a href="{{ route('reports.index', ['status' => 'In Progress']) }}"
                class="bg-white rounded-lg shadow-md p-4 text-center hover:shadow-lg transform hover:-translate-y-1 transition-all duration-300 {{ request('status') == 'In Progress' ? 'ring-2 ring-purple-500' : '' }}">
-                <div class="text-2xl mb-1">🔄</div>
+                <div class="flex justify-center mb-2">
+                    <svg class="w-8 h-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                    </svg>
+                </div>
                 <p class="text-xl font-bold text-purple-600 mb-0.5">{{ $statusCounts['In Progress'] ?? 0 }}</p>
                 <p class="text-gray-600 text-xs">In Progress</p>
             </a>
@@ -111,7 +142,11 @@
             <!-- Completed -->
             <a href="{{ route('reports.index', ['status' => 'Completed']) }}"
                class="bg-white rounded-lg shadow-md p-4 text-center hover:shadow-lg transform hover:-translate-y-1 transition-all duration-300 {{ request('status') == 'Completed' ? 'ring-2 ring-green-500' : '' }}">
-                <div class="text-2xl mb-1">✅</div>
+                <div class="flex justify-center mb-2">
+                    <svg class="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                </div>
                 <p class="text-xl font-bold text-green-600 mb-0.5">{{ $statusCounts['Completed'] ?? 0 }}</p>
                 <p class="text-gray-600 text-xs">Completed</p>
             </a>
@@ -186,57 +221,98 @@
                     <table class="min-w-full divide-y divide-gray-200">
                         <thead class="bg-gradient-to-r from-purple-500 to-purple-600">
                         <tr>
-                            <th class="px-3 py-2 text-left text-xs font-semibold text-white uppercase tracking-wider">Report </th>
-                            <th class="px-3 py-2 text-left text-xs font-semibold text-white uppercase tracking-wider">Status</th>
-                            <th class="px-3 py-2 text-left text-xs font-semibold text-white uppercase tracking-wider">Location</th>
-                            <th class="px-3 py-2 text-left text-xs font-semibold text-white uppercase tracking-wider">City/State</th>
-                            <th class="px-3 py-2 text-left text-xs font-semibold text-white uppercase tracking-wider">Submitted</th>
-                            <th class="px-3 py-2 text-left text-xs font-semibold text-white uppercase tracking-wider">Images</th>
-                            <th class="px-3 py-2 text-left text-xs font-semibold text-white uppercase tracking-wider">Actions</th>
+                            <th scope="col" class="px-4 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider">Report ID</th>
+                            <th scope="col" class="px-4 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider">Status</th>
+                            <th scope="col" class="px-4 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider">Date & Time</th>
+                            <th scope="col" class="px-4 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider">Location</th>
+                            <th scope="col" class="px-4 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider">Description</th>
+                            <th scope="col" class="px-4 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider">Images</th>
+                            <th scope="col" class="px-4 py-3 text-center text-xs font-semibold text-white uppercase tracking-wider">Actions</th>
                         </tr>
                         </thead>
                         <tbody class="bg-white divide-y divide-gray-200">
                         @foreach($reports as $report)
                             <tr class="hover:bg-gray-50 transition-colors duration-150">
-                                <td class="px-3 py-2 whitespace-nowrap text-xs text-gray-900">REP {{ $report->id }}</td>
-                                <td class="px-3 py-2 whitespace-nowrap">
-                                    <span class="px-2 py-1 text-xs rounded
-                                        @if($report->report_status == 'Pending') bg-yellow-100 text-yellow-800
-                                        @elseif($report->report_status == 'Assigned') bg-blue-100 text-blue-800
-                                        @elseif($report->report_status == 'In Progress') bg-purple-100 text-purple-800
-                                        @elseif($report->report_status == 'Completed') bg-green-100 text-green-800
-                                        @elseif($report->report_status == 'Rejected') bg-red-100 text-red-800
+                                <!-- Report ID -->
+                                <td class="px-4 py-4 whitespace-nowrap">
+                                    <div class="flex items-center gap-2">
+                                        <svg class="w-5 h-5 text-purple-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                        </svg>
+                                        <span class="text-sm font-bold text-purple-700">#{{ $report->id }}</span>
+                                    </div>
+                                </td>
+
+                                <!-- Status -->
+                                <td class="px-4 py-4 whitespace-nowrap">
+                                    <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border
+                                        @if($report->report_status == 'Pending') bg-yellow-100 text-yellow-800 border-yellow-300
+                                        @elseif($report->report_status == 'Assigned') bg-blue-100 text-blue-800 border-blue-300
+                                        @elseif($report->report_status == 'In Progress') bg-purple-100 text-purple-800 border-purple-300
+                                        @elseif($report->report_status == 'Completed') bg-green-100 text-green-800 border-green-300
+                                        @elseif($report->report_status == 'Rejected') bg-red-100 text-red-800 border-red-300
                                         @endif">
                                         {{ $report->report_status }}
                                     </span>
                                 </td>
-                                <td class="px-3 py-2 text-xs text-gray-900">
-                                    <div class="max-w-xs truncate" title="{{ $report->address }}">{{ $report->address }}</div>
+
+                                <!-- Date & Time -->
+                                <td class="px-4 py-4 whitespace-nowrap">
+                                    <div class="text-sm text-gray-900 font-medium">
+                                        {{ $report->created_at->format('M d, Y') }}
+                                    </div>
+                                    <div class="text-xs text-gray-500">
+                                        {{ $report->created_at->format('h:i A') }}
+                                    </div>
                                 </td>
-                                <td class="px-3 py-2 whitespace-nowrap text-xs text-gray-900">
-                                    {{ $report->city }}, {{ $report->state }}
+
+                                <!-- Location -->
+                                <td class="px-4 py-4 max-w-xs">
+                                    <div class="text-sm text-gray-900 font-medium truncate" title="{{ $report->address }}">
+                                        {{ $report->address }}
+                                    </div>
+                                    <div class="text-xs text-gray-500">
+                                        {{ $report->city }}, {{ $report->state }}
+                                    </div>
                                 </td>
-                                <td class="px-3 py-2 whitespace-nowrap text-xs text-gray-900">
-                                    {{ $report->created_at->format('M d, Y') }}
+
+                                <!-- Description -->
+                                <td class="px-4 py-4 max-w-xs">
+                                    @if($report->description)
+                                        <div class="text-sm text-gray-700 truncate" title="{{ $report->description }}">
+                                            {{ Str::limit($report->description, 60) }}
+                                        </div>
+                                    @else
+                                        <span class="text-sm text-gray-400 italic">No description</span>
+                                    @endif
                                 </td>
-                                <td class="px-3 py-2 whitespace-nowrap text-xs text-gray-900">
+
+                                <!-- Images -->
+                                <td class="px-4 py-4 whitespace-nowrap">
                                     @if($report->images->count() > 0)
-                                        <div class="flex items-center gap-1 cursor-pointer" onclick="event.preventDefault(); showImagesModal({{ $report->id }}, {{ json_encode($report->images->map(fn($img) => $img->url)) }})">
-                                            @foreach($report->images->take(3) as $image)
-                                                <img src="{{ $image->url }}"
-                                                     alt="Report image"
-                                                     class="w-8 h-8 rounded-full object-cover border-2 border-white shadow-sm hover:scale-110 transition-transform"
-                                                     onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjMyIiBoZWlnaHQ9IjMyIiBmaWxsPSIjZTVlN2ViIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxMCIgZmlsbD0iIzk5OSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPj88L3RleHQ+PC9zdmc+'">
-                                            @endforeach
+                                        <div class="flex items-center gap-2 cursor-pointer" onclick="event.preventDefault(); showImagesModal({{ $report->id }}, {{ json_encode($report->images->map(fn($img) => $img->url)) }})">
+                                            <div class="flex -space-x-2">
+                                                @foreach($report->images->take(3) as $image)
+                                                    <img src="{{ $image->url }}"
+                                                         alt="Report Image"
+                                                         class="w-8 h-8 rounded-full object-cover border-2 border-white cursor-pointer hover:scale-110 transition-transform shadow-sm"
+                                                         onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjMyIiBoZWlnaHQ9IjMyIiBmaWxsPSIjZTVlN2ViIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxMCIgZmlsbD0iIzk5OSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPj88L3RleHQ+PC9zdmc+'">
+                                                @endforeach
+                                            </div>
                                             @if($report->images->count() > 3)
-                                                <span class="text-xs text-gray-500 font-medium ml-1">+{{ $report->images->count() - 3 }}</span>
+                                                <span class="text-xs font-semibold text-gray-600 bg-gray-100 px-2 py-1 rounded-full">
+                                                    +{{ $report->images->count() - 3 }}
+                                                </span>
                                             @endif
                                         </div>
                                     @else
-                                        <span class="text-gray-400 text-xs">-</span>
+                                        <span class="text-sm text-gray-400">No images</span>
                                     @endif
                                 </td>
-                                <td class="px-3 py-2 whitespace-nowrap text-xs">
+
+                                <!-- Actions -->
+                                <td class="px-4 py-4 whitespace-nowrap text-center">
                                     <a href="{{ route('reports.show', $report->id) }}"
                                        class="inline-flex items-center gap-1 bg-purple-600 hover:bg-purple-700 text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition duration-200 shadow-sm hover:shadow-md">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

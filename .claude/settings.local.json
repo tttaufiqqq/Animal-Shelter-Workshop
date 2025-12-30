@@ -52,7 +52,10 @@
       "Bash(git checkout:*)",
       "Bash(ls:*)",
       "Bash(tree:*)",
-      "Bash(git restore:*)"
+      "Bash(git restore:*)",
+      "Bash(for file in view-tabs.blade.php slots-stats.blade.php slots-filters.blade.php slots-table.blade.php slot-modal.blade.php scripts.blade.php)",
+      "Bash(do echo \"Checking $file...\")",
+      "Bash(done)"
     ]
   }
 }

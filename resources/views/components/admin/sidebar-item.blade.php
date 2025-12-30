@@ -7,7 +7,15 @@
 ])
 
 @php
-    $isActive = $active || request()->routeIs($route);
+    // Check if current route matches exactly or with wildcard
+    // Special handling for audit routes: if route is 'admin.audit.index', also match 'admin.audit.*'
+    $routePattern = $route;
+    if ($route === 'admin.audit.index') {
+        $isActive = $active || request()->routeIs('admin.audit.*');
+    } else {
+        $isActive = $active || request()->routeIs($route) || request()->routeIs($route . '.*');
+    }
+
     $classes = $isActive
         ? 'bg-purple-700 text-white shadow-lg'
         : 'text-purple-100 hover:bg-purple-700/50 hover:text-white';

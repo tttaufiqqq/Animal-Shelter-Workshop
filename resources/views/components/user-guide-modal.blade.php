@@ -509,58 +509,18 @@ function openGuideModal(specificSection = null) {
     modal.classList.remove('hidden');
     document.body.style.overflow = 'hidden';
 
-    // Auto-scroll to user's role section if logged in
-    setTimeout(() => {
-        @auth
-            @php
-                $userRoles = Auth::user()->getRoleNames();
-                $primaryRole = null;
+    // Reset scroll position to top
+    const modalContent = modal.querySelector('.overflow-y-auto');
+    if (modalContent) {
+        modalContent.scrollTop = 0;
+    }
 
-                // Determine primary role in priority order
-                if ($userRoles->contains('admin')) {
-                    $primaryRole = 'admin';
-                } elseif ($userRoles->contains('caretaker')) {
-                    $primaryRole = 'caretaker';
-                } elseif ($userRoles->contains('adopter')) {
-                    $primaryRole = 'adopter';
-                } elseif ($userRoles->contains('public user') || $userRoles->contains('user')) {
-                    $primaryRole = 'publicuser';
-                }
-            @endphp
-
-            @if($primaryRole)
-                const userRoleSection = '{{ $primaryRole }}';
-                const targetSection = specificSection || userRoleSection;
-
-                if (targetSection) {
-                    scrollToSection(targetSection);
-
-                    // Highlight user's role section
-                    const roleElement = document.getElementById(targetSection);
-                    if (roleElement && !specificSection) {
-                        roleElement.classList.add('ring-4', 'ring-purple-400', 'ring-opacity-50');
-                        setTimeout(() => {
-                            roleElement.classList.remove('ring-4', 'ring-purple-400', 'ring-opacity-50');
-                        }, 2000);
-                    }
-                }
-            @else
-                // For guests, show public user section
-                if (specificSection) {
-                    scrollToSection(specificSection);
-                } else {
-                    scrollToSection('publicuser');
-                }
-            @endif
-        @else
-            // For guests, use specific section or default to public user
-            if (specificSection) {
-                scrollToSection(specificSection);
-            } else {
-                scrollToSection('publicuser');
-            }
-        @endauth
-    }, 300);
+    // Only scroll to specific section if explicitly requested
+    if (specificSection) {
+        setTimeout(() => {
+            scrollToSection(specificSection);
+        }, 300);
+    }
 }
 
 function closeGuideModal() {

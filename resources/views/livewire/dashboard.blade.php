@@ -1,15 +1,41 @@
 <div>
+    {{-- Database Warning Banner --}}
+    @if(isset($dbDisconnected) && count($dbDisconnected) > 0)
+        <div class="mb-4 flex items-center gap-2 p-3 bg-yellow-50 border-l-4 border-yellow-400 rounded-lg">
+            <div class="flex-shrink-0">
+                <svg class="h-6 w-6 text-yellow-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+                </svg>
+            </div>
+            <div class="flex-1">
+                <h3 class="text-sm font-semibold text-yellow-800">Limited Connectivity</h3>
+                <p class="text-sm text-yellow-700 mt-1">{{ count($dbDisconnected) }} database(s) currently unavailable. Some features may not work properly.</p>
+                <div class="mt-2 flex flex-wrap gap-2">
+                    @foreach($dbDisconnected as $connection => $info)
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                            {{ $info['module'] }}
+                        </span>
+                    @endforeach
+                </div>
+            </div>
+            <button onclick="this.parentElement.remove()" class="flex-shrink-0 text-yellow-400 hover:text-yellow-600 transition-colors">
+                <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+            </button>
+        </div>
+    @endif
 
     <!-- Dashboard Content -->
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <!-- Welcome Section -->
-        <div class="mb-8">
-            <h1 class="text-3xl font-bold text-gray-800">Booking Analytics Dashboard</h1>
-            <p class="text-gray-600 mt-2">Overview of booking performance and trends</p>
+    <div class="space-y-6">
+        {{-- Page Header --}}
+        <div class="mb-6">
+            <h1 class="text-2xl font-bold text-gray-900">Booking Analytics Dashboard</h1>
+            <p class="text-sm text-gray-600 mt-1">Overview of booking performance and trends</p>
         </div>
 
-        <!-- Filters -->
-        <div class="mb-6 flex gap-4">
+        {{-- Filters --}}
+        <div class="flex gap-4">
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-2">Year</label>
                 <select wire:model.live="selectedYear" class="w-80 border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-purple-500 focus:border-purple-500">
@@ -20,8 +46,8 @@
             </div>
         </div>
 
-        <!-- Key Metrics Cards -->
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
+        {{-- Key Metrics Cards --}}
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
             <!-- Total Bookings -->
             <div class="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl shadow-md hover:shadow-xl transition-all duration-300 p-6 border border-blue-200 group hover:scale-105">
                 <div class="flex items-center justify-between mb-3">
@@ -83,8 +109,8 @@
             </div>
         </div>
 
-        <!-- Charts Grid -->
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        {{-- Charts Grid --}}
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <!-- Revenue by Species -->
             <div class="bg-white rounded-lg shadow">
                 <div class="p-6 border-b border-gray-200">
@@ -132,8 +158,8 @@
             </div>
         </div>
 
-        <!-- Line Charts -->
-        <div class="grid grid-cols-1 gap-6 mb-6">
+        {{-- Line Charts --}}
+        <div class="grid grid-cols-1 gap-6">
             <!-- Bookings by Month -->
             <div class="bg-white rounded-lg shadow">
                 <div class="p-6 border-b border-gray-200">

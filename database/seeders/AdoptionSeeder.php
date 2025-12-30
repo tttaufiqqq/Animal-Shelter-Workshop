@@ -63,11 +63,54 @@ class AdoptionSeeder extends Seeder
 
         try {
             $this->command->info('');
-            $this->command->info('Processing bookings for adoptions (30-40% success rate)...');
+            $this->command->info('Processing bookings for adoptions (30-40% success rate - BATCH MODE)...');
 
+            // STEP 1: Preload all animal data with medical/vaccination counts (single query per type)
+            $this->command->info('Preloading animal data...');
+
+            $allAnimalIds = DB::connection('danish')
+                ->table('animal_booking')
+                ->distinct()
+                ->pluck('animalID')
+                ->toArray();
+
+            // Get all animals at once
+            $animalsData = DB::connection('shafiqah')
+                ->table('animal')
+                ->whereIn('id', $allAnimalIds)
+                ->get()
+                ->keyBy('id');
+
+            // Get medical counts for all animals (single query)
+            $medicalCounts = DB::connection('shafiqah')
+                ->table('medical')
+                ->whereIn('animalID', $allAnimalIds)
+                ->selectRaw('animalID, COUNT(*) as count')
+                ->groupBy('animalID')
+                ->pluck('count', 'animalID')
+                ->toArray();
+
+            // Get vaccination counts for all animals (single query)
+            $vaccinationCounts = DB::connection('shafiqah')
+                ->table('vaccination')
+                ->whereIn('animalID', $allAnimalIds)
+                ->selectRaw('animalID, COUNT(*) as count')
+                ->groupBy('animalID')
+                ->pluck('count', 'animalID')
+                ->toArray();
+
+            $this->command->info('Loaded data for ' . count($animalsData) . ' animals');
+
+            // STEP 2: Determine which animals get adopted (collect data for batch insert)
             $adoptionCount = 0;
-            $processedAnimals = []; // Track which animals have been adopted
+            $processedAnimals = [];
             $ageBreakdown = ['young' => 0, 'adult' => 0, 'senior' => 0];
+
+            $allTransactions = [];
+            $allAdoptions = [];
+            $adoptedAnimalIds = [];
+            $affectedSlotIds = [];
+            $adoptionDates = []; // Track adoption date per animal for updates
 
             foreach ($completedBookings as $booking) {
                 // Get animals in this booking
@@ -83,11 +126,8 @@ class AdoptionSeeder extends Seeder
                         continue;
                     }
 
-                    // Get animal details from Shafiqah's database
-                    $animal = DB::connection('shafiqah')
-                        ->table('animal')
-                        ->where('id', $animalId)
-                        ->first();
+                    // Get animal from preloaded data
+                    $animal = $animalsData->get($animalId);
 
                     if (!$animal) {
                         continue;
@@ -104,28 +144,22 @@ class AdoptionSeeder extends Seeder
 
                     // ===== ADOPTION HAPPENS! =====
 
-                    // Calculate adoption fee
+                    // Calculate adoption fee using preloaded counts
                     $species = strtolower($animal->species);
                     $baseFee = $speciesBaseFees[$species] ?? 15;
 
-                    $medicalCount = DB::connection('shafiqah')
-                        ->table('medical')
-                        ->where('animalID', $animal->id)
-                        ->count();
+                    $medicalCount = $medicalCounts[$animal->id] ?? 0;
                     $medicalFee = $medicalCount * $medicalRate;
 
-                    $vaccinationCount = DB::connection('shafiqah')
-                        ->table('vaccination')
-                        ->where('animalID', $animal->id)
-                        ->count();
+                    $vaccinationCount = $vaccinationCounts[$animal->id] ?? 0;
                     $vaccinationFee = $vaccinationCount * $vaccinationRate;
 
                     $totalFee = $baseFee + $medicalFee + $vaccinationFee;
 
                     $adoptionDate = Carbon::parse($booking->appointment_date);
 
-                    // Create transaction
-                    $transactionId = DB::connection('danish')->table('transaction')->insertGetId([
+                    // Collect transaction data (will be batch inserted)
+                    $allTransactions[] = [
                         'amount'       => $totalFee,
                         'status'       => 'Success',
                         'remarks'      => 'Adoption fee for ' . $animal->name,
@@ -135,39 +169,23 @@ class AdoptionSeeder extends Seeder
                         'userID'       => $booking->userID,
                         'created_at'   => $adoptionDate,
                         'updated_at'   => $adoptionDate,
-                    ]);
+                        // Temporary fields for adoption record creation
+                        'adoption_fee' => $totalFee,
+                        'adoption_remarks' => $animal->name . ' successfully adopted',
+                        'bookingID'    => $booking->id,
+                        'animalID'     => $animal->id,
+                    ];
 
-                    // Create adoption record
-                    DB::connection('danish')->table('adoption')->insert([
-                        'fee'           => $totalFee,
-                        'remarks'       => $animal->name . ' successfully adopted',
-                        'bookingID'     => $booking->id,
-                        'transactionID' => $transactionId,
-                        'animalID'      => $animal->id,
-                        'created_at'    => $adoptionDate,
-                        'updated_at'    => $adoptionDate,
-                    ]);
+                    // Track adopted animals
+                    $processedAnimals[] = $animal->id;
+                    $adoptedAnimalIds[] = $animal->id;
+                    $adoptionDates[$animal->id] = $adoptionDate;
 
-                    // Update animal status to "Adopted" in Shafiqah's database
-                    DB::connection('shafiqah')->table('animal')
-                        ->where('id', $animal->id)
-                        ->update([
-                            'adoption_status' => 'Adopted',
-                            'updated_at'      => $adoptionDate,
-                        ]);
-
-                    // Free up the slot in Atiqah's database (if animal had a slot)
+                    // Track slots to update
                     if ($animal->slotID) {
-                        DB::connection('atiqah')->table('slot')
-                            ->where('id', $animal->slotID)
-                            ->update([
-                                'status'     => 'available',
-                                'updated_at' => $adoptionDate,
-                            ]);
+                        $affectedSlotIds[] = $animal->slotID;
                     }
 
-                    // Track this adoption
-                    $processedAnimals[] = $animal->id;
                     $adoptionCount++;
 
                     // Track age breakdown
@@ -179,6 +197,145 @@ class AdoptionSeeder extends Seeder
                         $ageBreakdown['adult']++;
                     }
                 }
+            }
+
+            // STEP 3: BATCH INSERT transactions and get IDs
+            $this->command->info("Batch inserting {$adoptionCount} transactions...");
+            // Use chunk size of 200 for SQL Server 2100 parameter limit
+            // Each transaction has 9 fields, so 200 × 9 = 1800 parameters (safe)
+            $chunkSize = 200;
+            $transactionChunks = array_chunk($allTransactions, $chunkSize);
+            $transactionIds = [];
+
+            foreach ($transactionChunks as $chunkIndex => $chunk) {
+                // Prepare transactions without temporary fields
+                $transactionsToInsert = array_map(function($trans) {
+                    return [
+                        'amount'       => $trans['amount'],
+                        'status'       => $trans['status'],
+                        'remarks'      => $trans['remarks'],
+                        'type'         => $trans['type'],
+                        'bill_code'    => $trans['bill_code'],
+                        'reference_no' => $trans['reference_no'],
+                        'userID'       => $trans['userID'],
+                        'created_at'   => $trans['created_at'],
+                        'updated_at'   => $trans['updated_at'],
+                    ];
+                }, $chunk);
+
+                // Batch insert
+                DB::connection('danish')->table('transaction')->insert($transactionsToInsert);
+
+                // Get inserted IDs (SQL Server approach - use bill_code for matching)
+                $billCodes = array_column($chunk, 'bill_code');
+                $insertedTransactions = DB::connection('danish')
+                    ->table('transaction')
+                    ->whereIn('bill_code', $billCodes)
+                    ->orderBy('id', 'asc')
+                    ->get(['id', 'bill_code']);
+
+                // Map transaction IDs to original chunk order
+                foreach ($chunk as $index => $trans) {
+                    $matchingTrans = $insertedTransactions->firstWhere('bill_code', $trans['bill_code']);
+                    if ($matchingTrans) {
+                        // Create adoption record data
+                        $allAdoptions[] = [
+                            'fee'           => $trans['adoption_fee'],
+                            'remarks'       => $trans['adoption_remarks'],
+                            'bookingID'     => $trans['bookingID'],
+                            'transactionID' => $matchingTrans->id,
+                            'animalID'      => $trans['animalID'],
+                            'created_at'    => $trans['created_at'],
+                            'updated_at'    => $trans['updated_at'],
+                        ];
+                    }
+                }
+
+                $this->command->info("  Inserted transaction chunk " . ($chunkIndex + 1) . "/" . count($transactionChunks));
+            }
+
+            // STEP 4: BATCH INSERT adoptions
+            $this->command->info("Batch inserting {$adoptionCount} adoption records...");
+            $adoptionChunks = array_chunk($allAdoptions, $chunkSize);
+
+            foreach ($adoptionChunks as $chunkIndex => $chunk) {
+                DB::connection('danish')->table('adoption')->insert($chunk);
+                $this->command->info("  Inserted adoption chunk " . ($chunkIndex + 1) . "/" . count($adoptionChunks));
+            }
+
+            // STEP 5: BATCH UPDATE animals (set slotID to NULL and status to Adopted)
+            $this->command->info("Batch updating {$adoptionCount} animals to 'Adopted' status...");
+            $animalChunks = array_chunk($adoptedAnimalIds, $chunkSize);
+
+            foreach ($animalChunks as $chunkIndex => $chunk) {
+                DB::connection('shafiqah')->table('animal')
+                    ->whereIn('id', $chunk)
+                    ->update([
+                        'adoption_status' => 'Adopted',
+                        'slotID'          => null, // Clear slot (animal leaves shelter)
+                        'updated_at'      => now(),
+                    ]);
+                $this->command->info("  Updated animal chunk " . ($chunkIndex + 1) . "/" . count($animalChunks));
+            }
+
+            // STEP 6: BATCH UPDATE slots - Recalculate status based on remaining animals
+            if (!empty($affectedSlotIds)) {
+                $uniqueSlotIds = array_unique($affectedSlotIds);
+                $this->command->info("Recalculating status for " . count($uniqueSlotIds) . " affected slots...");
+
+                // Get slot capacities (1 query)
+                $slots = DB::connection('atiqah')
+                    ->table('slot')
+                    ->whereIn('id', $uniqueSlotIds)
+                    ->get(['id', 'capacity', 'name'])
+                    ->keyBy('id');
+
+                // Count remaining animals for ALL affected slots in ONE query (instead of N queries)
+                $animalCounts = DB::connection('shafiqah')
+                    ->table('animal')
+                    ->whereIn('slotID', $uniqueSlotIds)
+                    ->selectRaw('slotID, COUNT(*) as count')
+                    ->groupBy('slotID')
+                    ->pluck('count', 'slotID')
+                    ->toArray();
+
+                // Group slots by their new status for batch updates
+                $slotsToOccupy = [];
+                $slotsToFree = [];
+
+                foreach ($slots as $slotId => $slot) {
+                    $remainingAnimals = $animalCounts[$slotId] ?? 0;
+
+                    // Determine new status
+                    if ($remainingAnimals >= $slot->capacity) {
+                        $slotsToOccupy[] = $slotId;
+                    } else {
+                        $slotsToFree[] = $slotId;
+                    }
+                }
+
+                // Batch update slots by status (2 queries instead of N queries)
+                if (!empty($slotsToOccupy)) {
+                    DB::connection('atiqah')
+                        ->table('slot')
+                        ->whereIn('id', $slotsToOccupy)
+                        ->update([
+                            'status' => 'occupied',
+                            'updated_at' => now(),
+                        ]);
+                }
+
+                if (!empty($slotsToFree)) {
+                    DB::connection('atiqah')
+                        ->table('slot')
+                        ->whereIn('id', $slotsToFree)
+                        ->update([
+                            'status' => 'available',
+                            'updated_at' => now(),
+                        ]);
+                }
+
+                $this->command->info("  Slot statuses recalculated (" . count($slotsToOccupy) . " occupied, " . count($slotsToFree) . " available)");
             }
 
             // Commit all transactions

@@ -46,6 +46,26 @@
             background: rgba(139, 92, 246, 0.5);
         }
 
+        /* Custom scrollbar for all content */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #9333ea;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #7e22ce;
+        }
+
         /* Smooth transitions */
         * {
             transition-property: background-color, border-color, color, fill, stroke;
