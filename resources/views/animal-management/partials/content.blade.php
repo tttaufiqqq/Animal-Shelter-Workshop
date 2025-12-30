@@ -5,8 +5,14 @@
     <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         {{-- Total Animals --}}
         <div class="bg-white border-2 border-gray-200 rounded-lg p-6 text-center">
-            <div class="w-12 h-12 bg-purple-600 rounded-lg flex items-center justify-center mx-auto mb-3">
-                <i class="fas fa-paw text-white text-xl"></i>
+            <div class="w-12 h-12 flex items-center justify-center mx-auto mb-3">
+                <svg class="w-10 h-10 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="7" cy="5" r="1.5" stroke-width="2"/>
+                    <circle cx="17" cy="5" r="1.5" stroke-width="2"/>
+                    <circle cx="5" cy="11" r="1.5" stroke-width="2"/>
+                    <circle cx="19" cy="11" r="1.5" stroke-width="2"/>
+                    <ellipse cx="12" cy="16" rx="4" ry="5" stroke-width="2"/>
+                </svg>
             </div>
             <p class="text-2xl font-bold text-purple-700 mb-1">{{ $animals->total() }}</p>
             <p class="text-gray-600 text-sm font-medium">Total Animals</p>
@@ -14,8 +20,10 @@
 
         {{-- Available for Adoption --}}
         <div class="bg-white border-2 border-gray-200 rounded-lg p-6 text-center">
-            <div class="w-12 h-12 bg-green-600 rounded-lg flex items-center justify-center mx-auto mb-3">
-                <i class="fas fa-heart text-white text-xl"></i>
+            <div class="w-12 h-12 flex items-center justify-center mx-auto mb-3">
+                <svg class="w-10 h-10 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/>
+                </svg>
             </div>
             <p class="text-2xl font-bold text-green-700 mb-1">
                 {{ $animals->where('adoption_status', 'Not Adopted')->count() }}
@@ -25,8 +33,10 @@
 
         {{-- Adopted --}}
         <div class="bg-white border-2 border-gray-200 rounded-lg p-6 text-center">
-            <div class="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center mx-auto mb-3">
-                <i class="fas fa-home text-white text-xl"></i>
+            <div class="w-12 h-12 flex items-center justify-center mx-auto mb-3">
+                <svg class="w-10 h-10 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+                </svg>
             </div>
             <p class="text-2xl font-bold text-blue-700 mb-1">
                 {{ $animals->where('adoption_status', 'Adopted')->count() }}
@@ -36,8 +46,11 @@
 
         {{-- Health Status --}}
         <div class="bg-white border-2 border-gray-200 rounded-lg p-6 text-center">
-            <div class="w-12 h-12 bg-red-600 rounded-lg flex items-center justify-center mx-auto mb-3">
-                <i class="fas fa-heartbeat text-white text-xl"></i>
+            <div class="w-12 h-12 flex items-center justify-center mx-auto mb-3">
+                <svg class="w-10 h-10 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+                </svg>
             </div>
             <p class="text-2xl font-bold text-red-700 mb-1">
                 {{ $animals->whereIn('health_details', ['Sick', 'Need Observation'])->count() }}
@@ -71,8 +84,10 @@
     <div class="bg-white rounded-lg shadow-sm p-4 mb-4 border border-gray-200">
         <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
             <div class="flex items-center gap-2">
-                <div class="bg-purple-600 text-white p-2 rounded">
-                    <i class="fas fa-filter text-base"></i>
+                <div class="p-2">
+                    <svg class="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/>
+                    </svg>
                 </div>
                 <div>
                     <h3 class="text-sm font-bold text-gray-900">Caretaker View</h3>

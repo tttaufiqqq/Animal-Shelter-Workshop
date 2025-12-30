@@ -80,25 +80,6 @@ $breadcrumbs = [
             </p>
         </div>
 
-        {{-- Success/Error Messages --}}
-        @if(session('success'))
-            <div class="flex items-start gap-2 p-3 bg-green-50 border-l-4 border-green-500 rounded">
-                <svg class="w-4 h-4 text-green-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
-                </svg>
-                <p class="text-xs font-medium text-green-800">{{ session('success') }}</p>
-            </div>
-        @endif
-
-        @if(session('error'))
-            <div class="flex items-start gap-2 p-3 bg-red-50 border-l-4 border-red-500 rounded">
-                <svg class="w-4 h-4 text-red-600 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-                <p class="text-xs font-semibold text-red-700">{{ session('error') }}</p>
-            </div>
-        @endif
-
         {{-- Livewire Component for Real-time Reports --}}
         @livewire('reports-table')
     </div>

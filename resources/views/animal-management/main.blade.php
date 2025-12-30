@@ -3,7 +3,7 @@
         {{-- Admin View with Admin Layout --}}
         @php
         $breadcrumbs = [
-            ['label' => 'Animals', 'icon' => '<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 10c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm6-4c-.55 0-1 .45-1 1s.45 1 1 1 1-.45 1-1-.45-1-1-1zM6 6c-.55 0-1 .45-1 1s.45 1 1 1 1-.45 1-1-.45-1-1-1zm11.5 7c-.83 0-1.5.67-1.5 1.5s.67 1.5 1.5 1.5 1.5-.67 1.5-1.5-.67-1.5-1.5-1.5zm-11 0c-.83 0-1.5.67-1.5 1.5s.67 1.5 1.5 1.5S8 15.33 8 14.5 7.33 13 6.5 13zM12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></svg>']
+            ['label' => 'Animals', 'icon' => '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><circle cx="7" cy="5" r="1.5" stroke-width="1.5"/><circle cx="17" cy="5" r="1.5" stroke-width="1.5"/><circle cx="5" cy="11" r="1.5" stroke-width="1.5"/><circle cx="19" cy="11" r="1.5" stroke-width="1.5"/><ellipse cx="12" cy="16" rx="4" ry="5" stroke-width="1.5"/></svg>']
         ];
         @endphp
 

@@ -220,7 +220,7 @@ class StrayReportingManagementController extends Controller
         );
 
         if (!$report) {
-            return redirect()->route('stray-reporting.index')
+            return redirect()->route('reports.index')
                 ->with('error', 'Report not found or database connection unavailable.');
         }
 
@@ -272,7 +272,7 @@ class StrayReportingManagementController extends Controller
 
             DB::connection('eilya')->commit();
 
-            return redirect()->route('stray-reporting.index')->with('success', 'Report deleted successfully!');
+            return redirect()->route('reports.index')->with('success', 'Report deleted successfully!');
 
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             DB::connection('eilya')->rollBack();
