@@ -68,23 +68,18 @@
 
             <!-- Right: Notifications + User Guide + Profile -->
             <div class="flex items-center gap-3">
-                <!-- Notifications -->
-                <button class="relative text-gray-500 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-500 rounded-lg p-2 transition">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
-                    </svg>
-                    <!-- Notification Badge -->
-                    <span class="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
-                </button>
+                <!-- Notifications (Livewire Component) -->
+                @livewire('notifications')
 
                 <!-- User Guide -->
-                <button onclick="openGuideModal()"
-                        class="text-gray-500 hover:text-purple-600 focus:outline-none focus:ring-2 focus:ring-purple-500 rounded-lg p-2 transition"
-                        title="User Guide">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                    </svg>
-                </button>
+                <x-tooltip.wrapper text="Access user guide and<br>help documentation" position="bottom" size="sm">
+                    <button onclick="openGuideModal()"
+                            class="text-gray-500 hover:text-purple-600 focus:outline-none focus:ring-2 focus:ring-purple-500 rounded-lg p-2 transition">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                    </button>
+                </x-tooltip.wrapper>
 
                 <!-- Profile Dropdown -->
                 <div class="relative" x-data="{ profileOpen: false }" @click.away="profileOpen = false">
@@ -124,35 +119,69 @@
                         </div>
 
                         <!-- Menu Items -->
-                        <div class="py-2">
-                            <a href="{{ route('profile.edit') }}"
-                               class="flex items-center gap-3 px-4 py-2.5 text-gray-700 hover:bg-purple-50 hover:text-purple-700 transition">
-                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
-                                </svg>
-                                <span class="font-medium text-sm">My Profile</span>
-                            </a>
+                        <div class="py-2" x-data="{
+                            tooltip: {
+                                profile: false,
+                                publicSite: false,
+                                logout: false
+                            }
+                        }">
+                            <div class="relative">
+                                <a href="{{ route('profile.edit') }}"
+                                   class="flex items-center gap-3 px-4 py-2.5 text-gray-700 hover:bg-purple-50 hover:text-purple-700 transition"
+                                   @mouseenter="tooltip.profile = true"
+                                   @mouseleave="tooltip.profile = false">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                                    </svg>
+                                    <span class="font-medium text-sm">My Profile</span>
+                                </a>
+                                <x-tooltip
+                                    text="Edit your personal account<br>settings and preferences"
+                                    position="right"
+                                    size="xs"
+                                />
+                            </div>
 
-                            <a href="{{ route('welcome') }}"
-                               class="flex items-center gap-3 px-4 py-2.5 text-gray-700 hover:bg-purple-50 hover:text-purple-700 transition">
-                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
-                                </svg>
-                                <span class="font-medium text-sm">Public Site</span>
-                            </a>
+                            <div class="relative">
+                                <a href="{{ route('welcome') }}"
+                                   class="flex items-center gap-3 px-4 py-2.5 text-gray-700 hover:bg-purple-50 hover:text-purple-700 transition"
+                                   @mouseenter="tooltip.publicSite = true"
+                                   @mouseleave="tooltip.publicSite = false">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+                                    </svg>
+                                    <span class="font-medium text-sm">Public Site</span>
+                                </a>
+                                <x-tooltip
+                                    text="Return to public-facing<br>website homepage"
+                                    position="right"
+                                    size="xs"
+                                />
+                            </div>
 
                             <div class="border-t border-gray-100 my-1"></div>
 
-                            <form method="POST" action="{{ route('logout') }}">
-                                @csrf
-                                <button type="submit"
-                                        class="w-full flex items-center gap-3 px-4 py-2.5 text-red-600 hover:bg-red-50 transition">
-                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
-                                    </svg>
-                                    <span class="font-medium text-sm">Log Out</span>
-                                </button>
-                            </form>
+                            <div class="relative">
+                                <form method="POST" action="{{ route('logout') }}">
+                                    @csrf
+                                    <button type="submit"
+                                            class="w-full flex items-center gap-3 px-4 py-2.5 text-red-600 hover:bg-red-50 transition"
+                                            @mouseenter="tooltip.logout = true"
+                                            @mouseleave="tooltip.logout = false">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+                                        </svg>
+                                        <span class="font-medium text-sm">Log Out</span>
+                                    </button>
+                                </form>
+                                <x-tooltip
+                                    text="Sign out and end your<br>current admin session"
+                                    position="right"
+                                    size="xs"
+                                    color="gray"
+                                />
+                            </div>
                         </div>
                     </div>
                 </div>

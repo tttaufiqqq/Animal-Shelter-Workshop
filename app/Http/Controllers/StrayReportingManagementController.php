@@ -321,6 +321,14 @@ class StrayReportingManagementController extends Controller
 
             if ($rescue) {
                 $oldCaretakerId = $rescue->caretakerID;
+
+                // Prevent reassignment to the same caretaker
+                if ($oldCaretakerId == $request->caretaker_id) {
+                    return redirect()->back()
+                        ->withInput()
+                        ->with('error', 'This report is already assigned to ' . $caretaker->name . '. Please select a different caretaker.');
+                }
+
                 $rescue->update([
                     'caretakerID' => $request->caretaker_id
                 ]);
