@@ -33,14 +33,14 @@
     <td class="px-6 py-4 whitespace-nowrap">
         @php
             $healthConfig = match($animal->health_details) {
-                'Healthy' => ['bg' => 'bg-green-100', 'text' => 'text-green-700', 'border' => 'border-green-300', 'icon' => '✅'],
-                'Sick' => ['bg' => 'bg-red-100', 'text' => 'text-red-700', 'border' => 'border-red-300', 'icon' => '🤒'],
-                'Need Observation' => ['bg' => 'bg-yellow-100', 'text' => 'text-yellow-700', 'border' => 'border-yellow-300', 'icon' => '👁️'],
-                default => ['bg' => 'bg-gray-100', 'text' => 'text-gray-700', 'border' => 'border-gray-300', 'icon' => '❓']
+                'Healthy' => ['bg' => 'bg-green-100', 'text' => 'text-green-700', 'border' => 'border-green-300', 'icon' => 'fa-check-circle'],
+                'Sick' => ['bg' => 'bg-red-100', 'text' => 'text-red-700', 'border' => 'border-red-300', 'icon' => 'fa-notes-medical'],
+                'Need Observation' => ['bg' => 'bg-yellow-100', 'text' => 'text-yellow-700', 'border' => 'border-yellow-300', 'icon' => 'fa-eye'],
+                default => ['bg' => 'bg-gray-100', 'text' => 'text-gray-700', 'border' => 'border-gray-300', 'icon' => 'fa-question-circle']
             };
         @endphp
         <span class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-bold border-2 {{ $healthConfig['bg'] }} {{ $healthConfig['text'] }} {{ $healthConfig['border'] }} shadow-sm">
-            <span class="mr-1.5">{{ $healthConfig['icon'] }}</span>
+            <i class="fas {{ $healthConfig['icon'] }} mr-1.5"></i>
             {{ $animal->health_details ?? 'Unknown' }}
         </span>
     </td>

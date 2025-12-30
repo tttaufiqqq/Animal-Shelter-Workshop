@@ -206,79 +206,9 @@ class StrayReportingManagementController extends Controller
 
     public function index(Request $request)
     {
-        $reports = $this->safeQuery(function() use ($request) {
-            $query = Report::with('images');
-
-            // Check if taufiq database is online for user filtering
-            $taufiqOnline = $this->isDatabaseAvailable('taufiq');
-
-            // Search by user name or email (cross-database search)
-            if ($request->filled('user_search') && $taufiqOnline) {
-                $userSearch = $request->user_search;
-
-                // Get user IDs from taufiq database that match search
-                $userIds = DB::connection('taufiq')
-                    ->table('users')
-                    ->where(function($q) use ($userSearch) {
-                        $q->where('name', 'LIKE', "%{$userSearch}%")
-                          ->orWhere('email', 'LIKE', "%{$userSearch}%");
-                    })
-                    ->pluck('id')
-                    ->toArray();
-
-                if (!empty($userIds)) {
-                    $query->whereIn('userID', $userIds);
-                } else {
-                    // No users found, return empty result
-                    $query->whereRaw('1 = 0');
-                }
-            }
-
-            // Search by report ID
-            if ($request->filled('report_id')) {
-                $query->where('id', $request->report_id);
-            }
-
-            // Search by location (address, city, state)
-            if ($request->filled('location')) {
-                $location = $request->location;
-                $query->where(function($q) use ($location) {
-                    $q->where('address', 'LIKE', "%{$location}%")
-                      ->orWhere('city', 'LIKE', "%{$location}%")
-                      ->orWhere('state', 'LIKE', "%{$location}%");
-                });
-            }
-
-            // Filter by status
-            if ($request->filled('status')) {
-                $query->where('report_status', $request->status);
-            }
-
-            // Date range filter
-            if ($request->filled('date_from')) {
-                $query->whereDate('created_at', '>=', $request->date_from);
-            }
-            if ($request->filled('date_to')) {
-                $query->whereDate('created_at', '<=', $request->date_to);
-            }
-
-            return $query->orderBy('created_at', 'desc')
-                ->paginate(50)
-                ->appends($request->query());
-        }, new \Illuminate\Pagination\LengthAwarePaginator([], 0, 50), 'eilya');
-
-        // Get status counts for filter badges
-        $statusCounts = $this->safeQuery(
-            fn() => Report::select('report_status', DB::connection('eilya')->raw('COUNT(*) as total'))
-                ->groupBy('report_status')
-                ->pluck('total', 'report_status'),
-            collect([]),
-            'eilya'
-        );
-
-        $totalReports = $statusCounts->sum();
-
-        return view('stray-reporting.index', compact('reports', 'statusCounts', 'totalReports'));
+        // Livewire component handles all data loading and real-time updates
+        // Controller now just returns the view
+        return view('stray-reporting.index');
     }
 
     public function show($id)

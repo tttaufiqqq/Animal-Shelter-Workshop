@@ -89,9 +89,51 @@ class ProfileController extends Controller
     }
     public function edit(Request $request): View
     {
+        $user = $request->user();
+
+        // Check if user is an admin
+        if ($user->hasRole('admin')) {
+            // Get admin-specific statistics
+            $stats = $this->getAdminStats();
+
+            return view('admin.profile.edit', [
+                'user' => $user,
+                'stats' => $stats,
+            ]);
+        }
+
+        // Return regular profile view for other roles
         return view('profile.edit', [
-            'user' => $request->user(),
+            'user' => $user,
         ]);
+    }
+
+    /**
+     * Get statistics for admin profile
+     */
+    private function getAdminStats(): array
+    {
+        try {
+            // Cross-database statistics
+            $totalUsers = \App\Models\User::count();
+            $totalReports = \App\Models\Report::count();
+            $totalAnimals = \App\Models\Animal::count();
+
+            return [
+                'totalUsers' => $totalUsers,
+                'totalReports' => $totalReports,
+                'totalAnimals' => $totalAnimals,
+            ];
+        } catch (\Exception $e) {
+            \Log::error('Error fetching admin stats: ' . $e->getMessage());
+
+            // Return empty stats if there's an error
+            return [
+                'totalUsers' => 0,
+                'totalReports' => 0,
+                'totalAnimals' => 0,
+            ];
+        }
     }
 
     /**

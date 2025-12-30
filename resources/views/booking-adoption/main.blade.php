@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>My Bookings - Stray Animal Shelter</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
     <style>
         /* Smooth line clamp */
         .line-clamp-2 {
@@ -67,7 +68,7 @@
 @endif
 
 <div class="bg-gradient-to-r from-purple-600 to-purple-800 text-white py-16">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="px-4 sm:px-6 lg:px-8">
         <div class="flex flex-col md:flex-row md:items-center md:justify-between">
             <div>
                 <h1 class="text-5xl font-bold mb-4">My Bookings</h1>
@@ -76,9 +77,7 @@
             @unless($bookings->isEmpty())
                 <div class="mt-6 md:mt-0">
                     <a href="{{ route('animal:main') }}" class="inline-flex items-center gap-2 bg-white text-purple-700 px-8 py-3 rounded-lg font-semibold hover:bg-purple-50 transition duration-300 shadow-lg">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
-                        </svg>
+                        <i class="fas fa-plus"></i>
                         <span>New Booking</span>
                     </a>
                 </div>
@@ -87,22 +86,18 @@
     </div>
 </div>
 
-<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+<div class="px-4 sm:px-6 lg:px-8 py-12">
 
     @if (session('success'))
         <div class="flex items-start gap-3 p-4 mb-6 bg-green-50 border border-green-200 rounded-xl shadow-sm">
-            <svg class="w-6 h-6 text-green-600 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
-            </svg>
+            <i class="fas fa-check-circle text-green-600 text-xl flex-shrink-0"></i>
             <p class="font-semibold text-green-700">{{ session('success') }}</p>
         </div>
     @endif
 
     @if (session('error'))
         <div class="flex items-start gap-3 p-4 mb-6 bg-red-50 border border-red-200 rounded-xl shadow-sm">
-            <svg class="w-6 h-6 text-red-600 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-            </svg>
+            <i class="fas fa-times-circle text-red-600 text-xl flex-shrink-0"></i>
             <p class="font-semibold text-red-700">{{ session('error') }}</p>
         </div>
     @endif
@@ -110,10 +105,11 @@
     <!-- Stats Cards as Filter Buttons -->
     <div class="grid grid-cols-1 md:grid-cols-5 gap-6 mb-10">
         <!-- Total Bookings Card -->
-        <!-- Total Bookings Card -->
         <a href="{{ route('bookings.index') }}"
            class="bg-white rounded-lg shadow-lg p-8 text-center hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300 cursor-pointer {{ !request('status') ? 'ring-4 ring-purple-500' : '' }}">
-            <div class="text-5xl mb-4">📅</div>
+            <div class="flex justify-center mb-4">
+                <i class="fas fa-calendar-alt text-purple-600" style="font-size: 4rem;"></i>
+            </div>
             <p class="text-4xl font-bold text-purple-700 mb-2">{{ $totalBookings }}</p>
             <p class="text-gray-600">Total Bookings</p>
             @if(!request('status'))
@@ -124,7 +120,9 @@
         <!-- Pending Card -->
         <a href="{{ route('bookings.index', ['status' => 'Pending']) }}"
            class="bg-white rounded-lg shadow-lg p-8 text-center hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300 cursor-pointer {{ request('status') == 'Pending' ? 'ring-4 ring-yellow-500' : '' }}">
-            <div class="text-5xl mb-4">⏳</div>
+            <div class="flex justify-center mb-4">
+                <i class="fas fa-clock text-yellow-600" style="font-size: 4rem;"></i>
+            </div>
             <p class="text-4xl font-bold text-yellow-600 mb-2">{{ $statusCounts['Pending'] ?? 0 }}</p>
             <p class="text-gray-600">Pending</p>
             @if(request('status') == 'Pending')
@@ -135,7 +133,9 @@
         <!-- Confirmed Card -->
         <a href="{{ route('bookings.index', ['status' => 'Confirmed']) }}"
            class="bg-white rounded-lg shadow-lg p-8 text-center hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300 cursor-pointer {{ request('status') == 'Confirmed' ? 'ring-4 ring-blue-500' : '' }}">
-            <div class="text-5xl mb-4">✅</div>
+            <div class="flex justify-center mb-4">
+                <i class="fas fa-check-circle text-blue-600" style="font-size: 4rem;"></i>
+            </div>
             <p class="text-4xl font-bold text-blue-600 mb-2">{{ $statusCounts['Confirmed'] ?? 0 }}</p>
             <p class="text-gray-600">Confirmed</p>
             @if(request('status') == 'Confirmed')
@@ -146,7 +146,9 @@
         <!-- Completed Card -->
         <a href="{{ route('bookings.index', ['status' => 'Completed']) }}"
            class="bg-white rounded-lg shadow-lg p-8 text-center hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300 cursor-pointer {{ request('status') == 'Completed' ? 'ring-4 ring-green-500' : '' }}">
-            <div class="text-5xl mb-4">🎉</div>
+            <div class="flex justify-center mb-4">
+                <i class="fas fa-check-circle text-green-600" style="font-size: 4rem;"></i>
+            </div>
             <p class="text-4xl font-bold text-green-600 mb-2">{{ $statusCounts['Completed'] ?? 0 }}</p>
             <p class="text-gray-600">Completed</p>
             @if(request('status') == 'Completed')
@@ -157,7 +159,9 @@
         <!-- Cancelled Card -->
         <a href="{{ route('bookings.index', ['status' => 'Cancelled']) }}"
            class="bg-white rounded-lg shadow-lg p-8 text-center hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300 cursor-pointer {{ request('status') == 'Cancelled' ? 'ring-4 ring-red-500' : '' }}">
-            <div class="text-5xl mb-4">❌</div>
+            <div class="flex justify-center mb-4">
+                <i class="fas fa-times-circle text-red-600" style="font-size: 4rem;"></i>
+            </div>
             <p class="text-4xl font-bold text-red-600 mb-2">{{ $statusCounts['Cancelled'] ?? 0 }}</p>
             <p class="text-gray-600">Cancelled</p>
             @if(request('status') == 'Cancelled')
@@ -175,9 +179,7 @@
             @endif
 
             <div class="flex items-center gap-2 mb-4">
-                <svg class="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-                </svg>
+                <i class="fas fa-search text-purple-600"></i>
                 <h3 class="text-lg font-semibold text-gray-900">Search & Filter Bookings</h3>
             </div>
 
@@ -220,16 +222,12 @@
             <div class="flex gap-3 pt-2">
                 <button type="submit"
                         class="px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-semibold transition duration-300 flex items-center gap-2">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-                    </svg>
+                    <i class="fas fa-search"></i>
                     Search
                 </button>
                 <a href="{{ route('bookings.index') }}"
                    class="px-6 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg font-semibold transition duration-300 flex items-center gap-2">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                    </svg>
+                    <i class="fas fa-times"></i>
                     Clear
                 </a>
             </div>
@@ -237,9 +235,7 @@
             @if(request()->hasAny(['search', 'date_from', 'date_to']))
                 <div class="mt-3 text-sm text-purple-600 font-medium">
                     <span class="inline-flex items-center gap-1">
-                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path>
-                        </svg>
+                        <i class="fas fa-info-circle"></i>
                         Active filters applied
                     </span>
                 </div>
@@ -250,16 +246,12 @@
     @if($bookings->isEmpty())
         <div class="bg-white rounded-lg shadow-lg p-12 text-center">
             <div class="mb-6">
-                <svg class="w-32 h-32 mx-auto text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                </svg>
+                <i class="fas fa-calendar-alt text-gray-300" style="font-size: 8rem;"></i>
             </div>
             <h3 class="text-3xl font-bold text-gray-700 mb-3">No Bookings Yet</h3>
             <p class="text-gray-500 text-lg mb-8">You haven't made any bookings. Start by creating your first appointment!</p>
             <a href="{{ route('animal:main') }}" class="inline-flex items-center gap-2 bg-purple-700 hover:bg-purple-800 text-white px-8 py-3 rounded-lg font-semibold transition duration-300 shadow-lg">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
-                </svg>
+                <i class="fas fa-plus"></i>
                 <span>Create First Booking</span>
             </a>
         </div>
@@ -303,17 +295,11 @@
                                 'completed' => 'bg-green-100 text-green-800 border-green-300',
                                 'cancelled' => 'bg-red-100 text-red-800 border-red-300',
                             ];
-                            $statusEmojis = [
-                                'pending' => '⏳',
-                                'confirmed' => '✅',
-                                'completed' => '🎉',
-                                'cancelled' => '❌',
-                            ];
                         @endphp
                         <tr class="hover:bg-gray-50 transition-colors duration-150">
                             <td class="px-4 py-4 whitespace-nowrap">
                                 <div class="flex items-center gap-2">
-                                    <span class="text-lg">📅</span>
+                                    <i class="fas fa-calendar-alt text-purple-600"></i>
                                     <span class="text-sm font-bold text-purple-700">#{{ $booking->id }}</span>
                                 </div>
                             </td>
@@ -358,9 +344,7 @@
                             <td class="px-4 py-4 whitespace-nowrap text-center">
                                 @if($booking->adoptions->isNotEmpty())
                                     <span class="inline-flex items-center px-3 py-1 bg-green-100 text-green-800 rounded-full text-xs font-semibold">
-                                        <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
-                                        </svg>
+                                        <i class="fas fa-check-circle mr-1"></i>
                                         Confirmed
                                     </span>
                                 @else
@@ -371,10 +355,7 @@
                                 <button type="button"
                                         onclick="openBookingModal({{ $booking->id }})"
                                         class="inline-flex items-center gap-1 bg-purple-600 hover:bg-purple-700 text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition duration-200 shadow-sm hover:shadow-md">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
-                                    </svg>
+                                    <i class="fas fa-eye"></i>
                                     View
                                 </button>
                             </td>
@@ -421,15 +402,11 @@
                 <div class="flex items-center justify-center mb-4">
                     @if($isSuccess)
                         <div class="bg-white rounded-full p-4">
-                            <svg class="w-16 h-16 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                            </svg>
+                            <i class="fas fa-check-circle text-green-600" style="font-size: 4rem;"></i>
                         </div>
                     @else
                         <div class="bg-white rounded-full p-4">
-                            <svg class="w-16 h-16 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                            </svg>
+                            <i class="fas fa-times-circle text-red-600" style="font-size: 4rem;"></i>
                         </div>
                     @endif
                 </div>
@@ -447,9 +424,7 @@
                     <!-- Success Message -->
                     <div class="bg-green-50 border-l-4 border-green-500 p-6 rounded-lg mb-6">
                         <div class="flex items-start">
-                            <svg class="w-6 h-6 text-green-500 mt-1" fill="currentColor" viewBox="0 0 20 20">
-                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
-                            </svg>
+                            <i class="fas fa-check-circle text-green-500 text-xl mt-1"></i>
                             <div class="ml-3">
                                 <h3 class="text-lg font-semibold text-green-800">Congratulations!</h3>
                                 <p class="text-green-700 mt-1">
@@ -463,9 +438,7 @@
                     <!-- Failure Message -->
                     <div class="bg-red-50 border-l-4 border-red-500 p-6 rounded-lg mb-6">
                         <div class="flex items-start">
-                            <svg class="w-6 h-6 text-red-500 mt-1" fill="currentColor" viewBox="0 0 20 20">
-                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path>
-                            </svg>
+                            <i class="fas fa-times-circle text-red-500 text-xl mt-1"></i>
                             <div class="ml-3">
                                 <h3 class="text-lg font-semibold text-red-800">Payment Failed</h3>
                                 <p class="text-red-700 mt-1">
@@ -509,28 +482,20 @@
                     <!-- Next Steps -->
                     <div class="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-6">
                         <h4 class="font-semibold text-blue-900 mb-3 flex items-center">
-                            <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path>
-                            </svg>
+                            <i class="fas fa-info-circle mr-2"></i>
                             What's Next?
                         </h4>
                         <ul class="space-y-2 text-sm text-blue-900">
                             <li class="flex items-start">
-                                <svg class="w-4 h-4 mr-2 mt-0.5 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
-                                </svg>
+                                <i class="fas fa-check-circle mr-2 mt-0.5 text-blue-600"></i>
                                 <span>A confirmation email has been sent to your email address</span>
                             </li>
                             <li class="flex items-start">
-                                <svg class="w-4 h-4 mr-2 mt-0.5 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
-                                </svg>
+                                <i class="fas fa-check-circle mr-2 mt-0.5 text-blue-600"></i>
                                 <span>You can now pick up your adopted animal(s) from the shelter</span>
                             </li>
                             <li class="flex items-start">
-                                <svg class="w-4 h-4 mr-2 mt-0.5 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
-                                </svg>
+                                <i class="fas fa-check-circle mr-2 mt-0.5 text-blue-600"></i>
                                 <span>Contact us if you have any questions or need assistance</span>
                             </li>
                         </ul>

@@ -143,7 +143,7 @@
 
             {{-- Page Header --}}
             <div class="bg-gradient-to-r from-purple-600 via-purple-700 to-indigo-700 text-white py-16 shadow-xl">
-                <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="px-4 sm:px-6 lg:px-8">
                     <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
                         {{-- Left: Title --}}
                         <div>
@@ -184,7 +184,7 @@
             @include('booking-adoption.visit-list')
 
             {{-- Main Content --}}
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <div class="px-4 sm:px-6 lg:px-8 py-8">
                 @include('animal-management.partials.content', ['animals' => $animals])
             </div>
         </body>

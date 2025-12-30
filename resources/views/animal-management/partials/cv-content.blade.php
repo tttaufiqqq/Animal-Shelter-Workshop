@@ -235,6 +235,3 @@
         </div>
     @endif
 </div>
-
-{{-- Modals --}}
-@include('animal-management.partials.cv-modals', ['clinics' => $clinics])

@@ -2,8 +2,11 @@
     let miniMaps = {};
     let detailMap = null;
 
-    // Store report data for detail view
-    const reportsData = @json($userReports->items());
+    // Use report data from Livewire component (set via window.reportsData)
+    // This is populated by the Livewire component
+    function getReportsData() {
+        return window.reportsData || [];
+    }
 
     // Generate Status Tracker HTML
     function generateStatusTracker(currentStatus) {
@@ -98,8 +101,12 @@
 
     // Open Report Detail Modal
     function openReportDetailModal(reportId) {
+        const reportsData = getReportsData();
         const report = reportsData.find(r => r.id === reportId);
-        if (!report) return;
+        if (!report) {
+            console.error('Report not found:', reportId);
+            return;
+        }
 
         // Update title
         document.getElementById('detailReportTitle').textContent = `Report #${report.id}`;

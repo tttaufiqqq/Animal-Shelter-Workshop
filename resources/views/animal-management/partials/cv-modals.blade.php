@@ -1,7 +1,7 @@
 {{-- Modals for Clinics & Vets Management --}}
 
 {{-- Modal for Add Clinic --}}
-<div id="clinicModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+<div id="clinicModal" class="hidden fixed inset-0 bg-black bg-opacity-50 backdrop-blur-md flex items-center justify-center z-50 p-4">
     <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         <div class="bg-gradient-to-r from-blue-500 to-blue-600 text-white p-6">
             <div class="flex items-center justify-between">
@@ -79,7 +79,7 @@
 </div>
 
 {{-- Edit Clinic Modal --}}
-<div id="editClinicModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+<div id="editClinicModal" class="hidden fixed inset-0 bg-black bg-opacity-50 backdrop-blur-md flex items-center justify-center z-50 p-4">
     <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         <div class="bg-gradient-to-r from-purple-500 to-purple-600 text-white p-6">
             <div class="flex items-center justify-between">
@@ -158,7 +158,7 @@
 </div>
 
 {{-- Modal for Add Vet --}}
-<div id="vetModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+<div id="vetModal" class="hidden fixed inset-0 bg-black bg-opacity-50 backdrop-blur-md flex items-center justify-center z-50 p-4">
     <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         <div class="bg-gradient-to-r from-green-500 to-green-600 text-white p-6">
             <div class="flex items-center justify-between">
@@ -219,7 +219,7 @@
 </div>
 
 {{-- Edit Vet Modal --}}
-<div id="editVetModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+<div id="editVetModal" class="hidden fixed inset-0 bg-black bg-opacity-50 backdrop-blur-md flex items-center justify-center z-50 p-4">
     <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         <div class="bg-gradient-to-r from-orange-500 to-orange-600 text-white p-6">
             <div class="flex items-center justify-between">

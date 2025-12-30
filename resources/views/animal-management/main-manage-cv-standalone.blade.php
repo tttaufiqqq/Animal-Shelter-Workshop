@@ -225,49 +225,24 @@
     </script>
 @endif
 
-<!-- Page Header -->
-<div class="relative bg-gradient-to-r from-purple-600 via-purple-700 to-indigo-700 text-white py-20 overflow-hidden">
-    <!-- Animated background pattern -->
-    <div class="absolute inset-0 opacity-10">
-        <div class="absolute inset-0" style="background-image: radial-gradient(circle at 2px 2px, white 1px, transparent 0); background-size: 40px 40px;"></div>
-    </div>
-
-    <!-- Floating particles -->
-    <div class="absolute inset-0">
-        <div class="absolute w-2 h-2 bg-white rounded-full opacity-40 animate-ping" style="top: 20%; left: 10%; animation-delay: 0s; animation-duration: 3s;"></div>
-        <div class="absolute w-2 h-2 bg-white rounded-full opacity-40 animate-ping" style="top: 60%; left: 80%; animation-delay: 1s; animation-duration: 4s;"></div>
-        <div class="absolute w-2 h-2 bg-white rounded-full opacity-40 animate-ping" style="top: 40%; left: 50%; animation-delay: 2s; animation-duration: 3.5s;"></div>
-    </div>
-
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-        <div class="flex items-center gap-4 mb-4">
-            <div class="bg-white bg-opacity-20 backdrop-blur-md p-4 rounded-2xl icon-pulse">
-                <i class="fas fa-hospital-alt text-5xl"></i>
-            </div>
+<div class="bg-gradient-to-r from-purple-600 to-purple-800 text-white py-16">
+    <div class="px-4 sm:px-6 lg:px-8">
+        <div class="flex flex-col md:flex-row md:items-center md:justify-between">
             <div>
-                <h1 class="text-5xl font-black mb-2 tracking-tight">
-                    Clinics & Veterinarians
-                </h1>
-                <p class="text-purple-100 text-lg font-medium">🏥 Our trusted medical partners for animal care</p>
-            </div>
-        </div>
-        <div class="flex items-center gap-6 mt-6">
-            <div class="flex items-center gap-2 bg-white bg-opacity-10 backdrop-blur-sm px-4 py-2 rounded-full border border-white border-opacity-20">
-                <div class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                <span class="text-sm font-semibold">{{ $clinics->count() }} Active Clinics</span>
-            </div>
-            <div class="flex items-center gap-2 bg-white bg-opacity-10 backdrop-blur-sm px-4 py-2 rounded-full border border-white border-opacity-20">
-                <div class="w-2 h-2 bg-blue-400 rounded-full animate-pulse"></div>
-                <span class="text-sm font-semibold">{{ $vets->count() }} Veterinarians</span>
+                <h1 class="text-5xl font-bold mb-4">Clinics & Veterinarians</h1>
+                <p class="text-xl text-purple-100">Manage medical partners and veterinary professionals</p>
             </div>
         </div>
     </div>
 </div>
 
 <!-- Main Content -->
-<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+<div class="px-4 sm:px-6 lg:px-8 py-8">
     @include('animal-management.partials.cv-content', ['clinics' => $clinics, 'vets' => $vets])
 </div>
+
+{{-- Modals at body level to cover entire viewport --}}
+@include('animal-management.partials.cv-modals', ['clinics' => $clinics])
 
 @include('animal-management.partials.cv-scripts')
 </body>

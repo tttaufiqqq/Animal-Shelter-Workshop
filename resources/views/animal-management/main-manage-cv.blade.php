@@ -46,6 +46,9 @@
                 @include('animal-management.partials.cv-content', ['clinics' => $clinics, 'vets' => $vets])
             </div>
 
+            {{-- Modals at body level to cover entire viewport --}}
+            @include('animal-management.partials.cv-modals', ['clinics' => $clinics])
+
             @push('scripts')
                 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
                 @include('animal-management.partials.cv-scripts')
