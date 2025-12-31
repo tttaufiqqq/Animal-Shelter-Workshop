@@ -76,13 +76,13 @@
 
     @stack('styles')
 </head>
-<body class="bg-gray-50 antialiased">
-    <div class="min-h-screen flex" x-data="{ sidebarOpen: false }">
+<body class="bg-gray-50 antialiased overflow-x-hidden">
+    <div class="min-h-screen flex overflow-x-hidden" x-data="{ sidebarOpen: false }">
         <!-- Sidebar -->
         <x-admin.sidebar />
 
         <!-- Main Content Area -->
-        <div class="flex-1 flex flex-col min-h-screen lg:ml-0">
+        <div class="flex-1 flex flex-col min-h-screen lg:ml-64">
             <!-- Topbar -->
             <x-admin.topbar
                 :title="$title ?? 'Dashboard'"

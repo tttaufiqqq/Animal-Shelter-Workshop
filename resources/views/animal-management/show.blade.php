@@ -87,8 +87,8 @@
 
 
 <!-- Page Header -->
-<div class="bg-gradient-to-r from-purple-600 via-purple-700 to-purple-800 text-white py-12 shadow-xl">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+<div class="bg-gradient-to-r from-purple-600 via-purple-700 to-purple-800 text-white py-6 shadow-xl">
+    <div class="w-full px-4 sm:px-6 lg:px-8">
         <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <!-- Left: Back Button & Title -->
             <div class="flex items-center gap-4 slide-in">
@@ -136,7 +136,7 @@
     </div>
 </div>
 <!-- Main Content -->
-<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+<div class="w-full px-4 sm:px-6 lg:px-8 py-6">
     @if (session('success'))
         <div class="flex items-start gap-3 p-4 mb-6 bg-green-50 border border-green-200 rounded-xl shadow-sm">
             <svg class="w-6 h-6 text-green-600 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -160,9 +160,9 @@
         $hasImages = $animalImages->isNotEmpty();
     @endphp
 
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <!-- Left Column - Images -->
-        <div class="lg:col-span-2 space-y-6">
+        <div class="lg:col-span-2 space-y-4">
             <div class="fade-in bg-white rounded-2xl shadow-xl overflow-hidden relative hover-scale">
                 <!-- Main Image Display -->
                 <div class="relative w-full aspect-video bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
@@ -241,28 +241,28 @@
 
 
             <!-- Health Details Card -->
-            <div class="fade-in bg-gradient-to-br from-white to-purple-50/30 rounded-2xl shadow-xl p-6 border border-purple-100 hover-scale">
-                <h2 class="text-2xl font-bold text-gray-800 mb-4 flex items-center gap-3">
-                    <div class="bg-gradient-to-br from-purple-500 to-purple-600 p-3 rounded-xl shadow-lg">
-                        <i class="fas fa-heartbeat text-white text-xl"></i>
+            <div class="fade-in bg-gradient-to-br from-white to-purple-50/30 rounded-2xl shadow-xl p-4 border border-purple-100 hover-scale">
+                <h2 class="text-xl font-bold text-gray-800 mb-3 flex items-center gap-2">
+                    <div class="bg-gradient-to-br from-purple-500 to-purple-600 p-2 rounded-lg shadow-lg">
+                        <i class="fas fa-heartbeat text-white text-lg"></i>
                     </div>
                     <span>Health Details</span>
                 </h2>
-                <div class="bg-white rounded-xl p-5 shadow-inner border border-gray-100">
-                    <p class="text-gray-700 leading-relaxed whitespace-pre-line">{{ $animal->health_details }}</p>
+                <div class="bg-white rounded-xl p-4 shadow-inner border border-gray-100 max-h-32 overflow-y-auto">
+                    <p class="text-gray-700 text-sm leading-relaxed whitespace-pre-line">{{ $animal->health_details }}</p>
                 </div>
             </div>
 
             <!-- Rescue Information -->
             @if($animal->rescue)
-                <div class="fade-in bg-gradient-to-br from-white to-pink-50/30 rounded-2xl shadow-xl p-6 border border-pink-100 hover-scale">
-                    <h2 class="text-2xl font-bold text-gray-800 mb-4 flex items-center gap-3">
-                        <div class="bg-gradient-to-br from-pink-500 to-rose-600 p-3 rounded-xl shadow-lg">
-                            <i class="fas fa-hand-holding-heart text-white text-xl"></i>
+                <div class="fade-in bg-gradient-to-br from-white to-pink-50/30 rounded-2xl shadow-xl p-4 border border-pink-100 hover-scale">
+                    <h2 class="text-xl font-bold text-gray-800 mb-3 flex items-center gap-2">
+                        <div class="bg-gradient-to-br from-pink-500 to-rose-600 p-2 rounded-lg shadow-lg">
+                            <i class="fas fa-hand-holding-heart text-white text-lg"></i>
                         </div>
                         <span>Rescue Information</span>
                     </h2>
-                    <div class="bg-white rounded-xl p-5 shadow-inner border border-gray-100 space-y-4">
+                    <div class="bg-white rounded-xl p-4 shadow-inner border border-gray-100 space-y-3">
                         <div class="flex items-center gap-3 pb-3 border-b border-gray-100">
                             <div class="bg-pink-100 p-2 rounded-lg">
                                 <i class="fas fa-hashtag text-pink-600"></i>
@@ -306,26 +306,25 @@
             @endif
 
             <!-- Medical Records Section -->
-            <div class="fade-in bg-gradient-to-br from-white to-blue-50/30 rounded-2xl shadow-xl p-6 border border-blue-100 hover-scale">
-                <div class="flex items-center justify-between mb-6">
-                    <h2 class="text-2xl font-bold text-gray-800 flex items-center gap-3">
-                        <div class="bg-gradient-to-br from-blue-500 to-blue-600 p-3 rounded-xl shadow-lg">
-                            <i class="fas fa-notes-medical text-white text-xl"></i>
+            <div class="fade-in bg-gradient-to-br from-white to-blue-50/30 rounded-2xl shadow-xl p-4 border border-blue-100 hover-scale">
+                <div class="flex items-center justify-between mb-3">
+                    <h2 class="text-xl font-bold text-gray-800 flex items-center gap-2">
+                        <div class="bg-gradient-to-br from-blue-500 to-blue-600 p-2 rounded-lg shadow-lg">
+                            <i class="fas fa-notes-medical text-white text-lg"></i>
                         </div>
                         <span>Medical Records</span>
                     </h2>
                     @role('caretaker')
-                    <button onclick="openMedicalModal()" class="group bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-5 py-2.5 rounded-xl font-semibold transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 flex items-center gap-2">
-                        <i class="fas fa-plus group-hover:rotate-90 transition-transform"></i>
-                        <span class="hidden sm:inline">Add Record</span>
+                    <button onclick="openMedicalModal()" class="group bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-3 py-2 rounded-lg font-semibold transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 flex items-center gap-2">
+                        <i class="fas fa-plus group-hover:rotate-90 transition-transform text-sm"></i>
                     </button>
                     @endrole
                 </div>
 
                 @if($animal->medicals && $animal->medicals->count() > 0)
-                    <div class="space-y-3">
+                    <div class="space-y-2 max-h-64 overflow-y-auto">
                         @foreach($animal->medicals->sortByDesc('created_at') as $medical)
-                            <div class="bg-white border-l-4 border-blue-500 rounded-xl p-4 hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
+                            <div class="bg-white border-l-4 border-blue-500 rounded-lg p-3 hover:shadow-md transition-all duration-200">
                                 <div class="flex items-start justify-between mb-3">
                                     <span class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold bg-gradient-to-r from-blue-100 to-blue-200 text-blue-700 shadow-sm">
                                         <i class="fas fa-stethoscope"></i>
@@ -377,26 +376,25 @@
             </div>
 
             <!-- Vaccination Records Section -->
-            <div class="fade-in bg-gradient-to-br from-white to-green-50/30 rounded-2xl shadow-xl p-6 border border-green-100 hover-scale">
-                <div class="flex items-center justify-between mb-6">
-                    <h2 class="text-2xl font-bold text-gray-800 flex items-center gap-3">
-                        <div class="bg-gradient-to-br from-green-500 to-green-600 p-3 rounded-xl shadow-lg">
-                            <i class="fas fa-syringe text-white text-xl"></i>
+            <div class="fade-in bg-gradient-to-br from-white to-green-50/30 rounded-2xl shadow-xl p-4 border border-green-100 hover-scale">
+                <div class="flex items-center justify-between mb-3">
+                    <h2 class="text-xl font-bold text-gray-800 flex items-center gap-2">
+                        <div class="bg-gradient-to-br from-green-500 to-green-600 p-2 rounded-lg shadow-lg">
+                            <i class="fas fa-syringe text-white text-lg"></i>
                         </div>
                         <span>Vaccination Records</span>
                     </h2>
                     @role('caretaker')
-                    <button onclick="openVaccinationModal()" class="group bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white px-5 py-2.5 rounded-xl font-semibold transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 flex items-center gap-2">
-                        <i class="fas fa-plus group-hover:rotate-90 transition-transform"></i>
-                        <span class="hidden sm:inline">Add Vaccination</span>
+                    <button onclick="openVaccinationModal()" class="group bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white px-3 py-2 rounded-lg font-semibold transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 flex items-center gap-2">
+                        <i class="fas fa-plus group-hover:rotate-90 transition-transform text-sm"></i>
                     </button>
                     @endrole
                 </div>
 
                 @if($animal->vaccinations && $animal->vaccinations->count() > 0)
-                    <div class="space-y-3">
+                    <div class="space-y-2 max-h-64 overflow-y-auto">
                         @foreach($animal->vaccinations->sortByDesc('created_at') as $vaccination)
-                            <div class="bg-white border-l-4 border-green-500 rounded-xl p-4 hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
+                            <div class="bg-white border-l-4 border-green-500 rounded-lg p-3 hover:shadow-md transition-all duration-200">
                                 <div class="flex items-start justify-between mb-3">
                                     <span class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold bg-gradient-to-r from-green-100 to-green-200 text-green-700 shadow-sm">
                                         <i class="fas fa-shield-alt"></i>
@@ -628,9 +626,9 @@
         </div>
 
         <!-- Right Column - Details -->
-        <div class="space-y-6">
+        <div class="space-y-4 lg:sticky lg:top-4 lg:self-start lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto">
             <!-- Status Card -->
-            <div class="bg-white rounded-lg shadow-lg p-6 flex justify-between">
+            <div class="bg-white rounded-lg shadow-lg p-4 flex justify-between">
                 <div class="flex-1">
                     <div class="mb-4">
                         @if($animal->adoption_status == 'Not Adopted')
@@ -704,8 +702,8 @@
                 </div>
             </div>
 
-            <div class="bg-white rounded-lg shadow-lg p-6">
-                <h2 class="text-xl font-bold text-gray-800 mb-4">
+            <div class="bg-white rounded-lg shadow-lg p-4">
+                <h2 class="text-lg font-bold text-gray-800 mb-3">
                     <i class="fas fa-paw text-purple-600 mr-2"></i>
                     Animal Profile
                 </h2>
@@ -775,8 +773,8 @@
 
 
             <!-- Location Card -->
-            <div class="bg-white rounded-lg shadow-lg p-6">
-                <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
+            <div class="bg-white rounded-lg shadow-lg p-4">
+                <h2 class="text-lg font-bold text-gray-800 mb-3 flex items-center">
                     <i class="fas fa-map-marker-alt text-purple-600 mr-2"></i>
                     Assigned Slot
                 </h2>
@@ -874,12 +872,12 @@
             <!-- Action Card -->
             @role('public user|caretaker|adopter')
             @if($animal->adoption_status == 'Not Adopted')
-                <div class="bg-white rounded-lg shadow-lg p-6">
-                    <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
+                <div class="bg-white rounded-lg shadow-lg p-4">
+                    <h2 class="text-lg font-bold text-gray-800 mb-3 flex items-center">
                         <i class="fas fa-heart text-purple-600 mr-2"></i>
                         Interested in Adopting?
                     </h2>
-                    <div class="bg-purple-50 rounded-lg p-4">
+                    <div class="bg-purple-50 rounded-lg p-3">
                         <div class="flex items-center gap-3 mb-4">
                             <div class="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
                                 <i class="fas fa-paw text-purple-600"></i>

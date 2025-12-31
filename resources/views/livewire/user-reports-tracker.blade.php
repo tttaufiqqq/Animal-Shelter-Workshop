@@ -1,4 +1,19 @@
-<div wire:poll.15s="checkForStatusChanges" id="myReportsModal" class="hidden fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+<div wire:poll.15s="checkForStatusChanges"
+     id="myReportsModal"
+     x-data="{ open: false }"
+     x-show="open"
+     x-cloak
+     @open-my-reports-modal.window="open = true; document.body.style.overflow = 'hidden'"
+     @close-my-reports-modal.window="open = false; document.body.style.overflow = 'auto'"
+     @click.self="open = false; document.body.style.overflow = 'auto'"
+     x-transition:enter="transition ease-out duration-200"
+     x-transition:enter-start="opacity-0"
+     x-transition:enter-end="opacity-100"
+     x-transition:leave="transition ease-in duration-150"
+     x-transition:leave-start="opacity-100"
+     x-transition:leave-end="opacity-0"
+     class="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+     style="display: none;">
     <div class="bg-white rounded-2xl shadow-2xl w-[1400px] max-w-full max-h-[90vh] flex flex-col">
         <!-- Modal Header -->
         <div class="bg-gradient-to-r from-purple-600 to-purple-700 text-white p-6 flex-shrink-0 rounded-t-2xl">
@@ -10,7 +25,7 @@
                         <p class="text-purple-100 text-sm">View all your submitted reports (Live status updates)</p>
                     </div>
                 </div>
-                <button onclick="closeMyReportsModal()" class="text-white hover:text-gray-200 transition">
+                <button @click="open = false; document.body.style.overflow = 'auto'" class="text-white hover:text-gray-200 transition">
                     <i class="fas fa-times text-2xl"></i>
                 </button>
             </div>
@@ -71,7 +86,7 @@
                     <div class="text-6xl mb-4">🐾</div>
                     <h3 class="text-2xl font-bold text-gray-800 mb-2">No reports yet</h3>
                     <p class="text-gray-600 mb-6">You haven't submitted any reports</p>
-                    <button onclick="closeMyReportsModal()" class="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition">
+                    <button @click="open = false; document.body.style.overflow = 'auto'" class="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition">
                         Close
                     </button>
                 </div>

@@ -137,6 +137,10 @@ function previousStep(bookingId) {
  */
 function updateStepDisplay(bookingId) {
     const currentStep = currentSteps[bookingId] || 1;
+    const modal = document.getElementById(`bookingModal-${bookingId}`);
+
+    // Check if this booking has all steps completed (adoption complete)
+    const allStepsCompleted = modal && modal.dataset.allStepsCompleted === 'true';
 
     // Update step content visibility
     for (let i = 1; i <= 3; i++) {
@@ -148,6 +152,12 @@ function updateStepDisplay(bookingId) {
                 stepContent.classList.add('hidden');
             }
         }
+    }
+
+    // Skip step indicator manipulation if all steps are completed (adoption complete)
+    if (allStepsCompleted) {
+        // Just handle content visibility and return - don't touch the step circles
+        return;
     }
 
     // Update step indicators
@@ -217,52 +227,56 @@ function updateStepDisplay(bookingId) {
         }
     });
 
-    // Update progress bar
-    const progressBar = document.getElementById(`progress-bar-${bookingId}`);
-    const progressText = document.getElementById(`progress-text-${bookingId}`);
-    const progress = Math.round((currentStep / 3) * 100);
+    // Update progress bar (only if not a completed adoption)
+    if (!allStepsCompleted) {
+        const progressBar = document.getElementById(`progress-bar-${bookingId}`);
+        const progressText = document.getElementById(`progress-text-${bookingId}`);
+        const progress = Math.round((currentStep / 3) * 100);
 
-    if (progressBar) {
-        progressBar.style.width = `${progress}%`;
-    }
-    if (progressText) {
-        progressText.textContent = `${progress}%`;
-    }
+        if (progressBar) {
+            progressBar.style.width = `${progress}%`;
+        }
+        if (progressText) {
+            progressText.textContent = `${progress}%`;
+        }
 
-    // Update title and subtitle
-    const titles = {
-        1: { title: 'Booking Details', subtitle: 'Review your booking information' },
-        2: { title: 'Select Animals', subtitle: 'Choose animals you want to adopt' },
-        3: { title: 'Confirm & Pay', subtitle: 'Review and complete your adoption' }
-    };
+        // Update title and subtitle
+        const titles = {
+            1: { title: 'Booking Details', subtitle: 'Review your booking information' },
+            2: { title: 'Select Animals', subtitle: 'Choose animals you want to adopt' },
+            3: { title: 'Confirm & Pay', subtitle: 'Review and complete your adoption' }
+        };
 
-    const titleEl = document.getElementById(`step-title-${bookingId}`);
-    const subtitleEl = document.getElementById(`step-subtitle-${bookingId}`);
+        const titleEl = document.getElementById(`step-title-${bookingId}`);
+        const subtitleEl = document.getElementById(`step-subtitle-${bookingId}`);
 
-    if (titleEl && titles[currentStep]) {
-        titleEl.textContent = titles[currentStep].title;
-    }
-    if (subtitleEl && titles[currentStep]) {
-        subtitleEl.textContent = titles[currentStep].subtitle;
-    }
-
-    // Update navigation buttons
-    const prevBtn = document.getElementById(`prev-btn-${bookingId}`);
-    const nextBtn = document.getElementById(`next-btn-${bookingId}`);
-
-    if (prevBtn) {
-        if (currentStep === 1) {
-            prevBtn.classList.add('hidden');
-        } else {
-            prevBtn.classList.remove('hidden');
+        if (titleEl && titles[currentStep]) {
+            titleEl.textContent = titles[currentStep].title;
+        }
+        if (subtitleEl && titles[currentStep]) {
+            subtitleEl.textContent = titles[currentStep].subtitle;
         }
     }
 
-    if (nextBtn) {
-        if (currentStep === 3) {
-            nextBtn.classList.add('hidden');
-        } else {
-            nextBtn.classList.remove('hidden');
+    // Update navigation buttons (only if not a completed adoption)
+    if (!allStepsCompleted) {
+        const prevBtn = document.getElementById(`prev-btn-${bookingId}`);
+        const nextBtn = document.getElementById(`next-btn-${bookingId}`);
+
+        if (prevBtn) {
+            if (currentStep === 1) {
+                prevBtn.classList.add('hidden');
+            } else {
+                prevBtn.classList.remove('hidden');
+            }
+        }
+
+        if (nextBtn) {
+            if (currentStep === 3) {
+                nextBtn.classList.add('hidden');
+            } else {
+                nextBtn.classList.remove('hidden');
+            }
         }
     }
 }

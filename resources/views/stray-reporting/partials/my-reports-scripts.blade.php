@@ -264,18 +264,14 @@
         }
     }
 
-    // Open My Reports Modal
+    // Open My Reports Modal (Alpine.js handles body overflow)
     function openMyReportsModal() {
-        const modal = document.getElementById('myReportsModal');
-        modal.classList.remove('hidden');
-        document.body.style.overflow = 'hidden';
+        window.dispatchEvent(new CustomEvent('open-my-reports-modal'));
     }
 
-    // Close My Reports Modal
+    // Close My Reports Modal (Alpine.js handles body overflow)
     function closeMyReportsModal() {
-        const modal = document.getElementById('myReportsModal');
-        modal.classList.add('hidden');
-        document.body.style.overflow = 'auto';
+        window.dispatchEvent(new CustomEvent('close-my-reports-modal'));
     }
 
     // Image modal functions
@@ -291,13 +287,7 @@
         modal.classList.add('hidden');
     }
 
-    // Close modals when clicking outside
-    document.getElementById('myReportsModal')?.addEventListener('click', function(e) {
-        if (e.target === this) {
-            closeMyReportsModal();
-        }
-    });
-
+    // Close modals when clicking outside (reportDetailModal only - myReportsModal uses Alpine.js @click.self)
     document.getElementById('reportDetailModal')?.addEventListener('click', function(e) {
         if (e.target === this) {
             closeReportDetailModal();
@@ -315,7 +305,8 @@
                 closeImageModal();
             } else if (!detailModal.classList.contains('hidden')) {
                 closeReportDetailModal();
-            } else if (!reportsModal.classList.contains('hidden')) {
+            } else if (reportsModal && reportsModal.style.display !== 'none') {
+                // Check Alpine.js visibility instead of class
                 closeMyReportsModal();
             }
         }

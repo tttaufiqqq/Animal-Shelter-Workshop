@@ -166,7 +166,6 @@
                         <th scope="col" class="px-4 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider">Date & Time</th>
                         <th scope="col" class="px-4 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider">Location</th>
                         <th scope="col" class="px-4 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider">Description</th>
-                        <th scope="col" class="px-4 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider">Images</th>
                         <th scope="col" class="px-4 py-3 text-center text-xs font-semibold text-white uppercase tracking-wider">Actions</th>
                     </tr>
                     </thead>
@@ -240,29 +239,6 @@
                                     </div>
                                 @else
                                     <span class="text-sm text-gray-400 italic">No description</span>
-                                @endif
-                            </td>
-
-                            <!-- Images -->
-                            <td class="px-4 py-4 whitespace-nowrap">
-                                @if($report->images->count() > 0)
-                                    <div class="flex items-center gap-2 cursor-pointer" onclick="event.preventDefault(); showImagesModal({{ $report->id }}, {{ json_encode($report->images->map(fn($img) => $img->url)) }})">
-                                        <div class="flex -space-x-2">
-                                            @foreach($report->images->take(3) as $image)
-                                                <img src="{{ $image->url }}"
-                                                     alt="Report Image"
-                                                     class="w-8 h-8 rounded-full object-cover border-2 border-white cursor-pointer hover:scale-110 transition-transform shadow-sm"
-                                                     onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjMyIiBoZWlnaHQ9IjMyIiBmaWxsPSIjZTVlN2ViIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxMCIgZmlsbD0iIzk5OSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPj88L3RleHQ+PC9zdmc+'">
-                                            @endforeach
-                                        </div>
-                                        @if($report->images->count() > 3)
-                                            <span class="text-xs font-semibold text-gray-600 bg-gray-100 px-2 py-1 rounded-full">
-                                                +{{ $report->images->count() - 3 }}
-                                            </span>
-                                        @endif
-                                    </div>
-                                @else
-                                    <span class="text-sm text-gray-400">No images</span>
                                 @endif
                             </td>
 

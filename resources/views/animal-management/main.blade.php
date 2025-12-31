@@ -1,9 +1,13 @@
 @auth
     @if(Auth::user()->hasRole('admin'))
         {{-- Admin View with Admin Layout --}}
-        <x-admin-layout>
-            <x-slot name="title">Animals</x-slot>
+        @php
+        $breadcrumbs = [
+            ['label' => 'Animals', 'icon' => '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><circle cx="7" cy="5" r="1.5" stroke-width="1.5"/><circle cx="17" cy="5" r="1.5" stroke-width="1.5"/><circle cx="5" cy="11" r="1.5" stroke-width="1.5"/><circle cx="19" cy="11" r="1.5" stroke-width="1.5"/><ellipse cx="12" cy="16" rx="4" ry="5" stroke-width="1.5"/></svg>']
+        ];
+        @endphp
 
+        <x-admin-layout title="Animals" :breadcrumbs="$breadcrumbs">
             @push('styles')
                 <style>
                     .line-clamp-2 {

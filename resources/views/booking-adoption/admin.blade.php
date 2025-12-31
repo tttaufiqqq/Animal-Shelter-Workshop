@@ -1,10 +1,13 @@
 @auth
     @if(Auth::user()->hasRole('admin'))
         {{-- Admin View with Admin Layout --}}
-        <x-admin-layout>
-            <x-slot name="title">All Bookings</x-slot>
+        @php
+        $breadcrumbs = [
+            ['label' => 'Bookings', 'icon' => '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>']
+        ];
+        @endphp
 
-
+        <x-admin-layout title="All Bookings" :breadcrumbs="$breadcrumbs">
             {{-- Database Warning Banner --}}
             @if(isset($dbDisconnected) && count($dbDisconnected) > 0)
                 <div class="mb-4 flex items-center gap-2 p-3 bg-yellow-50 border-l-4 border-yellow-400 rounded-lg">
@@ -46,6 +49,10 @@
                     'statusCounts' => $statusCounts
                 ])
             </div>
+
+            {{-- Modal Components (at root level for proper viewport coverage) --}}
+            @include('booking-adoption.modals.booking-detail-modal')
+            @include('booking-adoption.modals.adoption-detail-modal')
 
             @push('scripts')
                 @include('booking-adoption.partials.booking-scripts')

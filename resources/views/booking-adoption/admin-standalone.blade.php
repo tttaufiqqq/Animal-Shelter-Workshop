@@ -92,6 +92,10 @@
     ])
 </div>
 
+{{-- Modal Components (at root level for proper viewport coverage) --}}
+@include('booking-adoption.modals.booking-detail-modal')
+@include('booking-adoption.modals.adoption-detail-modal')
+
 @include('booking-adoption.partials.booking-scripts')
 </body>
 </html>

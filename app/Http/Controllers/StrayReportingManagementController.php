@@ -220,7 +220,7 @@ class StrayReportingManagementController extends Controller
         );
 
         if (!$report) {
-            return redirect()->route('stray-reporting.index')
+            return redirect()->route('reports.index')
                 ->with('error', 'Report not found or database connection unavailable.');
         }
 
@@ -272,7 +272,7 @@ class StrayReportingManagementController extends Controller
 
             DB::connection('eilya')->commit();
 
-            return redirect()->route('stray-reporting.index')->with('success', 'Report deleted successfully!');
+            return redirect()->route('reports.index')->with('success', 'Report deleted successfully!');
 
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             DB::connection('eilya')->rollBack();
@@ -321,6 +321,14 @@ class StrayReportingManagementController extends Controller
 
             if ($rescue) {
                 $oldCaretakerId = $rescue->caretakerID;
+
+                // Prevent reassignment to the same caretaker
+                if ($oldCaretakerId == $request->caretaker_id) {
+                    return redirect()->back()
+                        ->withInput()
+                        ->with('error', 'This report is already assigned to ' . $caretaker->name . '. Please select a different caretaker.');
+                }
+
                 $rescue->update([
                     'caretakerID' => $request->caretaker_id
                 ]);

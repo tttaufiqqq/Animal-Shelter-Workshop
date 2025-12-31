@@ -83,7 +83,12 @@ function updateStatus(status) {
 
 function openRemarksModal(status) {
     // Close any open map popups to prevent overlap
-    map.closePopup();
+    if (typeof mobileMap !== 'undefined' && mobileMap) {
+        mobileMap.closePopup();
+    }
+    if (typeof desktopMap !== 'undefined' && desktopMap) {
+        desktopMap.closePopup();
+    }
 
     if (status === 'Success') {
         // Show success remarks modal FIRST
@@ -248,9 +253,13 @@ function submitStatusUpdate(event) {
     document.body.style.overflow = 'hidden';
 
     // Lower map z-index to prevent it from showing above overlay
-    const mapContainer = document.getElementById('map');
-    if (mapContainer) {
-        mapContainer.style.zIndex = '1';
+    const mapContainerMobile = document.getElementById('map-mobile');
+    const mapContainerDesktop = document.getElementById('map-desktop');
+    if (mapContainerMobile) {
+        mapContainerMobile.style.zIndex = '1';
+    }
+    if (mapContainerDesktop) {
+        mapContainerDesktop.style.zIndex = '1';
     }
 
     // Submit form immediately (inputs already appended)
@@ -271,9 +280,13 @@ function submitStatusDirectly(status) {
     showStatusButtonLoading(status);
 
     // Lower map z-index to prevent it from showing above loading overlay
-    const mapContainer = document.getElementById('map');
-    if (mapContainer) {
-        mapContainer.style.zIndex = '1';
+    const mapContainerMobile = document.getElementById('map-mobile');
+    const mapContainerDesktop = document.getElementById('map-desktop');
+    if (mapContainerMobile) {
+        mapContainerMobile.style.zIndex = '1';
+    }
+    if (mapContainerDesktop) {
+        mapContainerDesktop.style.zIndex = '1';
     }
 
     form.submit();
@@ -887,9 +900,13 @@ function submitSuccessRescue() {
     document.body.style.overflow = 'hidden';
 
     // Lower map z-index
-    const mapContainer = document.getElementById('map');
-    if (mapContainer) {
-        mapContainer.style.zIndex = '1';
+    const mapContainerMobile = document.getElementById('map-mobile');
+    const mapContainerDesktop = document.getElementById('map-desktop');
+    if (mapContainerMobile) {
+        mapContainerMobile.style.zIndex = '1';
+    }
+    if (mapContainerDesktop) {
+        mapContainerDesktop.style.zIndex = '1';
     }
 
     // Change form action to use the correct endpoint for animal additions
@@ -922,8 +939,11 @@ function submitSuccessRescue() {
             document.body.style.overflow = 'auto';
 
             // Restore map z-index
-            if (mapContainer) {
-                mapContainer.style.zIndex = '1';
+            if (mapContainerMobile) {
+                mapContainerMobile.style.zIndex = '1';
+            }
+            if (mapContainerDesktop) {
+                mapContainerDesktop.style.zIndex = '1';
             }
 
             // Get error message from server response
@@ -970,8 +990,11 @@ function submitSuccessRescue() {
         document.body.style.overflow = 'auto';
 
         // Restore map z-index
-        if (mapContainer) {
-            mapContainer.style.zIndex = '1';
+        if (mapContainerMobile) {
+            mapContainerMobile.style.zIndex = '1';
+        }
+        if (mapContainerDesktop) {
+            mapContainerDesktop.style.zIndex = '1';
         }
 
         // Show error in modal

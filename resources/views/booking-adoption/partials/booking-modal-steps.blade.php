@@ -4,6 +4,11 @@
     $allFeeBreakdowns = [];
     $totalFee = 0;
 
+    // Check if booking is completed with adoption
+    $hasAdoption = $booking->adoptions && $booking->adoptions->isNotEmpty();
+    $isCompleted = strtolower($booking->status) === 'completed';
+    $allStepsCompleted = $hasAdoption && $isCompleted;
+
     // Species-based fee structure (same as controller)
     $speciesBaseFees = [
         'dog' => 20,
@@ -41,7 +46,9 @@
     }
 @endphp
 
-<div id="bookingModal-{{ $booking->id }}" class="modal-backdrop hidden fixed inset-0 bg-black bg-opacity-70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+<div id="bookingModal-{{ $booking->id }}"
+     class="modal-backdrop hidden fixed inset-0 bg-black bg-opacity-70 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+     data-all-steps-completed="{{ $allStepsCompleted ? 'true' : 'false' }}">
     <div class="bg-white rounded-2xl shadow-2xl max-w-6xl w-full max-h-[90vh] overflow-hidden" onclick="event.stopPropagation()">
 
         {{-- Row 1: Header (Full Width) --}}
@@ -70,57 +77,74 @@
         <div class="grid grid-cols-12 gap-0">
 
             {{-- Column 1: Steps Sidebar (3 cols) --}}
-            <div class="col-span-3 bg-gradient-to-br from-purple-50 via-purple-100 to-indigo-50 border-r border-purple-200 p-6">
+            <div class="col-span-3 bg-gradient-to-br {{ $allStepsCompleted ? 'from-green-50 via-green-100 to-emerald-50' : 'from-purple-50 via-purple-100 to-indigo-50' }} border-r {{ $allStepsCompleted ? 'border-green-200' : 'border-purple-200' }} p-6">
+                @if($allStepsCompleted)
+                    {{-- Completion Banner --}}
+                    <div class="mb-6 bg-gradient-to-r from-green-600 to-green-700 text-white p-4 rounded-xl shadow-lg">
+                        <div class="flex items-center gap-3">
+                            <div class="flex-shrink-0 bg-white bg-opacity-20 p-2 rounded-full">
+                                <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                                </svg>
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-sm">Adoption Complete!</h4>
+                                <p class="text-xs text-green-100 mt-0.5">All steps finished</p>
+                            </div>
+                        </div>
+                    </div>
+                @endif
+
                 <div class="mb-8">
-                    <h3 class="text-lg font-bold text-purple-900">Adoption Steps</h3>
-                    <p class="text-sm text-purple-700 mt-1 font-medium">Booking #{{ $booking->id }}</p>
+                    <h3 class="text-lg font-bold {{ $allStepsCompleted ? 'text-green-900' : 'text-purple-900' }}">Adoption Steps</h3>
+                    <p class="text-sm {{ $allStepsCompleted ? 'text-green-700' : 'text-purple-700' }} mt-1 font-medium">Booking #{{ $booking->id }}</p>
                 </div>
 
                 {{-- Step Indicators --}}
-                <div class="relative space-y-1">
+                <div class="relative space-y-3">
                     {{-- Vertical connecting line --}}
-                    <div class="absolute left-4 top-10 bottom-10 w-px bg-purple-300"></div>
+                    <div class="absolute left-[18px] top-12 bottom-12 w-0.5 {{ $allStepsCompleted ? 'bg-green-500' : 'bg-purple-300' }}"></div>
 
-                    {{-- Step 1 --}}
-                    <div class="step-indicator relative flex items-start gap-3 py-2" data-step="1">
-                        <div class="step-circle relative z-10 flex-shrink-0 w-8 h-8 rounded-full border-2 border-purple-600 bg-purple-600 flex items-center justify-center shadow-md">
-                            <div class="step-number-icon text-white font-bold text-sm">1</div>
-                            <svg class="step-checkmark-icon hidden w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
-                                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
-                            </svg>
+                    {{-- Step 1: Details --}}
+                    <div class="step-indicator relative flex items-center gap-3 py-2" data-step="1">
+                        <div class="step-circle relative z-10 flex-shrink-0 w-9 h-9 rounded-full {{ $allStepsCompleted ? 'bg-green-500' : 'bg-purple-600' }} flex items-center justify-center shadow-md">
+                            @if($allStepsCompleted)
+                                <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                                </svg>
+                            @else
+                                <span class="text-white font-bold text-sm">1</span>
+                            @endif
                         </div>
-                        <div class="flex-1 pt-0.5">
-                            <h4 class="font-bold text-sm text-purple-900">Details</h4>
-                            <p class="text-purple-600 text-xs mt-0.5">Review booking</p>
-                        </div>
+                        <h4 class="font-semibold text-sm {{ $allStepsCompleted ? 'text-green-900' : 'text-purple-900' }}">Details</h4>
                     </div>
 
-                    {{-- Step 2 --}}
-                    <div class="step-indicator relative flex items-start gap-3 py-2 opacity-60" data-step="2">
-                        <div class="step-circle relative z-10 flex-shrink-0 w-8 h-8 rounded-full border-2 border-purple-300 bg-white flex items-center justify-center">
-                            <div class="step-number-icon text-purple-400 font-bold text-sm">2</div>
-                            <svg class="step-checkmark-icon hidden w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
-                                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
-                            </svg>
+                    {{-- Step 2: Select --}}
+                    <div class="step-indicator relative flex items-center gap-3 py-2" data-step="2">
+                        <div class="step-circle relative z-10 flex-shrink-0 w-9 h-9 rounded-full {{ $allStepsCompleted ? 'bg-green-500' : 'bg-gray-300' }} flex items-center justify-center shadow-md">
+                            @if($allStepsCompleted)
+                                <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                                </svg>
+                            @else
+                                <span class="text-gray-600 font-bold text-sm">2</span>
+                            @endif
                         </div>
-                        <div class="flex-1 pt-0.5">
-                            <h4 class="font-semibold text-sm text-gray-700">Select</h4>
-                            <p class="text-gray-500 text-xs mt-0.5">Choose animals</p>
-                        </div>
+                        <h4 class="font-semibold text-sm {{ $allStepsCompleted ? 'text-green-900' : 'text-gray-600' }}">Select</h4>
                     </div>
 
-                    {{-- Step 3 --}}
-                    <div class="step-indicator relative flex items-start gap-3 py-2 opacity-60" data-step="3">
-                        <div class="step-circle relative z-10 flex-shrink-0 w-8 h-8 rounded-full border-2 border-purple-300 bg-white flex items-center justify-center">
-                            <div class="step-number-icon text-purple-400 font-bold text-sm">3</div>
-                            <svg class="step-checkmark-icon hidden w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
-                                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
-                            </svg>
+                    {{-- Step 3: Confirm --}}
+                    <div class="step-indicator relative flex items-center gap-3 py-2" data-step="3">
+                        <div class="step-circle relative z-10 flex-shrink-0 w-9 h-9 rounded-full {{ $allStepsCompleted ? 'bg-green-500' : 'bg-gray-300' }} flex items-center justify-center shadow-md">
+                            @if($allStepsCompleted)
+                                <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                                </svg>
+                            @else
+                                <span class="text-gray-600 font-bold text-sm">3</span>
+                            @endif
                         </div>
-                        <div class="flex-1 pt-0.5">
-                            <h4 class="font-semibold text-sm text-gray-700">Confirm</h4>
-                            <p class="text-gray-500 text-xs mt-0.5">Complete adoption</p>
-                        </div>
+                        <h4 class="font-semibold text-sm {{ $allStepsCompleted ? 'text-green-900' : 'text-gray-600' }}">Confirm</h4>
                     </div>
                 </div>
             </div>
