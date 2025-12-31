@@ -46,6 +46,11 @@
                             </td>
                             <td class="px-4 py-4 whitespace-nowrap text-right text-sm font-medium">
                                 <div class="flex items-center justify-end gap-2">
+                                    <button onclick="viewSectionDetails({{ $section->id }})"
+                                            class="text-indigo-600 hover:text-indigo-900 transition duration-150"
+                                            title="View Details">
+                                        <i class="fas fa-info-circle text-lg"></i>
+                                    </button>
                                     @role('admin')
                                     <button onclick="editSection({{ $section->id }})"
                                             class="text-gray-600 hover:text-gray-900 transition duration-150"

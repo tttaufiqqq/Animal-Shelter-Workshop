@@ -10,6 +10,7 @@ use App\Models\AnimalBooking;
 use App\Models\Transaction;
 use App\Models\Booking;
 use App\Models\Adoption;
+use App\Models\Slot;
 use App\Services\AuditService;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Http;
@@ -56,8 +57,8 @@ class BookingAdoptionController extends Controller
         $animalsQuery = Animal::whereIn('id', $animalIds)
             ->with(['medicals', 'vaccinations']);
 
-        // Optionally load images if eilya is online
-        if ($loadImages && $this->isDatabaseAvailable('eilya')) {
+        // Always try to load images (will be empty collection if eilya is offline)
+        if ($loadImages) {
             $animalsQuery->with('images');
         }
 
@@ -664,7 +665,8 @@ class BookingAdoptionController extends Controller
                 ->appends($request->query());
 
             // Manually load animals for bookings to avoid cross-database SQL joins
-            $this->loadAnimalsForBookings($bookings, $eilyaOnline);
+            // Always load images for the modal to display
+            $this->loadAnimalsForBookings($bookings, true);
 
             // Prevent lazy-loading by setting empty collections for unloaded relationships
             $bookings->each(function($booking) use ($taufiqOnline) {
@@ -766,7 +768,8 @@ class BookingAdoptionController extends Controller
                 ->appends($request->query());
 
             // Manually load animals for bookings to avoid cross-database SQL joins
-            $this->loadAnimalsForBookings($bookings, $eilyaOnline);
+            // Always load images for the modal to display
+            $this->loadAnimalsForBookings($bookings, true);
 
             // Prevent lazy-loading by setting empty collections for unloaded relationships
             $bookings->each(function($booking) use ($taufiqOnline) {

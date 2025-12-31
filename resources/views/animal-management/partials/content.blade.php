@@ -124,53 +124,53 @@
 @if($animals->count() > 0)
     @if(Auth::check() && (Auth::user()->hasRole('admin') || (Auth::user()->hasRole('caretaker') && request('rescued_by_me') === 'true')))
         {{-- Table View for Admin and Caretaker "My Rescues" --}}
-        <div class="bg-white rounded-lg shadow-sm overflow-hidden border border-gray-200">
+        <div class="bg-white rounded-lg shadow-lg overflow-hidden">
             <div class="overflow-x-auto">
                 <table class="min-w-full divide-y divide-gray-200">
-                    <thead class="bg-gray-50">
+                    <thead class="bg-gradient-to-r from-purple-500 to-purple-600">
                         <tr>
-                            <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider">
                                 ID
                             </th>
-                            <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider">
                                 Image
                             </th>
-                            <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider">
                                 Name
                             </th>
-                            <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider">
                                 Species
                             </th>
-                            <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider">
                                 Age
                             </th>
-                            <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider">
                                 Gender
                             </th>
-                            <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider">
                                 Health
                             </th>
-                            <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider">
                                 Status
                             </th>
-                            <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider">
                                 Location
                             </th>
-                            <th class="px-6 py-3 text-right text-xs font-bold text-gray-700 uppercase tracking-wider">
+                            <th class="px-4 py-3 text-right text-xs font-semibold text-white uppercase tracking-wider">
                                 Actions
                             </th>
                         </tr>
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-200">
                         @foreach($animals as $animal)
-                            <tr class="hover:bg-gray-50">
+                            <tr class="hover:bg-gray-50 transition-colors duration-150">
                                 {{-- ID --}}
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
+                                <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
                                     #{{ $animal->id }}
                                 </td>
 
                                 {{-- Image --}}
-                                <td class="px-6 py-4 whitespace-nowrap">
+                                <td class="px-4 py-4 whitespace-nowrap">
                                     @if($animal->images && $animal->images->isNotEmpty())
                                         <img src="{{ $animal->images->first()->url }}"
                                              alt="{{ $animal->name }}"
@@ -183,13 +183,13 @@
                                 </td>
 
                                 {{-- Name --}}
-                                <td class="px-6 py-4 whitespace-nowrap">
+                                <td class="px-4 py-4 whitespace-nowrap">
                                     <div class="text-sm font-medium text-gray-900">{{ $animal->name }}</div>
                                     <div class="text-xs text-gray-500">Weight: {{ $animal->weight }}kg</div>
                                 </td>
 
                                 {{-- Species --}}
-                                <td class="px-6 py-4 whitespace-nowrap">
+                                <td class="px-4 py-4 whitespace-nowrap">
                                     <div class="flex items-center gap-2">
                                         @if(strtolower($animal->species) == 'dog')
                                             <i class="fas fa-dog text-purple-600"></i>
@@ -203,12 +203,12 @@
                                 </td>
 
                                 {{-- Age --}}
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
                                     {{ $animal->age }}
                                 </td>
 
                                 {{-- Gender --}}
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
                                     @if($animal->gender == 'Male')
                                         <span class="inline-flex items-center gap-1">
                                             <i class="fas fa-mars text-blue-600"></i>
@@ -223,7 +223,7 @@
                                 </td>
 
                                 {{-- Health --}}
-                                <td class="px-6 py-4 whitespace-nowrap">
+                                <td class="px-4 py-4 whitespace-nowrap">
                                     @if($animal->health_details == 'Healthy')
                                         <span class="px-2 py-1 text-xs font-medium rounded bg-green-100 text-green-800 border border-green-200">
                                             Healthy
@@ -240,7 +240,7 @@
                                 </td>
 
                                 {{-- Adoption Status --}}
-                                <td class="px-6 py-4 whitespace-nowrap">
+                                <td class="px-4 py-4 whitespace-nowrap">
                                     @if($animal->adoption_status == 'Not Adopted')
                                         <span class="px-2 py-1 text-xs font-medium rounded bg-blue-100 text-blue-800 border border-blue-200">
                                             Available
@@ -253,7 +253,7 @@
                                 </td>
 
                                 {{-- Location (Slot) --}}
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
                                     @if($animal->slot)
                                         <div class="text-xs">
                                             <div class="font-medium">{{ $animal->slot->section->name ?? 'N/A' }}</div>
@@ -265,7 +265,7 @@
                                 </td>
 
                                 {{-- Actions --}}
-                                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                <td class="px-4 py-4 whitespace-nowrap text-right text-sm font-medium">
                                     <a href="{{ route('animal-management.show', $animal->id) }}"
                                        class="inline-flex items-center gap-1 px-3 py-1 bg-purple-600 hover:bg-purple-700 text-white text-xs font-medium rounded">
                                         <i class="fas fa-eye"></i>
@@ -279,7 +279,7 @@
             </div>
 
             {{-- Table Footer --}}
-            <div class="bg-gray-50 px-6 py-3 border-t border-gray-200">
+            <div class="bg-gray-50 px-4 py-3 border-t border-gray-200">
                 <div class="flex items-center justify-between text-sm text-gray-700">
                     <div>
                         Showing <span class="font-bold">{{ $animals->count() }}</span> of <span class="font-bold">{{ $animals->total() }}</span> animals

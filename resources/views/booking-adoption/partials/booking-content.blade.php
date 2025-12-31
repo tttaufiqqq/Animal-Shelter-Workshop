@@ -201,9 +201,6 @@
                         Appointment
                     </th>
                     <th scope="col" class="px-4 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider">
-                        Animals
-                    </th>
-                    <th scope="col" class="px-4 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider">
                         Adoption
                     </th>
                     <th scope="col" class="px-4 py-3 text-center text-xs font-semibold text-white uppercase tracking-wider">
@@ -251,29 +248,6 @@
                             <div class="text-xs text-gray-500">
                                 {{ \Carbon\Carbon::parse($booking->appointment_time)->format('h:i A') }}
                             </div>
-                        </td>
-                        <td class="px-4 py-4">
-                            @if($booking->animals->isNotEmpty())
-                                <div class="flex items-center gap-2">
-                                    <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-purple-100 text-purple-700 text-xs font-bold">
-                                        {{ $booking->animals->count() }}
-                                    </span>
-                                    <div class="flex flex-wrap gap-1">
-                                        @foreach($booking->animals->take(2) as $animal)
-                                            <span class="bg-purple-50 text-purple-700 px-2 py-1 rounded text-xs font-medium border border-purple-200">
-                                                {{ $animal->name }}
-                                            </span>
-                                        @endforeach
-                                        @if($booking->animals->count() > 2)
-                                            <span class="bg-gray-50 text-gray-700 px-2 py-1 rounded text-xs font-medium border border-gray-200">
-                                                +{{ $booking->animals->count() - 2 }}
-                                            </span>
-                                        @endif
-                                    </div>
-                                </div>
-                            @else
-                                <span class="text-sm text-gray-400">—</span>
-                            @endif
                         </td>
                         <td class="px-4 py-4 whitespace-nowrap">
                             @if($booking->adoptions->isNotEmpty())
@@ -335,7 +309,7 @@
                     'species' => $animal->species,
                     'age' => $animal->age,
                     'gender' => $animal->gender,
-                    'image_url' => $animal->images && $animal->images->count() > 0 ? $animal->images->first()->url : null
+                    'image_url' => ($animal->relationLoaded('images') && $animal->images->count() > 0) ? $animal->images->first()->url : null
                 ];
             })->toArray(),
             'adoptions' => $booking->adoptions->map(function($adoption) {

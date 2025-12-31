@@ -64,11 +64,36 @@
                                     <img src="${animal.image_url}"
                                          alt="${animal.name}"
                                          class="w-full h-32 object-cover rounded-lg mb-3">
-                                ` : ''}
+                                ` : `
+                                    <div class="w-full h-32 bg-gray-200 rounded-lg mb-3 flex items-center justify-center">
+                                        <svg class="w-12 h-12 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                                            <path d="M10 3.5a1.5 1.5 0 013 0V4a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-.5a1.5 1.5 0 000 3h.5a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-.5a1.5 1.5 0 00-3 0v.5a1 1 0 01-1 1H6a1 1 0 01-1-1v-3a1 1 0 00-1-1h-.5a1.5 1.5 0 010-3H4a1 1 0 001-1V6a1 1 0 011-1h3a1 1 0 001-1v-.5z"/>
+                                        </svg>
+                                    </div>
+                                `}
                                 <h4 class="font-bold text-gray-800 mb-2">${animal.name}</h4>
                                 <p class="text-sm text-gray-600">${animal.species} • ${animal.age} • ${animal.gender}</p>
                             </div>
                         `).join('')}
+                    </div>
+                </div>
+            `;
+        } else {
+            // Show message when no animals
+            animalsHtml = `
+                <div class="bg-gray-50 border-2 border-gray-300 rounded-lg p-6">
+                    <h3 class="font-bold text-gray-800 mb-4 text-lg flex items-center gap-2">
+                        <svg class="w-5 h-5 text-gray-600" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M10 3.5a1.5 1.5 0 013 0V4a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-.5a1.5 1.5 0 000 3h.5a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-.5a1.5 1.5 0 00-3 0v.5a1 1 0 01-1 1H6a1 1 0 01-1-1v-3a1 1 0 00-1-1h-.5a1.5 1.5 0 010-3H4a1 1 0 001-1V6a1 1 0 011-1h3a1 1 0 001-1v-.5z"/>
+                        </svg>
+                        Animals in Booking
+                    </h3>
+                    <div class="text-center py-8">
+                        <svg class="w-16 h-16 text-gray-400 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/>
+                        </svg>
+                        <p class="text-gray-600 font-medium">No animals in this booking</p>
+                        <p class="text-sm text-gray-500 mt-1">This booking doesn't have any animals assigned yet</p>
                     </div>
                 </div>
             `;

@@ -130,6 +130,8 @@ $routePrefix = 'shelter-management';
 @include('shelter-management.slot-modal')
 @include('shelter-management.category-modal')
 @include('shelter-management.slot-detail-modal')
+@include('shelter-management.section-detail-modal')
+@include('shelter-management.category-detail-modal')
 @include('shelter-management.inventory-create-modal', ['categories' => $categories])
 @include('shelter-management.inventory-detail-modal', ['categories' => $categories])
 @include('shelter-management.animal-detail-modal')
