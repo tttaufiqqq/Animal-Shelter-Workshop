@@ -781,7 +781,7 @@
                     Assigned Slot
                 </h2>
 
-                @if($animal->slot)
+                @if($animal->relationLoaded('slot') && $animal->slot)
                     <div class="bg-purple-50 rounded-lg p-4">
                         <div class="flex items-center justify-between mb-2">
                             <span class="text-gray-700 font-semibold">Name</span>

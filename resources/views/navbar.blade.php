@@ -5,76 +5,193 @@
  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
   <div class="flex justify-between items-center h-16">
    <!-- Logo/Brand -->
-   <div class="flex items-center space-x-2">
-        <a href="{{ route('welcome') }}" class="flex items-center space-x-2">
-            <span class="text-3xl">🐾</span>
-            <span class="text-white font-bold text-xl hover:text-purple-200 transition duration-300">
+   <div class="flex items-center space-x-2 relative" x-data="{ showTooltip: false }">
+        <a href="{{ route('welcome') }}"
+           class="flex items-center space-x-2 group"
+           @mouseenter="showTooltip = true"
+           @mouseleave="showTooltip = false">
+            <span class="text-3xl group-hover:scale-110 transition-transform duration-300">🐾</span>
+            <span class="text-white font-bold text-xl group-hover:text-purple-200 transition duration-300">
                 Stray Animal Shelter
             </span>
         </a>
+
+        <!-- Tooltip -->
+        <div x-show="showTooltip"
+             x-transition:enter="transition ease-out duration-200"
+             x-transition:enter-start="opacity-0 translate-y-1"
+             x-transition:enter-end="opacity-100 translate-y-0"
+             x-transition:leave="transition ease-in duration-150"
+             x-transition:leave-start="opacity-100 translate-y-0"
+             x-transition:leave-end="opacity-0 translate-y-1"
+             class="absolute left-0 top-full mt-2 px-3 py-2 bg-white text-gray-700 text-sm font-medium rounded-lg shadow-lg border border-purple-200 whitespace-nowrap z-50"
+             style="display: none;">
+            <div class="flex items-center gap-2">
+                <svg class="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
+                </svg>
+                <span class="text-purple-900">Click to return to homepage</span>
+            </div>
+            <!-- Arrow pointing up -->
+            <div class="absolute left-6 -top-1 w-2 h-2 bg-white border-l border-t border-purple-200 transform rotate-45"></div>
+        </div>
     </div>
 
-   <div class="hidden md:flex space-x-3">
+   <div class="hidden md:flex space-x-3" x-data="{
+        tooltip: {
+            dashboard: false,
+            map: false,
+            report: false,
+            submitReport: false,
+            animal: false,
+            bookings: false,
+            slots: false,
+            clinics: false,
+            myBooking: false,
+            contact: false
+        }
+    }">
         {{-- Must be logged in for everything except Contact Us --}}
         @auth
-            {{-- ADMIN ONLY: Dashboard, Report, Slots --}}
-            @role('admin')
-                <a href="{{ route('dashboard') }}" class="text-purple-100 hover:text-white transition duration-300 font-medium px-3 py-2">
-                    Dashboard
-                </a>
-                <a href="{{ route('rescue.map') }}" class="text-purple-100 hover:text-white transition duration-300 font-medium px-3 py-2">
-                    Map
-                </a>
-                <a href="{{ route('reports.index') }}" class="text-purple-100 hover:text-white transition duration-300 font-medium px-3 py-2">
-                    Report
-                </a>
-            @endrole
-
            {{-- Public User and Adopter: Submit Report (not on welcome page) --}}
            @role('public user|adopter')
            @unless(request()->routeIs('welcome'))
-               <a href="{{ route('welcome') }}" class="text-purple-100 hover:text-white transition duration-300 font-medium px-3 py-2">
-                   Submit Report
-               </a>
+               <div class="relative">
+                   <a href="{{ route('welcome') }}"
+                      class="text-purple-100 hover:text-white transition duration-300 font-medium px-3 py-2 inline-block"
+                      @mouseenter="tooltip.submitReport = true"
+                      @mouseleave="tooltip.submitReport = false">
+                       Submit Report
+                   </a>
+                   <div x-show="tooltip.submitReport"
+                        x-transition:enter="transition ease-out duration-200"
+                        x-transition:enter-start="opacity-0 translate-y-1"
+                        x-transition:enter-end="opacity-100 translate-y-0"
+                        x-transition:leave="transition ease-in duration-150"
+                        x-transition:leave-start="opacity-100 translate-y-0"
+                        x-transition:leave-end="opacity-0 translate-y-1"
+                        class="absolute left-1/2 transform -translate-x-1/2 top-full mt-2 px-3 py-2 bg-white text-gray-700 text-xs font-medium rounded-lg shadow-lg border border-purple-200 whitespace-nowrap z-50"
+                        style="display: none;">
+                       <span class="text-purple-900">Report a stray animal</span>
+                       <div class="absolute left-1/2 transform -translate-x-1/2 -top-1 w-2 h-2 bg-white border-l border-t border-purple-200 rotate-45"></div>
+                   </div>
+               </div>
            @endunless
            @endrole
 
             {{-- ADMIN + CARETAKER + USER: Animal --}}
-            <a href="{{ route('animal:main') }}" class="text-purple-100 hover:text-white transition duration-300 font-medium px-3 py-2">
-                Animal
-            </a>
-
-            {{-- ADMIN ONLY: Slots --}}
-            @role('admin')
-            <a href="{{ route('bookings.index-admin') }}" class="text-purple-100 hover:text-white transition duration-300 font-medium px-3 py-2">
-                Bookings
+            <div class="relative">
+                <a href="{{ route('animal:main') }}"
+                   class="text-purple-100 hover:text-white transition duration-300 font-medium px-3 py-2 inline-block"
+                   @mouseenter="tooltip.animal = true"
+                   @mouseleave="tooltip.animal = false">
+                    Animal
                 </a>
-            @endrole
+                <div x-show="tooltip.animal"
+                     x-transition:enter="transition ease-out duration-200"
+                     x-transition:enter-start="opacity-0 translate-y-1"
+                     x-transition:enter-end="opacity-100 translate-y-0"
+                     x-transition:leave="transition ease-in duration-150"
+                     x-transition:leave-start="opacity-100 translate-y-0"
+                     x-transition:leave-end="opacity-0 translate-y-1"
+                     class="absolute left-1/2 transform -translate-x-1/2 top-full mt-2 px-3 py-2 bg-white text-gray-700 text-xs font-medium rounded-lg shadow-lg border border-purple-200 whitespace-nowrap z-50"
+                     style="display: none;">
+                    <span class="text-purple-900">Browse animals available for adoption</span>
+                    <div class="absolute left-1/2 transform -translate-x-1/2 -top-1 w-2 h-2 bg-white border-l border-t border-purple-200 rotate-45"></div>
+                </div>
+            </div>
 
             {{-- ADMIN + CARETAKER: Clinics & Vets --}}
             @role('admin|caretaker')
-                <a href="{{ route('shelter-management.index') }}" class="text-purple-100 hover:text-white transition duration-300 font-medium px-3 py-2">
-                    Slots
-                </a>
-                <a href="{{ route('animal-management.clinic-index') }}" class="text-purple-100 hover:text-white transition duration-300 font-medium px-3 py-2">
-                    Clinics & Vets
-                </a>
+                <div class="relative">
+                    <a href="{{ route('shelter-management.index') }}"
+                       class="text-purple-100 hover:text-white transition duration-300 font-medium px-3 py-2 inline-block"
+                       @mouseenter="tooltip.slots = true"
+                       @mouseleave="tooltip.slots = false">
+                        Slots
+                    </a>
+                    <div x-show="tooltip.slots"
+                         x-transition:enter="transition ease-out duration-200"
+                         x-transition:enter-start="opacity-0 translate-y-1"
+                         x-transition:enter-end="opacity-100 translate-y-0"
+                         x-transition:leave="transition ease-in duration-150"
+                         x-transition:leave-start="opacity-100 translate-y-0"
+                         x-transition:leave-end="opacity-0 translate-y-1"
+                         class="absolute left-1/2 transform -translate-x-1/2 top-full mt-2 px-3 py-2 bg-white text-gray-700 text-xs font-medium rounded-lg shadow-lg border border-purple-200 whitespace-nowrap z-50"
+                         style="display: none;">
+                        <span class="text-purple-900">Manage shelter slots and inventory</span>
+                        <div class="absolute left-1/2 transform -translate-x-1/2 -top-1 w-2 h-2 bg-white border-l border-t border-purple-200 rotate-45"></div>
+                    </div>
+                </div>
+
+                <div class="relative">
+                    <a href="{{ route('animal-management.clinic-index') }}"
+                       class="text-purple-100 hover:text-white transition duration-300 font-medium px-3 py-2 inline-block"
+                       @mouseenter="tooltip.clinics = true"
+                       @mouseleave="tooltip.clinics = false">
+                        Clinics & Vets
+                    </a>
+                    <div x-show="tooltip.clinics"
+                         x-transition:enter="transition ease-out duration-200"
+                         x-transition:enter-start="opacity-0 translate-y-1"
+                         x-transition:enter-end="opacity-100 translate-y-0"
+                         x-transition:leave="transition ease-in duration-150"
+                         x-transition:leave-start="opacity-100 translate-y-0"
+                         x-transition:leave-end="opacity-0 translate-y-1"
+                         class="absolute left-1/2 transform -translate-x-1/2 top-full mt-2 px-3 py-2 bg-white text-gray-700 text-xs font-medium rounded-lg shadow-lg border border-purple-200 whitespace-nowrap z-50"
+                         style="display: none;">
+                        <span class="text-purple-900">Manage clinics and veterinarians</span>
+                        <div class="absolute left-1/2 transform -translate-x-1/2 -top-1 w-2 h-2 bg-white border-l border-t border-purple-200 rotate-45"></div>
+                    </div>
+                </div>
             @endrole
 
-            {{-- Caretaker and Public User: Booking --}}
+            {{-- Caretaker and Public User: My Booking --}}
             @role('public user|caretaker|adopter')
-            <a href="{{ route('bookings.index') }}" class="text-purple-100 hover:text-white transition duration-300 font-medium px-3 py-2">
-                My Booking
-            </a>
+            <div class="relative">
+                <a href="{{ route('bookings.index') }}"
+                   class="text-purple-100 hover:text-white transition duration-300 font-medium px-3 py-2 inline-block"
+                   @mouseenter="tooltip.myBooking = true"
+                   @mouseleave="tooltip.myBooking = false">
+                    My Booking
+                </a>
+                <div x-show="tooltip.myBooking"
+                     x-transition:enter="transition ease-out duration-200"
+                     x-transition:enter-start="opacity-0 translate-y-1"
+                     x-transition:enter-end="opacity-100 translate-y-0"
+                     x-transition:leave="transition ease-in duration-150"
+                     x-transition:leave-start="opacity-100 translate-y-0"
+                     x-transition:leave-end="opacity-0 translate-y-1"
+                     class="absolute left-1/2 transform -translate-x-1/2 top-full mt-2 px-3 py-2 bg-white text-gray-700 text-xs font-medium rounded-lg shadow-lg border border-purple-200 whitespace-nowrap z-50"
+                     style="display: none;">
+                    <span class="text-purple-900">View and manage your bookings</span>
+                    <div class="absolute left-1/2 transform -translate-x-1/2 -top-1 w-2 h-2 bg-white border-l border-t border-purple-200 rotate-45"></div>
+                </div>
+            </div>
             @endrole
         @endauth
 
         {{-- Public: Contact Us --}}
-        @unlessrole('admin')
-            <a href="{{ route('contact') }}" class="text-purple-100 hover:text-white transition duration-300 font-medium px-3 py-2">
+        <div class="relative">
+            <a href="{{ route('contact') }}"
+               class="text-purple-100 hover:text-white transition duration-300 font-medium px-3 py-2 inline-block"
+               @mouseenter="tooltip.contact = true"
+               @mouseleave="tooltip.contact = false">
                 Contact Us
             </a>
-        @endunlessrole
+            <div x-show="tooltip.contact"
+                 x-transition:enter="transition ease-out duration-200"
+                 x-transition:enter-start="opacity-0 translate-y-1"
+                 x-transition:enter-end="opacity-100 translate-y-0"
+                 x-transition:leave="transition ease-in duration-150"
+                 x-transition:leave-start="opacity-100 translate-y-0"
+                 x-transition:leave-end="opacity-0 translate-y-1"
+                 class="absolute left-1/2 transform -translate-x-1/2 top-full mt-2 px-3 py-2 bg-white text-gray-700 text-xs font-medium rounded-lg shadow-lg border border-purple-200 whitespace-nowrap z-50"
+                 style="display: none;">
+                <span class="text-purple-900">Get in touch with us</span>
+                <div class="absolute left-1/2 transform -translate-x-1/2 -top-1 w-2 h-2 bg-white border-l border-t border-purple-200 rotate-45"></div>
+            </div>
+        </div>
     </div>
 
 

@@ -1,6 +1,6 @@
 {{-- Database Connection Status Modal - Welcome Page Only --}}
 @if(isset($dbDisconnected) && count($dbDisconnected) > 0)
-<div id="dbStatusModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+<div id="dbStatusModal" class="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
     <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden">
         <!-- Header -->
         <div class="bg-gradient-to-r from-yellow-500 to-orange-500 text-white p-6">
@@ -119,15 +119,17 @@
 
 <script>
     function closeDbModal() {
-        document.getElementById('dbStatusModal').classList.add('hidden');
+        const modal = document.getElementById('dbStatusModal');
+        modal.classList.add('hidden');
         // Store in session that user has seen the modal
         sessionStorage.setItem('db_modal_dismissed', 'true');
     }
 
     // Auto-show modal only if not dismissed in this session
     window.addEventListener('DOMContentLoaded', function() {
+        const modal = document.getElementById('dbStatusModal');
         if (sessionStorage.getItem('db_modal_dismissed') !== 'true') {
-            document.getElementById('dbStatusModal').classList.remove('hidden');
+            modal.classList.remove('hidden');
         }
     });
 

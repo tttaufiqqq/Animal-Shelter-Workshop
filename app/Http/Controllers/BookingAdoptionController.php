@@ -1131,41 +1131,110 @@ class BookingAdoptionController extends Controller
                 $booking = Booking::find($bookingId);
 
                 if ($booking) {
-                    // Update booking status to Completed
-                    $booking->update(['status' => 'Completed']);
+                    // Start transactions for cross-database updates
+                    DB::connection('danish')->beginTransaction();
+                    DB::connection('shafiqah')->beginTransaction();
 
-                    // AUDIT: Payment completed
-                    AuditService::logPayment(
-                        'payment_completed',
-                        $bookingId,
-                        $adoptionFee,
-                        $animalIds,
-                        $billCode,
-                        'success'
-                    );
+                    // Check if atiqah (slots) database is available
+                    $atiqahOnline = $this->isDatabaseAvailable('atiqah');
+                    if ($atiqahOnline) {
+                        DB::connection('atiqah')->beginTransaction();
+                    }
 
-                    // Update all selected animals to Adopted
-                    foreach ($animalIds as $animalId) {
-                        $animal = Animal::find($animalId);
-                        if ($animal) {
-                            $oldStatus = $animal->adoption_status;
-                            Animal::where('id', $animalId)->update(['adoption_status' => 'Adopted']);
+                    try {
+                        // Update booking status to Completed
+                        $booking->update(['status' => 'Completed']);
 
-                            // AUDIT: Animal adoption status changed
-                            AuditService::logAnimal(
-                                'adoption_status_changed',
-                                $animalId,
-                                $animal->name,
-                                ['adoption_status' => $oldStatus],
-                                ['adoption_status' => 'Adopted'],
-                                [
-                                    'booking_id' => $bookingId,
-                                    'adopter_id' => Auth::id(),
-                                    'adopter_name' => Auth::user()->name,
-                                    'adoption_fee' => $adoptionFee / count($animalIds),
-                                ]
-                            );
+                        // AUDIT: Payment completed
+                        AuditService::logPayment(
+                            'payment_completed',
+                            $bookingId,
+                            $adoptionFee,
+                            $animalIds,
+                            $billCode,
+                            'success'
+                        );
+
+                        // Track affected slots for status update
+                        $affectedSlotIds = [];
+
+                        // Update all selected animals to Adopted and clear their slots
+                        foreach ($animalIds as $animalId) {
+                            $animal = Animal::find($animalId);
+                            if ($animal) {
+                                $oldStatus = $animal->adoption_status;
+                                $oldSlotId = $animal->slotID;
+
+                                // Update adoption status and clear slot
+                                Animal::where('id', $animalId)->update([
+                                    'adoption_status' => 'Adopted',
+                                    'slotID' => null // Animal leaves the shelter
+                                ]);
+
+                                // Track slot for status recalculation
+                                if ($oldSlotId) {
+                                    $affectedSlotIds[] = $oldSlotId;
+                                }
+
+                                // AUDIT: Animal adoption status changed
+                                AuditService::logAnimal(
+                                    'adoption_status_changed',
+                                    $animalId,
+                                    $animal->name,
+                                    ['adoption_status' => $oldStatus, 'slotID' => $oldSlotId],
+                                    ['adoption_status' => 'Adopted', 'slotID' => null],
+                                    [
+                                        'booking_id' => $bookingId,
+                                        'adopter_id' => Auth::id(),
+                                        'adopter_name' => Auth::user()->name,
+                                        'adoption_fee' => $adoptionFee / count($animalIds),
+                                    ]
+                                );
+                            }
                         }
+
+                        // Update slot statuses for affected slots (if atiqah is online)
+                        if ($atiqahOnline && !empty($affectedSlotIds)) {
+                            $uniqueSlotIds = array_unique($affectedSlotIds);
+                            foreach ($uniqueSlotIds as $slotId) {
+                                $slot = Slot::find($slotId);
+                                if ($slot) {
+                                    // Count remaining animals (after adoption)
+                                    $remainingAnimals = Animal::where('slotID', $slotId)->count();
+
+                                    // Recalculate status
+                                    if ($remainingAnimals >= $slot->capacity) {
+                                        $slot->status = 'occupied';
+                                    } else {
+                                        $slot->status = 'available';
+                                    }
+                                    $slot->save();
+
+                                    \Log::info('Slot status updated after adoption', [
+                                        'slot_id' => $slotId,
+                                        'remaining_animals' => $remainingAnimals,
+                                        'capacity' => $slot->capacity,
+                                        'new_status' => $slot->status,
+                                    ]);
+                                }
+                            }
+                        }
+
+                        // Commit all transactions
+                        DB::connection('danish')->commit();
+                        DB::connection('shafiqah')->commit();
+                        if ($atiqahOnline) {
+                            DB::connection('atiqah')->commit();
+                        }
+
+                    } catch (\Exception $e) {
+                        // Rollback all transactions
+                        DB::connection('danish')->rollBack();
+                        DB::connection('shafiqah')->rollBack();
+                        if ($atiqahOnline) {
+                            DB::connection('atiqah')->rollBack();
+                        }
+                        throw $e;
                     }
 
                     // Create transaction record
@@ -1329,14 +1398,64 @@ class BookingAdoptionController extends Controller
                         DB::connection('danish')->beginTransaction();
                         DB::connection('shafiqah')->beginTransaction();
 
+                        // Check if atiqah (slots) database is available
+                        $atiqahOnline = $this->isDatabaseAvailable('atiqah');
+                        if ($atiqahOnline) {
+                            DB::connection('atiqah')->beginTransaction();
+                        }
+
                         try {
                             // Payment successful - update booking to Completed
                             $booking->update(['status' => 'Completed']);
 
-                            // Update all animals in this booking to Adopted
+                            // Track affected slots for status update
+                            $affectedSlotIds = [];
+
+                            // Update all animals in this booking to Adopted and clear their slots
                             $animalIds = $booking->animals->pluck('id')->toArray();
                             foreach ($animalIds as $animalId) {
-                                Animal::where('id', $animalId)->update(['adoption_status' => 'Adopted']);
+                                $animal = Animal::find($animalId);
+                                if ($animal) {
+                                    $oldSlotId = $animal->slotID;
+
+                                    // Update adoption status and clear slot
+                                    Animal::where('id', $animalId)->update([
+                                        'adoption_status' => 'Adopted',
+                                        'slotID' => null // Animal leaves the shelter
+                                    ]);
+
+                                    // Track slot for status recalculation
+                                    if ($oldSlotId) {
+                                        $affectedSlotIds[] = $oldSlotId;
+                                    }
+                                }
+                            }
+
+                            // Update slot statuses for affected slots (if atiqah is online)
+                            if ($atiqahOnline && !empty($affectedSlotIds)) {
+                                $uniqueSlotIds = array_unique($affectedSlotIds);
+                                foreach ($uniqueSlotIds as $slotId) {
+                                    $slot = Slot::find($slotId);
+                                    if ($slot) {
+                                        // Count remaining animals (after adoption)
+                                        $remainingAnimals = Animal::where('slotID', $slotId)->count();
+
+                                        // Recalculate status
+                                        if ($remainingAnimals >= $slot->capacity) {
+                                            $slot->status = 'occupied';
+                                        } else {
+                                            $slot->status = 'available';
+                                        }
+                                        $slot->save();
+
+                                        Log::info('Callback: Slot status updated after adoption', [
+                                            'slot_id' => $slotId,
+                                            'remaining_animals' => $remainingAnimals,
+                                            'capacity' => $slot->capacity,
+                                            'new_status' => $slot->status,
+                                        ]);
+                                    }
+                                }
                             }
 
                             // Check if transaction already exists
@@ -1356,15 +1475,22 @@ class BookingAdoptionController extends Controller
 
                             DB::connection('danish')->commit();
                             DB::connection('shafiqah')->commit();
+                            if ($atiqahOnline) {
+                                DB::connection('atiqah')->commit();
+                            }
 
                             Log::info('Callback: Booking Completed', [
                                 'booking_id' => $bookingId,
                                 'animal_count' => count($animalIds),
+                                'affected_slots' => count($affectedSlotIds),
                             ]);
 
                         } catch (\Exception $e) {
                             DB::connection('danish')->rollBack();
                             DB::connection('shafiqah')->rollBack();
+                            if ($atiqahOnline) {
+                                DB::connection('atiqah')->rollBack();
+                            }
                             throw $e;
                         }
                     }

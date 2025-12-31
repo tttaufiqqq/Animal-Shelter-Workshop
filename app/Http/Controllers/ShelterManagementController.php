@@ -302,23 +302,45 @@ class ShelterManagementController extends Controller
                     },
                 ],
                 'capacity' => 'required|integer|min:1',
-                'status' => 'required|in:available,occupied,maintenance',
+                'status' => 'nullable|in:available,occupied,maintenance', // Make status optional for auto-calculation
             ]);
 
             $slot = Slot::findOrFail($id);
 
-            // Respect the user's manual status choice from the form
-            // The status field is required in the form, so it will always be present
-            // No auto-calculation - user has full control over the status
+            // Auto-calculate status based on actual occupancy (unless manually set to 'maintenance')
+            if (isset($validated['status']) && $validated['status'] === 'maintenance') {
+                // Allow manual override for maintenance status only
+                $slot->update($validated);
+            } else {
+                // Auto-calculate status based on animal count
+                // Count animals in this slot (cross-database query to shafiqah)
+                $animalCount = 0;
+                if ($this->isDatabaseAvailable('shafiqah')) {
+                    $animalCount = Animal::where('slotID', $id)->count();
+                }
 
-            $slot->update($validated);
+                // Remove status from validated data to set it separately
+                unset($validated['status']);
+
+                // Update slot details first
+                $slot->update($validated);
+
+                // Set status based on occupancy
+                if ($animalCount >= $slot->capacity) {
+                    $slot->status = 'occupied';
+                } else {
+                    $slot->status = 'available';
+                }
+                $slot->save();
+            }
 
             \Log::info('Slot updated successfully', [
                 'slot_id' => $id,
-                'name' => $validated['name'],
-                'sectionID' => $validated['sectionID'],
-                'capacity' => $validated['capacity'],
-                'status' => $validated['status'],
+                'name' => $slot->name,
+                'sectionID' => $slot->sectionID,
+                'capacity' => $slot->capacity,
+                'status' => $slot->status,
+                'animal_count' => $animalCount ?? 'N/A',
             ]);
 
             return redirect()->back()->with('success', 'Slot updated successfully!');

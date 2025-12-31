@@ -73,6 +73,11 @@ class AuthenticatedSessionController extends Controller
             // AUDIT: Successful login
             AuditService::logAuthentication('login_success', $user->email);
 
+            // Role-based redirect: Admin users go to dashboard, others to welcome page
+            if ($user->hasRole('admin')) {
+                return redirect()->intended(route('dashboard', absolute: false));
+            }
+
             return redirect()->intended(route('welcome', absolute: false));
         } catch (ValidationException $e) {
             // AUDIT: Failed login attempt

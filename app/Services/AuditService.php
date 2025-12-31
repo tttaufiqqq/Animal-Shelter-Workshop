@@ -49,20 +49,24 @@ class AuditService
 
         // If it's localhost, get the actual machine's network IP address
         if ($remoteAddr === '127.0.0.1' || $remoteAddr === '::1') {
-            // Try to get IP from session if previously cached
-            if (session()->has('user_real_ip')) {
-                return session('user_real_ip');
-            }
-
+            // ALWAYS get fresh IP (don't use stale session cache)
             // Get the actual machine's IPv4 address (works on Windows/Linux/macOS)
             $serverIp = getServerIpAddress();
-            if ($serverIp) {
-                // Cache in session for performance
+
+            if ($serverIp && $serverIp !== '127.0.0.1') {
+                // Cache in session for performance (but will refresh on next request)
                 session(['user_real_ip' => $serverIp]);
+                \Log::info("Captured real IP address: {$serverIp} for user: " . ($user->email ?? 'guest'));
                 return $serverIp;
             }
 
-            // Fallback to localhost if we can't determine
+            // Try session cache as fallback
+            if (session()->has('user_real_ip') && session('user_real_ip') !== '127.0.0.1') {
+                return session('user_real_ip');
+            }
+
+            // Last resort: Log warning and return localhost
+            \Log::warning("Could not determine real IP address, falling back to localhost. Server IP detection returned: " . ($serverIp ?? 'null'));
             return $remoteAddr;
         }
 

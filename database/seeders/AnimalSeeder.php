@@ -136,12 +136,27 @@ class AnimalSeeder extends Seeder
 
         $animals = [];
         $totalAnimals = 100;
-        $notAdoptedCount = 50; // Exactly 50% not adopted
-        $adoptedCount = 50; // Exactly 50% adopted
 
-        // Shuffle slots for random assignment
+        // REALISTIC: ALL animals start as "Not Adopted" when they arrive
+        // Adoptions happen later through BookingSeeder → AdoptionSeeder
+        // This reflects real shelter operations where animals are available until adopted
+
+        // Shuffle slots for random assignment (all animals get slots since all start as not adopted)
         $shuffledSlots = $availableSlots->shuffle();
         $slotIndex = 0;
+
+        // Age distribution: 30% young, 50% adult, 20% senior (realistic shelter demographics)
+        $ageDistribution = [
+            'young' => round($totalAnimals * 0.30), // 30 young animals
+            'adult' => round($totalAnimals * 0.50), // 50 adult animals
+            'senior' => round($totalAnimals * 0.20), // 20 senior animals
+        ];
+        $agePool = array_merge(
+            array_fill(0, $ageDistribution['young'], 'young'),
+            array_fill(0, $ageDistribution['adult'], 'adult'),
+            array_fill(0, $ageDistribution['senior'], 'senior')
+        );
+        shuffle($agePool); // Randomize age assignment
 
         // Create rescue groups - distribute all animals across all rescues
         // Each rescue brings 1-5 animals
@@ -156,7 +171,7 @@ class AnimalSeeder extends Seeder
             }
 
             $rescue = $successfulRescues[$rescueIndex];
-            $animalsInThisRescue = rand(1, 5); // Each rescue brings 1-5 animals
+            $animalsInThisRescue = rand(3, 8); // Each rescue brings 3-8 animals (minimum 3)
 
             // Don't exceed our target
             if ($animalsDistributed + $animalsInThisRescue > $totalAnimals) {
@@ -174,7 +189,7 @@ class AnimalSeeder extends Seeder
         }
 
         $this->command->info("Distributing {$totalAnimals} animals across " . count($rescueGroups) . " rescue operations");
-        $this->command->info("Target: {$notAdoptedCount} Not Adopted, {$adoptedCount} Adopted");
+        $this->command->info("Age Distribution: {$ageDistribution['young']} young, {$ageDistribution['adult']} adult, {$ageDistribution['senior']} senior");
 
         // ===== CREATE ALL ANIMALS WITH THEIR RESCUE INFO =====
         $animalIndex = 0;
@@ -203,35 +218,35 @@ class AnimalSeeder extends Seeder
                 // Capitalize first letter only
                 $name = ucfirst(strtolower($name));
 
-                $ageCategories = $chosenSpecies === 'Cat'
-                    ? ['kitten', 'adult', 'senior']
-                    : ['puppy', 'adult', 'senior'];
+                // Use age from pre-distributed pool (30% young, 50% adult, 20% senior)
+                $ageCategory = $agePool[$animalIndex];
 
-                $age = $ageCategories[array_rand($ageCategories)];
+                // Convert age category to species-specific term
+                if ($ageCategory === 'young') {
+                    $age = $chosenSpecies === 'Cat' ? 'kitten' : 'puppy';
+                } else {
+                    $age = $ageCategory; // 'adult' or 'senior'
+                }
+
                 $weight = $chosenSpecies === 'Cat' ? rand(2, 8) : rand(5, 35);
 
-                // Determine adoption status: First 50 are 'Not Adopted', rest are 'Adopted'
-                $adoptionStatus = $animalIndex < $notAdoptedCount ? 'Not Adopted' : 'Adopted';
+                // REALISTIC: ALL animals start as "Not Adopted"
+                // Adoptions happen later through the adoption process
+                $adoptionStatus = 'Not Adopted';
 
-                // Assign slot ONLY for NOT ADOPTED animals
+                // Assign slot to ALL animals (since all start as not adopted)
                 $slotID = null;
-                if ($adoptionStatus === 'Not Adopted') {
-                    if ($slotIndex < $shuffledSlots->count()) {
-                        $slotID = $shuffledSlots[$slotIndex]->id;
-                        $slotIndex++;
-                    } else {
-                        $this->command->warn("Ran out of available slots. Some not adopted animals will not have slots.");
-                    }
+                if ($slotIndex < $shuffledSlots->count()) {
+                    $slotID = $shuffledSlots[$slotIndex]->id;
+                    $slotIndex++;
+                } else {
+                    $this->command->warn("Ran out of available slots. Some animals will not have slots.");
                 }
 
-                // Determine timestamps
+                // Timestamps: Animals are created at their rescue success date
                 $createdAt = $rescueTimestamp;
                 $updatedAt = $rescueTimestamp;
-
-                // If adopted, set updated_at to adoption date (7-90 days after rescue)
-                if ($adoptionStatus === 'Adopted') {
-                    $updatedAt = Carbon::parse($rescueTimestamp)->addDays(rand(7, 90));
-                }
+                // Note: updated_at will change when animal is adopted (handled by AdoptionSeeder)
 
                 // All animals from same rescue have EXACT SAME created_at timestamp
                 $animals[] = [
@@ -279,11 +294,7 @@ class AnimalSeeder extends Seeder
                 ->table('animal')
                 ->where('adoption_status', 'Not Adopted')
                 ->count();
-            $dbAdopted = DB::connection('shafiqah')
-                ->table('animal')
-                ->where('adoption_status', 'Adopted')
-                ->count();
-            $this->command->info("VERIFICATION - Database counts: Not Adopted = {$dbNotAdopted}, Adopted = {$dbAdopted}");
+            $this->command->info("VERIFICATION - All animals marked as 'Not Adopted': {$dbNotAdopted}");
 
             // ===== CREATE VACCINATION AND MEDICAL RECORDS (Shafiqah database) =====
             if ($vets->isNotEmpty()) {
@@ -301,15 +312,46 @@ class AnimalSeeder extends Seeder
             throw $e;
         }
 
-        // ===== UPDATE SLOTS IN ATIQAH DATABASE (separate operation after Shafiqah commit) =====
+        // ===== UPDATE SLOT STATUS IN ATIQAH DATABASE (separate operation after Shafiqah commit) =====
         try {
             $assignedSlotIds = array_filter(array_column($animals, 'slotID'));
             if (!empty($assignedSlotIds)) {
-                DB::connection('atiqah')
+                // Count animals per slot
+                $slotCounts = array_count_values($assignedSlotIds);
+
+                // Get slot capacities
+                $slots = DB::connection('atiqah')
                     ->table('slot')
-                    ->whereIn('id', $assignedSlotIds)
-                    ->update(['status' => 'occupied', 'updated_at' => now()]);
-                $this->command->info("✓ Updated " . count($assignedSlotIds) . " slots to 'occupied' status in Atiqah's database");
+                    ->whereIn('id', array_keys($slotCounts))
+                    ->get(['id', 'capacity', 'name']);
+
+                $occupiedCount = 0;
+                $availableCount = 0;
+
+                foreach ($slots as $slot) {
+                    $animalCount = $slotCounts[$slot->id] ?? 0;
+
+                    // Auto-calculate status based on occupancy
+                    if ($animalCount >= $slot->capacity) {
+                        $newStatus = 'occupied';
+                        $occupiedCount++;
+                    } else {
+                        $newStatus = 'available';
+                        $availableCount++;
+                    }
+
+                    DB::connection('atiqah')
+                        ->table('slot')
+                        ->where('id', $slot->id)
+                        ->update([
+                            'status' => $newStatus,
+                            'updated_at' => now()
+                        ]);
+
+                    $this->command->info("  Slot {$slot->name}: {$animalCount}/{$slot->capacity} animals → status: {$newStatus}");
+                }
+
+                $this->command->info("✓ Updated " . count($assignedSlotIds) . " slots in Atiqah's database ({$occupiedCount} occupied, {$availableCount} available)");
             }
         } catch (\Exception $e) {
             $this->command->error("Failed to update slots in Atiqah: " . $e->getMessage());
@@ -329,8 +371,6 @@ class AnimalSeeder extends Seeder
         }
 
         // Statistics
-        $actualNotAdoptedCount = count(array_filter($animals, fn($a) => $a['adoption_status'] === 'Not Adopted'));
-        $actualAdoptedCount = count(array_filter($animals, fn($a) => $a['adoption_status'] === 'Adopted'));
         $ageCount = array_count_values(array_column($animals, 'age'));
 
         // Count animals per rescue for verification
@@ -352,10 +392,10 @@ class AnimalSeeder extends Seeder
             $this->command->info("Rescue operations used: " . count($rescueGroups));
             $this->command->info("Animals per rescue: " . implode(', ', $animalsPerRescue));
             $this->command->info('');
-            $this->command->info('Adoption Status:');
-            $this->command->info("  - Not Adopted (currently at shelter): {$actualNotAdoptedCount}");
-            $this->command->info("  - Adopted (no longer at shelter): {$actualAdoptedCount}");
+            $this->command->info('Initial Status (Realistic Shelter):');
+            $this->command->info("  - ALL animals start as 'Not Adopted': " . count($animals));
             $this->command->info("  - Slots occupied: " . count($assignedSlotIds));
+            $this->command->info("  - Adoptions will be processed by AdoptionSeeder (30-40% expected)");
             $this->command->info('');
             $this->command->info('Age Distribution:');
             foreach ($ageCount as $category => $count) {

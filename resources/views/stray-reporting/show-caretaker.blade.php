@@ -5,9 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Rescue #{{ $rescue->id }} - Stray Animals Shelter</title>
 
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
+    {{-- Tailwind CSS CDN --}}
+    <script src="https://cdn.tailwindcss.com"></script>
 
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 <style>
     /* Custom scrollbar */
@@ -29,6 +31,7 @@
     ::-webkit-scrollbar-thumb:hover {
         background: #7e22ce;
     }
+
     /* Smooth line clamp */
     .line-clamp-2 {
         display: -webkit-box;
@@ -37,24 +40,28 @@
         overflow: hidden;
     }
 
-    /* Custom scrollbar */
-    ::-webkit-scrollbar {
-        width: 8px;
-        height: 8px;
+    /* Ensure maps stay below modals and overlays */
+    .leaflet-map {
+        position: relative;
+        z-index: 1;
+        width: 100%;
+        height: 100%;
     }
 
-    ::-webkit-scrollbar-track {
-        background: #f1f1f1;
-        border-radius: 10px;
+    /* Fix Leaflet container styling */
+    .leaflet-container {
+        height: 100%;
+        width: 100%;
     }
 
-    ::-webkit-scrollbar-thumb {
-        background: #9333ea;
-        border-radius: 10px;
+    /* Ensure loading overlay is above everything */
+    #loadingOverlay {
+        z-index: 999999 !important;
     }
 
-    ::-webkit-scrollbar-thumb:hover {
-        background: #7e22ce;
+    /* Ensure modals are above map */
+    #remarksModal, #imageModal {
+        z-index: 100000 !important;
     }
 </style>
 <body class="bg-gray-50 min-h-screen">
@@ -63,263 +70,93 @@
 @include('navbar')
 
 <!-- Page Header -->
-<div class="bg-purple-600 shadow">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <div class="flex items-center justify-between">
-            <div>
-                <div class="flex items-center gap-3">
-                    <h1 class="text-2xl font-semibold text-white">Rescue #{{ $rescue->id }}</h1>
-                    <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold shadow-sm
-                        @if($rescue->status === 'Scheduled') bg-amber-200 text-amber-900 border border-amber-300
-                        @elseif($rescue->status === 'In Progress') bg-sky-200 text-sky-900 border border-sky-300
-                        @elseif($rescue->status === 'Success') bg-emerald-200 text-emerald-900 border border-emerald-300
-                        @elseif($rescue->status === 'Failed') bg-rose-200 text-rose-900 border border-rose-300
-                        @else bg-gray-200 text-gray-800 border border-gray-300 @endif">
-                        {{ $rescue->status }}
-                    </span>
-                </div>
-                <p class="text-purple-100 text-sm mt-1">Assigned on {{ $rescue->created_at->format('M j, Y') }}</p>
-            </div>
-            <a href="{{ route('rescues.index') }}"
-               class="inline-flex items-center gap-2 bg-white text-purple-700 px-4 py-2 rounded-lg hover:bg-purple-50 transition-colors text-sm font-medium">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
-                </svg>
-                Back to Rescues
-            </a>
-        </div>
-    </div>
-</div>
+@include('stray-reporting.partials.rescue-header')
 
 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    {{-- Success Alert --}}
     @if(session('success'))
-        <div class="flex items-start gap-3 p-4 mb-6 bg-green-50 border-l-4 border-green-500 rounded">
-            <svg class="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <div class="flex items-start gap-3 p-4 mb-6 bg-green-50 border border-green-200 rounded-xl shadow-sm fade-in-up">
+            <svg class="w-6 h-6 text-green-600 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
             </svg>
-            <p class="text-sm font-medium text-green-800">{{ session('success') }}</p>
+            <div class="flex-1">
+                <p class="font-semibold text-green-700">{{ session('success') }}</p>
+            </div>
+            <button onclick="this.parentElement.remove()" class="text-green-600 hover:text-green-800 transition">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </button>
         </div>
     @endif
 
+    {{-- Error Alert --}}
+    @if(session('error'))
+        <div class="flex items-start gap-3 p-4 mb-6 bg-red-50 border border-red-200 rounded-xl shadow-sm fade-in-up">
+            <svg class="w-6 h-6 text-red-600 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+            <div class="flex-1">
+                <p class="font-semibold text-red-700">{{ session('error') }}</p>
+            </div>
+            <button onclick="this.parentElement.remove()" class="text-red-600 hover:text-red-800 transition">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </button>
+        </div>
+    @endif
+
+    {{-- Validation Errors --}}
     @if($errors->any())
-        <div class="flex items-start gap-3 p-4 mb-6 bg-red-50 border-l-4 border-red-500 rounded">
-            <svg class="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <div class="flex items-start gap-3 p-4 mb-6 bg-red-50 border border-red-200 rounded-xl shadow-sm fade-in-up">
+            <svg class="w-6 h-6 text-red-600 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
             </svg>
             <div class="flex-1">
-                <p class="text-sm font-medium text-red-800 mb-2">Please fix the following errors:</p>
+                <p class="font-semibold text-red-700 mb-2">Please fix the following errors:</p>
                 <ul class="list-disc list-inside space-y-1 text-sm text-red-700">
                     @foreach($errors->all() as $error)
                         <li>{{ $error }}</li>
                     @endforeach
                 </ul>
             </div>
+            <button onclick="this.parentElement.remove()" class="text-red-600 hover:text-red-800 transition">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </button>
         </div>
     @endif
 
-    <!-- Main Content -->
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <!-- Report Details -->
-        <div class="lg:col-span-2 space-y-6">
-            <!-- Report Information Card -->
-            <div class="bg-white rounded-lg shadow overflow-hidden">
-                <div class="border-b border-gray-200 px-6 py-4">
-                    <h2 class="text-lg font-semibold text-gray-900">Report Information</h2>
-                </div>
+    <!-- Responsive Layout: Mobile-First, Desktop-Optimized -->
+    <div class="max-w-7xl mx-auto">
+        <!-- Mobile: Single Column | Desktop: 2 Columns (60/40 split) -->
+        <div class="grid grid-cols-1 lg:grid-cols-5 gap-6">
 
-                <div class="p-6">
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div class="md:col-span-2 pb-4 border-b border-gray-200">
-                            <label class="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Reported By</label>
-                            <div class="flex items-center gap-3">
-                                <div class="flex-shrink-0">
-                                    <div class="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center">
-                                        <svg class="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
-                                        </svg>
-                                    </div>
-                                </div>
-                                <div>
-                                    <p class="text-sm font-medium text-gray-900">{{ $rescue->report->user->name ?? 'Unknown' }}</p>
-                                    <p class="text-xs text-gray-500">{{ $rescue->report->user->email ?? 'No email available' }}</p>
-                                </div>
-                            </div>
-                        </div>
+            <!-- Left Column: Main Content (Mobile: Full Width | Desktop: 3/5 = 60%) -->
+            <div class="lg:col-span-3 space-y-6">
+                <!-- 1. PHOTOS: See what you're looking for (Large display) -->
+                @include('stray-reporting.partials.rescue-images')
 
-                        <div>
-                            <label class="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Location Address</label>
-                            <p class="text-sm text-gray-900">{{ $rescue->report->address }}</p>
-                        </div>
+                <!-- 2. RESCUE DETAILS: Location, Navigation, Contact -->
+                @include('stray-reporting.partials.report-details')
 
-                        <div>
-                            <label class="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">City</label>
-                            <p class="text-sm text-gray-900">{{ $rescue->report->city }}</p>
-                        </div>
-
-                        <div>
-                            <label class="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">State</label>
-                            <p class="text-sm text-gray-900">{{ $rescue->report->state }}</p>
-                        </div>
-
-                        <div>
-                            <label class="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Coordinates</label>
-                            <p class="text-sm text-gray-900">{{ number_format($rescue->report->latitude, 6) }}, {{ number_format($rescue->report->longitude, 6) }}</p>
-                        </div>
-
-                        <div class="md:col-span-2">
-                            <label class="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Description</label>
-                            <p class="text-sm text-gray-900">
-                                @if($rescue->report->description)
-                                    {{ $rescue->report->description }}
-                                @else
-                                    <span class="text-gray-400 italic">No description provided</span>
-                                @endif
-                            </p>
-                        </div>
-
-                        <div class="md:col-span-2 pt-4 border-t border-gray-200">
-                            <label class="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Report Submitted</label>
-                            <p class="text-sm text-gray-900">{{ $rescue->report->created_at->format('M j, Y \a\t g:i A') }}</p>
-                        </div>
-                    </div>
+                <!-- MAP: Mobile only - show below details -->
+                <div class="block lg:hidden">
+                    @include('stray-reporting.partials.location-map', ['mapId' => 'mobile'])
                 </div>
             </div>
 
-            <!-- Map Section -->
-            <div class="bg-white rounded-lg shadow overflow-hidden">
-                <div class="border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-                    <h2 class="text-lg font-semibold text-gray-900">Location Map</h2>
-                    <a href="https://www.google.com/maps/search/?api=1&query={{ $rescue->report->latitude }},{{ $rescue->report->longitude }}"
-                       target="_blank"
-                       class="inline-flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white px-3 py-1.5 rounded-lg text-xs font-medium transition-colors">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
-                        </svg>
-                        Open in Maps
-                    </a>
+            <!-- Right Column: Sidebar (Mobile: Full Width | Desktop: 2/5 = 40%) -->
+            <div class="lg:col-span-2 space-y-6">
+                <!-- 3. MAP: Visual reference (desktop only in sidebar) -->
+                <div class="hidden lg:block">
+                    @include('stray-reporting.partials.location-map', ['mapId' => 'desktop'])
                 </div>
-                <div class="p-6">
-                    <div id="map" class="h-96 rounded border border-gray-200 bg-gray-100"></div>
-                </div>
-            </div>
-        </div>
 
-        <!-- Sidebar -->
-        <div class="lg:col-span-1 space-y-6">
-            <!-- Images Section -->
-            <div class="bg-white rounded-lg shadow overflow-hidden">
-                <div class="border-b border-gray-200 px-6 py-4">
-                    <h2 class="text-lg font-semibold text-gray-900">Images</h2>
-                </div>
-                <div class="p-6">
-                    <div class="relative w-full h-64 bg-gray-100 rounded border border-gray-200 overflow-hidden">
-                        <!-- Main Image Display -->
-                        <div id="rescueImageSwiperContent" class="w-full h-full flex items-center justify-center">
-                            @if($rescue->report->images && $rescue->report->images->count() > 0)
-                                <img src="{{ $rescue->report->images->first()->url }}"
-                                    alt="Report Image 1"
-                                    class="max-w-full max-h-full object-contain cursor-pointer"
-                                    onclick="openImageModal(this.src)">
-                            @else
-                                <div class="flex flex-col items-center justify-center text-gray-400">
-                                    <svg class="w-16 h-16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-                                    </svg>
-                                    <span class="text-sm mt-2">No images</span>
-                                </div>
-                            @endif
-                        </div>
-
-                        <!-- Navigation Arrows -->
-                        @if($rescue->report->images && $rescue->report->images->count() > 1)
-                            <button id="rescuePrevImageBtn" class="absolute left-2 top-1/2 -translate-y-1/2 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 rounded-full w-8 h-8 flex items-center justify-center shadow-sm">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
-                                </svg>
-                            </button>
-                            <button id="rescueNextImageBtn" class="absolute right-2 top-1/2 -translate-y-1/2 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 rounded-full w-8 h-8 flex items-center justify-center shadow-sm">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-                                </svg>
-                            </button>
-
-                            <!-- Image Counter -->
-                            <div id="rescueImageCounter" class="absolute bottom-2 right-2 bg-black bg-opacity-75 text-white px-2 py-1 rounded text-xs">
-                                <span id="rescueCurrentImageIndex">1</span> / <span id="rescueTotalImages">{{ $rescue->report->images->count() }}</span>
-                            </div>
-                        @endif
-                    </div>
-
-                    <!-- Thumbnail Strip -->
-                    @if($rescue->report->images && $rescue->report->images->count() > 1)
-                        <div class="mt-4 overflow-x-auto">
-                            <div class="flex gap-2">
-                                @foreach($rescue->report->images as $index => $image)
-                                    <div onclick="rescueGoToImage({{ $index }})"
-                                        class="flex-shrink-0 w-16 h-16 cursor-pointer rounded overflow-hidden border-2 {{ $index == 0 ? 'border-purple-500' : 'border-gray-200 hover:border-purple-300' }}"
-                                        id="rescueThumbnail-{{ $index }}">
-                                        <img src="{{ $image->url }}"
-                                            alt="Thumbnail {{ $loop->iteration }}"
-                                            class="w-full h-full object-cover">
-                                    </div>
-                                @endforeach
-                            </div>
-                        </div>
-                    @endif
-                </div>
-            </div>
-
-            <!-- Status Update Card -->
-            @php
-                $isFinal = in_array($rescue->status, ['Success', 'Failed']);
-            @endphp
-
-            <div class="bg-white rounded-lg shadow overflow-hidden">
-                <div class="border-b border-gray-200 px-6 py-4">
-                    <h2 class="text-lg font-semibold text-gray-900">Update Status</h2>
-                </div>
-                <div class="p-6">
-                    @if($isFinal)
-                        <div class="flex items-start gap-3 p-4 bg-gray-50 border border-gray-200 rounded-lg">
-                            <svg class="w-5 h-5 text-gray-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
-                            </svg>
-                            <p class="text-sm text-gray-600">This rescue has been finalized and cannot be updated.</p>
-                        </div>
-                    @else
-                        <form id="statusForm" action="{{ route('rescues.update-status', $rescue->id) }}" method="POST">
-                            @csrf
-                            @method('PATCH')
-
-                            <div class="grid grid-cols-2 gap-2">
-                                <button type="button" onclick="updateStatus('Scheduled')" id="statusScheduledBtn"
-                                        class="bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-white px-3 py-2 rounded-lg text-sm font-bold transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2">
-                                    <span class="inline-block w-2 h-2 rounded-full bg-amber-200"></span>
-                                    <span id="statusScheduledText">Scheduled</span>
-                                </button>
-
-                                <button type="button" onclick="updateStatus('In Progress')" id="statusProgressBtn"
-                                        class="bg-gradient-to-r from-sky-500 to-sky-600 hover:from-sky-600 hover:to-sky-700 text-white px-3 py-2 rounded-lg text-sm font-bold transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2">
-                                    <span class="inline-block w-2 h-2 rounded-full bg-sky-200"></span>
-                                    <span id="statusProgressText">In Progress</span>
-                                </button>
-
-                                <button type="button" onclick="updateStatus('Success')" id="statusSuccessBtn"
-                                        class="bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white px-3 py-2 rounded-lg text-sm font-bold transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2">
-                                    <span class="inline-block w-2 h-2 rounded-full bg-emerald-200"></span>
-                                    <span id="statusSuccessText">Success</span>
-                                </button>
-
-                                <button type="button" onclick="updateStatus('Failed')" id="statusFailedBtn"
-                                        class="bg-gradient-to-r from-rose-500 to-rose-600 hover:from-rose-600 hover:to-rose-700 text-white px-3 py-2 rounded-lg text-sm font-bold transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2">
-                                    <span class="inline-block w-2 h-2 rounded-full bg-rose-200"></span>
-                                    <span id="statusFailedText">Failed</span>
-                                </button>
-                            </div>
-                        </form>
-                    @endif
-                </div>
+                <!-- 4. UPDATE STATUS: Action buttons (prominent in sidebar) -->
+                @include('stray-reporting.partials.status-update')
             </div>
         </div>
     </div>
@@ -337,103 +174,60 @@
     </div>
 </div>
 
-<!-- Image Modal -->
-<div id="imageModal" class="fixed inset-0 bg-black bg-opacity-90 hidden z-[10000] flex items-center justify-center p-4" onclick="closeImageModal()">
-    <div class="max-w-6xl max-h-full relative" onclick="event.stopPropagation()">
-        <button onclick="closeImageModal()" class="absolute -top-10 right-0 text-white hover:text-gray-300 transition">
-            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-            </svg>
-        </button>
-        <img id="modalImage" src="" alt="Enlarged view" class="max-w-full max-h-screen rounded">
-    </div>
-</div>
+<!-- Modals -->
+@include('stray-reporting.modals.image-modal')
+@include('stray-reporting.modals.remarks-modal')
+@include('stray-reporting.modals.success-remarks-modal')
+@include('stray-reporting.modals.animal-addition-modal')
 
-<!-- Remarks Modal -->
-<div id="remarksModal" class="fixed inset-0 bg-black bg-opacity-70 hidden z-[10000] flex items-center justify-center p-4" onclick="closeRemarksModal()">
-    <div class="bg-white rounded-lg shadow-xl max-w-lg w-full" onclick="event.stopPropagation()">
-        <div class="p-6">
-            <!-- Modal Header -->
-            <div class="flex items-center justify-between mb-6">
-                <div class="flex items-center gap-3">
-                    <div id="modalIcon" class="text-2xl"></div>
-                    <h3 id="modalTitle" class="text-xl font-semibold text-gray-900"></h3>
-                </div>
-                <button onclick="closeRemarksModal()" class="text-gray-400 hover:text-gray-600 transition">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                    </svg>
-                </button>
-            </div>
-
-            <!-- Modal Form -->
-            <form id="remarksForm" onsubmit="submitStatusUpdate(event)">
-                <div class="mb-6">
-                    <label for="remarks" class="block text-sm font-medium text-gray-700 mb-2">
-                        Remarks <span class="text-red-600">*</span>
-                    </label>
-                    <textarea id="remarks" name="remarks" rows="5" required
-                              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none text-sm"
-                              placeholder="Please provide details about this rescue status..."></textarea>
-                    <p class="mt-2 text-xs text-gray-500">
-                        Please provide a detailed explanation for this status update.
-                    </p>
-                </div>
-
-                <!-- Modal Actions -->
-                <div class="flex gap-3">
-                    <button type="button" onclick="closeRemarksModal()" id="modalCancelBtn"
-                            class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-2 rounded-lg transition-colors text-sm">
-                        Cancel
-                    </button>
-                    <button type="submit" id="submitBtn"
-                            class="flex-1 font-medium py-2 rounded-lg transition-colors text-sm text-white flex items-center justify-center gap-2">
-                        <span id="submitBtnText">Confirm</span>
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-
+<!-- JavaScript -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="{{ asset('js/rescue-status-update.js') }}"></script>
 <script>
-// Initialize the map
-const map = L.map('map').setView([{{ $rescue->report->latitude }}, {{ $rescue->report->longitude }}], 15);
+// ==================== GLOBAL VARIABLE INITIALIZATION ====================
+// Variables that use Blade template values must be initialized here
 
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-}).addTo(map);
+// Rescue ID for this page
+const rescueId = {{ $rescue->id }};
 
-const marker = L.marker([{{ $rescue->report->latitude }}, {{ $rescue->report->longitude }}]).addTo(map);
-marker.bindPopup(`
-    <div class="p-2">
-        <strong class="text-sm">Rescue Location</strong><br>
-        <span class="text-xs">{{ $rescue->report->address }}</span><br>
-        <span class="text-xs">{{ $rescue->report->city }}, {{ $rescue->report->state }}</span>
-    </div>
-`).openPopup();
+// Initialize the Leaflet maps (both mobile and desktop)
+function initializeMap(mapId) {
+    const mapElement = document.getElementById('map-' + mapId);
+    if (!mapElement) return null;
 
-const circle = L.circle([{{ $rescue->report->latitude }}, {{ $rescue->report->longitude }}], {
-    color: '#9333ea',
-    fillColor: '#9333ea',
-    fillOpacity: 0.15,
-    radius: 100
-}).addTo(map);
+    const map = L.map('map-' + mapId).setView([{{ $rescue->report->latitude }}, {{ $rescue->report->longitude }}], 15);
 
-// Image Modal Functions
-function openImageModal(imageSrc) {
-    document.getElementById('modalImage').src = imageSrc;
-    document.getElementById('imageModal').classList.remove('hidden');
-    document.body.style.overflow = 'hidden';
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+    }).addTo(map);
+
+    const marker = L.marker([{{ $rescue->report->latitude }}, {{ $rescue->report->longitude }}]).addTo(map);
+    marker.bindPopup(`
+        <div class="p-2">
+            <strong class="text-sm">Rescue Location</strong><br>
+            <span class="text-xs">{{ $rescue->report->address }}</span><br>
+            <span class="text-xs">{{ $rescue->report->city }}, {{ $rescue->report->state }}</span>
+        </div>
+    `).openPopup();
+
+    const circle = L.circle([{{ $rescue->report->latitude }}, {{ $rescue->report->longitude }}], {
+        color: '#9333ea',
+        fillColor: '#9333ea',
+        fillOpacity: 0.15,
+        radius: 100
+    }).addTo(map);
+
+    return map;
 }
 
-function closeImageModal() {
-    document.getElementById('imageModal').classList.add('hidden');
-    document.body.style.overflow = 'auto';
-}
+// Initialize both maps after DOM is loaded
+let mobileMap, desktopMap;
+document.addEventListener('DOMContentLoaded', function() {
+    mobileMap = initializeMap('mobile');
+    desktopMap = initializeMap('desktop');
+});
 
-// Image Swiper
+// Initialize rescue images array from Blade template
 let rescueImages = [
     @if($rescue->report->images && $rescue->report->images->count() > 0)
         @foreach($rescue->report->images as $image)
@@ -443,46 +237,22 @@ let rescueImages = [
 ];
 let rescueImageIndex = 0;
 
-function rescueDisplayImage() {
-    const content = document.getElementById('rescueImageSwiperContent');
+// Initialize status variables
+let selectedStatus = '';
 
-    if (rescueImages.length === 0) return;
+// Initialize animal form variables
+let currentStep = 1;
+let totalAnimals = 0;
+let currentAnimalIndex = 0;
+let addedAnimals = [];
+let animalImagesMap = {}; // Store images for each animal
 
-    content.innerHTML = `<img src="${rescueImages[rescueImageIndex].path}"
-                              class="max-w-full max-h-full object-contain cursor-pointer"
-                              onclick="openImageModal(this.src)">`;
+// ==================== EVENT LISTENERS ====================
 
-    if (document.getElementById('rescueCurrentImageIndex')) {
-        document.getElementById('rescueCurrentImageIndex').textContent = rescueImageIndex + 1;
-    }
+// Initialize image swiper on page load
+rescueDisplayImage();
 
-    rescueImages.forEach((_, index) => {
-        const thumb = document.getElementById(`rescueThumbnail-${index}`);
-        if (thumb) {
-            thumb.className = `flex-shrink-0 w-16 h-16 cursor-pointer rounded overflow-hidden border-2 ${
-                index === rescueImageIndex ? 'border-purple-500' : 'border-gray-200 hover:border-purple-300'
-            }`;
-        }
-    });
-}
-
-function rescueGoToImage(index) {
-    if (index >= 0 && index < rescueImages.length) {
-        rescueImageIndex = index;
-        rescueDisplayImage();
-    }
-}
-
-function rescueNextImage() {
-    rescueImageIndex = (rescueImageIndex + 1) % rescueImages.length;
-    rescueDisplayImage();
-}
-
-function rescuePrevImage() {
-    rescueImageIndex = (rescueImageIndex - 1 + rescueImages.length) % rescueImages.length;
-    rescueDisplayImage();
-}
-
+// Setup image navigation buttons (if multiple images exist)
 @if($rescue->report->images && $rescue->report->images->count() > 1)
     document.getElementById('rescuePrevImageBtn').addEventListener('click', rescuePrevImage);
     document.getElementById('rescueNextImageBtn').addEventListener('click', rescueNextImage);
@@ -500,147 +270,24 @@ document.addEventListener('keydown', function(e) {
     @endif
 });
 
-// Initialize images
-rescueDisplayImage();
+// Auto-scroll to alerts and auto-dismiss success alerts
+document.addEventListener('DOMContentLoaded', function() {
+    const alerts = document.querySelectorAll('.fade-in-up');
+    if (alerts.length > 0) {
+        alerts[0].scrollIntoView({ behavior: 'smooth', block: 'start' });
 
-// Status Update with Remarks Modal
-let selectedStatus = '';
-
-function updateStatus(status) {
-    selectedStatus = status;
-
-    if (status === 'Success' || status === 'Failed') {
-        openRemarksModal(status);
-    } else {
-        submitStatusDirectly(status);
+        // Auto-dismiss success alerts after 5 seconds
+        const successAlert = document.querySelector('.bg-green-50');
+        if (successAlert) {
+            setTimeout(() => {
+                successAlert.style.opacity = '0';
+                successAlert.style.transform = 'translateY(-20px)';
+                successAlert.style.transition = 'all 0.5s ease-out';
+                setTimeout(() => successAlert.remove(), 500);
+            }, 5000);
+        }
     }
-}
-
-function openRemarksModal(status) {
-    const modal = document.getElementById('remarksModal');
-    const modalTitle = document.getElementById('modalTitle');
-    const modalIcon = document.getElementById('modalIcon');
-    const submitBtn = document.getElementById('submitBtn');
-    const remarksTextarea = document.getElementById('remarks');
-
-    // Close any open map popups to prevent overlap
-    map.closePopup();
-
-    remarksTextarea.value = '';
-
-    if (status === 'Success') {
-        modalTitle.textContent = 'Rescue Successful';
-        modalIcon.innerHTML = '<svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>';
-        submitBtn.className = 'flex-1 bg-green-600 hover:bg-green-700 font-medium py-2 rounded-lg transition-colors text-sm text-white';
-        remarksTextarea.placeholder = 'Describe how the rescue was completed successfully...';
-    } else if (status === 'Failed') {
-        modalTitle.textContent = 'Rescue Failed';
-        modalIcon.innerHTML = '<svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>';
-        submitBtn.className = 'flex-1 bg-red-600 hover:bg-red-700 font-medium py-2 rounded-lg transition-colors text-sm text-white';
-        remarksTextarea.placeholder = 'Explain why the rescue could not be completed...';
-    }
-
-    modal.classList.remove('hidden');
-    document.body.style.overflow = 'hidden';
-    setTimeout(() => remarksTextarea.focus(), 100);
-}
-
-function closeRemarksModal() {
-    document.getElementById('remarksModal').classList.add('hidden');
-    document.body.style.overflow = 'auto';
-    selectedStatus = '';
-}
-
-function submitStatusUpdate(event) {
-    event.preventDefault();
-
-    const remarks = document.getElementById('remarks').value.trim();
-
-    if (!remarks) {
-        alert('Please provide remarks before submitting.');
-        return;
-    }
-
-    // Close the remarks modal
-    closeRemarksModal();
-
-    // Show full-screen loading overlay with blur
-    const loadingOverlay = document.getElementById('loadingOverlay');
-    loadingOverlay.classList.remove('hidden');
-    document.body.style.overflow = 'hidden';
-
-    // Continue with form submission
-    const form = document.getElementById('statusForm');
-
-    const statusInput = document.createElement('input');
-    statusInput.type = 'hidden';
-    statusInput.name = 'status';
-    statusInput.value = selectedStatus;
-
-    const remarksInput = document.createElement('input');
-    remarksInput.type = 'hidden';
-    remarksInput.name = 'remarks';
-    remarksInput.value = remarks;
-
-    form.appendChild(statusInput);
-    form.appendChild(remarksInput);
-
-    // Submit form after a short delay to ensure overlay is visible
-    setTimeout(() => {
-        form.submit();
-    }, 100);
-}
-
-function submitStatusDirectly(status) {
-    const form = document.getElementById('statusForm');
-
-    const statusInput = document.createElement('input');
-    statusInput.type = 'hidden';
-    statusInput.name = 'status';
-    statusInput.value = status;
-
-    form.appendChild(statusInput);
-
-    // Show loading state on the clicked button
-    showStatusButtonLoading(status);
-
-    form.submit();
-}
-
-// ==================== LOADING STATE FUNCTIONS ====================
-
-function showStatusButtonLoading(status) {
-    // Map status to button ID and text ID
-    const buttonMap = {
-        'Scheduled': { btnId: 'statusScheduledBtn', textId: 'statusScheduledText' },
-        'In Progress': { btnId: 'statusProgressBtn', textId: 'statusProgressText' },
-        'Success': { btnId: 'statusSuccessBtn', textId: 'statusSuccessText' },
-        'Failed': { btnId: 'statusFailedBtn', textId: 'statusFailedText' }
-    };
-
-    const mapping = buttonMap[status];
-    if (!mapping) return;
-
-    const btn = document.getElementById(mapping.btnId);
-    const textSpan = document.getElementById(mapping.textId);
-
-    if (btn && textSpan) {
-        // Disable all status buttons
-        Object.values(buttonMap).forEach(m => {
-            const button = document.getElementById(m.btnId);
-            if (button) button.disabled = true;
-        });
-
-        // Show spinner in the clicked button
-        btn.innerHTML = `
-            <svg class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-            <span>Updating...</span>
-        `;
-    }
-}
+});
 </script>
 
 <style>
@@ -652,6 +299,53 @@ function showStatusButtonLoading(status) {
     @keyframes spin {
         from { transform: rotate(0deg); }
         to { transform: rotate(360deg); }
+    }
+
+    /* Fade-in animation for step transitions */
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .fade-in {
+        animation: fadeIn 0.4s ease-out;
+    }
+
+    /* Fade-in-up animation for alerts */
+    @keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .fade-in-up {
+        animation: fadeInUp 0.6s ease-out;
+    }
+
+    /* Apply fade-in to modal body content */
+    #successModalBody > div:not(.hidden) {
+        animation: fadeIn 0.4s ease-out;
+    }
+
+    /* Smooth progress indicator transitions */
+    #progressIndicator > div > div {
+        transition: all 0.3s ease;
+    }
+
+    /* Input focus effects */
+    input:focus, select:focus, textarea:focus {
+        outline: none;
     }
 </style>
 </body>

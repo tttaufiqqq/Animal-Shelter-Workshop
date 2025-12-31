@@ -1,0 +1,60 @@
+@props([
+    'route' => '#',
+    'icon' => '',
+    'label' => '',
+    'active' => false,
+    'badge' => null,
+    'tooltip' => null,
+])
+
+@php
+    // Check if current route matches exactly or with wildcard
+    // Special handling for audit routes: if route is 'admin.audit.index', also match 'admin.audit.*'
+    $routePattern = $route;
+    if ($route === 'admin.audit.index') {
+        $isActive = $active || request()->routeIs('admin.audit.*');
+    } else {
+        $isActive = $active || request()->routeIs($route) || request()->routeIs($route . '.*');
+    }
+
+    $classes = $isActive
+        ? 'bg-purple-700 text-white shadow-lg'
+        : 'text-purple-100 hover:bg-purple-700/50 hover:text-white';
+@endphp
+
+<div class="relative" x-data="{ showTooltip: false }">
+    <a href="{{ route($route) }}"
+       class="{{ $classes }} flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 group relative"
+       @mouseenter="showTooltip = true"
+       @mouseleave="showTooltip = false">
+        <!-- Icon -->
+        <div class="flex-shrink-0 w-5 h-5">
+            {!! $icon !!}
+        </div>
+
+        <!-- Label -->
+        <span class="font-medium text-sm flex-1">{{ $label }}</span>
+
+        <!-- Badge (optional) -->
+        @if($badge)
+            <span class="bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
+                {{ $badge }}
+            </span>
+        @endif
+
+        <!-- Active Indicator -->
+        @if($isActive)
+            <div class="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-white rounded-r-full"></div>
+        @endif
+    </a>
+
+    <!-- Tooltip -->
+    @if($tooltip)
+        <x-tooltip
+            :text="$tooltip"
+            position="bottom"
+            size="sm"
+            color="purple"
+        />
+    @endif
+</div>

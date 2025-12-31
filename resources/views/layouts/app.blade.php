@@ -18,8 +18,8 @@
         });
     </script>
 
-    <!-- Tailwind or your CSS -->
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
 
     <!-- Livewire Styles - ONLY ONCE -->
     @livewireStyles

@@ -12,6 +12,18 @@ use Spatie\Permission\Models\Role;
 class CaretakerController extends Controller
 {
     /**
+     * Display a listing of all caretakers.
+     */
+    public function index()
+    {
+        $caretakers = User::role('caretaker')
+            ->orderBy('created_at', 'desc')
+            ->paginate(15);
+
+        return view('admin.caretakers.index', compact('caretakers'));
+    }
+
+    /**
      * Store a newly created caretaker in storage.
      */
     public function store(Request $request)
@@ -28,7 +40,8 @@ class CaretakerController extends Controller
         ]);
 
         if ($validator->fails()) {
-            return redirect()->route('welcome')
+            // Redirect back with errors - works for both welcome page and admin panel
+            return redirect()->back()
                 ->withErrors($validator, 'caretaker')
                 ->withInput();
         }
@@ -49,10 +62,11 @@ class CaretakerController extends Controller
             $caretakerRole = Role::firstOrCreate(['name' => 'caretaker']);
             $user->assignRole($caretakerRole);
 
-            return redirect()->route('welcome')
+            // Redirect back with success message - works for both welcome page and admin panel
+            return redirect()->back()
                 ->with('caretaker_success', 'Caretaker account created successfully for ' . $user->name . '!');
         } catch (\Exception $e) {
-            return redirect()->route('welcome')
+            return redirect()->back()
                 ->with('caretaker_error', 'Failed to create caretaker account. ' . $e->getMessage())
                 ->withInput();
         }

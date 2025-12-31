@@ -68,54 +68,72 @@ class UserManagementController extends Controller
      */
     public function suspendUser(Request $request, $userId)
     {
-        $request->validate([
-            'reason' => 'required|string|max:1000',
-        ]);
-
-        $user = User::findOrFail($userId);
-        $admin = Auth::user();
-
-        // Prevent suspending yourself
-        if ($user->id === $admin->id) {
-            return response()->json(['error' => 'You cannot suspend your own account'], 403);
+        try {
+            $request->validate([
+                'reason' => 'required|string|max:1000',
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Validation failed: ' . implode(', ', $e->validator->errors()->all()),
+                'errors' => $e->errors(),
+            ], 422);
         }
 
-        // Prevent suspending other admins
-        if ($user->hasRole('admin')) {
-            return response()->json(['error' => 'You cannot suspend admin accounts'], 403);
+        try {
+            $user = User::findOrFail($userId);
+            $admin = Auth::user();
+
+            // Prevent suspending yourself
+            if ($user->id === $admin->id) {
+                return response()->json(['success' => false, 'error' => 'You cannot suspend your own account'], 403);
+            }
+
+            // Prevent suspending other admins
+            if ($user->hasRole('admin')) {
+                return response()->json(['success' => false, 'error' => 'You cannot suspend admin accounts'], 403);
+            }
+
+            $user->update([
+                'account_status' => 'suspended',
+                'suspended_at' => now(),
+                'suspended_by' => $admin->id,
+                'suspension_reason' => $request->reason,
+            ]);
+
+            // Log the action
+            AuditLog::create([
+                'user_id' => $admin->id,
+                'user_email' => $admin->email,
+                'user_name' => $admin->name,
+                'category' => 'authentication',
+                'action' => 'user_suspended',
+                'entity_type' => 'user',
+                'entity_id' => $user->id,
+                'status' => 'success',
+                'ip_address' => $request->ip(),
+                'user_agent' => $request->header('User-Agent'),
+                'performed_at' => now(),
+                'metadata' => [
+                    'suspended_user' => $user->name,
+                    'suspended_email' => $user->email,
+                    'reason' => $request->reason,
+                ],
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'User account suspended successfully',
+            ]);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json(['success' => false, 'error' => 'User not found'], 404);
+        } catch (\Exception $e) {
+            \Log::error('Error suspending user: ' . $e->getMessage(), [
+                'user_id' => $userId,
+                'trace' => $e->getTraceAsString()
+            ]);
+            return response()->json(['success' => false, 'error' => 'An error occurred while suspending the user: ' . $e->getMessage()], 500);
         }
-
-        $user->update([
-            'account_status' => 'suspended',
-            'suspended_at' => now(),
-            'suspended_by' => $admin->id,
-            'suspension_reason' => $request->reason,
-        ]);
-
-        // Log the action
-        AuditLog::create([
-            'user_id' => $admin->id,
-            'user_email' => $admin->email,
-            'user_name' => $admin->name,
-            'category' => 'authentication',
-            'action' => 'user_suspended',
-            'entity_type' => 'user',
-            'entity_id' => $user->id,
-            'status' => 'success',
-            'ip_address' => $request->ip(),
-            'user_agent' => $request->header('User-Agent'),
-            'performed_at' => now(),
-            'metadata' => [
-                'suspended_user' => $user->name,
-                'suspended_email' => $user->email,
-                'reason' => $request->reason,
-            ],
-        ]);
-
-        return response()->json([
-            'success' => true,
-            'message' => 'User account suspended successfully',
-        ]);
     }
 
     /**
@@ -123,65 +141,83 @@ class UserManagementController extends Controller
      */
     public function lockUser(Request $request, $userId)
     {
-        $request->validate([
-            'duration' => 'required|in:1_hour,24_hours,7_days,custom',
-            'custom_duration' => 'required_if:duration,custom|integer|min:1|max:168', // Max 168 hours (7 days)
-            'reason' => 'required|string|max:1000',
-        ]);
-
-        $user = User::findOrFail($userId);
-        $admin = Auth::user();
-
-        // Prevent locking yourself
-        if ($user->id === $admin->id) {
-            return response()->json(['error' => 'You cannot lock your own account'], 403);
+        try {
+            $request->validate([
+                'duration' => 'required|in:1_hour,24_hours,7_days,custom',
+                'custom_duration' => 'nullable|required_if:duration,custom|integer|min:1|max:168', // Max 168 hours (7 days)
+                'reason' => 'required|string|max:1000',
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Validation failed: ' . implode(', ', $e->validator->errors()->all()),
+                'errors' => $e->errors(),
+            ], 422);
         }
 
-        // Prevent locking other admins
-        if ($user->hasRole('admin')) {
-            return response()->json(['error' => 'You cannot lock admin accounts'], 403);
+        try {
+            $user = User::findOrFail($userId);
+            $admin = Auth::user();
+
+            // Prevent locking yourself
+            if ($user->id === $admin->id) {
+                return response()->json(['success' => false, 'error' => 'You cannot lock your own account'], 403);
+            }
+
+            // Prevent locking other admins
+            if ($user->hasRole('admin')) {
+                return response()->json(['success' => false, 'error' => 'You cannot lock admin accounts'], 403);
+            }
+
+            // Calculate lock duration
+            $lockedUntil = match($request->duration) {
+                '1_hour' => now()->addHour(),
+                '24_hours' => now()->addDay(),
+                '7_days' => now()->addDays(7),
+                'custom' => now()->addHours($request->custom_duration),
+            };
+
+            $user->update([
+                'account_status' => 'locked',
+                'locked_until' => $lockedUntil,
+                'lock_reason' => $request->reason,
+            ]);
+
+            // Log the action
+            AuditLog::create([
+                'user_id' => $admin->id,
+                'user_email' => $admin->email,
+                'user_name' => $admin->name,
+                'category' => 'authentication',
+                'action' => 'user_locked',
+                'entity_type' => 'user',
+                'entity_id' => $user->id,
+                'status' => 'success',
+                'ip_address' => $request->ip(),
+                'user_agent' => $request->header('User-Agent'),
+                'performed_at' => now(),
+                'metadata' => [
+                    'locked_user' => $user->name,
+                    'locked_email' => $user->email,
+                    'locked_until' => $lockedUntil->toIso8601String(),
+                    'duration' => $request->duration,
+                    'reason' => $request->reason,
+                ],
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'User account locked successfully until ' . $lockedUntil->format('Y-m-d H:i:s'),
+            ]);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json(['success' => false, 'error' => 'User not found'], 404);
+        } catch (\Exception $e) {
+            \Log::error('Error locking user: ' . $e->getMessage(), [
+                'user_id' => $userId,
+                'trace' => $e->getTraceAsString()
+            ]);
+            return response()->json(['success' => false, 'error' => 'An error occurred while locking the user: ' . $e->getMessage()], 500);
         }
-
-        // Calculate lock duration
-        $lockedUntil = match($request->duration) {
-            '1_hour' => now()->addHour(),
-            '24_hours' => now()->addDay(),
-            '7_days' => now()->addDays(7),
-            'custom' => now()->addHours($request->custom_duration),
-        };
-
-        $user->update([
-            'account_status' => 'locked',
-            'locked_until' => $lockedUntil,
-            'lock_reason' => $request->reason,
-        ]);
-
-        // Log the action
-        AuditLog::create([
-            'user_id' => $admin->id,
-            'user_email' => $admin->email,
-            'user_name' => $admin->name,
-            'category' => 'authentication',
-            'action' => 'user_locked',
-            'entity_type' => 'user',
-            'entity_id' => $user->id,
-            'status' => 'success',
-            'ip_address' => $request->ip(),
-            'user_agent' => $request->header('User-Agent'),
-            'performed_at' => now(),
-            'metadata' => [
-                'locked_user' => $user->name,
-                'locked_email' => $user->email,
-                'locked_until' => $lockedUntil->toIso8601String(),
-                'duration' => $request->duration,
-                'reason' => $request->reason,
-            ],
-        ]);
-
-        return response()->json([
-            'success' => true,
-            'message' => 'User account locked successfully until ' . $lockedUntil->format('Y-m-d H:i:s'),
-        ]);
     }
 
     /**
@@ -239,9 +275,17 @@ class UserManagementController extends Controller
      */
     public function forcePasswordReset(Request $request, $userId)
     {
-        $request->validate([
-            'password' => ['required', 'string', 'min:8', 'confirmed'],
-        ]);
+        try {
+            $request->validate([
+                'password' => ['required', 'string', 'min:8', 'confirmed'],
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Validation failed: ' . implode(', ', $e->validator->errors()->all()),
+                'errors' => $e->errors(),
+            ], 422);
+        }
 
         $user = User::findOrFail($userId);
         $admin = Auth::user();

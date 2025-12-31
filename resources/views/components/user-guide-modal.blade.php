@@ -1,5 +1,5 @@
 <!-- User Guide Modal -->
-<div id="userGuideModal" class="hidden fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+<div id="userGuideModal" class="hidden fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
     <div class="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
 
         <!-- Header -->
@@ -271,7 +271,7 @@
 
                         <div class="flex items-start gap-3 bg-white p-4 rounded-lg shadow-sm">
                             <div class="bg-teal-100 text-teal-600 p-2 rounded-lg flex-shrink-0">
-                                <i class="fas fa-home-heart"></i>
+                                <i class="fas fa-heart"></i>
                             </div>
                             <div>
                                 <h4 class="font-bold text-gray-800">Adopt Animals</h4>
@@ -509,62 +509,23 @@ function openGuideModal(specificSection = null) {
     modal.classList.remove('hidden');
     document.body.style.overflow = 'hidden';
 
-    // Auto-scroll to user's role section if logged in
-    setTimeout(() => {
-        @auth
-            @php
-                $userRoles = Auth::user()->getRoleNames();
-                $primaryRole = null;
+    // Reset scroll position to top
+    const modalContent = modal.querySelector('.overflow-y-auto');
+    if (modalContent) {
+        modalContent.scrollTop = 0;
+    }
 
-                // Determine primary role in priority order
-                if ($userRoles->contains('admin')) {
-                    $primaryRole = 'admin';
-                } elseif ($userRoles->contains('caretaker')) {
-                    $primaryRole = 'caretaker';
-                } elseif ($userRoles->contains('adopter')) {
-                    $primaryRole = 'adopter';
-                } elseif ($userRoles->contains('public user') || $userRoles->contains('user')) {
-                    $primaryRole = 'publicuser';
-                }
-            @endphp
-
-            @if($primaryRole)
-                const userRoleSection = '{{ $primaryRole }}';
-                const targetSection = specificSection || userRoleSection;
-
-                if (targetSection) {
-                    scrollToSection(targetSection);
-
-                    // Highlight user's role section
-                    const roleElement = document.getElementById(targetSection);
-                    if (roleElement && !specificSection) {
-                        roleElement.classList.add('ring-4', 'ring-purple-400', 'ring-opacity-50');
-                        setTimeout(() => {
-                            roleElement.classList.remove('ring-4', 'ring-purple-400', 'ring-opacity-50');
-                        }, 2000);
-                    }
-                }
-            @else
-                // For guests, show public user section
-                if (specificSection) {
-                    scrollToSection(specificSection);
-                } else {
-                    scrollToSection('publicuser');
-                }
-            @endif
-        @else
-            // For guests, use specific section or default to public user
-            if (specificSection) {
-                scrollToSection(specificSection);
-            } else {
-                scrollToSection('publicuser');
-            }
-        @endauth
-    }, 300);
+    // Only scroll to specific section if explicitly requested
+    if (specificSection) {
+        setTimeout(() => {
+            scrollToSection(specificSection);
+        }, 300);
+    }
 }
 
 function closeGuideModal() {
-    document.getElementById('userGuideModal').classList.add('hidden');
+    const modal = document.getElementById('userGuideModal');
+    modal.classList.add('hidden');
     document.body.style.overflow = 'auto';
 }
 

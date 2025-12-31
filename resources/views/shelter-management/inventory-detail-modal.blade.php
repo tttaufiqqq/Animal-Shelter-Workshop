@@ -1,5 +1,5 @@
 <!-- Inventory Detail Modal -->
-<div id="inventoryDetailModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[70] p-4">
+<div id="inventoryDetailModal" class="hidden fixed inset-0 bg-black bg-opacity-50 backdrop-blur-md flex items-center justify-center z-[70] p-4">
     <div class="bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
         <!-- Modal Header -->
         <div class="bg-gradient-to-r from-blue-500 to-cyan-600 text-white p-6">
@@ -11,7 +11,7 @@
                     </h2>
                     <p class="text-blue-100 mt-1" id="inventoryDetailSubtitle"></p>
                 </div>
-                <button onclick="closeInventoryDetailModal()" class="text-white hover:text-gray-200 transition">
+                <button onclick="closeInventoryDetailModal()" class="text-white hover:text-gray-200">
                     <i class="fas fa-times text-2xl"></i>
                 </button>
             </div>
@@ -112,12 +112,12 @@
                         <div class="space-y-4">
                             <div>
                                 <label class="block text-gray-700 font-semibold mb-2">Item Name</label>
-                                <input type="text" name="item_name" id="editItemName" class="w-full border-gray-300 rounded-lg shadow-sm px-4 py-3 border focus:border-blue-500 focus:ring focus:ring-blue-200 transition" required>
+                                <input type="text" name="item_name" id="editItemName" class="w-full border-gray-300 rounded-lg shadow-sm px-4 py-3 border focus:border-blue-500 focus:ring focus:ring-blue-200" required>
                             </div>
 
                             <div>
                                 <label class="block text-gray-700 font-semibold mb-2">Category</label>
-                                <select name="categoryID" id="editCategoryID" class="w-full border-gray-300 rounded-lg shadow-sm px-4 py-3 border bg-white focus:border-blue-500 focus:ring focus:ring-blue-200 transition" required>
+                                <select name="categoryID" id="editCategoryID" class="w-full border-gray-300 rounded-lg shadow-sm px-4 py-3 border bg-white focus:border-blue-500 focus:ring focus:ring-blue-200" required>
                                     @foreach($categories as $category)
                                         <option value="{{ $category->id }}">
                                             {{ $category->main }}{{ $category->sub ? ' - ' . $category->sub : '' }}
@@ -129,22 +129,22 @@
                             <div class="grid grid-cols-2 gap-4">
                                 <div>
                                     <label class="block text-gray-700 font-semibold mb-2">Quantity</label>
-                                    <input type="number" name="quantity" id="editQuantity" min="0" class="w-full border-gray-300 rounded-lg shadow-sm px-4 py-3 border focus:border-blue-500 focus:ring focus:ring-blue-200 transition" required>
+                                    <input type="number" name="quantity" id="editQuantity" min="0" class="w-full border-gray-300 rounded-lg shadow-sm px-4 py-3 border focus:border-blue-500 focus:ring focus:ring-blue-200" required>
                                 </div>
                                 <div>
                                     <label class="block text-gray-700 font-semibold mb-2">Weight (kg)</label>
-                                    <input type="number" name="weight" id="editWeight" min="0" step="0.01" class="w-full border-gray-300 rounded-lg shadow-sm px-4 py-3 border focus:border-blue-500 focus:ring focus:ring-blue-200 transition">
+                                    <input type="number" name="weight" id="editWeight" min="0" step="0.01" class="w-full border-gray-300 rounded-lg shadow-sm px-4 py-3 border focus:border-blue-500 focus:ring focus:ring-blue-200">
                                 </div>
                             </div>
 
                             <div>
                                 <label class="block text-gray-700 font-semibold mb-2">Brand</label>
-                                <input type="text" name="brand" id="editBrand" class="w-full border-gray-300 rounded-lg shadow-sm px-4 py-3 border focus:border-blue-500 focus:ring focus:ring-blue-200 transition">
+                                <input type="text" name="brand" id="editBrand" class="w-full border-gray-300 rounded-lg shadow-sm px-4 py-3 border focus:border-blue-500 focus:ring focus:ring-blue-200">
                             </div>
 
                             <div>
                                 <label class="block text-gray-700 font-semibold mb-2">Status</label>
-                                <select name="status" id="editStatus" class="w-full border-gray-300 rounded-lg shadow-sm px-4 py-3 border bg-white focus:border-blue-500 focus:ring focus:ring-blue-200 transition" required>
+                                <select name="status" id="editStatus" class="w-full border-gray-300 rounded-lg shadow-sm px-4 py-3 border bg-white focus:border-blue-500 focus:ring focus:ring-blue-200" required>
                                     <option value="available">Available</option>
                                     <option value="low">Low Stock</option>
                                     <option value="out">Out of Stock</option>
@@ -152,10 +152,10 @@
                             </div>
 
                             <div class="flex justify-end gap-3 pt-4">
-                                <button type="button" onclick="cancelInventoryEdit()" id="updateInventoryCancelBtn" class="px-6 py-3 bg-gray-200 text-gray-700 font-semibold rounded-lg hover:bg-gray-300 transition duration-300">
+                                <button type="button" onclick="cancelInventoryEdit()" id="updateInventoryCancelBtn" class="px-6 py-3 bg-gray-200 text-gray-700 font-semibold rounded-lg hover:bg-gray-300">
                                     Cancel
                                 </button>
-                                <button type="submit" id="updateInventorySubmitBtn" class="px-6 py-3 bg-gradient-to-r from-blue-500 to-cyan-600 text-white font-semibold rounded-lg hover:from-blue-600 hover:to-cyan-700 transition duration-300 flex items-center gap-2">
+                                <button type="submit" id="updateInventorySubmitBtn" class="px-6 py-3 bg-gradient-to-r from-blue-500 to-cyan-600 text-white font-semibold rounded-lg hover:from-blue-600 hover:to-cyan-700 flex items-center gap-2">
                                     <i class="fas fa-save" id="updateInventoryIcon"></i>
                                     <span id="updateInventoryText">Update Inventory</span>
                                 </button>
@@ -167,14 +167,14 @@
 
             <!-- Modal Footer -->
             <div class="bg-gray-50 p-6 border-t flex justify-between">
-                <button onclick="deleteInventoryItem()" id="deleteInventoryBtn" class="px-6 py-3 bg-red-500 text-white font-semibold rounded-lg hover:bg-red-600 transition duration-300">
+                <button onclick="deleteInventoryItem()" id="deleteInventoryBtn" class="px-6 py-3 bg-red-500 text-white font-semibold rounded-lg hover:bg-red-600">
                     <i class="fas fa-trash mr-2"></i>Delete
                 </button>
                 <div class="flex gap-3">
-                    <button onclick="closeInventoryDetailModal()" class="px-6 py-3 bg-gray-200 text-gray-700 font-semibold rounded-lg hover:bg-gray-300 transition duration-300">
+                    <button onclick="closeInventoryDetailModal()" class="px-6 py-3 bg-gray-200 text-gray-700 font-semibold rounded-lg hover:bg-gray-300">
                         Close
                     </button>
-                    <button onclick="toggleInventoryEdit()" id="editInventoryBtn" class="px-6 py-3 bg-gradient-to-r from-blue-500 to-cyan-600 text-white font-semibold rounded-lg hover:from-blue-600 hover:to-cyan-700 transition duration-300">
+                    <button onclick="toggleInventoryEdit()" id="editInventoryBtn" class="px-6 py-3 bg-gradient-to-r from-blue-500 to-cyan-600 text-white font-semibold rounded-lg hover:from-blue-600 hover:to-cyan-700">
                         <i class="fas fa-edit mr-2"></i>Edit
                     </button>
                 </div>
@@ -299,11 +299,11 @@
         if (health === 'Sick' || health === 'Critical') {
             if (!itemName.includes('veterinary') && !itemName.includes('recovery') && !itemName.includes('medical') && category === 'food') {
                 status = 'warning';
-                messages.push('⚠️ Consider using veterinary-prescribed recovery diet for sick animals');
+                messages.push('[!] Consider using veterinary-prescribed recovery diet for sick animals');
             }
             if (itemName.includes('recovery') || itemName.includes('veterinary') || brand.includes('veterinary')) {
                 status = 'excellent';
-                messages.push('✅ Excellent choice! This is a specialized recovery product suitable for sick animals');
+                messages.push('[✓] Excellent choice! This is a specialized recovery product suitable for sick animals');
             }
         }
 
@@ -311,16 +311,16 @@
         if (age === 'Kitten' || age === 'Puppy') {
             if (itemName.includes('adult') && !itemName.includes('kitten') && !itemName.includes('puppy')) {
                 status = 'warning';
-                messages.push('⚠️ This product is for adults. Consider using age-appropriate formula for young animals');
+                messages.push('[!] This product is for adults. Consider using age-appropriate formula for young animals');
             }
             if (itemName.includes(age.toLowerCase())) {
-                messages.push('✅ Perfect! This product is specifically formulated for young animals');
+                messages.push('[✓] Perfect! This product is specifically formulated for young animals');
             }
         }
 
         if (age === 'Senior') {
             if (itemName.includes('senior') || itemName.includes('7+')) {
-                messages.push('✅ Great! This product supports senior animal health needs');
+                messages.push('[✓] Great! This product supports senior animal health needs');
             }
         }
 
@@ -330,7 +330,7 @@
             for (const unsuitable of rules[species].unsuitable) {
                 if (itemName.includes(unsuitable) || brand.includes(unsuitable)) {
                     status = 'unsuitable';
-                    messages.push(`❌ UNSUITABLE: This product is not appropriate for ${species.toLowerCase()}s`);
+                    messages.push(`[✗] UNSUITABLE: This product is not appropriate for ${species.toLowerCase()}s`);
                     break;
                 }
             }
@@ -339,7 +339,7 @@
             for (const warning of rules[species].warnings) {
                 if (itemName.includes(warning) || brand.includes(warning)) {
                     status = 'danger';
-                    messages.push(`🚫 DANGER: Contains ${warning} which is toxic to ${species.toLowerCase()}s`);
+                    messages.push(`[⚠] DANGER: Contains ${warning} which is toxic to ${species.toLowerCase()}s`);
                     break;
                 }
             }
@@ -347,7 +347,7 @@
 
         // If no specific messages, add general compatibility
         if (messages.length === 0) {
-            messages.push(`✅ This item appears suitable for ${animal.name} (${species} - ${health})`);
+            messages.push(`[✓] This item appears suitable for ${animal.name} (${species} - ${health})`);
         }
 
         return { status, messages };
@@ -415,13 +415,13 @@
             let bgColor = 'bg-white';
             let borderColor = 'border-gray-200';
 
-            if (msg.includes('❌') || msg.includes('🚫')) {
+            if (msg.includes('[✗]') || msg.includes('[⚠] DANGER')) {
                 bgColor = 'bg-red-100';
                 borderColor = 'border-red-300';
-            } else if (msg.includes('⚠️')) {
+            } else if (msg.includes('[!]')) {
                 bgColor = 'bg-orange-100';
                 borderColor = 'border-orange-300';
-            } else if (msg.includes('✅')) {
+            } else if (msg.includes('[✓]')) {
                 bgColor = 'bg-green-100';
                 borderColor = 'border-green-300';
             }

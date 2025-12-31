@@ -1,5 +1,5 @@
 <!-- Animal Detail Modal -->
-<div id="animalDetailModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[70] p-4">
+<div id="animalDetailModal" class="hidden fixed inset-0 bg-black bg-opacity-50 backdrop-blur-md flex items-center justify-center z-[70] p-4">
     <div class="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[70vh] overflow-y-auto">
         <!-- Modal Header -->
         <div class="bg-gradient-to-r from-green-500 to-emerald-600 text-white p-6">
@@ -11,7 +11,7 @@
                     </h2>
                     <p class="text-green-100 mt-1" id="animalDetailSubtitle"></p>
                 </div>
-                <button onclick="closeAnimalDetailModal()" class="text-white hover:text-gray-200 transition">
+                <button onclick="closeAnimalDetailModal()" class="text-white hover:text-gray-200">
                     <i class="fas fa-times text-2xl"></i>
                 </button>
             </div>
@@ -39,10 +39,10 @@
                         </div>
                         
                         <!-- Navigation Arrows -->
-                        <button id="prevImageBtn" class="hidden absolute left-4 top-1/2 -translate-y-1/2 bg-black bg-opacity-50 hover:bg-opacity-70 text-white rounded-full w-12 h-12 flex items-center justify-center transition duration-300 z-10">
+                        <button id="prevImageBtn" class="hidden absolute left-4 top-1/2 -translate-y-1/2 bg-black bg-opacity-50 hover:bg-opacity-70 text-white rounded-full w-12 h-12 flex items-center justify-center z-10">
                             <i class="fas fa-chevron-left text-xl"></i>
                         </button>
-                        <button id="nextImageBtn" class="hidden absolute right-4 top-1/2 -translate-y-1/2 bg-black bg-opacity-50 hover:bg-opacity-70 text-white rounded-full w-12 h-12 flex items-center justify-center transition duration-300 z-10">
+                        <button id="nextImageBtn" class="hidden absolute right-4 top-1/2 -translate-y-1/2 bg-black bg-opacity-50 hover:bg-opacity-70 text-white rounded-full w-12 h-12 flex items-center justify-center z-10">
                             <i class="fas fa-chevron-right text-xl"></i>
                         </button>
                         
@@ -156,7 +156,7 @@
 
         <!-- Modal Footer -->
         <div class="bg-gray-50 p-6 border-t flex justify-end gap-3">
-            <button onclick="closeAnimalDetailModal()" class="px-6 py-3 bg-gray-200 text-gray-700 font-semibold rounded-lg hover:bg-gray-300 transition duration-300">
+            <button onclick="closeAnimalDetailModal()" class="px-6 py-3 bg-gray-200 text-gray-700 font-semibold rounded-lg hover:bg-gray-300">
                 Close
             </button>
         </div>
@@ -263,7 +263,7 @@
             totalCost += cost;
 
             return `
-                <div class="bg-gradient-to-br from-purple-50 to-pink-50 rounded-lg p-4 border border-purple-200 hover:shadow-md transition duration-300 mb-3">
+                <div class="bg-gradient-to-br from-purple-50 to-pink-50 rounded-lg p-4 border border-purple-200 hover:shadow-md mb-3">
                     <div class="flex items-start justify-between mb-3">
                         <div class="flex items-center space-x-3">
                             <div class="bg-purple-600 text-white rounded-full w-10 h-10 flex items-center justify-center font-bold">
@@ -329,7 +329,7 @@
             totalCost += cost;
 
             return `
-                <div class="bg-gradient-to-br from-orange-50 to-yellow-50 rounded-lg p-4 border border-orange-200 hover:shadow-md transition duration-300 mb-3">
+                <div class="bg-gradient-to-br from-orange-50 to-yellow-50 rounded-lg p-4 border border-orange-200 hover:shadow-md mb-3">
                     <div class="flex items-start justify-between mb-3">
                         <div class="flex items-center space-x-3">
                             <div class="bg-orange-600 text-white rounded-full w-10 h-10 flex items-center justify-center">
@@ -434,7 +434,7 @@
         if (images.length > 1) {
             const thumbnailsHtml = images.map((image, index) => `
                 <div onclick="goToImage(${index})"
-                     class="flex-shrink-0 w-20 h-20 cursor-pointer rounded-lg overflow-hidden border-2 transition duration-300 ${index === 0 ? 'border-green-600' : 'border-gray-300 hover:border-green-400'}"
+                     class="flex-shrink-0 w-20 h-20 cursor-pointer rounded-lg overflow-hidden border-2 ${index === 0 ? 'border-green-600' : 'border-gray-300 hover:border-green-400'}"
                      id="thumbnail-${index}">
                     <img src="${image.url || image.path}"
                          alt="Thumbnail ${index + 1}"
@@ -469,9 +469,9 @@
             const thumbnail = document.getElementById(`thumbnail-${index}`);
             if (thumbnail) {
                 if (index === currentImageIndex) {
-                    thumbnail.className = 'flex-shrink-0 w-20 h-20 cursor-pointer rounded-lg overflow-hidden border-2 transition duration-300 border-green-600';
+                    thumbnail.className = 'flex-shrink-0 w-20 h-20 cursor-pointer rounded-lg overflow-hidden border-2 border-green-600';
                 } else {
-                    thumbnail.className = 'flex-shrink-0 w-20 h-20 cursor-pointer rounded-lg overflow-hidden border-2 transition duration-300 border-gray-300 hover:border-green-400';
+                    thumbnail.className = 'flex-shrink-0 w-20 h-20 cursor-pointer rounded-lg overflow-hidden border-2 border-gray-300 hover:border-green-400';
                 }
             }
         });

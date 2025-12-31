@@ -88,6 +88,14 @@ class StrayReportingManagementController extends Controller
             ]);
 
             if ($validator->fails()) {
+                if ($request->wantsJson() || $request->ajax()) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Please check the form and try again.',
+                        'errors' => $validator->errors()
+                    ], 422);
+                }
+
                 return redirect()->back()
                     ->withErrors($validator)
                     ->withInput()
@@ -108,7 +116,7 @@ class StrayReportingManagementController extends Controller
                 'address' => $validated['address'],
                 'city' => $validated['city'],
                 'state' => $validated['state'],
-                'report_status' => 'Pending',
+                'report_status' => Report::STATUS_PENDING,
                 'description' => $fullDescription,
                 'userID' => Auth::id(),
             ]);
@@ -141,6 +149,13 @@ class StrayReportingManagementController extends Controller
 
             DB::connection('eilya')->commit();
 
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Report submitted successfully! Our team will review it shortly.'
+                ]);
+            }
+
             return redirect()->back()->with('success', 'Report submitted successfully!');
 
         } catch (\Illuminate\Validation\ValidationException $e) {
@@ -149,6 +164,14 @@ class StrayReportingManagementController extends Controller
             // Clean up uploaded files
             foreach ($uploadedFiles as $filePath) {
                 cloudinary()->uploadApi()->destroy($filePath);
+            }
+
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Please check the form and try again.',
+                    'errors' => $e->errors()
+                ], 422);
             }
 
             return redirect()->back()
@@ -168,6 +191,13 @@ class StrayReportingManagementController extends Controller
                 'trace' => $e->getTraceAsString()
             ]);
 
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Failed to submit report: ' . $e->getMessage()
+                ], 500);
+            }
+
             return redirect()->back()
                 ->withInput()
                 ->with('error', 'Failed to submit report: ' . $e->getMessage());
@@ -176,79 +206,9 @@ class StrayReportingManagementController extends Controller
 
     public function index(Request $request)
     {
-        $reports = $this->safeQuery(function() use ($request) {
-            $query = Report::with('images');
-
-            // Check if taufiq database is online for user filtering
-            $taufiqOnline = $this->isDatabaseAvailable('taufiq');
-
-            // Search by user name or email (cross-database search)
-            if ($request->filled('user_search') && $taufiqOnline) {
-                $userSearch = $request->user_search;
-
-                // Get user IDs from taufiq database that match search
-                $userIds = DB::connection('taufiq')
-                    ->table('users')
-                    ->where(function($q) use ($userSearch) {
-                        $q->where('name', 'LIKE', "%{$userSearch}%")
-                          ->orWhere('email', 'LIKE', "%{$userSearch}%");
-                    })
-                    ->pluck('id')
-                    ->toArray();
-
-                if (!empty($userIds)) {
-                    $query->whereIn('userID', $userIds);
-                } else {
-                    // No users found, return empty result
-                    $query->whereRaw('1 = 0');
-                }
-            }
-
-            // Search by report ID
-            if ($request->filled('report_id')) {
-                $query->where('id', $request->report_id);
-            }
-
-            // Search by location (address, city, state)
-            if ($request->filled('location')) {
-                $location = $request->location;
-                $query->where(function($q) use ($location) {
-                    $q->where('address', 'LIKE', "%{$location}%")
-                      ->orWhere('city', 'LIKE', "%{$location}%")
-                      ->orWhere('state', 'LIKE', "%{$location}%");
-                });
-            }
-
-            // Filter by status
-            if ($request->filled('status')) {
-                $query->where('report_status', $request->status);
-            }
-
-            // Date range filter
-            if ($request->filled('date_from')) {
-                $query->whereDate('created_at', '>=', $request->date_from);
-            }
-            if ($request->filled('date_to')) {
-                $query->whereDate('created_at', '<=', $request->date_to);
-            }
-
-            return $query->orderBy('created_at', 'desc')
-                ->paginate(50)
-                ->appends($request->query());
-        }, new \Illuminate\Pagination\LengthAwarePaginator([], 0, 50), 'eilya');
-
-        // Get status counts for filter badges
-        $statusCounts = $this->safeQuery(
-            fn() => Report::select('report_status', DB::connection('eilya')->raw('COUNT(*) as total'))
-                ->groupBy('report_status')
-                ->pluck('total', 'report_status'),
-            collect([]),
-            'eilya'
-        );
-
-        $totalReports = $statusCounts->sum();
-
-        return view('stray-reporting.index', compact('reports', 'statusCounts', 'totalReports'));
+        // Livewire component handles all data loading and real-time updates
+        // Controller now just returns the view
+        return view('stray-reporting.index');
     }
 
     public function show($id)
@@ -260,7 +220,7 @@ class StrayReportingManagementController extends Controller
         );
 
         if (!$report) {
-            return redirect()->route('stray-reporting.index')
+            return redirect()->route('reports.index')
                 ->with('error', 'Report not found or database connection unavailable.');
         }
 
@@ -312,7 +272,7 @@ class StrayReportingManagementController extends Controller
 
             DB::connection('eilya')->commit();
 
-            return redirect()->route('stray-reporting.index')->with('success', 'Report deleted successfully!');
+            return redirect()->route('reports.index')->with('success', 'Report deleted successfully!');
 
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             DB::connection('eilya')->rollBack();
@@ -361,6 +321,14 @@ class StrayReportingManagementController extends Controller
 
             if ($rescue) {
                 $oldCaretakerId = $rescue->caretakerID;
+
+                // Prevent reassignment to the same caretaker
+                if ($oldCaretakerId == $request->caretaker_id) {
+                    return redirect()->back()
+                        ->withInput()
+                        ->with('error', 'This report is already assigned to ' . $caretaker->name . '. Please select a different caretaker.');
+                }
+
                 $rescue->update([
                     'caretakerID' => $request->caretaker_id
                 ]);
@@ -402,7 +370,7 @@ class StrayReportingManagementController extends Controller
             }
 
             $report->update([
-                'report_status' => 'In Progress'
+                'report_status' => Report::STATUS_ASSIGNED
             ]);
 
             DB::connection('eilya')->commit();
@@ -486,6 +454,23 @@ class StrayReportingManagementController extends Controller
 
     public function updateStatusCaretaker(Request $request, $id)
     {
+        // Check if atiqah database (Slots) is required and available
+        if ($request->status === Rescue::STATUS_SUCCESS) {
+            if (!$this->isDatabaseAvailable('atiqah')) {
+                return redirect()->back()->with('error',
+                    'Cannot complete rescue: Shelter Management database (slots) is currently offline. ' .
+                    'Animals must be assigned to shelter slots. Please try again later or contact the system administrator.'
+                );
+            }
+
+            if (!$this->isDatabaseAvailable('shafiqah')) {
+                return redirect()->back()->with('error',
+                    'Cannot complete rescue: Animal Management database is currently offline. ' .
+                    'Please try again later or contact the system administrator.'
+                );
+            }
+        }
+
         // Start transaction on eilya database (Rescue and Report tables)
         DB::connection('eilya')->beginTransaction();
 
@@ -538,15 +523,58 @@ class StrayReportingManagementController extends Controller
                 ]
             );
 
+            // Update report status based on rescue status (sync them)
             // Case-insensitive status comparison for cross-RDBMS compatibility
             $currentStatus = strtolower($request->status);
+            $inProgressStatus = strtolower(Rescue::STATUS_IN_PROGRESS);
             $successStatus = strtolower(Rescue::STATUS_SUCCESS);
             $failedStatus = strtolower(Rescue::STATUS_FAILED);
 
-            if ($currentStatus === $successStatus || $currentStatus === $failedStatus) {
+            // When caretaker starts working → Report: "In Progress"
+            if ($currentStatus === $inProgressStatus) {
+                $oldReportStatus = $rescue->report->report_status;
                 $rescue->report->update([
-                    'report_status' => 'Resolved'
+                    'report_status' => Report::STATUS_IN_PROGRESS
                 ]);
+
+                // AUDIT: Report status changed to "In Progress" (synced with rescue)
+                AuditService::logRescue(
+                    'report_status_synced_in_progress',
+                    $rescue->id,
+                    ['report_status' => $oldReportStatus],
+                    ['report_status' => Report::STATUS_IN_PROGRESS],
+                    [
+                        'report_id' => $rescue->reportID,
+                        'rescue_status' => $request->status,
+                        'caretaker_name' => Auth::user()->name,
+                        'address' => $rescue->report->address ?? 'Unknown',
+                        'sync_trigger' => 'Caretaker started rescue operation',
+                    ]
+                );
+            }
+
+            // When rescue is completed (success or failed) → Report: "Completed"
+            if ($currentStatus === $successStatus || $currentStatus === $failedStatus) {
+                $oldReportStatus = $rescue->report->report_status;
+                $rescue->report->update([
+                    'report_status' => Report::STATUS_COMPLETED
+                ]);
+
+                // AUDIT: Report status changed to "Completed" (synced with rescue)
+                AuditService::logRescue(
+                    'report_status_synced_completed',
+                    $rescue->id,
+                    ['report_status' => $oldReportStatus],
+                    ['report_status' => Report::STATUS_COMPLETED],
+                    [
+                        'report_id' => $rescue->reportID,
+                        'rescue_status' => $request->status,
+                        'rescue_final_status' => $request->status, // "Success" or "Failed"
+                        'caretaker_name' => Auth::user()->name,
+                        'address' => $rescue->report->address ?? 'Unknown',
+                        'sync_trigger' => 'Rescue operation completed',
+                    ]
+                );
             }
 
             DB::connection('eilya')->commit();
@@ -598,7 +626,36 @@ class StrayReportingManagementController extends Controller
                 ->where('caretakerID', Auth::id())
                 ->firstOrFail();
 
-            return view('stray-reporting.show-caretaker', compact('rescue'));
+            // Check if databases required for animal addition are available
+            $canCompleteRescue = $this->isDatabaseAvailable('atiqah') && $this->isDatabaseAvailable('shafiqah');
+            $dbWarning = null;
+
+            if (!$canCompleteRescue) {
+                $offlineDbs = [];
+                if (!$this->isDatabaseAvailable('atiqah')) {
+                    $offlineDbs[] = 'Shelter Management (Slots)';
+                }
+                if (!$this->isDatabaseAvailable('shafiqah')) {
+                    $offlineDbs[] = 'Animal Management';
+                }
+                $dbWarning = 'Cannot complete rescue and add animals: ' . implode(', ', $offlineDbs) . ' database is offline.';
+            }
+
+            // Fetch available slots for animal assignment (only if atiqah is online)
+            $availableSlots = collect([]);
+            if ($this->isDatabaseAvailable('atiqah')) {
+                $availableSlots = $this->safeQuery(
+                    fn() => \App\Models\Slot::with('section')
+                        ->where('status', 'available')
+                        ->orderBy('sectionID')
+                        ->orderBy('id')
+                        ->get(),
+                    collect([]),
+                    'atiqah'
+                );
+            }
+
+            return view('stray-reporting.show-caretaker', compact('rescue', 'canCompleteRescue', 'dbWarning', 'availableSlots'));
 
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             \Log::error('Rescue not found or unauthorized for caretaker view: ' . $e->getMessage(), [
@@ -617,6 +674,220 @@ class StrayReportingManagementController extends Controller
 
             return redirect()->route('stray-reporting.index-caretaker')
                 ->with('error', 'Failed to load rescue details: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Get count of new assigned rescues for caretaker (AJAX endpoint)
+     * Returns count of rescues with "Scheduled" status
+     */
+    public function getNewRescueCount()
+    {
+        try {
+            $count = Rescue::where('caretakerID', Auth::id())
+                ->where('status', Rescue::STATUS_SCHEDULED)
+                ->count();
+
+            return response()->json([
+                'success' => true,
+                'count' => $count
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'count' => 0,
+                'error' => $e->getMessage()
+            ]);
+        }
+    }
+
+    /**
+     * Handle successful rescue with animal creation (AJAX endpoint)
+     * This method processes the multi-step animal addition form
+     */
+    public function updateStatusWithAnimals(Request $request, $id)
+    {
+        // Check critical database availability before processing
+        if (!$this->isDatabaseAvailable('atiqah')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Cannot add animals: Shelter Management database (slots) is currently offline. Animals must be assigned to shelter slots. Please try again later.'
+            ], 503);
+        }
+
+        if (!$this->isDatabaseAvailable('shafiqah')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Cannot add animals: Animal Management database is currently offline. Please try again later.'
+            ], 503);
+        }
+
+        if (!$this->isDatabaseAvailable('eilya')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Cannot update rescue: Rescue database is currently offline. Please try again later.'
+            ], 503);
+        }
+
+        // Start transactions on both eilya (Rescue) and shafiqah (Animal) databases
+        DB::connection('eilya')->beginTransaction();
+        DB::connection('shafiqah')->beginTransaction();
+
+        $uploadedFiles = [];
+
+        try {
+            // Validate rescue authorization
+            $rescue = Rescue::where('id', $id)
+                ->where('caretakerID', Auth::id())
+                ->firstOrFail();
+
+            // Validate input
+            $request->validate([
+                'status' => 'required|in:Success',
+                'remarks' => 'required|string|min:10|max:1000',
+                'animals' => 'required|json',
+            ]);
+
+            // Parse animals data
+            $animalsData = json_decode($request->animals, true);
+
+            if (empty($animalsData)) {
+                throw new \Exception('No animals data provided');
+            }
+
+            // Update rescue status
+            $oldRescueStatus = $rescue->status;
+            $rescue->update([
+                'status' => $request->status,
+                'remarks' => $request->remarks
+            ]);
+
+            // Update report status
+            $oldReportStatus = $rescue->report->report_status;
+            $rescue->report->update([
+                'report_status' => Report::STATUS_COMPLETED
+            ]);
+
+            // AUDIT: Report status synced to "Completed" (with animals added)
+            AuditService::logRescue(
+                'report_status_synced_completed_with_animals',
+                $rescue->id,
+                ['report_status' => $oldReportStatus],
+                ['report_status' => Report::STATUS_COMPLETED],
+                [
+                    'report_id' => $rescue->reportID,
+                    'rescue_status' => $request->status,
+                    'rescue_final_status' => 'Success',
+                    'caretaker_name' => Auth::user()->name,
+                    'address' => $rescue->report->address ?? 'Unknown',
+                    'sync_trigger' => 'Rescue completed successfully with animals added',
+                    'animals_count' => count($animalsData),
+                ]
+            );
+
+            // Create animals
+            foreach ($animalsData as $index => $animalData) {
+                // Create animal record
+                $animal = Animal::create([
+                    'name' => $animalData['name'],
+                    'species' => $animalData['species'],
+                    'gender' => $animalData['gender'],
+                    'age' => $animalData['age'],
+                    'weight' => $animalData['weight'],
+                    'health_details' => $animalData['health_details'],
+                    'adoption_status' => $animalData['adoption_status'], // 'Not Adopted'
+                    'rescueID' => $animalData['rescueID'],
+                    'slotID' => $animalData['slotID'] ?? null, // Shelter slot assignment
+                ]);
+
+                // Handle image uploads for this animal
+                $imageFiles = $request->file("animal_{$index}_images", []);
+
+                foreach ($imageFiles as $imageFile) {
+                    // Upload to Cloudinary
+                    $uploadResult = cloudinary()->uploadApi()->upload($imageFile->getRealPath(), [
+                        'folder' => 'animals',
+                        'public_id' => pathinfo($imageFile->getClientOriginalName(), PATHINFO_FILENAME)
+                    ]);
+
+                    $path = $uploadResult['public_id'];
+                    $uploadedFiles[] = $path;
+
+                    // Create image record
+                    Image::create([
+                        'image_path' => $path,
+                        'animalID' => $animal->id,
+                        'reportID' => null,
+                    ]);
+                }
+            }
+
+            // Audit log
+            AuditService::logRescue(
+                'rescue_completed_with_animals',
+                $rescue->id,
+                ['status' => $rescue->status],
+                ['status' => 'Success', 'animals_added' => count($animalsData)],
+                [
+                    'report_id' => $rescue->reportID,
+                    'caretaker_name' => Auth::user()->name,
+                    'animal_count' => count($animalsData),
+                ]
+            );
+
+            DB::connection('eilya')->commit();
+            DB::connection('shafiqah')->commit();
+
+            // Store success message in session for display after redirect
+            session()->flash('success', 'Rescue completed successfully! ' . count($animalsData) . ' animal(s) added to the shelter.');
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Rescue completed successfully! ' . count($animalsData) . ' animal(s) added to the shelter.',
+                'redirect' => route('rescues.show', $rescue->id)
+            ]);
+
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            DB::connection('eilya')->rollBack();
+            DB::connection('shafiqah')->rollBack();
+
+            // Clean up uploaded files
+            foreach ($uploadedFiles as $filePath) {
+                try {
+                    cloudinary()->uploadApi()->destroy($filePath);
+                } catch (\Exception $e) {
+                    // Continue cleanup
+                }
+            }
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Rescue not found or you are not authorized.'
+            ], 404);
+
+        } catch (\Exception $e) {
+            DB::connection('eilya')->rollBack();
+            DB::connection('shafiqah')->rollBack();
+
+            // Clean up uploaded files
+            foreach ($uploadedFiles as $filePath) {
+                try {
+                    cloudinary()->uploadApi()->destroy($filePath);
+                } catch (\Exception $e) {
+                    // Continue cleanup
+                }
+            }
+
+            \Log::error('Error updating rescue with animals: ' . $e->getMessage(), [
+                'rescue_id' => $id,
+                'user_id' => Auth::id(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to complete rescue: ' . $e->getMessage()
+            ], 500);
         }
     }
 }

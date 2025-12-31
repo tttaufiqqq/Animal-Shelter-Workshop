@@ -7,13 +7,11 @@ use App\Models\Transaction;
 use App\Models\Adoption;
 use App\Models\Animal;
 use Livewire\Component;
-use Livewire\Attributes\Layout;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 use App\DatabaseErrorHandler;
 
-#[Layout('layouts.app')]
 class Dashboard extends Component
 {
     use DatabaseErrorHandler;

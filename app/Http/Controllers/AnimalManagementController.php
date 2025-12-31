@@ -27,66 +27,70 @@ class AnimalManagementController extends Controller
     use DatabaseErrorHandler;
     public function getMatches()
     {
-        $user = Auth::user();
+        try {
+            $user = Auth::user();
 
-        // Check database availability first
-        if (!$this->isDatabaseAvailable('taufiq') || !$this->isDatabaseAvailable('shafiqah')) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Database connection unavailable. Please check your internet connection.',
-                'offline' => true
-            ]);
-        }
+            // Get adopter profile
+            $adopterProfile = AdopterProfile::where('adopterID', $user->id)->first();
 
-        // Get adopter profile with error handling
-        $adopterProfile = $this->safeQuery(
-            fn() => AdopterProfile::where('adopterID', $user->id)->first(),
-            null,
-            'taufiq'
-        );
+            if (!$adopterProfile) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Please complete your adopter profile first to see your matches.'
+                ]);
+            }
 
-        if (!$adopterProfile) {
-           return response()->json([
-                'success' => false,
-                'message' => 'Please complete your adopter profile first to see your matches.'
-            ]);
-        }
-
-        // Get all available animals with their profiles
-        $animals = $this->safeQuery(
-            fn() => Animal::with('profile')
+            // Get available animals with their profiles
+            // Using eager loading for better performance
+            $animals = Animal::with(['profile', 'images'])
                 ->whereIn('adoption_status', ['Not Adopted', 'not adopted'])
-                ->get(),
-            collect([]),
-            'shafiqah'
-        );
+                ->limit(50) // Limit for performance
+                ->get();
 
-        // Calculate match scores
-        $matches = [];
-        foreach ($animals as $animal) {
-            if ($animal->profile) {
+            // Filter animals with profiles at application layer
+            $animalsWithProfiles = $animals->filter(function($animal) {
+                return $animal->profile !== null;
+            });
+
+            // Calculate match scores
+            $matches = [];
+            foreach ($animalsWithProfiles as $animal) {
                 $score = $this->calculateMatchScore($adopterProfile, $animal->profile);
                 $matches[] = [
-                    'animal' => $animal,
-                    'profile' => $animal->profile,
+                    'id' => $animal->id,
+                    'name' => $animal->name,
+                    'species' => $animal->species,
+                    'age' => $animal->age,
+                    'gender' => $animal->gender,
+                    'image' => $animal->images->first()?->url ?? null,
                     'score' => $score,
                     'match_details' => $this->getMatchDetails($adopterProfile, $animal->profile)
                 ];
             }
+
+            // Sort by score (highest first)
+            usort($matches, function($a, $b) {
+                return $b['score'] <=> $a['score'];
+            });
+
+            // Get top 5 matches
+            $topMatches = array_slice($matches, 0, 5);
+
+            return response()->json([
+                'success' => true,
+                'matches' => $topMatches
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Match calculation error: ' . $e->getMessage(), [
+                'exception' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Unable to calculate matches at this time. Please try again later.'
+            ], 500);
         }
-
-        // Sort by score (highest first)
-        usort($matches, function($a, $b) {
-            return $b['score'] <=> $a['score'];
-        });
-
-        // Get top 5 matches
-        $topMatches = array_slice($matches, 0, 5);
-
-        return response()->json([
-            'success' => true,
-            'matches' => $topMatches
-        ]);
     }
 
     private function calculateMatchScore($adopterProfile, $animalProfile)
@@ -624,10 +628,7 @@ public function update(Request $request, $id)
                 $query->where('gender', $request->gender);
             }
 
-            // ⭐ PRIORITIZE Not Adopted animals
-            $query->orderByRaw("CASE WHEN adoption_status = 'Not Adopted' THEN 0 ELSE 1 END");
-
-            // Secondary sorting
+            // ⭐ Sort by newest animals first (most recently added)
             $query->orderBy('created_at', 'desc');
 
             // Pagination: 50 items for caretaker table view, 12 for card view
@@ -914,16 +915,33 @@ public function update(Request $request, $id)
                 ]);
             }
 
-            // Update slot status if atiqah is online
-            if ($animal->slotID && $atiqahOnline) {
-                $slot = Slot::find($animal->slotID);
+            $animalName = $animal->name;
+            $slotID = $animal->slotID; // Store slot ID before deletion
+            $animal->delete();
+
+            // Update slot status based on remaining animal count if atiqah is online
+            if ($slotID && $atiqahOnline) {
+                $slot = Slot::find($slotID);
                 if ($slot) {
-                    $slot->update(['status' => 'available']);
+                    // Count remaining animals in this slot (after deletion)
+                    $remainingAnimals = Animal::where('slotID', $slotID)->count();
+
+                    // Auto-calculate status based on remaining occupancy
+                    if ($remainingAnimals >= $slot->capacity) {
+                        $slot->status = 'occupied';
+                    } else {
+                        $slot->status = 'available';
+                    }
+                    $slot->save();
+
+                    \Log::info('Slot status updated after animal deletion', [
+                        'slot_id' => $slotID,
+                        'remaining_animals' => $remainingAnimals,
+                        'capacity' => $slot->capacity,
+                        'new_status' => $slot->status,
+                    ]);
                 }
             }
-
-            $animalName = $animal->name;
-            $animal->delete();
 
             // Commit all transactions
             DB::connection('shafiqah')->commit();

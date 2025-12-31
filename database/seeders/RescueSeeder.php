@@ -189,26 +189,65 @@ class RescueSeeder extends Seeder
                     $this->command->info("  Inserted {$totalInserted} / " . count($rescues) . " rescues...");
                 }
 
-                // 🔥 Update related report statuses for successful rescues
+                // 🔥 Update report statuses to match rescue statuses (sync them)
                 $this->command->info('');
-                $this->command->info('Updating report statuses for successful rescues...');
+                $this->command->info('Syncing report statuses with rescue statuses...');
 
-                $successfulRescueReportIDs = DB::connection('eilya')
+                // 1. Update reports with "Scheduled" rescues → "Assigned"
+                $scheduledRescueReportIDs = DB::connection('eilya')
                     ->table('rescue')
-                    ->where('status', 'Success')
+                    ->where('status', 'Scheduled')
                     ->pluck('reportID')
                     ->toArray();
 
-                if (!empty($successfulRescueReportIDs)) {
+                if (!empty($scheduledRescueReportIDs)) {
                     DB::connection('eilya')
                         ->table('report')
-                        ->whereIn('id', $successfulRescueReportIDs)
+                        ->whereIn('id', $scheduledRescueReportIDs)
                         ->update([
-                            'report_status' => 'Resolved',
+                            'report_status' => 'Assigned',
                             'updated_at'    => now(),
                         ]);
 
-                    $this->command->info("  Updated " . count($successfulRescueReportIDs) . " reports to 'Resolved' status");
+                    $this->command->info("  Updated " . count($scheduledRescueReportIDs) . " reports to 'Assigned' (rescue scheduled)");
+                }
+
+                // 2. Update reports with "In Progress" rescues → "In Progress"
+                $inProgressRescueReportIDs = DB::connection('eilya')
+                    ->table('rescue')
+                    ->where('status', 'In Progress')
+                    ->pluck('reportID')
+                    ->toArray();
+
+                if (!empty($inProgressRescueReportIDs)) {
+                    DB::connection('eilya')
+                        ->table('report')
+                        ->whereIn('id', $inProgressRescueReportIDs)
+                        ->update([
+                            'report_status' => 'In Progress',
+                            'updated_at'    => now(),
+                        ]);
+
+                    $this->command->info("  Updated " . count($inProgressRescueReportIDs) . " reports to 'In Progress' (actively rescuing)");
+                }
+
+                // 3. Update reports with "Success" or "Failed" rescues → "Completed"
+                $completedRescueReportIDs = DB::connection('eilya')
+                    ->table('rescue')
+                    ->whereIn('status', ['Success', 'Failed'])
+                    ->pluck('reportID')
+                    ->toArray();
+
+                if (!empty($completedRescueReportIDs)) {
+                    DB::connection('eilya')
+                        ->table('report')
+                        ->whereIn('id', $completedRescueReportIDs)
+                        ->update([
+                            'report_status' => 'Completed',
+                            'updated_at'    => now(),
+                        ]);
+
+                    $this->command->info("  Updated " . count($completedRescueReportIDs) . " reports to 'Completed' (rescue finished)");
                 }
             }
 

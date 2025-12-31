@@ -25,6 +25,13 @@ class Report extends Model
         'userID',
     ];
 
+    // Status constants
+    const STATUS_PENDING = 'Pending';       // User submitted, awaiting admin review/assignment
+    const STATUS_ASSIGNED = 'Assigned';     // Assigned to caretaker, rescue scheduled but not started
+    const STATUS_IN_PROGRESS = 'In Progress'; // Caretaker actively working on rescue
+    const STATUS_COMPLETED = 'Completed';   // Rescue completed (success or failed)
+    const STATUS_REJECTED = 'Rejected';     // Report deemed invalid/spam
+
     protected $casts = [
         'latitude' => 'decimal:8',
         'longitude' => 'decimal:8',
@@ -54,5 +61,19 @@ class Report extends Model
     public function rescue()
     {
         return $this->hasOne(Rescue::class, 'reportID', 'id');
+    }
+
+    /**
+     * Get all available report statuses
+     */
+    public static function getStatuses()
+    {
+        return [
+            self::STATUS_PENDING,
+            self::STATUS_ASSIGNED,
+            self::STATUS_IN_PROGRESS,
+            self::STATUS_COMPLETED,
+            self::STATUS_REJECTED,
+        ];
     }
 }

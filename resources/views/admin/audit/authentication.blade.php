@@ -1,38 +1,43 @@
-<x-app-layout>
-    <x-slot name="title">
-        Audit Log - Authentication
-    </x-slot>
+@php
+$breadcrumbs = [
+    ['label' => 'Audit Log', 'url' => route('admin.audit.index'), 'icon' => '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>'],
+    ['label' => 'Authentication', 'icon' => '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>']
+];
+@endphp
 
-    <x-slot name="header">
+<x-admin-layout title="Authentication Audit Logs" :breadcrumbs="$breadcrumbs">
+
+    <!-- Page Header with Back Button and Export Button -->
+    <div class="mb-6">
         <div class="flex items-center justify-between">
-            <div class="flex items-center space-x-4">
-                <a href="{{ route('admin.audit.index') }}" class="text-gray-600 hover:text-gray-900 transition-colors" title="Back to Audit Dashboard">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+            <div class="flex items-center gap-4">
+                <!-- Back Button -->
+                <a href="{{ route('admin.audit.index') }}"
+                   class="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-white hover:bg-gray-50 border-2 border-gray-200 shadow-sm transition-all duration-200 hover:shadow-md hover:border-indigo-300 group"
+                   title="Back to Audit Dashboard">
+                    <svg class="w-5 h-5 text-gray-600 group-hover:text-indigo-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
                     </svg>
                 </a>
                 <div>
-                    <h2 class="font-semibold text-xl text-gray-800 leading-tight flex items-center">
-                        <svg class="w-6 h-6 mr-2 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <h1 class="text-2xl font-bold text-gray-900 flex items-center">
+                        <svg class="w-7 h-7 mr-2 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"></path>
                         </svg>
                         Authentication Audit Logs
-                    </h2>
-                    <p class="text-sm text-gray-600 mt-1">Login, logout, and session management tracking</p>
+                    </h1>
+                    <p class="text-gray-600 mt-1">Login, logout, and session management tracking</p>
                 </div>
             </div>
             <a href="{{ route('admin.audit.export', ['category' => 'authentication']) }}{{ request()->getQueryString() ? '?' . request()->getQueryString() : '' }}"
-               class="inline-flex items-center px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg transition-colors">
+               class="inline-flex items-center px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg transition-colors shadow-sm">
                 <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
                 </svg>
                 Export to CSV
             </a>
         </div>
-    </x-slot>
-
-    <div class="py-8">
-        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
+    </div>
 
             <!-- Filters -->
             <div class="bg-white border border-gray-200 rounded-lg shadow-sm mb-6">
@@ -330,56 +335,48 @@
                 </div>
                 @endif
             </div>
-        </div>
-    </div>
 
     <!-- User Management Modal -->
-    <div id="userManagementModal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-75 z-50 overflow-y-auto">
-        <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20">
-            <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-6xl max-h-[90vh] overflow-hidden">
-                <!-- Modal Header -->
-                <div class="sticky top-0 bg-gradient-to-r from-indigo-600 to-indigo-700 text-white px-6 py-4 z-10">
-                    <div class="flex items-center justify-between">
-                        <div class="flex items-center gap-3">
-                            <div class="w-12 h-12 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
-                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path>
-                                </svg>
-                            </div>
-                            <div>
-                                <h2 class="text-2xl font-bold">User Management</h2>
-                                <p class="text-indigo-100 text-sm" id="modalUserEmail"></p>
-                            </div>
-                        </div>
-                        <button onclick="closeUserManagementModal()" class="text-white hover:bg-white hover:bg-opacity-20 rounded-full p-2 transition">
-                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                            </svg>
-                        </button>
+    <div id="userManagementModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4" onclick="closeUserManagementModal()">
+        <div class="bg-white rounded-lg shadow-lg max-w-6xl w-full max-h-[90vh] overflow-auto" onclick="event.stopPropagation()">
+            <!-- Modal Header -->
+            <div class="flex justify-between items-center p-4 border-b sticky top-0 bg-gradient-to-r from-indigo-600 to-indigo-700 text-white">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path>
+                        </svg>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-semibold">User Management</h3>
+                        <p class="text-indigo-100 text-sm" id="modalUserEmail"></p>
+                    </div>
+                </div>
+                <button onclick="closeUserManagementModal()" class="text-white hover:text-gray-200">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Message Container -->
+            <div id="messageContainer" class="hidden mx-4 mt-4"></div>
+
+            <!-- Modal Content -->
+            <div id="modalContent" class="p-4">
+                <!-- Loading State -->
+                <div id="loadingState" class="flex items-center justify-center py-12">
+                    <div class="text-center">
+                        <svg class="animate-spin h-12 w-12 text-indigo-600 mx-auto mb-4" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <p class="text-gray-600">Loading user activity...</p>
                     </div>
                 </div>
 
-                <!-- Message Container -->
-                <div id="messageContainer" class="hidden mx-6 mt-4"></div>
-
-                <!-- Modal Body -->
-                <div class="overflow-y-auto max-h-[calc(90vh-80px)]">
-                    <div id="modalContent" class="p-6">
-                        <!-- Loading State -->
-                        <div id="loadingState" class="flex items-center justify-center py-12">
-                            <div class="text-center">
-                                <svg class="animate-spin h-12 w-12 text-indigo-600 mx-auto mb-4" fill="none" viewBox="0 0 24 24">
-                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                </svg>
-                                <p class="text-gray-600">Loading user activity...</p>
-                            </div>
-                        </div>
-
-                        <!-- Content (populated via JavaScript) -->
-                        <div id="userActivityContent" class="hidden"></div>
-                    </div>
-                </div>
+                <!-- Content (populated via JavaScript) -->
+                <div id="userActivityContent" class="hidden"></div>
             </div>
         </div>
     </div>
@@ -843,6 +840,18 @@
                 return;
             }
 
+            // Show loading state
+            const confirmBtn = event.target;
+            const originalBtnContent = confirmBtn.innerHTML;
+            confirmBtn.disabled = true;
+            confirmBtn.innerHTML = `
+                <svg class="animate-spin h-5 w-5 inline mr-2" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Suspending...
+            `;
+
             fetch(`/admin/users/${currentUserId}/suspend`, {
                 method: 'POST',
                 headers: {
@@ -851,22 +860,41 @@
                 },
                 body: JSON.stringify({ reason })
             })
-            .then(response => response.json())
+            .then(response => {
+                // Handle non-200 responses
+                if (!response.ok) {
+                    return response.text().then(text => {
+                        try {
+                            const data = JSON.parse(text);
+                            throw new Error(data.error || data.message || 'Server error');
+                        } catch (e) {
+                            throw new Error(`Server returned ${response.status}: ${text.substring(0, 100)}`);
+                        }
+                    });
+                }
+                return response.json();
+            })
             .then(data => {
                 if (data.success) {
-                    showMessage(data.message, 'success');
-                    hideForm();
+                    // Hide the form but keep the message visible
+                    document.getElementById('formContainer').innerHTML = '';
+                    // Show success message
+                    showMessage(data.message || 'User suspended successfully!', 'success');
+                    // Close modal and reload after showing message
                     setTimeout(() => {
                         closeUserManagementModal();
                         location.reload();
-                    }, 1500);
+                    }, 2000);
                 } else {
-                    showMessage(data.error || 'Failed to suspend user', 'error');
+                    throw new Error(data.error || 'Failed to suspend user');
                 }
             })
             .catch(error => {
                 console.error('Error:', error);
-                showMessage('An error occurred while suspending the user', 'error');
+                showMessage(error.message || 'An error occurred while suspending the user', 'error');
+                // Restore button state
+                confirmBtn.disabled = false;
+                confirmBtn.innerHTML = originalBtnContent;
             });
         }
 
@@ -888,6 +916,18 @@
                 }
             }
 
+            // Show loading state
+            const confirmBtn = event.target;
+            const originalBtnContent = confirmBtn.innerHTML;
+            confirmBtn.disabled = true;
+            confirmBtn.innerHTML = `
+                <svg class="animate-spin h-5 w-5 inline mr-2" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Locking...
+            `;
+
             fetch(`/admin/users/${currentUserId}/lock`, {
                 method: 'POST',
                 headers: {
@@ -896,27 +936,49 @@
                 },
                 body: JSON.stringify({ duration, custom_duration: customDuration, reason })
             })
-            .then(response => response.json())
+            .then(response => {
+                // Handle non-200 responses
+                if (!response.ok) {
+                    return response.text().then(text => {
+                        try {
+                            const data = JSON.parse(text);
+                            throw new Error(data.error || data.message || 'Server error');
+                        } catch (e) {
+                            throw new Error(`Server returned ${response.status}: ${text.substring(0, 100)}`);
+                        }
+                    });
+                }
+                return response.json();
+            })
             .then(data => {
                 if (data.success) {
-                    showMessage(data.message, 'success');
-                    hideForm();
+                    // Hide the form but keep the message visible
+                    document.getElementById('formContainer').innerHTML = '';
+                    // Show success message
+                    showMessage(data.message || 'User locked successfully!', 'success');
+                    // Close modal and reload after showing message
                     setTimeout(() => {
                         closeUserManagementModal();
                         location.reload();
-                    }, 1500);
+                    }, 2000);
                 } else {
-                    showMessage(data.error || 'Failed to lock user', 'error');
+                    throw new Error(data.error || 'Failed to lock user');
                 }
             })
             .catch(error => {
                 console.error('Error:', error);
-                showMessage('An error occurred while locking the user', 'error');
+                showMessage(error.message || 'An error occurred while locking the user', 'error');
+                // Restore button state
+                confirmBtn.disabled = false;
+                confirmBtn.innerHTML = originalBtnContent;
             });
         }
 
         function unlockUser() {
             if (!confirm('Are you sure you want to unlock this user account?')) return;
+
+            // Show a temporary message that unlock is in progress
+            showMessage('Unlocking user account...', 'success');
 
             fetch(`/admin/users/${currentUserId}/unlock`, {
                 method: 'POST',
@@ -924,21 +986,36 @@
                     'X-CSRF-TOKEN': '{{ csrf_token() }}'
                 }
             })
-            .then(response => response.json())
+            .then(response => {
+                // Handle non-200 responses
+                if (!response.ok) {
+                    return response.text().then(text => {
+                        try {
+                            const data = JSON.parse(text);
+                            throw new Error(data.error || data.message || 'Server error');
+                        } catch (e) {
+                            throw new Error(`Server returned ${response.status}: ${text.substring(0, 100)}`);
+                        }
+                    });
+                }
+                return response.json();
+            })
             .then(data => {
                 if (data.success) {
-                    showMessage(data.message, 'success');
+                    // Show success message
+                    showMessage(data.message || 'User unlocked successfully!', 'success');
+                    // Close modal and reload after showing message
                     setTimeout(() => {
                         closeUserManagementModal();
                         location.reload();
-                    }, 1500);
+                    }, 2000);
                 } else {
-                    showMessage(data.error || 'Failed to unlock user', 'error');
+                    throw new Error(data.error || 'Failed to unlock user');
                 }
             })
             .catch(error => {
                 console.error('Error:', error);
-                showMessage('An error occurred while unlocking the user', 'error');
+                showMessage(error.message || 'An error occurred while unlocking the user', 'error');
             });
         }
 
@@ -991,9 +1068,11 @@
             });
         }
 
-        // Close modal on outside click
-        document.getElementById('userManagementModal')?.addEventListener('click', function(e) {
-            if (e.target === this) closeUserManagementModal();
+        // Close modal on Escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeUserManagementModal();
+            }
         });
     </script>
-</x-app-layout>
+</x-admin-layout>

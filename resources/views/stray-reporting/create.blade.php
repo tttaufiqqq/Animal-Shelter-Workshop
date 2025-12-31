@@ -1,5 +1,5 @@
 <!-- Modal Overlay -->
-<div id="reportModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4 overflow-y-auto">
+<div id="reportModal" class="hidden fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
     <div class="w-full max-w-4xl bg-white rounded-2xl shadow-2xl overflow-hidden my-8">
         <!-- Header Section -->
         <div class="bg-gradient-to-r from-purple-600 to-purple-700 text-white p-6 relative">
@@ -45,7 +45,10 @@
             </div>
         </div>
 
-        <!-- Validation Errors -->
+        <!-- Alert Container (Hidden by default, for AJAX responses) -->
+        <div id="reportModalAlert" class="hidden mx-6 mt-4"></div>
+
+        <!-- Validation Errors (kept for backward compatibility) -->
         @if ($errors->any())
             <div class="bg-red-50 border-l-4 border-red-400 p-4">
                 <div class="flex">
@@ -353,6 +356,35 @@
         }, 5000);
 
         return toast;
+    }
+
+    // Modal alert system (for report submission feedback)
+    function showReportModalAlert(type, message) {
+        const alertContainer = document.getElementById('reportModalAlert');
+        const isSuccess = type === 'success';
+
+        alertContainer.innerHTML = `
+            <div class="flex items-start gap-3 p-4 bg-${isSuccess ? 'green' : 'red'}-50 border border-${isSuccess ? 'green' : 'red'}-200 rounded-xl shadow-sm">
+                <svg class="w-6 h-6 text-${isSuccess ? 'green' : 'red'}-600 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    ${isSuccess
+                        ? '<path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />'
+                        : '<path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />'
+                    }
+                </svg>
+                <div class="flex-1">
+                    <p class="font-semibold text-${isSuccess ? 'green' : 'red'}-700">${message}</p>
+                </div>
+                <button onclick="document.getElementById('reportModalAlert').classList.add('hidden')" class="text-${isSuccess ? 'green' : 'red'}-600 hover:text-${isSuccess ? 'green' : 'red'}-800 transition">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+        `;
+        alertContainer.classList.remove('hidden');
+
+        // Scroll to alert
+        alertContainer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
 
     // Check if browser supports geolocation
@@ -764,7 +796,8 @@
 
     // Open modal
     function openReportModal() {
-        document.getElementById('reportModal').classList.remove('hidden');
+        const modal = document.getElementById('reportModal');
+        modal.classList.remove('hidden');
         document.body.style.overflow = 'hidden';
 
         // Check online status
@@ -787,7 +820,8 @@
 
     // Close modal
     function closeReportModal() {
-        document.getElementById('reportModal').classList.add('hidden');
+        const modal = document.getElementById('reportModal');
+        modal.classList.add('hidden');
         document.body.style.overflow = 'auto';
 
         // Stop location tracking
@@ -810,11 +844,15 @@
         document.getElementById('gpsBtn').disabled = false;
     }
 
-    // Form validation
+    // Form validation and submission
     document.addEventListener('DOMContentLoaded', function() {
         const form = document.getElementById('reportForm');
+        const alertContainer = document.getElementById('reportModalAlert');
+
         if (form) {
-            form.addEventListener('submit', function(e) {
+            form.addEventListener('submit', async function(e) {
+                e.preventDefault(); // Prevent default form submission
+
                 // Enable state field before submission
                 const stateField = document.getElementById('stateInput');
                 stateField.disabled = false;
@@ -823,17 +861,21 @@
                 const lng = document.getElementById('longitudeInput').value;
 
                 if (!lat || !lng) {
-                    e.preventDefault();
                     document.getElementById('mapError').classList.remove('hidden');
                     showToast('Please select a location on the map', 'error');
+                    showReportModalAlert('error', 'Please select a location on the map before submitting.');
                     stateField.disabled = true;
                     return false;
                 }
 
                 // Show loading spinner on submit button
                 const submitBtn = document.getElementById('submitBtn');
-                const submitBtnText = document.getElementById('submitBtnText');
+                const originalBtnContent = submitBtn.innerHTML;
                 const cancelBtn = document.getElementById('cancelBtn');
+
+                // Hide any existing alerts
+                alertContainer.classList.add('hidden');
+                alertContainer.innerHTML = '';
 
                 submitBtn.disabled = true;
                 cancelBtn.disabled = true;
@@ -848,7 +890,64 @@
 
                 showToast('Submitting your report...', 'info');
 
-                return true;
+                try {
+                    const formData = new FormData(form);
+                    const response = await fetch(form.action, {
+                        method: 'POST',
+                        body: formData,
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest',
+                        }
+                    });
+
+                    const data = await response.json();
+
+                    if (response.ok && data.success) {
+                        // Show success message
+                        showReportModalAlert('success', data.message || 'Report submitted successfully!');
+                        showToast('Report submitted successfully!', 'success');
+
+                        // Reset form after successful submission
+                        form.reset();
+                        document.getElementById('imagePreview').innerHTML = '';
+                        if (marker) map.removeLayer(marker);
+                        if (circle) map.removeLayer(circle);
+                        document.getElementById('latitudeInput').value = '';
+                        document.getElementById('longitudeInput').value = '';
+
+                        // Auto-hide success message and close modal after 2 seconds
+                        setTimeout(() => {
+                            alertContainer.classList.add('hidden');
+                            closeReportModal();
+                        }, 2000);
+                    } else {
+                        // Show error message
+                        let errorMessage = data.message || 'An error occurred while submitting your report.';
+
+                        // Handle validation errors
+                        if (data.errors) {
+                            errorMessage = '<ul class="list-disc list-inside">';
+                            for (const field in data.errors) {
+                                data.errors[field].forEach(error => {
+                                    errorMessage += `<li>${error}</li>`;
+                                });
+                            }
+                            errorMessage += '</ul>';
+                        }
+
+                        showReportModalAlert('error', errorMessage);
+                        showToast('Please fix the errors and try again', 'error');
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    showReportModalAlert('error', 'Network error. Please check your connection and try again.');
+                    showToast('Network error. Please try again.', 'error');
+                } finally {
+                    // Re-enable buttons and restore original text
+                    submitBtn.disabled = false;
+                    cancelBtn.disabled = false;
+                    submitBtn.innerHTML = originalBtnContent;
+                }
             });
         }
 
