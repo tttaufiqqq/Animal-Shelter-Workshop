@@ -6,6 +6,7 @@ use App\Http\Requests\ProfileUpdateRequest;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Redirect;
 use Illuminate\View\View;
@@ -114,13 +115,45 @@ class ProfileController extends Controller
     private function getAdminStats(): array
     {
         try {
-            // Cross-database statistics
-            $totalUsers = \App\Models\User::count();
+            // Get user account statistics using stored procedure
+            $userStats = DB::connection('taufiq')->select('SELECT * FROM get_user_account_stats()');
+            $userStats = $userStats[0] ?? null;
+
+            // Get adopter profile statistics using stored procedure
+            $adopterStats = DB::connection('taufiq')->select('SELECT * FROM get_adopter_profile_stats()');
+            $adopterStats = $adopterStats[0] ?? null;
+
+            // Get recent registrations (last 7 days)
+            $recentRegistrations = DB::connection('taufiq')->select('SELECT * FROM get_recent_registrations(7)');
+
+            // Get high-risk users
+            $highRiskUsers = DB::connection('taufiq')->select('SELECT * FROM get_high_risk_users(3)');
+
+            // Cross-database statistics (for other modules)
             $totalReports = \App\Models\Report::count();
             $totalAnimals = \App\Models\Animal::count();
 
             return [
-                'totalUsers' => $totalUsers,
+                // User statistics from stored procedure
+                'totalUsers' => $userStats->total_users ?? 0,
+                'activeUsers' => $userStats->active_users ?? 0,
+                'suspendedUsers' => $userStats->suspended_users ?? 0,
+                'lockedUsers' => $userStats->locked_users ?? 0,
+                'usersWithProfiles' => $userStats->users_with_profiles ?? 0,
+                'avgFailedLoginAttempts' => $userStats->avg_failed_login_attempts ?? 0,
+
+                // Adopter profile statistics from stored procedure
+                'totalAdopterProfiles' => $adopterStats->total_profiles ?? 0,
+                'profilesWithChildren' => $adopterStats->with_children ?? 0,
+                'profilesWithOtherPets' => $adopterStats->with_other_pets ?? 0,
+                'preferCats' => $adopterStats->prefer_cats ?? 0,
+                'preferDogs' => $adopterStats->prefer_dogs ?? 0,
+
+                // Recent activity
+                'recentRegistrations' => count($recentRegistrations),
+                'highRiskUsersCount' => count($highRiskUsers),
+
+                // Cross-database statistics
                 'totalReports' => $totalReports,
                 'totalAnimals' => $totalAnimals,
             ];
@@ -130,6 +163,18 @@ class ProfileController extends Controller
             // Return empty stats if there's an error
             return [
                 'totalUsers' => 0,
+                'activeUsers' => 0,
+                'suspendedUsers' => 0,
+                'lockedUsers' => 0,
+                'usersWithProfiles' => 0,
+                'avgFailedLoginAttempts' => 0,
+                'totalAdopterProfiles' => 0,
+                'profilesWithChildren' => 0,
+                'profilesWithOtherPets' => 0,
+                'preferCats' => 0,
+                'preferDogs' => 0,
+                'recentRegistrations' => 0,
+                'highRiskUsersCount' => 0,
                 'totalReports' => 0,
                 'totalAnimals' => 0,
             ];

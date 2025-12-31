@@ -57,6 +57,10 @@ class Dashboard extends Component
         // Booking Volume vs Average Value (Danish's database)
         $volumeVsValue = $this->getVolumeVsAverageValue();
 
+        // User Management Statistics (Taufiq's database - using stored procedures)
+        $userStats = $this->getUserManagementStats();
+        $auditSummary = $this->getAuditSummary();
+
         return view('livewire.dashboard', [
             'totalBookings' => $totalBookings,
             'successfulBookings' => $successfulBookings,
@@ -67,6 +71,8 @@ class Dashboard extends Component
             'bookingTypeBreakdown' => $bookingTypeBreakdown,
             'bookingsByMonth' => $bookingsByMonth,
             'volumeVsValue' => $volumeVsValue,
+            'userStats' => $userStats,
+            'auditSummary' => $auditSummary,
         ]);
     }
 
@@ -376,5 +382,71 @@ class Dashboard extends Component
                 'average_booking_value' => 0,
             ];
         }
+    }
+
+    /**
+     * Get user management statistics using PostgreSQL stored procedures
+     * From Taufiq's database
+     */
+    private function getUserManagementStats()
+    {
+        return $this->safeQuery(function() {
+            // Get user account statistics using stored procedure
+            $userStats = DB::connection('taufiq')->select('SELECT * FROM get_user_account_stats()');
+            $stats = $userStats[0] ?? null;
+
+            // Get adopter profile statistics using stored procedure
+            $adopterStats = DB::connection('taufiq')->select('SELECT * FROM get_adopter_profile_stats()');
+            $adopter = $adopterStats[0] ?? null;
+
+            // Get high-risk users count
+            $highRiskUsers = DB::connection('taufiq')->select('SELECT COUNT(*) as count FROM get_high_risk_users(3)');
+            $highRiskCount = $highRiskUsers[0]->count ?? 0;
+
+            return (object) [
+                'total_users' => $stats->total_users ?? 0,
+                'active_users' => $stats->active_users ?? 0,
+                'suspended_users' => $stats->suspended_users ?? 0,
+                'locked_users' => $stats->locked_users ?? 0,
+                'users_with_profiles' => $stats->users_with_profiles ?? 0,
+                'avg_failed_attempts' => $stats->avg_failed_login_attempts ?? 0,
+                'total_adopter_profiles' => $adopter->total_profiles ?? 0,
+                'high_risk_users' => $highRiskCount,
+            ];
+        }, (object) [
+            'total_users' => 0,
+            'active_users' => 0,
+            'suspended_users' => 0,
+            'locked_users' => 0,
+            'users_with_profiles' => 0,
+            'avg_failed_attempts' => 0,
+            'total_adopter_profiles' => 0,
+            'high_risk_users' => 0,
+        ], 'taufiq');
+    }
+
+    /**
+     * Get audit log summary using PostgreSQL stored procedure
+     * From Taufiq's database
+     */
+    private function getAuditSummary()
+    {
+        return $this->safeQuery(function() {
+            $results = DB::connection('taufiq')->select('SELECT * FROM get_audit_summary_by_category(30)');
+
+            return collect($results)->map(function($item) {
+                return (object) [
+                    'category' => $item->category,
+                    'total_actions' => $item->total_actions,
+                    'success_count' => $item->success_count,
+                    'failure_count' => $item->failure_count,
+                    'unique_users' => $item->unique_users,
+                    'most_common_action' => $item->most_common_action,
+                    'success_rate' => $item->total_actions > 0
+                        ? round(($item->success_count / $item->total_actions) * 100, 2)
+                        : 0,
+                ];
+            });
+        }, collect([]), 'taufiq');
     }
 }

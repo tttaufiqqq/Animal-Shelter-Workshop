@@ -17,6 +17,11 @@ use App\Http\Controllers\Admin\ShelterManagementController as AdminShelterManage
 Route::get('/rescue-map', [RescueMapController::class, 'index'])->name('rescue.map');
 Route::get('/api/rescue-clusters', [RescueMapController::class, 'getClusterData'])->name('rescue.clusters');
 
+// CSRF Token Refresh Route
+Route::get('/refresh-csrf', function () {
+    return response()->json(['token' => csrf_token()]);
+})->middleware('web');
+
 // Real-time database status API endpoint
 Route::get('/api/database-status', function (DatabaseConnectionChecker $checker) {
     $status = $checker->checkAll(true); // Use cache

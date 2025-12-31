@@ -18,14 +18,18 @@
             @endunlessrole
         @endhasanyrole
 
-        {{-- Adopter Actions (visible even if they are caretakers) --}}
-        @role('adopter')
-            <x-welcome.actions.adopter />
-        @endrole
+        {{-- Adopter Actions for Adopters and Public Users (purple) --}}
+        @hasanyrole('adopter|public user')
+            @unlessrole('caretaker')
+                <x-welcome.actions.adopter />
+            @endunlessrole
+        @endhasanyrole
 
         {{-- Caretaker Actions --}}
         @role('caretaker')
             <x-welcome.actions.caretaker />
+            {{-- Adopter Actions for Caretakers (teal version) --}}
+            <x-welcome.actions.adopter-caretaker />
         @endrole
 
         {{-- Admin Actions --}}
