@@ -94,11 +94,16 @@
             </div>
 
             <div class="flex gap-3 pt-4">
-                <button type="button" onclick="closeAnimalModal()" class="flex-1 px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-50 transition">
+                <button type="button" onclick="closeAnimalModal()" id="animalProfileCancelBtn" class="flex-1 px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-50 transition">
                     Cancel
                 </button>
-                <button type="submit" class="flex-1 px-6 py-3 bg-purple-500 text-white rounded-lg font-semibold hover:bg-purple-600 transition shadow-lg">
-                    Save Profile
+                <button type="submit" id="animalProfileSubmitBtn" class="flex-1 px-6 py-3 bg-purple-500 text-white rounded-lg font-semibold hover:bg-purple-600 transition shadow-lg flex items-center justify-center gap-2">
+                    <i class="fas fa-save" id="animalProfileSubmitIcon"></i>
+                    <span id="animalProfileSubmitText">Save Profile</span>
+                    <svg class="animate-spin h-5 w-5 text-white hidden" id="animalProfileSubmitSpinner" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
                 </button>
             </div>
         </form>
@@ -117,4 +122,36 @@
         document.getElementById('animalModal').classList.add('hidden');
         document.getElementById('animalModal').classList.remove('flex');
     }
+
+    // Animal Profile Form Loading State
+    document.addEventListener('DOMContentLoaded', function() {
+        const animalProfileForm = document.querySelector('#animalModal form');
+        if (animalProfileForm) {
+            animalProfileForm.addEventListener('submit', function(e) {
+                const submitBtn = document.getElementById('animalProfileSubmitBtn');
+                const submitText = document.getElementById('animalProfileSubmitText');
+                const submitIcon = document.getElementById('animalProfileSubmitIcon');
+                const submitSpinner = document.getElementById('animalProfileSubmitSpinner');
+                const cancelBtn = document.getElementById('animalProfileCancelBtn');
+
+                // Disable button and show loading state
+                submitBtn.disabled = true;
+                submitBtn.classList.add('opacity-75', 'cursor-not-allowed');
+                submitBtn.classList.remove('hover:bg-purple-600');
+
+                // Hide icon and text, show spinner
+                submitIcon.classList.add('hidden');
+                submitText.textContent = 'Saving...';
+                submitSpinner.classList.remove('hidden');
+
+                // Disable cancel button
+                cancelBtn.disabled = true;
+                cancelBtn.classList.add('opacity-50', 'cursor-not-allowed');
+
+                // Disable all form inputs
+                const inputs = animalProfileForm.querySelectorAll('input, select, textarea');
+                inputs.forEach(input => input.disabled = true);
+            });
+        }
+    });
 </script>

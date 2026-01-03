@@ -8,6 +8,7 @@ use App\Services\AuditService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
@@ -62,11 +63,8 @@ class AuthenticatedSessionController extends Controller
                 ]);
             }
 
-            // Reset failed login attempts on successful login
-            $user->update([
-                'failed_login_attempts' => 0,
-                'last_failed_login_at' => null,
-            ]);
+            // Reset failed login attempts on successful login using stored procedure
+            DB::connection('taufiq')->select('SELECT reset_failed_login_attempts(?)', [$user->id]);
 
             $request->session()->regenerate();
 
@@ -92,11 +90,19 @@ class AuthenticatedSessionController extends Controller
             } else {
                 $error = 'Invalid credentials';
 
-                // Increment failed login attempts for the user
+                // Increment failed login attempts for the user using stored procedure
                 $user = \App\Models\User::where('email', $request->email)->first();
                 if ($user) {
-                    $user->increment('failed_login_attempts');
-                    $user->update(['last_failed_login_at' => now()]);
+                    $result = DB::connection('taufiq')->select(
+                        'SELECT * FROM increment_failed_login_attempts(?)',
+                        [$user->id]
+                    );
+
+                    // Check if account was auto-locked by trigger
+                    if (!empty($result) && $result[0]->is_locked) {
+                        $error = 'Too many failed login attempts. Account locked until ' .
+                            $result[0]->locked_until_time;
+                    }
                 }
             }
 

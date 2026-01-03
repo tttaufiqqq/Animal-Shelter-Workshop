@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{{ $animal->name }} - Stray Animal Shelter</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
@@ -83,8 +84,6 @@
 </head>
 <body class="bg-gradient-to-br from-gray-50 to-gray-100 min-h-screen">
 @include('navbar')
-@include('adopter-animal-matching.animal-modal')
-
 
 <!-- Page Header -->
 <div class="bg-gradient-to-r from-purple-600 via-purple-700 to-purple-800 text-white py-6 shadow-xl">
@@ -126,11 +125,7 @@
                     <i class="fas fa-list text-lg group-hover:scale-110 transition-transform"></i>
                     <span class="hidden sm:inline font-semibold">Visit List</span>
                 </button>
-                @include('booking-adoption.visit-list')
             </div>
-
-            {{-- Include the edit modal --}}
-            @include('animal-management.edit-modal', ['animal' => $animal])
             @endrole
         </div>
     </div>
@@ -452,177 +447,6 @@
                 @endif
             </div>
 
-            <!-- Modal for Add Medical Record -->
-            <div id="medicalModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-                    <div class="bg-gradient-to-r from-blue-500 to-blue-600 text-white p-6">
-                        <div class="flex items-center justify-between">
-                            <h2 class="text-2xl font-bold">Add Medical Record</h2>
-                            <button onclick="closeMedicalModal()" class="text-white hover:text-gray-200">
-                                <i class="fas fa-times text-2xl"></i>
-                            </button>
-                        </div>
-                    </div>
-                    <form method="POST" action="{{ route('medical-records.store') }}" class="p-6 space-y-4">
-                        @csrf
-                        <input type="hidden" name="animalID" value="{{ $animal->id }}">
-
-                        <div>
-                            <label class="block text-gray-800 font-semibold mb-2">Treatment Type <span class="text-red-600">*</span></label>
-                            <select name="treatment_type" class="w-full border-gray-300 rounded-lg shadow-sm px-4 py-3 border focus:border-blue-500 focus:ring focus:ring-blue-200 transition" required>
-                                <option value="">Select Treatment Type</option>
-                                <option value="Checkup">Checkup</option>
-                                <option value="Surgery">Surgery</option>
-                                <option value="Emergency">Emergency</option>
-                                <option value="Dental">Dental</option>
-                                <option value="Other">Other</option>
-                            </select>
-                        </div>
-
-                        <div>
-                            <label class="block text-gray-800 font-semibold mb-2">
-                                Weight during treatment (kg) <span class="text-red-600">*</span>
-                            </label>
-                            <input
-                                type="number"
-                                name="weight"
-                                step="0.01"
-                                min="0"
-                                value="{{ old('weight', $animal->weight) }}"
-                                class="w-full border-gray-300 rounded-lg shadow-sm px-4 py-3 border focus:border-blue-500 focus:ring focus:ring-blue-200 transition"
-                                placeholder="Enter animal weight"
-                                required
-                            >
-                        </div>
-
-                        <div>
-                            <label class="block text-gray-800 font-semibold mb-2">Diagnosis <span class="text-red-600">*</span></label>
-                            <textarea name="diagnosis" rows="3" class="w-full border-gray-300 rounded-lg shadow-sm px-4 py-3 border focus:border-blue-500 focus:ring focus:ring-blue-200 transition" placeholder="Enter diagnosis" required></textarea>
-                        </div>
-
-                        <div>
-                            <label class="block text-gray-800 font-semibold mb-2">Action Taken <span class="text-red-600">*</span></label>
-                            <textarea name="action" rows="3" class="w-full border-gray-300 rounded-lg shadow-sm px-4 py-3 border focus:border-blue-500 focus:ring focus:ring-blue-200 transition" placeholder="Enter action taken" required></textarea>
-                        </div>
-
-                        <div>
-                            <label class="block text-gray-800 font-semibold mb-2">Remarks</label>
-                            <textarea name="remarks" rows="2" class="w-full border-gray-300 rounded-lg shadow-sm px-4 py-3 border focus:border-blue-500 focus:ring focus:ring-blue-200 transition" placeholder="Additional remarks (optional)"></textarea>
-                        </div>
-
-                        <div>
-                            <label class="block text-gray-800 font-semibold mb-2">Veterinarian <span class="text-red-600">*</span></label>
-                            <select name="vetID" class="w-full border-gray-300 rounded-lg shadow-sm px-4 py-3 border focus:border-blue-500 focus:ring focus:ring-blue-200 transition" required>
-                                <option value="">Select Veterinarian</option>
-                                @foreach($vets as $vet)
-                                    <option value="{{ $vet->id }}">{{ $vet->name }} - {{ $vet->specialization }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-
-                        <div>
-                            <label class="block text-gray-800 font-semibold mb-2">Cost (RM)</label>
-                            <input type="number" name="costs" step="0.01" min="0" class="w-full border-gray-300 rounded-lg shadow-sm px-4 py-3 border focus:border-blue-500 focus:ring focus:ring-blue-200 transition" placeholder="0.00">
-                        </div>
-
-                        <div class="flex justify-end gap-3 pt-4">
-                            <button type="button" onclick="closeMedicalModal()" class="px-6 py-3 bg-gray-200 text-gray-700 font-semibold rounded-lg hover:bg-gray-300 transition duration-300">
-                                Cancel
-                            </button>
-                            <button type="submit" class="px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-semibold rounded-lg hover:from-blue-600 hover:to-blue-700 transition duration-300">
-                                <i class="fas fa-plus mr-2"></i>Add Record
-                            </button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-
-            <!-- Modal for Add Vaccination -->
-            <div id="vaccinationModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-                    <div class="bg-gradient-to-r from-green-500 to-green-600 text-white p-6">
-                        <div class="flex items-center justify-between">
-                            <h2 class="text-2xl font-bold">Add Vaccination Record</h2>
-                            <button onclick="closeVaccinationModal()" class="text-white hover:text-gray-200">
-                                <i class="fas fa-times text-2xl"></i>
-                            </button>
-                        </div>
-                    </div>
-                    <form method="POST" action="{{ route('vaccination-records.store') }}" class="p-6 space-y-4">
-                        @csrf
-                        <input type="hidden" name="animalID" value="{{ $animal->id }}">
-
-                        <div>
-                            <label class="block text-gray-800 font-semibold mb-2">Vaccine Name <span class="text-red-600">*</span></label>
-                            <input type="text" name="name" class="w-full border-gray-300 rounded-lg shadow-sm px-4 py-3 border focus:border-green-500 focus:ring focus:ring-green-200 transition" placeholder="e.g., Rabies Vaccine" required>
-                        </div>
-
-                        <div>
-                            <label class="block text-gray-800 font-semibold mb-2">Vaccine Type <span class="text-red-600">*</span></label>
-                            <select name="type" class="w-full border-gray-300 rounded-lg shadow-sm px-4 py-3 border focus:border-green-500 focus:ring focus:ring-green-200 transition" required>
-                                <option value="">Select Type</option>
-                                <option value="Rabies">Rabies</option>
-                                <option value="DHPP">DHPP (Distemper, Hepatitis, Parvovirus, Parainfluenza)</option>
-                                <option value="Bordetella">Bordetella</option>
-                                <option value="Leptospirosis">Leptospirosis</option>
-                                <option value="Feline Distemper">Feline Distemper</option>
-                                <option value="Feline Leukemia">Feline Leukemia</option>
-                                <option value="Other">Other</option>
-                            </select>
-                        </div>
-
-                        <div>
-                            <label class="block text-gray-800 font-semibold mb-2">
-                                Weight during taking the vaccine (kg) <span class="text-red-600">*</span>
-                            </label>
-                            <input
-                                type="number"
-                                name="weight"
-                                step="0.01"
-                                min="0"
-                                value="{{ old('weight', $animal->weight) }}"
-                                class="w-full border-gray-300 rounded-lg shadow-sm px-4 py-3 border focus:border-blue-500 focus:ring focus:ring-blue-200 transition"
-                                placeholder="Enter animal weight"
-                                required
-                            >
-                        </div>
-
-                        <div>
-                            <label class="block text-gray-800 font-semibold mb-2">Next Due Date</label>
-                            <input type="date" name="next_due_date" class="w-full border-gray-300 rounded-lg shadow-sm px-4 py-3 border focus:border-green-500 focus:ring focus:ring-green-200 transition">
-                        </div>
-
-                        <div>
-                            <label class="block text-gray-800 font-semibold mb-2">Remarks</label>
-                            <textarea name="remarks" rows="3" class="w-full border-gray-300 rounded-lg shadow-sm px-4 py-3 border focus:border-green-500 focus:ring focus:ring-green-200 transition" placeholder="Additional notes (optional)"></textarea>
-                        </div>
-
-                        <div>
-                            <label class="block text-gray-800 font-semibold mb-2">Veterinarian <span class="text-red-600">*</span></label>
-                            <select name="vetID" class="w-full border-gray-300 rounded-lg shadow-sm px-4 py-3 border focus:border-green-500 focus:ring focus:ring-green-200 transition" required>
-                                <option value="">Select Veterinarian</option>
-                                @foreach($vets as $vet)
-                                    <option value="{{ $vet->id }}">{{ $vet->name }} - {{ $vet->specialization }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-
-                        <div>
-                            <label class="block text-gray-800 font-semibold mb-2">Cost (RM)</label>
-                            <input type="number" name="costs" step="0.01" min="0" class="w-full border-gray-300 rounded-lg shadow-sm px-4 py-3 border focus:border-green-500 focus:ring focus:ring-green-200 transition" placeholder="0.00">
-                        </div>
-
-                        <div class="flex justify-end gap-3 pt-4">
-                            <button type="button" onclick="closeVaccinationModal()" class="px-6 py-3 bg-gray-200 text-gray-700 font-semibold rounded-lg hover:bg-gray-300 transition duration-300">
-                                Cancel
-                            </button>
-                            <button type="submit" class="px-6 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white font-semibold rounded-lg hover:from-green-600 hover:to-green-700 transition duration-300">
-                                <i class="fas fa-plus mr-2"></i>Add Vaccination
-                            </button>
-                        </div>
-                    </form>
-                </div>
-            </div>
         </div>
 
         <!-- Right Column - Details -->
@@ -769,9 +593,6 @@
 
             </div>
 
-            @include('adopter-animal-matching.animal-modal')
-
-
             <!-- Location Card -->
             <div class="bg-white rounded-lg shadow-lg p-4">
                 <h2 class="text-lg font-bold text-gray-800 mb-3 flex items-center">
@@ -912,7 +733,13 @@
         </div>
     </div>
 </div>
-<!-- Include the booking modal -->
+
+{{-- Modals --}}
+@include('animal-management.edit-modal', ['animal' => $animal])
+@include('animal-management.modals.medical-record-modal')
+@include('animal-management.modals.vaccination-modal')
+@include('adopter-animal-matching.animal-modal')
+@include('booking-adoption.visit-list')
 @include('booking-adoption.book-animal')
 
 <script>
@@ -1060,6 +887,85 @@
             }
         });
     }
+
+    // ========================================
+    // CSRF Token Auto-Refresh & 419 Error Handler
+    // ========================================
+
+    // Refresh CSRF token every 30 minutes (before it expires)
+    setInterval(function() {
+        fetch('/refresh-csrf', {
+            method: 'GET',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.token) {
+                // Update meta tag
+                document.querySelector('meta[name="csrf-token"]').setAttribute('content', data.token);
+                // Update all CSRF input fields
+                document.querySelectorAll('input[name="_token"]').forEach(input => {
+                    input.value = data.token;
+                });
+                console.log('CSRF token refreshed successfully');
+            }
+        })
+        .catch(error => {
+            console.warn('Failed to refresh CSRF token:', error);
+        });
+    }, 1800000); // 30 minutes
+
+    // Handle 419 errors globally
+    window.addEventListener('error', function(e) {
+        if (e.message && e.message.includes('419')) {
+            showSessionExpiredModal();
+        }
+    }, true);
+
+    // Show session expired modal
+    function showSessionExpiredModal() {
+        const existingModal = document.getElementById('sessionExpiredModal');
+        if (existingModal) return;
+
+        const modalHTML = `
+            <div id="sessionExpiredModal" class="fixed inset-0 bg-black bg-opacity-75 backdrop-blur-md flex items-center justify-center z-[9999]">
+                <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4 overflow-hidden animate-bounce-in">
+                    <div class="bg-gradient-to-r from-red-500 to-red-600 text-white p-6 text-center">
+                        <div class="inline-flex items-center justify-center w-16 h-16 bg-white rounded-full mb-4">
+                            <i class="fas fa-exclamation-triangle text-red-500 text-3xl"></i>
+                        </div>
+                        <h2 class="text-2xl font-bold">Session Expired</h2>
+                    </div>
+                    <div class="p-6 text-center">
+                        <p class="text-gray-700 mb-2 font-semibold">Your session has expired due to inactivity.</p>
+                        <p class="text-gray-600 text-sm mb-6">Please refresh the page to continue.</p>
+                        <button onclick="location.reload()" class="w-full bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-bold py-3 px-6 rounded-lg transition-all duration-300 shadow-lg hover:shadow-xl flex items-center justify-center gap-2">
+                            <i class="fas fa-sync-alt"></i>
+                            Refresh Page
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.insertAdjacentHTML('beforeend', modalHTML);
+    }
+
+    // Detect 419 on form submissions
+    document.addEventListener('DOMContentLoaded', function() {
+        const forms = document.querySelectorAll('form[method="POST"]');
+        forms.forEach(form => {
+            form.addEventListener('submit', function(e) {
+                const token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+                const tokenInput = form.querySelector('input[name="_token"]');
+                if (tokenInput) {
+                    tokenInput.value = token;
+                }
+            });
+        });
+    });
 </script>
 </body>
 </html>

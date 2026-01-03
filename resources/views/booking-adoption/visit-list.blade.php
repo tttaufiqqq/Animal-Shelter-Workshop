@@ -270,6 +270,7 @@
                     <div class="flex gap-3 pt-4">
                         <button type="button"
                                 onclick="closeVisitModal()"
+                                id="visitCancelBtn"
                                 class="flex-1 px-6 py-4 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-xl transition-all duration-200 flex items-center justify-center gap-2 border-2 border-gray-200">
                             <i class="fas fa-arrow-left"></i>
                             Continue Browsing
@@ -278,8 +279,12 @@
                                 id="confirmBookingBtn"
                                 disabled
                                 class="flex-1 px-6 py-4 bg-gray-300 text-gray-500 font-bold rounded-xl shadow-lg transition-all duration-200 flex items-center justify-center gap-2 cursor-not-allowed">
-                            <i class="fas fa-check-circle"></i>
-                            Confirm Visit Booking
+                            <i class="fas fa-check-circle" id="visitSubmitIcon"></i>
+                            <span id="visitSubmitText">Confirm Visit Booking</span>
+                            <svg class="animate-spin h-5 w-5 text-white hidden" id="visitSubmitSpinner" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
                         </button>
                     </div>
                 </form>
@@ -381,6 +386,31 @@
                     } else if(!appointmentTime.value) {
                         appointmentTime.focus();
                     }
+                } else {
+                    // Show loading state
+                    const submitBtn = document.getElementById('confirmBookingBtn');
+                    const submitText = document.getElementById('visitSubmitText');
+                    const submitIcon = document.getElementById('visitSubmitIcon');
+                    const submitSpinner = document.getElementById('visitSubmitSpinner');
+                    const cancelBtn = document.getElementById('visitCancelBtn');
+
+                    // Disable button and show loading state
+                    submitBtn.disabled = true;
+                    submitBtn.classList.add('opacity-75');
+                    submitBtn.classList.remove('hover:from-purple-700', 'hover:to-purple-800', 'hover:shadow-xl', 'hover:scale-105');
+
+                    // Hide icon and text, show spinner
+                    submitIcon.classList.add('hidden');
+                    submitText.textContent = 'Processing...';
+                    submitSpinner.classList.remove('hidden');
+
+                    // Disable cancel button
+                    cancelBtn.disabled = true;
+                    cancelBtn.classList.add('opacity-50', 'cursor-not-allowed');
+
+                    // Disable all form inputs
+                    const inputs = form.querySelectorAll('input, select, textarea, button[type="button"]');
+                    inputs.forEach(input => input.disabled = true);
                 }
             });
         }
