@@ -19,6 +19,15 @@ Schedule::command('db:refresh-status --silent')
     ->withoutOverlapping()
     ->runInBackground();
 
+// Refresh Taufiq Materialized Views - Every 5 Minutes
+// This keeps dashboard stats up-to-date without expensive real-time aggregations
+Schedule::command('taufiq:refresh-stats')
+    ->everyFiveMinutes()
+    ->name('refresh-taufiq-stats')
+    ->description('Refresh materialized views for user and adopter statistics')
+    ->withoutOverlapping()
+    ->runInBackground();
+
 // Weekly Database Backup - Every Sunday at 12:00 AM (Midnight)
 Schedule::call(function () {
     $connections = [
