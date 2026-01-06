@@ -36,10 +36,57 @@ class AnimalManagementController extends Controller
     public function getMatches()
     {
         try {
+            // Set maximum execution time to 25 seconds (less than frontend's 30s timeout)
+            set_time_limit(25);
+
             $user = Auth::user();
 
-            // Get adopter profile
-            $adopterProfile = AdopterProfile::where('adopterID', $user->id)->first();
+            Log::info('Starting match calculation', ['user_id' => $user->id]);
+
+            // OPTIMIZED: Check all databases ONCE using existing cache (don't clear)
+            // This prevents multiple 5-second timeouts per database
+            // Only do fresh check if request explicitly asks for it
+            $forceRefresh = request()->has('force_refresh');
+
+            if ($forceRefresh) {
+                Log::info('Force refresh requested - clearing database cache');
+                $checker = app(\App\Services\DatabaseConnectionChecker::class);
+                $checker->clearCache();
+            }
+
+            // Check if required databases are available (uses cache if available)
+            if (!$this->isDatabaseAvailable('taufiq')) {
+                Log::warning('Taufiq database unavailable during match check');
+                return response()->json([
+                    'success' => false,
+                    'message' => 'User database is currently offline. Please try again later.'
+                ], 503);
+            }
+
+            if (!$this->isDatabaseAvailable('shafiqah')) {
+                Log::warning('Shafiqah database unavailable during match check');
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Animal database is currently offline. Please try again later.'
+                ], 503);
+            }
+
+            // CRITICAL FIX: Check eilya ONCE at the start (not inside loop)
+            // Use cached status to avoid repeated 5-second timeouts
+            $isEilyaAvailable = $this->isDatabaseAvailable('eilya');
+
+            Log::info('Database availability check complete', [
+                'taufiq' => true,
+                'shafiqah' => true,
+                'eilya' => $isEilyaAvailable
+            ]);
+
+            // Get adopter profile using safeQuery with timeout protection
+            $adopterProfile = $this->safeQuery(
+                fn() => AdopterProfile::where('adopterID', $user->id)->first(),
+                null,
+                'taufiq'
+            );
 
             if (!$adopterProfile) {
                 return response()->json([
@@ -48,33 +95,130 @@ class AnimalManagementController extends Controller
                 ]);
             }
 
-            // Get available animals with their profiles
-            // Using eager loading for better performance
-            $animals = Animal::with(['profile', 'images'])
-                ->whereIn('adoption_status', ['Not Adopted', 'not adopted'])
-                ->limit(50) // Limit for performance
-                ->get();
+            Log::info('Adopter profile found', ['profile_id' => $adopterProfile->id]);
 
-            // Filter animals with profiles at application layer
-            $animalsWithProfiles = $animals->filter(function($animal) {
-                return $animal->profile !== null;
-            });
+            // PERFORMANCE FIX: Cache the query results for 5 minutes to prevent repeated slow queries
+            $cacheKey = "animal_matches_user_{$user->id}";
+            $cacheDuration = 300; // 5 minutes
+
+            // Check if we have cached matches (unless force_refresh is requested)
+            if (!$forceRefresh && \Cache::has($cacheKey)) {
+                $cachedMatches = \Cache::get($cacheKey);
+                Log::info('Returning cached matches', ['count' => count($cachedMatches)]);
+
+                return response()->json([
+                    'success' => true,
+                    'matches' => $cachedMatches,
+                    'cached' => true,
+                ]);
+            }
+
+            // PERFORMANCE FIX: Limit to 20 animals instead of 50 to prevent timeout
+            // OPTIMIZATION: Use whereHas to only fetch animals that have profiles (prevents wasted queries)
+            // OPTIMIZATION: Only select needed columns to reduce data transfer
+            $animals = $this->safeQuery(
+                fn() => Animal::with(['profile' => function($query) {
+                        // Only fetch needed profile columns
+                        $query->select('id', 'animalID', 'size', 'energy_level', 'temperament', 'good_with_kids', 'good_with_pets');
+                    }])
+                    ->select('id', 'name', 'species', 'age', 'gender', 'adoption_status')
+                    ->whereIn('adoption_status', ['Not Adopted', 'not adopted'])
+                    ->whereHas('profile') // Only fetch animals that have profiles
+                    ->limit(20) // REDUCED from 50 to 20 for faster response
+                    ->get(),
+                collect([]),
+                'shafiqah'
+            );
+
+            Log::info('Animals fetched from database', ['count' => $animals->count()]);
+
+            // All animals now have profiles due to whereHas
+            $animalsWithProfiles = $animals;
+
+            // Log if no animals have profiles
+            if ($animalsWithProfiles->isEmpty()) {
+                Log::info('No animals with profiles found for matching', [
+                    'total_animals' => $animals->count(),
+                    'animals_with_profiles' => 0,
+                    'user_id' => $user->id
+                ]);
+
+                return response()->json([
+                    'success' => true,
+                    'matches' => []
+                ]);
+            }
+
+            Log::info('Animals available for matching', [
+                'total_animals' => $animals->count(),
+                'animals_with_profiles' => $animalsWithProfiles->count(),
+                'user_id' => $user->id
+            ]);
 
             // Calculate match scores
             $matches = [];
+
             foreach ($animalsWithProfiles as $animal) {
-                $score = $this->calculateMatchScore($adopterProfile, $animal->profile);
-                $matches[] = [
-                    'id' => $animal->id,
-                    'name' => $animal->name,
-                    'species' => $animal->species,
-                    'age' => $animal->age,
-                    'gender' => $animal->gender,
-                    'image' => $animal->images->first()?->url ?? null,
-                    'score' => $score,
-                    'match_details' => $this->getMatchDetails($adopterProfile, $animal->profile)
-                ];
+                try {
+                    // CRITICAL FIX: Pass $animal to avoid N+1 query problem
+                    // (accessing $animalProfile->animal inside causes 20 separate DB queries!)
+                    $score = $this->calculateMatchScore($adopterProfile, $animal->profile, $animal);
+
+                    // DEBUG: Log matching details for first few animals
+                    if (count($matches) < 3) {
+                        Log::info("Matching animal #{$animal->id}", [
+                            'animal_name' => $animal->name,
+                            'animal_species' => $animal->species,
+                            'profile_exists' => $animal->profile ? 'yes' : 'no',
+                            'adopter_preferred_species' => $adopterProfile->preferred_species ?? 'null',
+                            'adopter_preferred_size' => $adopterProfile->preferred_size ?? 'null',
+                            'animal_size' => $animal->profile->size ?? 'null',
+                            'match_score' => $score
+                        ]);
+                    }
+
+                    // OPTIMIZED: Skip images entirely if eilya is offline
+                    // This prevents any image-related delays
+                    $imageUrl = null;
+                    if ($isEilyaAvailable) {
+                        try {
+                            // Simple query - eilya is already confirmed available
+                            $firstImage = $animal->images()->first();
+                            $imageUrl = $firstImage?->url ?? null;
+                        } catch (\Exception $e) {
+                            // If individual image query fails, log it but continue
+                            Log::warning("Failed to load image for animal {$animal->id}: " . $e->getMessage());
+                            $imageUrl = null;
+                        }
+                    }
+
+                    $matchDetails = $this->getMatchDetails($adopterProfile, $animal->profile, $animal);
+
+                    $matches[] = [
+                        'id' => $animal->id,
+                        'name' => $animal->name,
+                        'species' => $animal->species,
+                        'age' => $animal->age,
+                        'gender' => $animal->gender,
+                        'image' => $imageUrl,
+                        'score' => $score,
+                        'match_details' => $matchDetails
+                    ];
+
+                } catch (\Exception $e) {
+                    Log::error("Error matching animal #{$animal->id}: " . $e->getMessage(), [
+                        'animal_id' => $animal->id,
+                        'trace' => $e->getTraceAsString()
+                    ]);
+                    // Continue to next animal instead of breaking entire process
+                    continue;
+                }
             }
+
+            Log::info('Match calculation completed', [
+                'matches_count' => count($matches),
+                'sample_scores' => array_slice(array_column($matches, 'score'), 0, 5)
+            ]);
 
             // Sort by score (highest first)
             usort($matches, function($a, $b) {
@@ -84,6 +228,22 @@ class AnimalManagementController extends Controller
             // Get top 5 matches
             $topMatches = array_slice($matches, 0, 5);
 
+            Log::info('Returning matches to frontend', [
+                'total_matches' => count($matches),
+                'top_5_count' => count($topMatches),
+                'top_match_scores' => array_column($topMatches, 'score'),
+                'top_match_names' => array_column($topMatches, 'name')
+            ]);
+
+            // Cache the results for 5 minutes to improve performance on subsequent requests
+            try {
+                \Cache::put($cacheKey, $topMatches, $cacheDuration);
+                Log::info('Cached matches for user', ['cache_key' => $cacheKey, 'duration' => $cacheDuration]);
+            } catch (\Exception $e) {
+                // If caching fails, just log it and continue (not critical)
+                Log::warning('Failed to cache matches: ' . $e->getMessage());
+            }
+
             return response()->json([
                 'success' => true,
                 'matches' => $topMatches
@@ -92,7 +252,8 @@ class AnimalManagementController extends Controller
         } catch (\Exception $e) {
             Log::error('Match calculation error: ' . $e->getMessage(), [
                 'exception' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
+                'user_id' => Auth::id()
             ]);
             return response()->json([
                 'success' => false,
@@ -101,13 +262,17 @@ class AnimalManagementController extends Controller
         }
     }
 
-    private function calculateMatchScore($adopterProfile, $animalProfile)
+    private function calculateMatchScore($adopterProfile, $animalProfile, $animal)
     {
         $score = 0;
         $maxScore = 100;
 
         // Species match (20 points)
-        if ($adopterProfile->preferred_species === $animalProfile->animal->species) {
+        // FIXED: Use passed $animal instead of $animalProfile->animal (prevents N+1 query)
+        if ($adopterProfile->preferred_species === $animal->species) {
+            $score += 20;
+        } elseif ($adopterProfile->preferred_species === 'both') {
+            // "both" means no preference, give some points
             $score += 20;
         }
 
@@ -178,15 +343,16 @@ class AnimalManagementController extends Controller
         return 10; // Default
     }
 
-    private function getMatchDetails($adopterProfile, $animalProfile)
+    private function getMatchDetails($adopterProfile, $animalProfile, $animal)
     {
         $details = [];
 
-        if ($adopterProfile->preferred_species === $animalProfile->animal->species) {
+        // FIXED: Use passed $animal instead of $animalProfile->animal (prevents N+1 query)
+        if ($adopterProfile->preferred_species === $animal->species || $adopterProfile->preferred_species === 'both') {
             $details[] = "Matches your preferred species";
         }
 
-        if ($adopterProfile->preferred_size === $animalProfile->size) {
+        if ($adopterProfile->preferred_size === $animalProfile->size || $adopterProfile->preferred_size === 'any') {
             $details[] = "Perfect size match";
         }
 
@@ -309,8 +475,8 @@ class AnimalManagementController extends Controller
 
         $uploadedFiles = [];
 
-        // Start transactions on both databases involved
-        DB::connection('shafiqah')->beginTransaction();  // Animal database
+        // NOTE: shafiqah transaction removed - sp_animal_create stored procedure handles its own transaction
+        // Only manage eilya transaction for Image operations (direct Eloquent)
         DB::connection('eilya')->beginTransaction();      // Image database
 
         try {
@@ -375,8 +541,7 @@ class AnimalManagementController extends Controller
                 }
             }
 
-            // Commit both transactions
-            DB::connection('shafiqah')->commit();
+            // Commit eilya transaction (shafiqah handled by stored procedure)
             DB::connection('eilya')->commit();
 
             // Note: Audit logging now handled by database triggers
@@ -385,8 +550,7 @@ class AnimalManagementController extends Controller
                 ->with('success', 'Animal "' . $validated['name'] . '" added successfully with ' . count($request->file('images') ?? []) . ' image(s)! Do you want to add another animal? If so, please fill all the required fields again.');
 
         } catch (\Exception $e) {
-            // Rollback both database transactions
-            DB::connection('shafiqah')->rollBack();
+            // Rollback eilya transaction (shafiqah handled by stored procedure)
             DB::connection('eilya')->rollBack();
 
             foreach ($uploadedFiles as $filePath) {
@@ -423,8 +587,8 @@ public function update(Request $request, $id)
         'delete_images.*' => 'exists:eilya.image,id',      // Cross-database: Image on eilya
     ]);
 
-    // Start transactions on both databases involved
-    DB::connection('shafiqah')->beginTransaction();  // Animal database
+    // NOTE: shafiqah transaction removed - sp_animal_update stored procedure handles its own transaction
+    // Only manage eilya transaction for Image operations (direct Eloquent)
     DB::connection('eilya')->beginTransaction();      // Image database
 
    try {
@@ -530,8 +694,7 @@ public function update(Request $request, $id)
             ]);
         }
 
-        // Commit both transactions
-        DB::connection('shafiqah')->commit();
+        // Commit eilya transaction (shafiqah handled by stored procedure)
         DB::connection('eilya')->commit();
 
         \Log::info('UPDATE SUCCESSFUL', [
@@ -543,8 +706,7 @@ public function update(Request $request, $id)
         return redirect()->back()->with('success', 'Animal updated successfully!');
 
     } catch (\Exception $e) {
-        // Rollback both database transactions
-        DB::connection('shafiqah')->rollBack();
+        // Rollback eilya transaction (shafiqah handled by stored procedure)
         DB::connection('eilya')->rollBack();
 
         \Log::error('UPDATE FAILED', [
@@ -687,7 +849,7 @@ public function update(Request $request, $id)
         }
 
         if ($atiqahOnline) {
-            $with[] = 'slot';
+            $with[] = 'slot.section';  // Load nested relationship to prevent lazy loading
         }
 
         // bookings are on danish database
@@ -710,6 +872,10 @@ public function update(Request $request, $id)
 
         // Add flag to indicate if images are available
         $imagesAvailable = $eilyaOnline && $animal->relationLoaded('images');
+
+        // Get images collection for view (empty if not available)
+        $animalImages = $imagesAvailable ? $animal->images : collect([]);
+        $hasImages = $animalImages->isNotEmpty();
 
         $medicals = $this->safeQuery(
             fn() => Medical::with('vet')->where('animalID', $id)->get(),
@@ -762,6 +928,7 @@ public function update(Request $request, $id)
 
         // Get all active bookings for this animal (Pending or Confirmed) - only if danish database is online
         $activeBookings = collect([]);
+        $activeBooking = null;
         if ($danishOnline && $animal->relationLoaded('bookings')) {
             $activeBookings = $animal->bookings
                 ->whereIn('status', ['Pending', 'Confirmed'])
@@ -769,6 +936,9 @@ public function update(Request $request, $id)
                     ['appointment_date', 'asc'],
                     ['appointment_time', 'asc'],
                 ]);
+
+            // Get the first active booking for the page header
+            $activeBooking = $activeBookings->first();
         }
 
         $animalProfile = $this->safeQuery(
@@ -805,7 +975,25 @@ public function update(Request $request, $id)
             }, collect([]), 'danish');
         }
 
-        return view('animal-management.show', compact('animal', 'vets', 'medicals', 'vaccinations', 'slots', 'bookedSlots', 'animalProfile', 'animalList', 'activeBookings', 'imagesAvailable'));
+        // Pass database availability status to view for graceful degradation
+        return view('animal-management.show', compact(
+            'animal',
+            'vets',
+            'medicals',
+            'vaccinations',
+            'slots',
+            'bookedSlots',
+            'animalProfile',
+            'animalList',
+            'activeBookings',
+            'activeBooking',
+            'imagesAvailable',
+            'animalImages',
+            'hasImages',
+            'eilyaOnline',
+            'atiqahOnline',
+            'danishOnline'
+        ));
     }
 
     public function assignSlot(Request $request, $animalId)
@@ -886,8 +1074,8 @@ public function update(Request $request, $id)
         $eilyaOnline = $this->isDatabaseAvailable('eilya');
         $atiqahOnline = $this->isDatabaseAvailable('atiqah');
 
-        // Start transactions on databases involved
-        DB::connection('shafiqah')->beginTransaction();  // Animal database
+        // NOTE: shafiqah transaction removed - sp_animal_delete stored procedure handles its own transaction
+        // Only manage eilya and atiqah transactions for Image/Slot operations (direct Eloquent)
 
         if ($eilyaOnline) {
             DB::connection('eilya')->beginTransaction();  // Image database
@@ -957,9 +1145,7 @@ public function update(Request $request, $id)
                 }
             }
 
-            // Commit all transactions
-            DB::connection('shafiqah')->commit();
-
+            // Commit transactions (shafiqah handled by stored procedure)
             if ($eilyaOnline) {
                 DB::connection('eilya')->commit();
             }
@@ -979,9 +1165,7 @@ public function update(Request $request, $id)
                 ->with('success', $message);
 
         } catch (\Exception $e) {
-            // Rollback all database transactions
-            DB::connection('shafiqah')->rollBack();
-
+            // Rollback transactions (shafiqah handled by stored procedure)
             if ($eilyaOnline) {
                 DB::connection('eilya')->rollBack();
             }

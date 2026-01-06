@@ -1,5 +1,5 @@
 <!-- Modal for Add Medical Record -->
-<div id="medicalModal" class="hidden fixed inset-0 bg-black bg-opacity-50 backdrop-blur-md flex items-center justify-center z-50 p-4">
+<div id="medicalModal" class="hidden fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-[9999] p-4">
     <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         <div class="bg-gradient-to-r from-blue-500 to-blue-600 text-white p-6">
             <div class="flex items-center justify-between">
@@ -72,52 +72,13 @@
             </div>
 
             <div class="flex justify-end gap-3 pt-4">
-                <button type="button" onclick="closeMedicalModal()" id="medicalCancelBtn" class="px-6 py-3 bg-gray-200 text-gray-700 font-semibold rounded-lg hover:bg-gray-300 transition duration-300">
+                <button type="button" onclick="closeMedicalModal()" class="px-6 py-3 bg-gray-200 text-gray-700 font-semibold rounded-lg hover:bg-gray-300 transition duration-300">
                     Cancel
                 </button>
-                <button type="submit" id="medicalSubmitBtn" class="px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-semibold rounded-lg hover:from-blue-600 hover:to-blue-700 transition duration-300 flex items-center gap-2">
-                    <i class="fas fa-plus" id="medicalSubmitIcon"></i>
-                    <span id="medicalSubmitText">Add Record</span>
-                    <svg class="animate-spin h-5 w-5 text-white hidden" id="medicalSubmitSpinner" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
+                <button type="submit" class="px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-semibold rounded-lg hover:from-blue-600 hover:to-blue-700 transition duration-300">
+                    <i class="fas fa-plus mr-2"></i>Add Record
                 </button>
             </div>
         </form>
     </div>
 </div>
-
-<script>
-    // Medical Record Form Loading State
-    document.addEventListener('DOMContentLoaded', function() {
-        const medicalForm = document.querySelector('#medicalModal form');
-        if (medicalForm) {
-            medicalForm.addEventListener('submit', function(e) {
-                const submitBtn = document.getElementById('medicalSubmitBtn');
-                const submitText = document.getElementById('medicalSubmitText');
-                const submitIcon = document.getElementById('medicalSubmitIcon');
-                const submitSpinner = document.getElementById('medicalSubmitSpinner');
-                const cancelBtn = document.getElementById('medicalCancelBtn');
-
-                // Disable button and show loading state
-                submitBtn.disabled = true;
-                submitBtn.classList.add('opacity-75', 'cursor-not-allowed');
-                submitBtn.classList.remove('hover:from-blue-600', 'hover:to-blue-700');
-
-                // Hide icon and text, show spinner
-                submitIcon.classList.add('hidden');
-                submitText.textContent = 'Saving...';
-                submitSpinner.classList.remove('hidden');
-
-                // Disable cancel button
-                cancelBtn.disabled = true;
-                cancelBtn.classList.add('opacity-50', 'cursor-not-allowed');
-
-                // Disable all form inputs
-                const inputs = medicalForm.querySelectorAll('input, select, textarea');
-                inputs.forEach(input => input.disabled = true);
-            });
-        }
-    });
-</script>

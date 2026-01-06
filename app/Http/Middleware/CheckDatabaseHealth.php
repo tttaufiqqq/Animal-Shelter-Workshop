@@ -13,31 +13,17 @@ class CheckDatabaseHealth
     /**
      * Databases to check for existence.
      * IMPORTANT: ONLY check the 5 main distributed databases.
-     * NEVER check the 'backup' database - it's independent and should always be available.
      *
      * @var array
      */
     protected $connections = ['eilya', 'atiqah', 'shafiqah', 'danish', 'taufiq'];
 
     /**
-     * Databases to EXCLUDE from checking (backup system database).
-     *
-     * @var array
-     */
-    protected $excludedConnections = ['backup'];
-
-    /**
      * Routes that should bypass database health check.
      *
      * @var array
      */
-    protected $excludedRoutes = [
-        'backup-login',
-        'backup-login-submit',
-        'backup-dashboard',
-        'backup-logout',
-        'backup-all-databases',
-    ];
+    protected $excludedRoutes = [];
 
     /**
      * Cache duration in seconds (5 minutes).
@@ -53,7 +39,7 @@ class CheckDatabaseHealth
      */
     public function handle(Request $request, Closure $next): Response
     {
-        // Skip check if already on backup routes
+        // Skip check if on excluded routes
         if ($this->isExcludedRoute($request)) {
             return $next($request);
         }
@@ -64,10 +50,6 @@ class CheckDatabaseHealth
         if (!empty($nonExistentDatabases)) {
             // Store unavailable databases in session
             session(['unavailable_databases' => $nonExistentDatabases]);
-
-            // Redirect to backup login page
-            return redirect()->route('backup-login')
-                ->with('error', 'Some databases are unavailable. Please login to the backup system.');
         }
 
         return $next($request);
@@ -95,8 +77,7 @@ class CheckDatabaseHealth
     {
         $currentRoute = $request->route()?->getName();
 
-        return in_array($currentRoute, $this->excludedRoutes) ||
-               str_starts_with($request->path(), 'backup-');
+        return in_array($currentRoute, $this->excludedRoutes);
     }
 
     /**
@@ -109,12 +90,6 @@ class CheckDatabaseHealth
         $nonExistentDatabases = [];
 
         foreach ($this->connections as $connection) {
-            // Safeguard: Skip backup database (should never happen, but double-check)
-            if (in_array($connection, $this->excludedConnections)) {
-                \Log::debug("Skipping '{$connection}' database check (excluded)");
-                continue;
-            }
-
             try {
                 // Get the expected database name from config
                 $expectedDatabase = config("database.connections.{$connection}.database");

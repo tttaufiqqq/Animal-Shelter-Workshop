@@ -1,5 +1,5 @@
 <!-- Modal for Add Vaccination -->
-<div id="vaccinationModal" class="hidden fixed inset-0 bg-black bg-opacity-50 backdrop-blur-md flex items-center justify-center z-50 p-4">
+<div id="vaccinationModal" class="hidden fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-[9999] p-4">
     <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         <div class="bg-gradient-to-r from-green-500 to-green-600 text-white p-6">
             <div class="flex items-center justify-between">
@@ -74,52 +74,13 @@
             </div>
 
             <div class="flex justify-end gap-3 pt-4">
-                <button type="button" onclick="closeVaccinationModal()" id="vaccinationCancelBtn" class="px-6 py-3 bg-gray-200 text-gray-700 font-semibold rounded-lg hover:bg-gray-300 transition duration-300">
+                <button type="button" onclick="closeVaccinationModal()" class="px-6 py-3 bg-gray-200 text-gray-700 font-semibold rounded-lg hover:bg-gray-300 transition duration-300">
                     Cancel
                 </button>
-                <button type="submit" id="vaccinationSubmitBtn" class="px-6 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white font-semibold rounded-lg hover:from-green-600 hover:to-green-700 transition duration-300 flex items-center gap-2">
-                    <i class="fas fa-plus" id="vaccinationSubmitIcon"></i>
-                    <span id="vaccinationSubmitText">Add Vaccination</span>
-                    <svg class="animate-spin h-5 w-5 text-white hidden" id="vaccinationSubmitSpinner" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
+                <button type="submit" class="px-6 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white font-semibold rounded-lg hover:from-green-600 hover:to-green-700 transition duration-300">
+                    <i class="fas fa-plus mr-2"></i>Add Vaccination
                 </button>
             </div>
         </form>
     </div>
 </div>
-
-<script>
-    // Vaccination Form Loading State
-    document.addEventListener('DOMContentLoaded', function() {
-        const vaccinationForm = document.querySelector('#vaccinationModal form');
-        if (vaccinationForm) {
-            vaccinationForm.addEventListener('submit', function(e) {
-                const submitBtn = document.getElementById('vaccinationSubmitBtn');
-                const submitText = document.getElementById('vaccinationSubmitText');
-                const submitIcon = document.getElementById('vaccinationSubmitIcon');
-                const submitSpinner = document.getElementById('vaccinationSubmitSpinner');
-                const cancelBtn = document.getElementById('vaccinationCancelBtn');
-
-                // Disable button and show loading state
-                submitBtn.disabled = true;
-                submitBtn.classList.add('opacity-75', 'cursor-not-allowed');
-                submitBtn.classList.remove('hover:from-green-600', 'hover:to-green-700');
-
-                // Hide icon and text, show spinner
-                submitIcon.classList.add('hidden');
-                submitText.textContent = 'Saving...';
-                submitSpinner.classList.remove('hidden');
-
-                // Disable cancel button
-                cancelBtn.disabled = true;
-                cancelBtn.classList.add('opacity-50', 'cursor-not-allowed');
-
-                // Disable all form inputs
-                const inputs = vaccinationForm.querySelectorAll('input, select, textarea');
-                inputs.forEach(input => input.disabled = true);
-            });
-        }
-    });
-</script>
