@@ -317,24 +317,57 @@ class BookingAdoptionController extends Controller
     {
         try {
             $user = Auth::user();
+            $userId = $user->id;
 
-            $result = $this->safeQuery(function() use ($user, $animalId) {
-                $visitList = $user->visitList;
+            \Log::info('Removing animal from visit list', [
+                'user_id' => $userId,
+                'animal_id' => $animalId
+            ]);
+
+            // Direct database operation with proper transaction
+            DB::connection('danish')->beginTransaction();
+
+            try {
+                // Find the visit list directly from Danish database
+                $visitList = VisitList::on('danish')
+                    ->where('userID', $userId)
+                    ->first();
 
                 if (!$visitList) {
-                    return ['error' => 'Visit list not found.'];
+                    DB::connection('danish')->rollBack();
+                    \Log::warning('Visit list not found', ['user_id' => $userId]);
+                    return back()->with('error', 'Visit list not found.');
                 }
 
-                $visitList->animals()->detach($animalId);
+                \Log::info('Visit list found', ['visit_list_id' => $visitList->id]);
 
-                return ['success' => 'Animal removed from your visit list.'];
-            }, ['error' => 'Database connection unavailable. Please try again later.'], 'danish');
+                // Detach the animal from visit list using the pivot table
+                DB::connection('danish')
+                    ->table('visit_list_animal')
+                    ->where('listID', $visitList->id)
+                    ->where('animalID', $animalId)
+                    ->delete();
 
-            if (isset($result['error'])) {
-                return back()->with('error', $result['error']);
+                \Log::info('Animal removed successfully', [
+                    'visit_list_id' => $visitList->id,
+                    'animal_id' => $animalId
+                ]);
+
+                DB::connection('danish')->commit();
+
+                return back()->with([
+                    'success' => 'Animal removed from your visit list.',
+                    'open_visit_modal' => true  // Auto-open the modal to show updated list
+                ]);
+
+            } catch (\Exception $e) {
+                DB::connection('danish')->rollBack();
+                \Log::error('Database error in removeList transaction', [
+                    'error' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString()
+                ]);
+                throw $e;
             }
-
-            return back()->with('success', $result['success']);
 
         } catch (\Exception $e) {
             \Log::error('Error removing animal from visit list: ' . $e->getMessage(), [
@@ -343,7 +376,10 @@ class BookingAdoptionController extends Controller
                 'trace' => $e->getTraceAsString()
             ]);
 
-            return back()->with('error', 'Failed to remove animal from visit list: ' . $e->getMessage());
+            return back()->with([
+                'error' => 'Failed to remove animal from visit list. Please try again.',
+                'open_visit_modal' => true
+            ]);
         }
     }
 

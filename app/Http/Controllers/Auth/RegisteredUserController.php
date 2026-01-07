@@ -12,9 +12,17 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules;
 use Illuminate\View\View;
 use Spatie\Permission\Models\Role;
+use App\Services\TaufiqProcedureService;
 
 class RegisteredUserController extends Controller
 {
+    protected TaufiqProcedureService $taufiqService;
+
+    public function __construct(TaufiqProcedureService $taufiqService)
+    {
+        $this->taufiqService = $taufiqService;
+    }
+
     /**
      * Display the registration view.
      */
@@ -40,7 +48,8 @@ class RegisteredUserController extends Controller
             'phoneNum' => ['required', 'string', 'max:20'],
         ]);
 
-        $user = User::create([
+        // Create user using stored procedure
+        $result = $this->taufiqService->createUser([
             'name' => $request->name,
             'email' => $request->email,
             'password' => Hash::make($request->password),
@@ -50,8 +59,26 @@ class RegisteredUserController extends Controller
             'phoneNum' => $request->phoneNum,
         ]);
 
-        // Assign the "public user" role to the newly created user
-        $user->assignRole('public user');
+        if (!$result['success']) {
+            return back()->withErrors(['email' => $result['message']])->withInput();
+        }
+
+        // Get the created user
+        $user = User::find($result['user_id']);
+
+        // Get "public user" role ID
+        $publicUserRole = Role::where('name', 'public user')->first();
+
+        if ($publicUserRole) {
+            // Assign role using stored procedure
+            $roleResult = $this->taufiqService->assignRole($user->id, $publicUserRole->id);
+
+            if (!$roleResult['success']) {
+                \Log::warning('Failed to assign role to new user: ' . $roleResult['message'], [
+                    'user_id' => $user->id
+                ]);
+            }
+        }
 
         // Log the user in or return a response
         auth()->login($user);

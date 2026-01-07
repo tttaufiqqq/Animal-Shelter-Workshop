@@ -4,7 +4,7 @@
         <i class="fas fa-paw text-5xl text-purple-600"></i>
     </div>
 
-    <h2 class="text-3xl font-bold text-gray-800 mb-4">Welcome to Animal Rescue System</h2>
+    <h2 class="text-3xl font-bold text-gray-800 mb-4">Welcome to Stray Animal Shelter System</h2>
     <p class="text-gray-600 mb-6 text-lg leading-relaxed">
         Report stray animals, adopt pets, and help us save lives together.
     </p>

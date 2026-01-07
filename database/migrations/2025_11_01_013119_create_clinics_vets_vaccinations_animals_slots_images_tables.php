@@ -68,7 +68,6 @@ return new class extends Migration {
             $table->string('contactNum', 30)->nullable();
             $table->string('specialization')->nullable();
             $table->string('license_no', 50)->nullable();
-            $table->decimal('weight', 8, 2)->nullable();
             $table->unsignedBigInteger('clinicID')->nullable();
             $table->timestamps();
 

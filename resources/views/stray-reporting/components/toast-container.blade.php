@@ -1,0 +1,2 @@
+<!-- Toast Container -->
+<div id="toastContainer" class="fixed top-4 right-4 z-[100] space-y-2"></div>

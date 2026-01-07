@@ -210,7 +210,7 @@
 
         // Populate header
         document.getElementById('animalDetailName').textContent = data.name;
-        document.getElementById('animalDetailSubtitle').textContent = `${data.species || 'Unknown'} ${data.breed ? '• ' + data.breed : ''}`;
+        document.getElementById('animalDetailSubtitle').textContent = `${data.species || 'Unknown'}`;
 
         // Populate basic info
         document.getElementById('detailAnimalName').textContent = data.name;

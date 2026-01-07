@@ -86,7 +86,6 @@ class BookingSeeder extends Seeder
 
             // Collect all booking data first (batch preparation)
             $allBookings = [];
-            $allPivotRecords = [];
 
             foreach ($animals as $animal) {
                 $arrivalDate = Carbon::parse($animal->created_at);
@@ -139,17 +138,23 @@ class BookingSeeder extends Seeder
                         $status = 'Pending';
                     }
 
+                    $createdAt = $bookingDate->copy()->subDays(rand(1, 7));
+
+                    // Generate unique marker for this exact booking insert
+                    $uniqueMarker = uniqid('booking_', true);
+
                     // Collect booking data (will be batch inserted later)
                     $allBookings[] = [
                         'appointment_date' => $dateString,
                         'appointment_time' => $time,
                         'status'           => $status,
-                        'remarks'          => 'Visit appointment',
+                        'remarks'          => $uniqueMarker, // Use as temporary unique identifier
                         'userID'           => $users[array_rand($users)],
-                        'created_at'       => $bookingDate->copy()->subDays(rand(1, 7)),
+                        'created_at'       => $createdAt,
                         'updated_at'       => $bookingDate,
-                        'animalID'         => $animal->id, // Temporary field for pivot creation
-                        'pivot_created_at' => $bookingDate->copy()->subDays(rand(1, 7)),
+                        'animalID'         => $animal->id, // Store for pivot creation
+                        'original_remarks' => 'Visit appointment', // Store original remarks
+                        'pivot_created_at' => $createdAt,
                         'pivot_updated_at' => $bookingDate,
                     ];
 
@@ -165,19 +170,18 @@ class BookingSeeder extends Seeder
             $this->command->info("Batch inserting {$bookingCount} bookings...");
 
             // Insert bookings in chunks of 250 (SQL Server has 2100 parameter limit)
-            // Each booking has 7 fields, so 250 × 7 = 1750 parameters (safe)
             $chunkSize = 250;
             $chunks = array_chunk($allBookings, $chunkSize);
-            $insertedBookingIds = [];
+            $allPivotRecords = [];
 
             foreach ($chunks as $chunkIndex => $chunk) {
-                // Prepare chunk without temporary fields
+                // Prepare chunk with unique markers
                 $bookingsToInsert = array_map(function($booking) {
                     return [
                         'appointment_date' => $booking['appointment_date'],
                         'appointment_time' => $booking['appointment_time'],
                         'status'           => $booking['status'],
-                        'remarks'          => $booking['remarks'],
+                        'remarks'          => $booking['remarks'], // Unique marker temporarily
                         'userID'           => $booking['userID'],
                         'created_at'       => $booking['created_at'],
                         'updated_at'       => $booking['updated_at'],
@@ -187,34 +191,61 @@ class BookingSeeder extends Seeder
                 // Batch insert bookings
                 DB::connection('danish')->table('booking')->insert($bookingsToInsert);
 
-                // Get the IDs of inserted bookings (SQL Server approach)
-                $firstDate = $chunk[0]['appointment_date'];
-                $lastDate = end($chunk)['appointment_date'];
+                // Retrieve the inserted bookings by their unique markers
+                // Split into smaller chunks to respect SQL Server's 2100 parameter limit
+                $uniqueMarkers = array_column($chunk, 'remarks');
+                $markerChunks = array_chunk($uniqueMarkers, 500); // Safe limit for whereIn
 
-                $insertedBookings = DB::connection('danish')
-                    ->table('booking')
-                    ->whereBetween('appointment_date', [$firstDate, $lastDate])
-                    ->orderBy('id', 'desc')
-                    ->limit(count($chunk))
-                    ->pluck('id')
-                    ->reverse()
-                    ->values()
-                    ->toArray();
+                $insertedBookings = collect();
+                foreach ($markerChunks as $markerChunk) {
+                    $results = DB::connection('danish')
+                        ->table('booking')
+                        ->whereIn('remarks', $markerChunk)
+                        ->get(['id', 'remarks']);
 
-                // Create pivot records for this chunk
-                foreach ($chunk as $index => $booking) {
-                    if (isset($insertedBookings[$index])) {
+                    $insertedBookings = $insertedBookings->merge($results);
+                }
+
+                $insertedBookings = $insertedBookings->keyBy('remarks');
+
+                // Collect IDs for batch update
+                $bookingIdsToUpdate = [];
+
+                // Create pivot records
+                foreach ($chunk as $booking) {
+                    $marker = $booking['remarks'];
+
+                    if (isset($insertedBookings[$marker])) {
+                        $bookingId = $insertedBookings[$marker]->id;
+
+                        // Add pivot record
                         $allPivotRecords[] = [
-                            'bookingID'  => $insertedBookings[$index],
+                            'bookingID'  => $bookingId,
                             'animalID'   => $booking['animalID'],
                             'remarks'    => null,
                             'created_at' => $booking['pivot_created_at'],
                             'updated_at' => $booking['pivot_updated_at'],
                         ];
+
+                        // Collect for batch update
+                        $bookingIdsToUpdate[] = $bookingId;
                     }
                 }
 
-                $this->command->info("  Inserted chunk " . ($chunkIndex + 1) . "/" . count($chunks));
+                // Batch update all remarks back to original value (SQL Server friendly)
+                if (!empty($bookingIdsToUpdate)) {
+                    // Split into chunks to respect 2100 parameter limit
+                    $updateChunks = array_chunk($bookingIdsToUpdate, 500);
+
+                    foreach ($updateChunks as $updateChunk) {
+                        DB::connection('danish')
+                            ->table('booking')
+                            ->whereIn('id', $updateChunk)
+                            ->update(['remarks' => 'Visit appointment']);
+                    }
+                }
+
+                $this->command->info("  Inserted chunk " . ($chunkIndex + 1) . "/" . count($chunks) . " (" . count($chunk) . " bookings)");
             }
 
             // BATCH INSERT pivot records
@@ -233,6 +264,7 @@ class BookingSeeder extends Seeder
             $this->command->info('✓ Booking Seeding Completed!');
             $this->command->info('=================================');
             $this->command->info("Total bookings created: {$bookingCount}");
+            $this->command->info("Total pivot records created: " . count($allPivotRecords));
             $this->command->info("Booking frequency: ~2 per week per animal");
             $this->command->info('');
             $this->command->info('Status Distribution:');
@@ -245,6 +277,19 @@ class BookingSeeder extends Seeder
             $this->command->info('Database: Danish (SQL Server)');
             $this->command->info('Cross-references: Taufiq (Users), Shafiqah (Animals)');
             $this->command->info('=================================');
+
+            // Verify all bookings have pivot records
+            $bookingsWithoutPivot = DB::connection('danish')
+                ->table('booking')
+                ->leftJoin('animal_booking', 'booking.id', '=', 'animal_booking.bookingID')
+                ->whereNull('animal_booking.bookingID')
+                ->count();
+
+            if ($bookingsWithoutPivot > 0) {
+                $this->command->warn("⚠ Warning: {$bookingsWithoutPivot} bookings without animal relationships!");
+            } else {
+                $this->command->info('✓ All bookings have animal relationships');
+            }
 
         } catch (\Exception $e) {
             DB::connection('danish')->rollBack();

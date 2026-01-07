@@ -18,11 +18,46 @@
             </button>
         </div>
 
-        <!-- Alert Container (Hidden by default) -->
-        <div id="adopterModalAlert" class="hidden mx-6 mt-6"></div>
+        <!-- Information Section -->
+        <div class="bg-gradient-to-r from-blue-50 to-purple-50 border-l-4 border-blue-500 p-5 mx-6 mt-6 rounded-lg">
+            <div class="flex items-start gap-3">
+                <div class="flex-shrink-0">
+                    <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                </div>
+                <div class="flex-1">
+                    <h3 class="text-sm font-bold text-blue-900 mb-2">Create Your Adopter Profile</h3>
+                    <div class="text-sm text-blue-800 space-y-2">
+                        <p>Help us find your perfect companion! Complete this profile so our intelligent matching system can recommend animals that best fit your lifestyle and home environment.</p>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-2 mt-3">
+                            <div class="flex items-start gap-2">
+                                <span class="text-blue-500 font-bold">✓</span>
+                                <span><strong>Personalized Matches:</strong> Get compatibility scores based on your preferences</span>
+                            </div>
+                            <div class="flex items-start gap-2">
+                                <span class="text-blue-500 font-bold">✓</span>
+                                <span><strong>Better Outcomes:</strong> Find animals suited to your experience level</span>
+                            </div>
+                            <div class="flex items-start gap-2">
+                                <span class="text-blue-500 font-bold">✓</span>
+                                <span><strong>Save Time:</strong> See only animals compatible with your living situation</span>
+                            </div>
+                            <div class="flex items-start gap-2">
+                                <span class="text-blue-500 font-bold">✓</span>
+                                <span><strong>Happy Adoptions:</strong> Increase success with well-matched placements</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
 
         <form id="adopterProfileForm" action="{{ route('adopter.profile.store') }}" method="POST" class="p-6 space-y-5">
             @csrf
+
+            <!-- Message Container -->
+            <div id="modalMessageContainer"></div>
 
             <!-- Housing Type -->
             <div>
@@ -139,22 +174,31 @@
         document.getElementById('adopterModal').classList.remove('flex');
     }
 
-    // Handle form submission with AJAX
+    // Handle form submission with AJAX (no page refresh)
     document.addEventListener('DOMContentLoaded', function() {
+        // Keep modal open if there are validation errors on page load
+        @if($errors->any())
+            openAdopterModal();
+            setTimeout(() => {
+                const modalContent = document.querySelector('#adopterModal > div');
+                if (modalContent) {
+                    modalContent.scrollTop = 0;
+                }
+            }, 100);
+        @endif
+
         const adopterForm = document.getElementById('adopterProfileForm');
-        const alertContainer = document.getElementById('adopterModalAlert');
+        const messageContainer = document.getElementById('modalMessageContainer');
 
         if (adopterForm) {
-            adopterForm.addEventListener('submit', async function(e) {
+            adopterForm.addEventListener('submit', function(e) {
                 e.preventDefault(); // Prevent default form submission
 
                 const saveBtn = document.getElementById('saveAdopterBtn');
                 const cancelBtn = document.getElementById('cancelAdopterBtn');
-                const originalBtnText = saveBtn.innerHTML;
 
-                // Hide any existing alerts
-                alertContainer.classList.add('hidden');
-                alertContainer.innerHTML = '';
+                // Clear previous messages
+                messageContainer.innerHTML = '';
 
                 // Disable both buttons
                 saveBtn.disabled = true;
@@ -169,81 +213,99 @@
                     <span>Saving Profile...</span>
                 `;
 
-                try {
-                    const formData = new FormData(adopterForm);
-                    const response = await fetch(adopterForm.action, {
-                        method: 'POST',
-                        body: formData,
-                        headers: {
-                            'X-Requested-With': 'XMLHttpRequest',
-                        }
-                    });
+                // Submit form via AJAX
+                const formData = new FormData(adopterForm);
 
-                    const data = await response.json();
+                fetch(adopterForm.action, {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json'
+                    }
+                })
+                .then(response => {
+                    // Store the response status
+                    const isSuccess = response.ok;
+                    return response.json().then(data => ({ isSuccess, data }));
+                })
+                .then(({ isSuccess, data }) => {
+                    // Scroll to top of modal
+                    const modalContent = document.querySelector('#adopterModal > div');
+                    if (modalContent) {
+                        modalContent.scrollTop = 0;
+                    }
 
-                    if (response.ok && data.success) {
-                        // Show success message
-                        showModalAlert('success', data.message || 'Profile saved successfully!');
-
-                        // Auto-hide success message after 3 seconds
-                        setTimeout(() => {
-                            alertContainer.classList.add('hidden');
-                        }, 3000);
+                    if (isSuccess && data.success) {
+                        // Display success message
+                        messageContainer.innerHTML = `
+                            <div class="flex items-start gap-3 p-4 mb-4 bg-green-50 border border-green-200 rounded-xl shadow-sm">
+                                <svg class="w-6 h-6 text-green-600 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                                </svg>
+                                <p class="font-semibold text-green-700">${data.message}</p>
+                            </div>
+                        `;
                     } else {
-                        // Show error message
-                        let errorMessage = data.message || 'An error occurred while saving your profile.';
+                        // Handle validation errors or general errors
+                        let errorHtml = `
+                            <div class="flex items-start gap-3 p-4 mb-4 bg-red-50 border border-red-200 rounded-xl shadow-sm">
+                                <svg class="w-6 h-6 text-red-600 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                                <div class="flex-1">
+                                    <p class="font-semibold text-red-700">${data.message || 'An error occurred. Please try again.'}</p>
+                        `;
 
-                        // Handle validation errors
-                        if (data.errors) {
-                            errorMessage = '<ul class="list-disc list-inside">';
-                            for (const field in data.errors) {
-                                data.errors[field].forEach(error => {
-                                    errorMessage += `<li>${error}</li>`;
+                        // Display validation errors if present
+                        if (data.errors && Object.keys(data.errors).length > 0) {
+                            errorHtml += '<ul class="mt-2 list-disc list-inside text-sm text-red-600">';
+                            for (const [field, messages] of Object.entries(data.errors)) {
+                                messages.forEach(message => {
+                                    errorHtml += `<li>${message}</li>`;
                                 });
                             }
-                            errorMessage += '</ul>';
+                            errorHtml += '</ul>';
                         }
 
-                        showModalAlert('error', errorMessage);
+                        errorHtml += `
+                                </div>
+                            </div>
+                        `;
+
+                        messageContainer.innerHTML = errorHtml;
                     }
-                } catch (error) {
-                    console.error('Error:', error);
-                    showModalAlert('error', 'Network error. Please check your connection and try again.');
-                } finally {
+
                     // Re-enable buttons and restore original text
                     saveBtn.disabled = false;
                     cancelBtn.disabled = false;
-                    saveBtn.innerHTML = originalBtnText;
-                }
+                    saveBtn.innerHTML = '<span>Save Profile</span>';
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+
+                    // Scroll to top of modal
+                    const modalContent = document.querySelector('#adopterModal > div');
+                    if (modalContent) {
+                        modalContent.scrollTop = 0;
+                    }
+
+                    // Display error message
+                    messageContainer.innerHTML = `
+                        <div class="flex items-start gap-3 p-4 mb-4 bg-red-50 border border-red-200 rounded-xl shadow-sm">
+                            <svg class="w-6 h-6 text-red-600 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                            <p class="font-semibold text-red-700">An error occurred. Please try again.</p>
+                        </div>
+                    `;
+
+                    // Re-enable buttons and restore original text
+                    saveBtn.disabled = false;
+                    cancelBtn.disabled = false;
+                    saveBtn.innerHTML = '<span>Save Profile</span>';
+                });
             });
         }
     });
-
-    function showModalAlert(type, message) {
-        const alertContainer = document.getElementById('adopterModalAlert');
-        const isSuccess = type === 'success';
-
-        alertContainer.innerHTML = `
-            <div class="flex items-start gap-3 p-4 bg-${isSuccess ? 'green' : 'red'}-50 border border-${isSuccess ? 'green' : 'red'}-200 rounded-xl shadow-sm">
-                <svg class="w-6 h-6 text-${isSuccess ? 'green' : 'red'}-600 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                    ${isSuccess
-                        ? '<path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />'
-                        : '<path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />'
-                    }
-                </svg>
-                <div class="flex-1">
-                    <p class="font-semibold text-${isSuccess ? 'green' : 'red'}-700">${message}</p>
-                </div>
-                <button onclick="document.getElementById('adopterModalAlert').classList.add('hidden')" class="text-${isSuccess ? 'green' : 'red'}-600 hover:text-${isSuccess ? 'green' : 'red'}-800 transition">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                    </svg>
-                </button>
-            </div>
-        `;
-        alertContainer.classList.remove('hidden');
-
-        // Scroll to alert
-        alertContainer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    }
 </script>

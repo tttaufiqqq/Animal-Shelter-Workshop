@@ -1,6 +1,6 @@
 <!-- IMPROVED VISIT LIST MODAL -->
 <div id="visitModal"
-     class="fixed inset-0 hidden bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 transition-opacity duration-300">
+     class="fixed inset-0 hidden bg-black/50 backdrop-blur-sm z-[9999] flex items-center justify-center p-4 transition-opacity duration-300">
 
     <div id="visitModalContent"
          class="bg-white max-w-4xl w-full rounded-3xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col
@@ -26,26 +26,6 @@
 
         <!-- Modal Body -->
         <div class="overflow-y-auto flex-1 p-6">
-            <!-- Error Message -->
-            @if (session('error'))
-                <div class="flex items-start gap-3 p-4 mb-6 bg-red-50 border border-red-200 rounded-xl shadow-sm">
-                    <svg class="w-6 h-6 text-red-600 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                    <p class="font-semibold text-red-700">{{ session('error') }}</p>
-                </div>
-            @endif
-
-            <!-- Success Message -->
-            @if (session('success'))
-                <div class="flex items-start gap-3 p-4 mb-6 bg-green-50 border border-green-200 rounded-xl shadow-sm">
-                    <svg class="w-6 h-6 text-green-600 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
-                    </svg>
-                    <p class="font-semibold text-green-700">{{ session('success') }}</p>
-                </div>
-            @endif
-
             <!-- Validation Errors -->
             @if ($errors->any())
                 <div class="bg-red-50 border-l-4 border-red-500 text-red-800 p-4 rounded-lg mb-6 animate-slideIn">
@@ -157,7 +137,7 @@
 
                                                 <!-- Remove Button (No Form) -->
                                                 <button type="button"
-                                                        onclick="removeAnimal({{ $animal->id }}, '{{ $animal->name }}')"
+                                                        onclick="openRemoveConfirmModal({{ $animal->id }}, '{{ $animal->name }}')"
                                                         class="text-red-500 hover:text-white hover:bg-red-500 p-2.5 rounded-lg transition-all duration-200 flex items-center gap-2 group/btn border border-red-200 hover:border-red-500">
                                                     <i class="fas fa-trash-alt"></i>
                                                     <span class="text-sm font-medium hidden sm:inline">Remove</span>
@@ -270,6 +250,7 @@
                     <div class="flex gap-3 pt-4">
                         <button type="button"
                                 onclick="closeVisitModal()"
+                                id="visitCancelBtn"
                                 class="flex-1 px-6 py-4 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-xl transition-all duration-200 flex items-center justify-center gap-2 border-2 border-gray-200">
                             <i class="fas fa-arrow-left"></i>
                             Continue Browsing
@@ -278,8 +259,12 @@
                                 id="confirmBookingBtn"
                                 disabled
                                 class="flex-1 px-6 py-4 bg-gray-300 text-gray-500 font-bold rounded-xl shadow-lg transition-all duration-200 flex items-center justify-center gap-2 cursor-not-allowed">
-                            <i class="fas fa-check-circle"></i>
-                            Confirm Visit Booking
+                            <i class="fas fa-check-circle" id="visitSubmitIcon"></i>
+                            <span id="visitSubmitText">Confirm Visit Booking</span>
+                            <svg class="animate-spin h-5 w-5 text-white hidden" id="visitSubmitSpinner" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
                         </button>
                     </div>
                 </form>
@@ -294,15 +279,137 @@
     @method('DELETE')
 </form>
 
+<!-- Remove Confirmation Modal -->
+<div id="removeConfirmModal" class="fixed inset-0 hidden bg-black/50 backdrop-blur-sm z-[10000] flex items-center justify-center p-4 transition-opacity duration-300">
+    <div id="removeConfirmContent" class="bg-white rounded-2xl shadow-2xl max-w-md w-full transform transition-all duration-300 opacity-0 scale-95">
+        <!-- Modal Header -->
+        <div class="bg-gradient-to-r from-red-500 to-red-600 p-6 rounded-t-2xl">
+            <div class="flex items-center gap-3 text-white">
+                <div class="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
+                    <i class="fas fa-exclamation-triangle text-2xl"></i>
+                </div>
+                <div>
+                    <h3 class="text-xl font-bold">Remove Animal</h3>
+                    <p class="text-red-100 text-sm">Are you sure about this?</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal Body -->
+        <div class="p-6">
+            <p class="text-gray-700 text-base mb-2">
+                You are about to remove <strong id="removeAnimalName" class="text-gray-900"></strong> from your visit list.
+            </p>
+            <p class="text-gray-600 text-sm">
+                This action cannot be undone. You can always add the animal back to your list later.
+            </p>
+        </div>
+
+        <!-- Modal Footer -->
+        <div class="px-6 pb-6 flex gap-3">
+            <button type="button"
+                    id="removeModalCancelBtn"
+                    onclick="closeRemoveConfirmModal()"
+                    class="flex-1 px-4 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-xl transition-all duration-200 border border-gray-200">
+                <i class="fas fa-times mr-2"></i>Cancel
+            </button>
+            <button type="button"
+                    id="removeModalConfirmBtn"
+                    onclick="confirmRemoveAnimal()"
+                    class="flex-1 px-4 py-3 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-semibold rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl">
+                <i class="fas fa-trash-alt mr-2" id="removeIcon"></i>
+                <span id="removeText">Remove</span>
+                <svg class="animate-spin h-5 w-5 text-white hidden inline-block ml-2" id="removeSpinner" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+            </button>
+        </div>
+    </div>
+</div>
+
 <script>
     // Set base URL for remove action (using route helper)
     const removeBaseUrl = "{{ url('visit-list/remove') }}/";
 
-    // Remove animal from visit list
-    function removeAnimal(animalId, animalName) {
-        if (confirm(`Remove ${animalName} from your visit list?`)) {
+    // Store animal info for removal
+    let pendingRemoveAnimalId = null;
+    let pendingRemoveAnimalName = '';
+
+    // Open remove confirmation modal
+    function openRemoveConfirmModal(animalId, animalName) {
+        pendingRemoveAnimalId = animalId;
+        pendingRemoveAnimalName = animalName;
+
+        const modal = document.getElementById('removeConfirmModal');
+        const content = document.getElementById('removeConfirmContent');
+        const animalNameElement = document.getElementById('removeAnimalName');
+
+        // Reset modal state (in case it was left in loading state)
+        const confirmBtn = document.getElementById('removeModalConfirmBtn');
+        const cancelBtn = document.getElementById('removeModalCancelBtn');
+        const removeIcon = document.getElementById('removeIcon');
+        const removeText = document.getElementById('removeText');
+        const removeSpinner = document.getElementById('removeSpinner');
+
+        confirmBtn.disabled = false;
+        cancelBtn.disabled = false;
+        confirmBtn.classList.remove('opacity-75', 'cursor-not-allowed');
+        confirmBtn.classList.add('hover:from-red-600', 'hover:to-red-700', 'hover:shadow-xl');
+        cancelBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+        removeIcon.classList.remove('hidden');
+        removeText.textContent = 'Remove';
+        removeSpinner.classList.add('hidden');
+
+        animalNameElement.textContent = animalName;
+
+        modal.classList.remove('hidden');
+        setTimeout(() => {
+            content.classList.remove('opacity-0', 'scale-95');
+            content.classList.add('opacity-100', 'scale-100');
+        }, 10);
+    }
+
+    // Close remove confirmation modal
+    function closeRemoveConfirmModal() {
+        const modal = document.getElementById('removeConfirmModal');
+        const content = document.getElementById('removeConfirmContent');
+
+        content.classList.add('opacity-0', 'scale-95');
+        content.classList.remove('opacity-100', 'scale-100');
+
+        setTimeout(() => {
+            modal.classList.add('hidden');
+            pendingRemoveAnimalId = null;
+            pendingRemoveAnimalName = '';
+        }, 300);
+    }
+
+    // Confirm and submit removal
+    function confirmRemoveAnimal() {
+        if (pendingRemoveAnimalId) {
+            // Show loading state
+            const confirmBtn = document.getElementById('removeModalConfirmBtn');
+            const cancelBtn = document.getElementById('removeModalCancelBtn');
+            const removeIcon = document.getElementById('removeIcon');
+            const removeText = document.getElementById('removeText');
+            const removeSpinner = document.getElementById('removeSpinner');
+
+            // Disable buttons
+            confirmBtn.disabled = true;
+            cancelBtn.disabled = true;
+            confirmBtn.classList.add('opacity-75', 'cursor-not-allowed');
+            confirmBtn.classList.remove('hover:from-red-600', 'hover:to-red-700', 'hover:shadow-xl');
+            cancelBtn.classList.add('opacity-50', 'cursor-not-allowed');
+
+            // Show loading state
+            removeIcon.classList.add('hidden');
+            removeText.textContent = 'Removing...';
+            removeSpinner.classList.remove('hidden');
+
+            // Submit form
             const form = document.getElementById('removeAnimalForm');
-            form.action = removeBaseUrl + animalId;
+            form.action = removeBaseUrl + pendingRemoveAnimalId;
             form.submit();
         }
     }
@@ -312,7 +419,6 @@
         const modal = document.getElementById('visitModal');
         const content = document.getElementById('visitModalContent');
         modal.classList.remove('hidden');
-        document.body.style.overflow = 'hidden';
         setTimeout(() => {
             content.classList.remove('opacity-0', 'scale-95');
             content.classList.add('opacity-100', 'scale-100');
@@ -326,7 +432,6 @@
         content.classList.remove('opacity-100', 'scale-100');
         setTimeout(() => {
             modal.classList.add('hidden');
-            document.body.style.overflow = '';
         }, 300);
     }
 
@@ -381,6 +486,31 @@
                     } else if(!appointmentTime.value) {
                         appointmentTime.focus();
                     }
+                } else {
+                    // Show loading state
+                    const submitBtn = document.getElementById('confirmBookingBtn');
+                    const submitText = document.getElementById('visitSubmitText');
+                    const submitIcon = document.getElementById('visitSubmitIcon');
+                    const submitSpinner = document.getElementById('visitSubmitSpinner');
+                    const cancelBtn = document.getElementById('visitCancelBtn');
+
+                    // Disable button and show loading state
+                    submitBtn.disabled = true;
+                    submitBtn.classList.add('opacity-75');
+                    submitBtn.classList.remove('hover:from-purple-700', 'hover:to-purple-800', 'hover:shadow-xl', 'hover:scale-105');
+
+                    // Hide icon and text, show spinner
+                    submitIcon.classList.add('hidden');
+                    submitText.textContent = 'Processing...';
+                    submitSpinner.classList.remove('hidden');
+
+                    // Disable cancel button
+                    cancelBtn.disabled = true;
+                    cancelBtn.classList.add('opacity-50', 'cursor-not-allowed');
+
+                    // Disable all form inputs
+                    const inputs = form.querySelectorAll('input, select, textarea, button[type="button"]');
+                    inputs.forEach(input => input.disabled = true);
                 }
             });
         }
@@ -395,12 +525,23 @@
         if(!modal.classList.contains('hidden') && e.target === modal){
             closeVisitModal();
         }
+
+        // Also handle remove confirmation modal
+        const removeModal = document.getElementById('removeConfirmModal');
+        if(!removeModal.classList.contains('hidden') && e.target === removeModal){
+            closeRemoveConfirmModal();
+        }
     });
 
     // Close modal on Escape
     document.addEventListener('keydown', function(e){
         if(e.key === "Escape"){
-            closeVisitModal();
+            const removeModal = document.getElementById('removeConfirmModal');
+            if(!removeModal.classList.contains('hidden')){
+                closeRemoveConfirmModal();
+            } else {
+                closeVisitModal();
+            }
         }
     });
 

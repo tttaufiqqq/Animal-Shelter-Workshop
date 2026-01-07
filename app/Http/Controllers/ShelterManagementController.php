@@ -9,10 +9,18 @@ use App\Models\Animal;
 use App\Models\Section;
 use App\Models\Category;
 use App\DatabaseErrorHandler;
+use App\Services\AtiqahProcedureService;
 
 class ShelterManagementController extends Controller
 {
     use DatabaseErrorHandler;
+
+    protected $atiqahService;
+
+    public function __construct(AtiqahProcedureService $atiqahService)
+    {
+        $this->atiqahService = $atiqahService;
+    }
     // In your controller
     public function indexSlot()
     {
@@ -85,9 +93,15 @@ class ShelterManagementController extends Controller
                 'description' => 'required|string|max:1000',
             ]);
 
-            Section::create($validated);
+            $result = $this->atiqahService->createSection($validated);
 
-            return redirect()->back()->with('success', 'Section created successfully!');
+            if ($result['success']) {
+                return redirect()->back()->with('success', $result['message']);
+            } else {
+                return redirect()->back()
+                    ->withInput()
+                    ->with('error', $result['message']);
+            }
 
         } catch (\Illuminate\Validation\ValidationException $e) {
             return redirect()->back()
@@ -148,14 +162,16 @@ class ShelterManagementController extends Controller
                 'description' => 'required|string|max:1000',
             ]);
 
-            $section = Section::findOrFail($id);
-            $section->update($validated);
+            $result = $this->atiqahService->updateSection($id, $validated);
 
-            return redirect()->back()->with('success', 'Section updated successfully!');
+            if ($result['success']) {
+                return redirect()->back()->with('success', $result['message']);
+            } else {
+                return redirect()->back()
+                    ->withInput()
+                    ->with('error', $result['message']);
+            }
 
-        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-            \Log::error('Section not found for update: ' . $e->getMessage(), ['section_id' => $id]);
-            return redirect()->back()->with('error', 'Section not found or database connection unavailable.');
         } catch (\Illuminate\Validation\ValidationException $e) {
             return redirect()->back()
                 ->withErrors($e->errors())
@@ -175,20 +191,14 @@ class ShelterManagementController extends Controller
     public function deleteSection($id)
     {
         try {
-            $section = Section::findOrFail($id);
+            $result = $this->atiqahService->deleteSection($id);
 
-            // Check if section has slots
-            if ($section->slots()->count() > 0) {
-                return redirect()->back()->with('error', 'Cannot delete section with existing slots! Please delete or move the slots first.');
+            if ($result['success']) {
+                return redirect()->back()->with('success', $result['message']);
+            } else {
+                return redirect()->back()->with('error', $result['message']);
             }
 
-            $section->delete();
-
-            return redirect()->back()->with('success', 'Section deleted successfully!');
-
-        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-            \Log::error('Section not found for deletion: ' . $e->getMessage(), ['section_id' => $id]);
-            return redirect()->back()->with('error', 'Section not found or database connection unavailable.');
         } catch (\Exception $e) {
             \Log::error('Error deleting section: ' . $e->getMessage(), [
                 'section_id' => $id,
@@ -203,28 +213,20 @@ class ShelterManagementController extends Controller
         try {
             $validated = $request->validate([
                 'name' => 'required|string|max:255',
-                'sectionID' => [
-                    'required',
-                    'integer',
-                    function ($attribute, $value, $fail) {
-                        // Manually check if section exists in atiqah database
-                        $exists = \DB::connection('atiqah')
-                            ->table('section')
-                            ->where('id', $value)
-                            ->exists();
-
-                        if (!$exists) {
-                            $fail('The selected section does not exist.');
-                        }
-                    },
-                ],
+                'sectionID' => 'required|integer',
                 'capacity' => 'required|integer|min:1',
             ]);
 
             $validated['status'] = 'available';
-            Slot::create($validated);
+            $result = $this->atiqahService->createSlot($validated);
 
-            return redirect()->back()->with('success', 'Slot added successfully!');
+            if ($result['success']) {
+                return redirect()->back()->with('success', $result['message']);
+            } else {
+                return redirect()->back()
+                    ->withInput()
+                    ->with('error', $result['message']);
+            }
 
         } catch (\Illuminate\Validation\ValidationException $e) {
             return redirect()->back()
@@ -286,31 +288,16 @@ class ShelterManagementController extends Controller
         try {
             $validated = $request->validate([
                 'name' => 'required|string|max:255',
-                'sectionID' => [
-                    'required',
-                    'integer',
-                    function ($attribute, $value, $fail) {
-                        // Manually check if section exists in atiqah database
-                        $exists = \DB::connection('atiqah')
-                            ->table('section')
-                            ->where('id', $value)
-                            ->exists();
-
-                        if (!$exists) {
-                            $fail('The selected section does not exist.');
-                        }
-                    },
-                ],
+                'sectionID' => 'required|integer',
                 'capacity' => 'required|integer|min:1',
                 'status' => 'nullable|in:available,occupied,maintenance', // Make status optional for auto-calculation
             ]);
 
-            $slot = Slot::findOrFail($id);
-
             // Auto-calculate status based on actual occupancy (unless manually set to 'maintenance')
+            $statusToSet = null;
             if (isset($validated['status']) && $validated['status'] === 'maintenance') {
                 // Allow manual override for maintenance status only
-                $slot->update($validated);
+                $statusToSet = 'maintenance';
             } else {
                 // Auto-calculate status based on animal count
                 // Count animals in this slot (cross-database query to shafiqah)
@@ -319,31 +306,32 @@ class ShelterManagementController extends Controller
                     $animalCount = Animal::where('slotID', $id)->count();
                 }
 
-                // Remove status from validated data to set it separately
-                unset($validated['status']);
-
-                // Update slot details first
-                $slot->update($validated);
-
                 // Set status based on occupancy
-                if ($animalCount >= $slot->capacity) {
-                    $slot->status = 'occupied';
+                if ($animalCount >= $validated['capacity']) {
+                    $statusToSet = 'occupied';
                 } else {
-                    $slot->status = 'available';
+                    $statusToSet = 'available';
                 }
-                $slot->save();
             }
 
-            \Log::info('Slot updated successfully', [
-                'slot_id' => $id,
-                'name' => $slot->name,
-                'sectionID' => $slot->sectionID,
-                'capacity' => $slot->capacity,
-                'status' => $slot->status,
-                'animal_count' => $animalCount ?? 'N/A',
-            ]);
+            // Update slot using procedure
+            $validated['status'] = $statusToSet;
+            $result = $this->atiqahService->updateSlot($id, $validated);
 
-            return redirect()->back()->with('success', 'Slot updated successfully!');
+            if ($result['success']) {
+                \Log::info('Slot updated successfully via procedure', [
+                    'slot_id' => $id,
+                    'name' => $validated['name'],
+                    'sectionID' => $validated['sectionID'],
+                    'capacity' => $validated['capacity'],
+                    'status' => $statusToSet,
+                ]);
+                return redirect()->back()->with('success', $result['message']);
+            } else {
+                return redirect()->back()
+                    ->withInput()
+                    ->with('error', $result['message']);
+            }
 
         } catch (\Illuminate\Validation\ValidationException $e) {
             return redirect()->back()
@@ -362,19 +350,25 @@ class ShelterManagementController extends Controller
         try {
             \Log::info('Attempting to delete slot', ['slot_id' => $id]);
 
-            $slot = Slot::findOrFail($id);
+            // Read slot name for error message (use procedure)
+            $slot = $this->atiqahService->readSlot($id);
+
+            if (!$slot) {
+                \Log::error('Slot not found for deletion', ['slot_id' => $id]);
+                return redirect()->back()->with('error', 'Slot not found or already deleted.');
+            }
 
             \Log::info('Slot found', [
                 'slot_id' => $id,
                 'slot_name' => $slot->name,
             ]);
 
-            // Check if slot has animals (only if shafiqah database is online)
+            // Check if slot has animals (cross-database check - must be done at application layer)
             $animalCount = 0;
             if ($this->isDatabaseAvailable('shafiqah')) {
                 try {
                     // Count animals in slot directly from shafiqah database (avoid cross-database JOIN)
-                    $animalCount = Animal::where('slotID', $slot->id)->count();
+                    $animalCount = Animal::where('slotID', $id)->count();
                     \Log::info('Animal count for slot', [
                         'slot_id' => $id,
                         'animal_count' => $animalCount
@@ -398,16 +392,16 @@ class ShelterManagementController extends Controller
                     ->with('error', "Cannot delete slot '{$slot->name}' - it has {$animalCount} animal(s). Please relocate them first.");
             }
 
-            $slot->delete();
+            // Delete using procedure (will also check for inventory items)
+            $result = $this->atiqahService->deleteSlot($id);
 
-            \Log::info('Slot deleted successfully', ['slot_id' => $id]);
+            if ($result['success']) {
+                \Log::info('Slot deleted successfully', ['slot_id' => $id]);
+                return redirect()->back()->with('success', $result['message']);
+            } else {
+                return redirect()->back()->with('error', $result['message']);
+            }
 
-            return redirect()->back()->with('success', 'Slot deleted successfully!');
-
-        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-            \Log::error('Slot not found for deletion', ['slot_id' => $id]);
-            return redirect()->back()
-                ->with('error', 'Slot not found or already deleted.');
         } catch (\Exception $e) {
             \Log::error('Failed to delete slot', [
                 'slot_id' => $id,
@@ -428,9 +422,15 @@ class ShelterManagementController extends Controller
                 'sub' => 'required|string|max:255',
             ]);
 
-            Category::create($validated);
+            $result = $this->atiqahService->createCategory($validated);
 
-            return redirect()->back()->with('success', 'Category created successfully!');
+            if ($result['success']) {
+                return redirect()->back()->with('success', $result['message']);
+            } else {
+                return redirect()->back()
+                    ->withInput()
+                    ->with('error', $result['message']);
+            }
 
         } catch (\Illuminate\Validation\ValidationException $e) {
             return redirect()->back()
@@ -491,14 +491,16 @@ class ShelterManagementController extends Controller
                 'sub' => 'required|string|max:255',
             ]);
 
-            $category = Category::findOrFail($id);
-            $category->update($validated);
+            $result = $this->atiqahService->updateCategory($id, $validated);
 
-            return redirect()->back()->with('success', 'Category updated successfully!');
+            if ($result['success']) {
+                return redirect()->back()->with('success', $result['message']);
+            } else {
+                return redirect()->back()
+                    ->withInput()
+                    ->with('error', $result['message']);
+            }
 
-        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-            \Log::error('Category not found for update: ' . $e->getMessage(), ['category_id' => $id]);
-            return redirect()->back()->with('error', 'Category not found or database connection unavailable.');
         } catch (\Illuminate\Validation\ValidationException $e) {
             return redirect()->back()
                 ->withErrors($e->errors())
@@ -518,20 +520,14 @@ class ShelterManagementController extends Controller
     public function deleteCategory($id)
     {
         try {
-            $category = Category::findOrFail($id);
+            $result = $this->atiqahService->deleteCategory($id);
 
-            // Check if category has inventories
-            if ($category->inventories()->count() > 0) {
-                return redirect()->back()->with('error', 'Cannot delete category with existing inventory items! Please delete or reassign the inventory items first.');
+            if ($result['success']) {
+                return redirect()->back()->with('success', $result['message']);
+            } else {
+                return redirect()->back()->with('error', $result['message']);
             }
 
-            $category->delete();
-
-            return redirect()->back()->with('success', 'Category deleted successfully!');
-
-        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-            \Log::error('Category not found for deletion: ' . $e->getMessage(), ['category_id' => $id]);
-            return redirect()->back()->with('error', 'Category not found or database connection unavailable.');
         } catch (\Exception $e) {
             \Log::error('Error deleting category: ' . $e->getMessage(), [
                 'category_id' => $id,
@@ -563,12 +559,12 @@ class ShelterManagementController extends Controller
                 'id' => $animal->id,
                 'name' => $animal->name ?? 'Unknown',
                 'species' => $animal->species ?? 'Unknown',
-                'breed' => $animal->breed ?? 'Unknown',
                 'adoption_status' => $animal->adoption_status ?? 'unknown',
                 'health_details' => $animal->health_details ?? 'No health details available.',
                 'images' => $images->map(function($image) {
                     return [
                         'id' => $image->id,
+                        'url' => $image->url,  // Use the computed Cloudinary URL attribute
                         'path' => $image->image_path,
                     ];
                 }),
@@ -689,46 +685,30 @@ class ShelterManagementController extends Controller
     {
         try {
             $validated = $request->validate([
-                'slotID' => [
-                    'required',
-                    'integer',
-                    function ($attribute, $value, $fail) {
-                        // Manually check if slot exists in atiqah database
-                        $exists = \DB::connection('atiqah')
-                            ->table('slot')
-                            ->where('id', $value)
-                            ->exists();
-
-                        if (!$exists) {
-                            $fail('The selected slot does not exist.');
-                        }
-                    },
-                ],
+                'slotID' => 'required|integer',
                 'item_name' => 'required|string|max:255',
-                'categoryID' => [
-                    'required',
-                    'integer',
-                    function ($attribute, $value, $fail) {
-                        // Manually check if category exists in atiqah database
-                        $exists = \DB::connection('atiqah')
-                            ->table('category')
-                            ->where('id', $value)
-                            ->exists();
-
-                        if (!$exists) {
-                            $fail('The selected category does not exist.');
-                        }
-                    },
-                ],
+                'categoryID' => 'required|integer',
                 'quantity' => 'required|integer|min:0',
                 'weight' => 'nullable|numeric|min:0',
                 'brand' => 'nullable|string|max:255',
                 'status' => 'required|in:available,low,out',
             ]);
 
-            Inventory::create($validated);
+            $result = $this->atiqahService->createInventory($validated);
 
-            return redirect()->back()->with('success', 'Inventory item added successfully!');
+            if ($result['success']) {
+                return redirect()->back()->with('success', $result['message']);
+            } else {
+                return redirect()->back()
+                    ->withInput()
+                    ->with('error', $result['message']);
+            }
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return redirect()->back()
+                ->withErrors($e->errors())
+                ->withInput()
+                ->with('error', 'Please check the form and try again.');
         } catch (\Exception $e) {
             \Log::error('Failed to create inventory: ' . $e->getMessage(), [
                 'trace' => $e->getTraceAsString(),
@@ -770,32 +750,28 @@ class ShelterManagementController extends Controller
         try {
             $validated = $request->validate([
                 'item_name' => 'required|string|max:255',
-                'categoryID' => [
-                    'required',
-                    'integer',
-                    function ($attribute, $value, $fail) {
-                        // Manually check if category exists in atiqah database
-                        $exists = \DB::connection('atiqah')
-                            ->table('category')
-                            ->where('id', $value)
-                            ->exists();
-
-                        if (!$exists) {
-                            $fail('The selected category does not exist.');
-                        }
-                    },
-                ],
+                'categoryID' => 'required|integer',
                 'quantity' => 'required|integer|min:0',
                 'weight' => 'nullable|numeric|min:0',
                 'brand' => 'nullable|string|max:255',
                 'status' => 'required|in:available,low,out',
             ]);
 
-            $inventory = Inventory::findOrFail($id);
-            $inventory->update($validated);
+            $result = $this->atiqahService->updateInventory($id, $validated);
 
-            return redirect()->back()->with('success', 'Inventory updated successfully!');
+            if ($result['success']) {
+                return redirect()->back()->with('success', $result['message']);
+            } else {
+                return redirect()->back()
+                    ->withInput()
+                    ->with('error', $result['message']);
+            }
 
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return redirect()->back()
+                ->withErrors($e->errors())
+                ->withInput()
+                ->with('error', 'Please check the form and try again.');
         } catch (\Exception $e) {
             \Log::error('Failed to update inventory: ' . $e->getMessage(), [
                 'trace' => $e->getTraceAsString(),
@@ -812,10 +788,13 @@ class ShelterManagementController extends Controller
     public function deleteInventory($id)
     {
         try {
-            $inventory = Inventory::findOrFail($id);
-            $inventory->delete();
+            $result = $this->atiqahService->deleteInventory($id);
 
-            return redirect()->back()->with('success', 'Inventory deleted successfully!');
+            if ($result['success']) {
+                return redirect()->back()->with('success', $result['message']);
+            } else {
+                return redirect()->back()->with('error', $result['message']);
+            }
 
         } catch (\Exception $e) {
             return redirect()->back()

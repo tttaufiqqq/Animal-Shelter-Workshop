@@ -13,6 +13,7 @@ use App\Models\Medical;
 use App\Models\Vaccination;
 use App\Models\VisitList;
 use App\Services\AuditService;
+use App\Services\ShafiqahProcedureService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
@@ -25,13 +26,67 @@ use App\DatabaseErrorHandler;
 class AnimalManagementController extends Controller
 {
     use DatabaseErrorHandler;
+
+    protected $procedureService;
+
+    public function __construct(ShafiqahProcedureService $procedureService)
+    {
+        $this->procedureService = $procedureService;
+    }
     public function getMatches()
     {
         try {
+            // Set maximum execution time to 25 seconds (less than frontend's 30s timeout)
+            set_time_limit(25);
+
             $user = Auth::user();
 
-            // Get adopter profile
-            $adopterProfile = AdopterProfile::where('adopterID', $user->id)->first();
+            Log::info('Starting match calculation', ['user_id' => $user->id]);
+
+            // OPTIMIZED: Check all databases ONCE using existing cache (don't clear)
+            // This prevents multiple 5-second timeouts per database
+            // Only do fresh check if request explicitly asks for it
+            $forceRefresh = request()->has('force_refresh');
+
+            if ($forceRefresh) {
+                Log::info('Force refresh requested - clearing database cache');
+                $checker = app(\App\Services\DatabaseConnectionChecker::class);
+                $checker->clearCache();
+            }
+
+            // Check if required databases are available (uses cache if available)
+            if (!$this->isDatabaseAvailable('taufiq')) {
+                Log::warning('Taufiq database unavailable during match check');
+                return response()->json([
+                    'success' => false,
+                    'message' => 'User database is currently offline. Please try again later.'
+                ], 503);
+            }
+
+            if (!$this->isDatabaseAvailable('shafiqah')) {
+                Log::warning('Shafiqah database unavailable during match check');
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Animal database is currently offline. Please try again later.'
+                ], 503);
+            }
+
+            // CRITICAL FIX: Check eilya ONCE at the start (not inside loop)
+            // Use cached status to avoid repeated 5-second timeouts
+            $isEilyaAvailable = $this->isDatabaseAvailable('eilya');
+
+            Log::info('Database availability check complete', [
+                'taufiq' => true,
+                'shafiqah' => true,
+                'eilya' => $isEilyaAvailable
+            ]);
+
+            // Get adopter profile using safeQuery with timeout protection
+            $adopterProfile = $this->safeQuery(
+                fn() => AdopterProfile::where('adopterID', $user->id)->first(),
+                null,
+                'taufiq'
+            );
 
             if (!$adopterProfile) {
                 return response()->json([
@@ -40,33 +95,130 @@ class AnimalManagementController extends Controller
                 ]);
             }
 
-            // Get available animals with their profiles
-            // Using eager loading for better performance
-            $animals = Animal::with(['profile', 'images'])
-                ->whereIn('adoption_status', ['Not Adopted', 'not adopted'])
-                ->limit(50) // Limit for performance
-                ->get();
+            Log::info('Adopter profile found', ['profile_id' => $adopterProfile->id]);
 
-            // Filter animals with profiles at application layer
-            $animalsWithProfiles = $animals->filter(function($animal) {
-                return $animal->profile !== null;
-            });
+            // PERFORMANCE FIX: Cache the query results for 5 minutes to prevent repeated slow queries
+            $cacheKey = "animal_matches_user_{$user->id}";
+            $cacheDuration = 300; // 5 minutes
+
+            // Check if we have cached matches (unless force_refresh is requested)
+            if (!$forceRefresh && \Cache::has($cacheKey)) {
+                $cachedMatches = \Cache::get($cacheKey);
+                Log::info('Returning cached matches', ['count' => count($cachedMatches)]);
+
+                return response()->json([
+                    'success' => true,
+                    'matches' => $cachedMatches,
+                    'cached' => true,
+                ]);
+            }
+
+            // PERFORMANCE FIX: Limit to 20 animals instead of 50 to prevent timeout
+            // OPTIMIZATION: Use whereHas to only fetch animals that have profiles (prevents wasted queries)
+            // OPTIMIZATION: Only select needed columns to reduce data transfer
+            $animals = $this->safeQuery(
+                fn() => Animal::with(['profile' => function($query) {
+                        // Only fetch needed profile columns
+                        $query->select('id', 'animalID', 'size', 'energy_level', 'temperament', 'good_with_kids', 'good_with_pets');
+                    }])
+                    ->select('id', 'name', 'species', 'age', 'gender', 'adoption_status')
+                    ->whereIn('adoption_status', ['Not Adopted', 'not adopted'])
+                    ->whereHas('profile') // Only fetch animals that have profiles
+                    ->limit(20) // REDUCED from 50 to 20 for faster response
+                    ->get(),
+                collect([]),
+                'shafiqah'
+            );
+
+            Log::info('Animals fetched from database', ['count' => $animals->count()]);
+
+            // All animals now have profiles due to whereHas
+            $animalsWithProfiles = $animals;
+
+            // Log if no animals have profiles
+            if ($animalsWithProfiles->isEmpty()) {
+                Log::info('No animals with profiles found for matching', [
+                    'total_animals' => $animals->count(),
+                    'animals_with_profiles' => 0,
+                    'user_id' => $user->id
+                ]);
+
+                return response()->json([
+                    'success' => true,
+                    'matches' => []
+                ]);
+            }
+
+            Log::info('Animals available for matching', [
+                'total_animals' => $animals->count(),
+                'animals_with_profiles' => $animalsWithProfiles->count(),
+                'user_id' => $user->id
+            ]);
 
             // Calculate match scores
             $matches = [];
+
             foreach ($animalsWithProfiles as $animal) {
-                $score = $this->calculateMatchScore($adopterProfile, $animal->profile);
-                $matches[] = [
-                    'id' => $animal->id,
-                    'name' => $animal->name,
-                    'species' => $animal->species,
-                    'age' => $animal->age,
-                    'gender' => $animal->gender,
-                    'image' => $animal->images->first()?->url ?? null,
-                    'score' => $score,
-                    'match_details' => $this->getMatchDetails($adopterProfile, $animal->profile)
-                ];
+                try {
+                    // CRITICAL FIX: Pass $animal to avoid N+1 query problem
+                    // (accessing $animalProfile->animal inside causes 20 separate DB queries!)
+                    $score = $this->calculateMatchScore($adopterProfile, $animal->profile, $animal);
+
+                    // DEBUG: Log matching details for first few animals
+                    if (count($matches) < 3) {
+                        Log::info("Matching animal #{$animal->id}", [
+                            'animal_name' => $animal->name,
+                            'animal_species' => $animal->species,
+                            'profile_exists' => $animal->profile ? 'yes' : 'no',
+                            'adopter_preferred_species' => $adopterProfile->preferred_species ?? 'null',
+                            'adopter_preferred_size' => $adopterProfile->preferred_size ?? 'null',
+                            'animal_size' => $animal->profile->size ?? 'null',
+                            'match_score' => $score
+                        ]);
+                    }
+
+                    // OPTIMIZED: Skip images entirely if eilya is offline
+                    // This prevents any image-related delays
+                    $imageUrl = null;
+                    if ($isEilyaAvailable) {
+                        try {
+                            // Simple query - eilya is already confirmed available
+                            $firstImage = $animal->images()->first();
+                            $imageUrl = $firstImage?->url ?? null;
+                        } catch (\Exception $e) {
+                            // If individual image query fails, log it but continue
+                            Log::warning("Failed to load image for animal {$animal->id}: " . $e->getMessage());
+                            $imageUrl = null;
+                        }
+                    }
+
+                    $matchDetails = $this->getMatchDetails($adopterProfile, $animal->profile, $animal);
+
+                    $matches[] = [
+                        'id' => $animal->id,
+                        'name' => $animal->name,
+                        'species' => $animal->species,
+                        'age' => $animal->age,
+                        'gender' => $animal->gender,
+                        'image' => $imageUrl,
+                        'score' => $score,
+                        'match_details' => $matchDetails
+                    ];
+
+                } catch (\Exception $e) {
+                    Log::error("Error matching animal #{$animal->id}: " . $e->getMessage(), [
+                        'animal_id' => $animal->id,
+                        'trace' => $e->getTraceAsString()
+                    ]);
+                    // Continue to next animal instead of breaking entire process
+                    continue;
+                }
             }
+
+            Log::info('Match calculation completed', [
+                'matches_count' => count($matches),
+                'sample_scores' => array_slice(array_column($matches, 'score'), 0, 5)
+            ]);
 
             // Sort by score (highest first)
             usort($matches, function($a, $b) {
@@ -76,6 +228,22 @@ class AnimalManagementController extends Controller
             // Get top 5 matches
             $topMatches = array_slice($matches, 0, 5);
 
+            Log::info('Returning matches to frontend', [
+                'total_matches' => count($matches),
+                'top_5_count' => count($topMatches),
+                'top_match_scores' => array_column($topMatches, 'score'),
+                'top_match_names' => array_column($topMatches, 'name')
+            ]);
+
+            // Cache the results for 5 minutes to improve performance on subsequent requests
+            try {
+                \Cache::put($cacheKey, $topMatches, $cacheDuration);
+                Log::info('Cached matches for user', ['cache_key' => $cacheKey, 'duration' => $cacheDuration]);
+            } catch (\Exception $e) {
+                // If caching fails, just log it and continue (not critical)
+                Log::warning('Failed to cache matches: ' . $e->getMessage());
+            }
+
             return response()->json([
                 'success' => true,
                 'matches' => $topMatches
@@ -84,7 +252,8 @@ class AnimalManagementController extends Controller
         } catch (\Exception $e) {
             Log::error('Match calculation error: ' . $e->getMessage(), [
                 'exception' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
+                'user_id' => Auth::id()
             ]);
             return response()->json([
                 'success' => false,
@@ -93,13 +262,17 @@ class AnimalManagementController extends Controller
         }
     }
 
-    private function calculateMatchScore($adopterProfile, $animalProfile)
+    private function calculateMatchScore($adopterProfile, $animalProfile, $animal)
     {
         $score = 0;
         $maxScore = 100;
 
         // Species match (20 points)
-        if ($adopterProfile->preferred_species === $animalProfile->animal->species) {
+        // FIXED: Use passed $animal instead of $animalProfile->animal (prevents N+1 query)
+        if ($adopterProfile->preferred_species === $animal->species) {
+            $score += 20;
+        } elseif ($adopterProfile->preferred_species === 'both') {
+            // "both" means no preference, give some points
             $score += 20;
         }
 
@@ -170,15 +343,16 @@ class AnimalManagementController extends Controller
         return 10; // Default
     }
 
-    private function getMatchDetails($adopterProfile, $animalProfile)
+    private function getMatchDetails($adopterProfile, $animalProfile, $animal)
     {
         $details = [];
 
-        if ($adopterProfile->preferred_species === $animalProfile->animal->species) {
+        // FIXED: Use passed $animal instead of $animalProfile->animal (prevents N+1 query)
+        if ($adopterProfile->preferred_species === $animal->species || $adopterProfile->preferred_species === 'both') {
             $details[] = "Matches your preferred species";
         }
 
-        if ($adopterProfile->preferred_size === $animalProfile->size) {
+        if ($adopterProfile->preferred_size === $animalProfile->size || $adopterProfile->preferred_size === 'any') {
             $details[] = "Perfect size match";
         }
 
@@ -200,6 +374,10 @@ class AnimalManagementController extends Controller
 
     public function storeOrUpdate(Request $request, $animalId)
     {
+        // CRITICAL FIX: Increase execution time for stored procedures
+        // Stored procedures with triggers can take 5-30 seconds
+        set_time_limit(60);
+
         try {
             // 1. Validate other fields (excluding 'age')
             $validated = $request->validate([
@@ -211,7 +389,7 @@ class AnimalManagementController extends Controller
                 'medical_needs' => ['required', Rule::in(['none', 'minor', 'moderate', 'special'])],
             ]);
 
-            // 2. Find the animal
+            // 2. Find the animal to validate age
             $animal = Animal::find($animalId);
             if (!$animal) {
                 return redirect()->back()->with('error', 'Animal not found or database connection unavailable.');
@@ -219,7 +397,7 @@ class AnimalManagementController extends Controller
 
             // 3. Validate age from the Animal table (case-insensitive)
             $allowedAges = ['kitten', 'puppy', 'adult', 'senior'];
-            $ageFromAnimal = strtolower($animal->age); // convert to lower case
+            $ageFromAnimal = strtolower($animal->age);
 
             if (!in_array($ageFromAnimal, $allowedAges)) {
                 return redirect()->back()->with('error', 'Invalid age value in the Animal table.');
@@ -227,17 +405,13 @@ class AnimalManagementController extends Controller
 
             $validated['age'] = $ageFromAnimal;
 
-            // 4. Check if profile exists
-            $profile = AnimalProfile::firstOrNew(['animalID' => $animalId]);
+            // 4. Use stored procedure to upsert animal profile
+            $result = $this->procedureService->upsertAnimalProfile($animalId, $validated);
 
-            // 5. Fill and save
-            $profile->fill($validated);
-            $saved = $profile->save();
-
-            if ($saved) {
-                return redirect()->back()->with('success', 'Animal Profile saved successfully!');
+            if ($result['success']) {
+                return redirect()->back()->with('success', $result['message']);
             } else {
-                return redirect()->back()->with('error', 'Failed to save Animal Profile.');
+                return redirect()->back()->with('error', $result['message']);
             }
 
         } catch (\Illuminate\Validation\ValidationException $e) {
@@ -303,17 +477,17 @@ class AnimalManagementController extends Controller
             'images.*.max' => 'Each image must not exceed 5MB.',
         ]);
 
-
         $uploadedFiles = [];
 
-        // Start transactions on both databases involved
-        DB::connection('shafiqah')->beginTransaction();  // Animal database
+        // NOTE: shafiqah transaction removed - sp_animal_create stored procedure handles its own transaction
+        // Only manage eilya transaction for Image operations (direct Eloquent)
         DB::connection('eilya')->beginTransaction();      // Image database
 
         try {
             // Use age category directly
             $age = ucfirst($validated['age_category']);
 
+            // Validate slot availability (application layer - cross-database)
             $slot = null;
             if ($validated['slotID']) {
                 $slot = Slot::find($validated['slotID']);
@@ -324,25 +498,33 @@ class AnimalManagementController extends Controller
                 }
             }
 
-            $animal = Animal::create([
+            // Create animal using stored procedure
+            $result = $this->procedureService->createAnimal([
                 'name' => $validated['name'],
                 'weight' => $validated['weight'],
                 'species' => $validated['species'],
                 'health_details' => $validated['health_details'],
-                'age' => $age, // Store the category directly
+                'age' => $age,
                 'gender' => $validated['gender'],
                 'adoption_status' => 'Not Adopted',
                 'rescueID' => $validated['rescueID'],
                 'slotID' => $validated['slotID'],
             ]);
 
+            if (!$result['success']) {
+                throw new \Exception($result['message']);
+            }
+
+            $animalId = $result['animal_id'];
+
+            // Upload images (kept in application layer - requires Cloudinary API)
             if ($request->hasFile('images')) {
                 $imageIndex = 1;
                 foreach ($request->file('images') as $imageFile) {
                     // Create descriptive filename: animal_1_fluffy_dog_1
-                    $sanitizedName = strtolower(preg_replace('/[^a-zA-Z0-9]/', '_', $animal->name));
-                    $sanitizedSpecies = strtolower(preg_replace('/[^a-zA-Z0-9]/', '_', $animal->species));
-                    $filename = "animal_{$animal->id}_{$sanitizedName}_{$sanitizedSpecies}_{$imageIndex}";
+                    $sanitizedName = strtolower(preg_replace('/[^a-zA-Z0-9]/', '_', $validated['name']));
+                    $sanitizedSpecies = strtolower(preg_replace('/[^a-zA-Z0-9]/', '_', $validated['species']));
+                    $filename = "animal_{$animalId}_{$sanitizedName}_{$sanitizedSpecies}_{$imageIndex}";
 
                     // Upload to Cloudinary
                     $uploadResult = cloudinary()->uploadApi()->upload($imageFile->getRealPath(), [
@@ -353,7 +535,7 @@ class AnimalManagementController extends Controller
                     $uploadedFiles[] = $path;
 
                     Image::create([
-                        'animalID' => $animal->id,
+                        'animalID' => $animalId,
                         'image_path' => $path,
                         'filename' => $filename,
                         'uploaded_at' => now(),
@@ -363,33 +545,16 @@ class AnimalManagementController extends Controller
                 }
             }
 
-            // Commit both transactions
-            DB::connection('shafiqah')->commit();
+            // Commit eilya transaction (shafiqah handled by stored procedure)
             DB::connection('eilya')->commit();
 
-            // AUDIT: Animal created
-            AuditService::logAnimal(
-                'animal_created',
-                $animal->id,
-                $animal->name,
-                null, // No old values for new creation
-                $animal->toArray(),
-                [
-                    'rescue_id' => $validated['rescueID'],
-                    'slot_id' => $validated['slotID'],
-                    'image_count' => count($request->file('images') ?? []),
-                    'species' => $validated['species'],
-                    'age' => $age,
-                    'gender' => $validated['gender'],
-                ]
-            );
+            // Note: Audit logging now handled by database triggers
 
             return redirect()->route('animal-management.create', ['rescue_id' => $validated['rescueID']])
-                ->with('success', 'Animal "' . $animal->name . '" added successfully with ' . count($request->file('images') ?? []) . ' image(s)! Do you want to add another animal? If so, please fill all the required fields again.');
+                ->with('success', 'Animal "' . $validated['name'] . '" added successfully with ' . count($request->file('images') ?? []) . ' image(s)! Do you want to add another animal? If so, please fill all the required fields again.');
 
         } catch (\Exception $e) {
-            // Rollback both database transactions
-            DB::connection('shafiqah')->rollBack();
+            // Rollback eilya transaction (shafiqah handled by stored procedure)
             DB::connection('eilya')->rollBack();
 
             foreach ($uploadedFiles as $filePath) {
@@ -426,8 +591,8 @@ public function update(Request $request, $id)
         'delete_images.*' => 'exists:eilya.image,id',      // Cross-database: Image on eilya
     ]);
 
-    // Start transactions on both databases involved
-    DB::connection('shafiqah')->beginTransaction();  // Animal database
+    // NOTE: shafiqah transaction removed - sp_animal_update stored procedure handles its own transaction
+    // Only manage eilya transaction for Image operations (direct Eloquent)
     DB::connection('eilya')->beginTransaction();      // Image database
 
    try {
@@ -435,9 +600,9 @@ public function update(Request $request, $id)
         $uploadedFiles = [];
 
         // ----- Age Category -----
-        $age = ucfirst($validated['age_category']); // Directly use the category
+        $age = ucfirst($validated['age_category']);
 
-        // ----- Safe slot logic -----
+        // ----- Safe slot logic (application layer - cross-database) -----
         $slotID = $validated['slotID'] ?? $animal->slotID;
 
         if (($validated['slotID'] ?? null) !== null && $slotID != $animal->slotID) {
@@ -449,28 +614,32 @@ public function update(Request $request, $id)
             }
         }
 
-        // ----- Update Animal -----
-        $animal->update([
+        // ----- Update Animal using stored procedure -----
+        $result = $this->procedureService->updateAnimal($id, [
             'name' => $validated['name'],
             'weight' => $validated['weight'],
             'species' => $validated['species'],
             'health_details' => $validated['health_details'],
-            'age' => $age, // Store the category directly
+            'age' => $age,
             'gender' => $validated['gender'],
             'slotID' => $slotID,
         ]);
 
+        if (!$result['success']) {
+            throw new \Exception($result['message']);
+        }
+
         \Log::info('Animal updated basic info.', [
-            'id' => $animal->id,
+            'id' => $id,
             'slotID' => $slotID,
             'age_category' => $age
         ]);
 
-        // ----- Delete Images Optional -----
+        // ----- Delete Images Optional (application layer - Cloudinary API) -----
         if (!empty($validated['delete_images'])) {
             foreach ($validated['delete_images'] as $imageId) {
                 $img = Image::where('id', $imageId)
-                    ->where('animalID', $animal->id)
+                    ->where('animalID', $id)
                     ->first();
 
                 if ($img) {
@@ -490,20 +659,20 @@ public function update(Request $request, $id)
         }
 
         \Log::info('Remaining after delete', [
-            'count' => Image::where('animalID', $animal->id)->count()
+            'count' => Image::where('animalID', $id)->count()
         ]);
 
-        // ----- Upload New Images Optional -----
+        // ----- Upload New Images Optional (application layer - Cloudinary API) -----
         if ($request->hasFile('images')) {
             // Get current image count to continue numbering
-            $existingImageCount = $animal->images()->count();
+            $existingImageCount = Image::where('animalID', $id)->count();
             $imageIndex = $existingImageCount + 1;
 
             foreach ($request->file('images') as $file) {
                 // Create descriptive filename: animal_1_fluffy_dog_3
-                $sanitizedName = strtolower(preg_replace('/[^a-zA-Z0-9]/', '_', $animal->name));
-                $sanitizedSpecies = strtolower(preg_replace('/[^a-zA-Z0-9]/', '_', $animal->species));
-                $filename = "animal_{$animal->id}_{$sanitizedName}_{$sanitizedSpecies}_{$imageIndex}";
+                $sanitizedName = strtolower(preg_replace('/[^a-zA-Z0-9]/', '_', $validated['name']));
+                $sanitizedSpecies = strtolower(preg_replace('/[^a-zA-Z0-9]/', '_', $validated['species']));
+                $filename = "animal_{$id}_{$sanitizedName}_{$sanitizedSpecies}_{$imageIndex}";
 
                 // Upload to Cloudinary
                 $uploadResult = cloudinary()->uploadApi()->upload($file->getRealPath(), [
@@ -515,7 +684,7 @@ public function update(Request $request, $id)
                 $uploadedFiles[] = $path;
 
                 Image::create([
-                    'animalID' => $animal->id,
+                    'animalID' => $id,
                     'image_path' => $path,
                     'filename' => $filename,
                     'uploaded_at' => now(),
@@ -529,21 +698,19 @@ public function update(Request $request, $id)
             ]);
         }
 
-        // ----- NO MORE "must have at least one image" -----
-
-        // Commit both transactions
-        DB::connection('shafiqah')->commit();
+        // Commit eilya transaction (shafiqah handled by stored procedure)
         DB::connection('eilya')->commit();
 
         \Log::info('UPDATE SUCCESSFUL', [
-            'animal_id' => $animal->id
+            'animal_id' => $id
         ]);
+
+        // Note: Audit logging now handled by database triggers
 
         return redirect()->back()->with('success', 'Animal updated successfully!');
 
     } catch (\Exception $e) {
-        // Rollback both database transactions
-        DB::connection('shafiqah')->rollBack();
+        // Rollback eilya transaction (shafiqah handled by stored procedure)
         DB::connection('eilya')->rollBack();
 
         \Log::error('UPDATE FAILED', [
@@ -686,7 +853,7 @@ public function update(Request $request, $id)
         }
 
         if ($atiqahOnline) {
-            $with[] = 'slot';
+            $with[] = 'slot.section';  // Load nested relationship to prevent lazy loading
         }
 
         // bookings are on danish database
@@ -709,6 +876,10 @@ public function update(Request $request, $id)
 
         // Add flag to indicate if images are available
         $imagesAvailable = $eilyaOnline && $animal->relationLoaded('images');
+
+        // Get images collection for view (empty if not available)
+        $animalImages = $imagesAvailable ? $animal->images : collect([]);
+        $hasImages = $animalImages->isNotEmpty();
 
         $medicals = $this->safeQuery(
             fn() => Medical::with('vet')->where('animalID', $id)->get(),
@@ -761,6 +932,7 @@ public function update(Request $request, $id)
 
         // Get all active bookings for this animal (Pending or Confirmed) - only if danish database is online
         $activeBookings = collect([]);
+        $activeBooking = null;
         if ($danishOnline && $animal->relationLoaded('bookings')) {
             $activeBookings = $animal->bookings
                 ->whereIn('status', ['Pending', 'Confirmed'])
@@ -768,6 +940,9 @@ public function update(Request $request, $id)
                     ['appointment_date', 'asc'],
                     ['appointment_time', 'asc'],
                 ]);
+
+            // Get the first active booking for the page header
+            $activeBooking = $activeBookings->first();
         }
 
         $animalProfile = $this->safeQuery(
@@ -804,7 +979,25 @@ public function update(Request $request, $id)
             }, collect([]), 'danish');
         }
 
-        return view('animal-management.show', compact('animal', 'vets', 'medicals', 'vaccinations', 'slots', 'bookedSlots', 'animalProfile', 'animalList', 'activeBookings', 'imagesAvailable'));
+        // Pass database availability status to view for graceful degradation
+        return view('animal-management.show', compact(
+            'animal',
+            'vets',
+            'medicals',
+            'vaccinations',
+            'slots',
+            'bookedSlots',
+            'animalProfile',
+            'animalList',
+            'activeBookings',
+            'activeBooking',
+            'imagesAvailable',
+            'animalImages',
+            'hasImages',
+            'eilyaOnline',
+            'atiqahOnline',
+            'danishOnline'
+        ));
     }
 
     public function assignSlot(Request $request, $animalId)
@@ -814,12 +1007,16 @@ public function update(Request $request, $id)
                 'slot_id' => 'required|exists:atiqah.slot,id',  // Cross-database: Slot on atiqah
             ]);
 
-            $animal = Animal::findOrFail($animalId);
-            $previousSlotId = $animal->slotID;
+            // Assign slot using stored procedure
+            $result = $this->procedureService->assignSlot($animalId, $request->slot_id);
 
-            $animal->slotID = $request->slot_id;
-            $animal->save();
+            if (!$result['success']) {
+                throw new \Exception($result['message']);
+            }
 
+            $previousSlotId = $result['previous_slot_id'];
+
+            // Update slot status (application layer - cross-database operation)
             $newSlot = Slot::findOrFail($request->slot_id);
             // Count animals in slot directly from shafiqah database (avoid cross-database JOIN)
             $newSlotAnimalCount = Animal::where('slotID', $newSlot->id)->count();
@@ -847,6 +1044,8 @@ public function update(Request $request, $id)
                     $oldSlot->save();
                 }
             }
+
+            // Note: Audit logging now handled by database triggers
 
             return back()->with('success', 'Slot assigned successfully!');
 
@@ -879,8 +1078,8 @@ public function update(Request $request, $id)
         $eilyaOnline = $this->isDatabaseAvailable('eilya');
         $atiqahOnline = $this->isDatabaseAvailable('atiqah');
 
-        // Start transactions on databases involved
-        DB::connection('shafiqah')->beginTransaction();  // Animal database
+        // NOTE: shafiqah transaction removed - sp_animal_delete stored procedure handles its own transaction
+        // Only manage eilya and atiqah transactions for Image/Slot operations (direct Eloquent)
 
         if ($eilyaOnline) {
             DB::connection('eilya')->beginTransaction();  // Image database
@@ -891,7 +1090,7 @@ public function update(Request $request, $id)
         }
 
         try {
-            // Only delete images if eilya database is online
+            // Only delete images if eilya database is online (application layer - Cloudinary API)
             if ($eilyaOnline) {
                 try {
                     foreach ($animal->images as $image) {
@@ -915,11 +1114,18 @@ public function update(Request $request, $id)
                 ]);
             }
 
-            $animalName = $animal->name;
             $slotID = $animal->slotID; // Store slot ID before deletion
-            $animal->delete();
 
-            // Update slot status based on remaining animal count if atiqah is online
+            // Delete animal using stored procedure
+            $result = $this->procedureService->deleteAnimal($animal->id);
+
+            if (!$result['success']) {
+                throw new \Exception($result['message']);
+            }
+
+            $animalName = $result['animal_name'];
+
+            // Update slot status based on remaining animal count if atiqah is online (application layer - cross-database)
             if ($slotID && $atiqahOnline) {
                 $slot = Slot::find($slotID);
                 if ($slot) {
@@ -943,14 +1149,12 @@ public function update(Request $request, $id)
                 }
             }
 
-            // Commit all transactions
-            DB::connection('shafiqah')->commit();
-
+            // Commit transactions (shafiqah handled by stored procedure)
             if ($eilyaOnline) {
                 DB::connection('eilya')->commit();
             }
 
-            if ($animal->slotID && $atiqahOnline) {
+            if ($slotID && $atiqahOnline) {
                 DB::connection('atiqah')->commit();
             }
 
@@ -959,13 +1163,13 @@ public function update(Request $request, $id)
                 $message .= ' (Note: Images could not be deleted - image database offline)';
             }
 
+            // Note: Audit logging now handled by database triggers
+
             return redirect()->route('animal-management.index')
                 ->with('success', $message);
 
         } catch (\Exception $e) {
-            // Rollback all database transactions
-            DB::connection('shafiqah')->rollBack();
-
+            // Rollback transactions (shafiqah handled by stored procedure)
             if ($eilyaOnline) {
                 DB::connection('eilya')->rollBack();
             }
@@ -1008,7 +1212,8 @@ public function update(Request $request, $id)
                 'longitude' => 'required|numeric|between:-180,180',
             ]);
 
-            $clinic = Clinic::create([
+            // Create clinic using stored procedure
+            $result = $this->procedureService->createClinic([
                 'name' => $validated['clinic_name'],
                 'address' => $validated['address'],
                 'contactNum' => $validated['phone'],
@@ -1016,7 +1221,11 @@ public function update(Request $request, $id)
                 'longitude' => $validated['longitude'],
             ]);
 
-            return redirect()->back()->with('success', 'Clinic added successfully!');
+            if ($result['success']) {
+                return redirect()->back()->with('success', $result['message']);
+            } else {
+                return redirect()->back()->withInput()->with('error', $result['message']);
+            }
 
         } catch (\Illuminate\Validation\ValidationException $e) {
             return redirect()->back()
@@ -1037,23 +1246,26 @@ public function update(Request $request, $id)
                 'full_name' => 'required|string|max:255',
                 'specialization' => 'required|string|max:255',
                 'license_no' => 'required|string|max:50',
-                'clinicID' => 'nullable|exists:clinic,id',
+                'clinicID' => 'nullable|exists:shafiqah.clinic,id',
                 'phone' => 'required|string|max:20',
-                'email' => 'required|email|max:255|unique:vet,email',
+                'email' => 'required|email|max:255',
             ]);
 
-            $dataToInsert = [
+            // Create vet using stored procedure (includes email uniqueness check)
+            $result = $this->procedureService->createVet([
                 'name' => $validated['full_name'],
                 'specialization' => $validated['specialization'],
                 'license_no' => $validated['license_no'],
                 'clinicID' => $validated['clinicID'] ?? null,
                 'contactNum' => $validated['phone'],
                 'email' => $validated['email'],
-            ];
+            ]);
 
-            $vet = Vet::create($dataToInsert);
-
-            return redirect()->back()->with('success', 'Veterinarian added successfully!');
+            if ($result['success']) {
+                return redirect()->back()->with('success', $result['message']);
+            } else {
+                return redirect()->back()->withInput()->with('error', $result['message']);
+            }
 
         } catch (\Illuminate\Validation\ValidationException $e) {
             return redirect()->back()
@@ -1069,38 +1281,39 @@ public function update(Request $request, $id)
 
     public function storeMedical(Request $request)
     {
+        // CRITICAL FIX: Increase execution time for stored procedures
+        // Stored procedures with triggers can take 5-30 seconds
+        set_time_limit(60);
+
+        // DEBUG: Log that we reached the controller
+        \Log::info('storeMedical: Controller method reached', [
+            'animalID' => $request->input('animalID'),
+            'has_csrf_token' => $request->has('_token'),
+            'session_id' => session()->getId()
+        ]);
+
         try {
             $validated = $request->validate([
-                'animalID' => 'required|exists:animal,id',
+                'animalID' => 'required|exists:shafiqah.animal,id',
                 'treatment_type' => 'required|string|max:255',
                 'diagnosis' => 'required|string',
                 'action' => 'required|string',
                 'remarks' => 'nullable|string',
-                'vetID' => 'required|exists:vet,id',
+                'vetID' => 'required|exists:shafiqah.vet,id',
                 'costs' => 'nullable|numeric|min:0',
             ]);
 
-            $medical = Medical::create($validated);
+            // Create medical record using stored procedure
+            $result = $this->procedureService->createMedical($validated);
 
-            // AUDIT: Medical record added
-            $animal = Animal::find($validated['animalID']);
-            $vet = Vet::find($validated['vetID']);
-            AuditService::logMedical(
-                'medical_added',
-                $validated['animalID'],
-                $animal->name,
-                $medical->id,
-                [
-                    'treatment_type' => $validated['treatment_type'],
-                    'diagnosis' => $validated['diagnosis'],
-                    'action' => $validated['action'],
-                    'vet_id' => $validated['vetID'],
-                    'vet_name' => $vet->name,
-                    'costs' => $validated['costs'] ?? 0,
-                ]
-            );
+            if ($result['success']) {
+                return redirect()->back()->with('success', $result['message']);
+            } else {
+                return redirect()->back()->withInput()->with('error', $result['message']);
+            }
 
-            return redirect()->back()->with('success', 'Medical record added successfully!');
+            // Note: Audit logging now handled by database triggers
+
         } catch (\Illuminate\Validation\ValidationException $e) {
             return redirect()->back()
                 ->withErrors($e->errors())
@@ -1115,38 +1328,32 @@ public function update(Request $request, $id)
 
     public function storeVaccination(Request $request)
     {
+        // CRITICAL FIX: Increase execution time for stored procedures
+        // Stored procedures with triggers can take 5-30 seconds
+        set_time_limit(60);
+
         try {
             $validated = $request->validate([
-                'animalID' => 'required|exists:animal,id',
+                'animalID' => 'required|exists:shafiqah.animal,id',
                 'name' => 'required|string|max:255',
                 'type' => 'required|string|max:255',
                 'next_due_date' => 'nullable|date|after:today',
                 'remarks' => 'nullable|string',
-                'vetID' => 'required|exists:vet,id',
+                'vetID' => 'required|exists:shafiqah.vet,id',
                 'costs' => 'nullable|numeric|min:0',
             ]);
 
-            $vaccination = Vaccination::create($validated);
+            // Create vaccination record using stored procedure
+            $result = $this->procedureService->createVaccination($validated);
 
-            // AUDIT: Vaccination record added
-            $animal = Animal::find($validated['animalID']);
-            $vet = Vet::find($validated['vetID']);
-            AuditService::logVaccination(
-                'vaccination_added',
-                $validated['animalID'],
-                $animal->name,
-                $vaccination->id,
-                [
-                    'vaccination_name' => $validated['name'],
-                    'type' => $validated['type'],
-                    'next_due_date' => $validated['next_due_date'] ?? 'Not set',
-                    'vet_id' => $validated['vetID'],
-                    'vet_name' => $vet->name,
-                    'costs' => $validated['costs'] ?? 0,
-                ]
-            );
+            if ($result['success']) {
+                return redirect()->back()->with('success', $result['message']);
+            } else {
+                return redirect()->back()->withInput()->with('error', $result['message']);
+            }
 
-            return redirect()->back()->with('success', 'Vaccination record added successfully!');
+            // Note: Audit logging now handled by database triggers
+
         } catch (\Illuminate\Validation\ValidationException $e) {
             return redirect()->back()
                 ->withErrors($e->errors())
@@ -1193,8 +1400,8 @@ public function update(Request $request, $id)
                 'longitude' => 'required|numeric',
             ]);
 
-            $clinic = Clinic::findOrFail($id);
-            $clinic->update([
+            // Update clinic using stored procedure
+            $result = $this->procedureService->updateClinic($id, [
                 'name' => $request->name,
                 'address' => $request->address,
                 'contactNum' => $request->contactNum,
@@ -1202,11 +1409,12 @@ public function update(Request $request, $id)
                 'longitude' => $request->longitude,
             ]);
 
-            return redirect()->back()->with('success', 'Clinic updated successfully!');
+            if ($result['success']) {
+                return redirect()->back()->with('success', $result['message']);
+            } else {
+                return redirect()->back()->withInput()->with('error', $result['message']);
+            }
 
-        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-            \Log::error('Clinic not found for update: ' . $e->getMessage(), ['clinic_id' => $id]);
-            return redirect()->back()->with('error', 'Clinic not found or database connection unavailable.');
         } catch (\Illuminate\Validation\ValidationException $e) {
             return redirect()->back()
                 ->withErrors($e->errors())
@@ -1226,20 +1434,15 @@ public function update(Request $request, $id)
     public function destroyClinic($id)
     {
         try {
-            $clinic = Clinic::findOrFail($id);
+            // Delete clinic using stored procedure (includes vet count check)
+            $result = $this->procedureService->deleteClinic($id);
 
-            // Check if clinic has associated vets
-            if ($clinic->vets()->count() > 0) {
-                return redirect()->back()->with('error', 'Cannot delete clinic with associated veterinarians. Please reassign or remove vets first.');
+            if ($result['success']) {
+                return redirect()->back()->with('success', $result['message']);
+            } else {
+                return redirect()->back()->with('error', $result['message']);
             }
 
-            $clinic->delete();
-
-            return redirect()->back()->with('success', 'Clinic deleted successfully!');
-
-        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-            \Log::error('Clinic not found for deletion: ' . $e->getMessage(), ['clinic_id' => $id]);
-            return redirect()->back()->with('error', 'Clinic not found or database connection unavailable.');
         } catch (\Exception $e) {
             \Log::error('Error deleting clinic: ' . $e->getMessage(), [
                 'clinic_id' => $id,
@@ -1278,13 +1481,13 @@ public function update(Request $request, $id)
                 'name' => 'required|string|max:255',
                 'specialization' => 'required|string|max:255',
                 'license_no' => 'required|string|max:50',
-                'clinicID' => 'required|exists:clinic,id',
+                'clinicID' => 'required|exists:shafiqah.clinic,id',
                 'contactNum' => 'required|string|max:20',
                 'email' => 'required|email|max:255',
             ]);
 
-            $vet = Vet::findOrFail($id);
-            $vet->update([
+            // Update vet using stored procedure (includes email uniqueness check)
+            $result = $this->procedureService->updateVet($id, [
                 'name' => $request->name,
                 'specialization' => $request->specialization,
                 'license_no' => $request->license_no,
@@ -1293,11 +1496,12 @@ public function update(Request $request, $id)
                 'email' => $request->email,
             ]);
 
-            return redirect()->back()->with('success', 'Veterinarian updated successfully!');
+            if ($result['success']) {
+                return redirect()->back()->with('success', $result['message']);
+            } else {
+                return redirect()->back()->withInput()->with('error', $result['message']);
+            }
 
-        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-            \Log::error('Veterinarian not found for update: ' . $e->getMessage(), ['vet_id' => $id]);
-            return redirect()->back()->with('error', 'Veterinarian not found or database connection unavailable.');
         } catch (\Illuminate\Validation\ValidationException $e) {
             return redirect()->back()
                 ->withErrors($e->errors())
@@ -1317,24 +1521,15 @@ public function update(Request $request, $id)
     public function destroyVet($id)
     {
         try {
-            $vet = Vet::findOrFail($id);
+            // Delete vet using stored procedure (includes medical/vaccination count check)
+            $result = $this->procedureService->deleteVet($id);
 
-            // Check if vet has associated medical records or vaccinations
-            $medicalCount = $vet->medicals()->count();
-            $vaccinationCount = $vet->vaccinations()->count();
-
-            if ($medicalCount > 0 || $vaccinationCount > 0) {
-                return redirect()->back()->with('error',
-                    'Cannot delete veterinarian with associated medical records (' . $medicalCount . ') or vaccination records (' . $vaccinationCount . '). Please reassign these records first.');
+            if ($result['success']) {
+                return redirect()->back()->with('success', $result['message']);
+            } else {
+                return redirect()->back()->with('error', $result['message']);
             }
 
-            $vet->delete();
-
-            return redirect()->back()->with('success', 'Veterinarian deleted successfully!');
-
-        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-            \Log::error('Veterinarian not found for deletion: ' . $e->getMessage(), ['vet_id' => $id]);
-            return redirect()->back()->with('error', 'Veterinarian not found or database connection unavailable.');
         } catch (\Exception $e) {
             \Log::error('Error deleting veterinarian: ' . $e->getMessage(), [
                 'vet_id' => $id,

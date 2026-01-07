@@ -231,7 +231,7 @@
                 </div>
 
                 {{-- Current Images --}}
-                @if($animal->images && count($animal->images) > 0)
+                @if($animal->relationLoaded('images') && $animal->images->count() > 0)
                     <div class="space-y-4">
                         <label class="block text-gray-700 font-bold mb-3 flex items-center gap-2">
                             <i class="fas fa-images text-purple-600"></i>
@@ -454,7 +454,13 @@
     // Form submission loading state
     document.getElementById('editAnimalForm').addEventListener('submit', function(e) {
         const submitButton = document.getElementById('submitButton');
+        const form = document.getElementById('editAnimalForm');
+
+        // Disable submit button and show loading state
         submitButton.disabled = true;
+        submitButton.classList.add('opacity-75', 'cursor-not-allowed');
+        submitButton.classList.remove('hover:from-purple-700', 'hover:via-purple-800', 'hover:to-purple-900', 'hover:scale-105');
+
         submitButton.innerHTML = `
             <svg class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -462,6 +468,17 @@
             </svg>
             <span>Updating...</span>
         `;
+
+        // Disable cancel button
+        const cancelButtons = form.querySelectorAll('button[type="button"]');
+        cancelButtons.forEach(btn => {
+            btn.disabled = true;
+            btn.classList.add('opacity-50', 'cursor-not-allowed');
+        });
+
+        // Disable all form inputs
+        const inputs = form.querySelectorAll('input, select, textarea');
+        inputs.forEach(input => input.disabled = true);
     });
 </script>
 

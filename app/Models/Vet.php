@@ -20,12 +20,7 @@ class Vet extends Model
         'contactNum',
         'specialization',
         'license_no',
-        'weight',
         'clinicID',
-    ];
-
-    protected $casts = [
-        'weight' => 'decimal:2',
     ];
 
     /**

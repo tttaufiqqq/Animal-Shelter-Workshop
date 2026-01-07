@@ -1,26 +1,58 @@
-<div id="animalModal" class="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
+<!-- Modal for Animal Profile -->
+<div id="animalModal" class="hidden fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-[9999] p-4">
     @php
         // Helper function to safely get a value from the profile data or old input after failure
         $getProfileValue = fn ($key) => optional($animalProfile)->{$key} ?? old($key);
     @endphp
 
     <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-
-        <div class="sticky top-0 bg-purple-500 text-white p-6 rounded-t-2xl flex justify-between items-center">
-            <h2 class="text-2xl font-bold flex items-center">
-                <i class="fas fa-paw mr-3"></i> 
-                Animal Profile
-            </h2>
-            <button type="button" onclick="closeAnimalModal()" class="hover:bg-white hover:bg-opacity-20 rounded-full p-2 transition">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                </svg>
-            </button>
+        <div class="bg-gradient-to-r from-purple-500 to-purple-600 text-white p-6">
+            <div class="flex items-center justify-between">
+                <h2 class="text-2xl font-bold">Animal Profile</h2>
+                <button type="button" onclick="closeAnimalModal()" class="text-white hover:text-gray-200">
+                    <i class="fas fa-times text-2xl"></i>
+                </button>
+            </div>
         </div>
 
-        <form action="{{ route('animal.profile.store', ['animal' => $animal->id]) }}" method="POST" class="p-6 space-y-5">
+        <!-- Information Section -->
+        <div class="bg-gradient-to-r from-green-50 to-emerald-50 border-l-4 border-green-500 p-5 mx-6 mt-6 rounded-lg">
+            <div class="flex items-start gap-3">
+                <div class="flex-shrink-0">
+                    <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                </div>
+                <div class="flex-1">
+                    <h3 class="text-sm font-bold text-green-900 mb-2">Complete Animal Profile for Better Matching</h3>
+                    <div class="text-sm text-green-800 space-y-2">
+                        <p>As a caretaker, your insights are invaluable! Complete this profile to help our matching system connect <strong>{{ $animal->name }}</strong> with the perfect adopter.</p>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-2 mt-3">
+                            <div class="flex items-start gap-2">
+                                <span class="text-green-500 font-bold">🎯</span>
+                                <span><strong>Accurate Matching:</strong> Behavioral details improve compatibility scores</span>
+                            </div>
+                            <div class="flex items-start gap-2">
+                                <span class="text-green-500 font-bold">🏡</span>
+                                <span><strong>Right Home:</strong> Find families suited to this animal's needs</span>
+                            </div>
+                            <div class="flex items-start gap-2">
+                                <span class="text-green-500 font-bold">💚</span>
+                                <span><strong>Faster Adoption:</strong> Detailed profiles attract serious adopters</span>
+                            </div>
+                            <div class="flex items-start gap-2">
+                                <span class="text-green-500 font-bold">✨</span>
+                                <span><strong>Better Outcomes:</strong> Well-matched placements reduce returns</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <form action="{{ route('animal.profile.store', ['animal' => $animal->id]) }}" method="POST" class="p-6 space-y-4" id="animalProfileForm" onsubmit="handleAnimalProfileSubmit(event)">
             @csrf
-            
+
             {{-- Optionally include a hidden field for the Animal Profile ID if updating --}}
             @if ($animalProfile)
                 <input type="hidden" name="profile_id" value="{{ $animalProfile->id }}">
@@ -28,8 +60,8 @@
 
             <!-- Size -->
             <div>
-                <label for="size" class="block text-sm font-semibold text-gray-700 mb-2">Size</label>
-                <select id="size" name="size" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition bg-white">
+                <label class="block text-gray-800 font-semibold mb-2">Size <span class="text-red-600">*</span></label>
+                <select name="size" class="w-full border-gray-300 rounded-lg shadow-sm px-4 py-3 border focus:border-purple-500 focus:ring focus:ring-purple-200 transition" required>
                     <option value="">Select size</option>
                     <option value="small" @selected($getProfileValue('size') == 'small')>Small (Under 10kg)</option>
                     <option value="medium" @selected($getProfileValue('size') == 'medium')>Medium (10-25kg)</option>
@@ -39,8 +71,8 @@
 
             <!-- Energy Level -->
             <div>
-                <label for="energy_level" class="block text-sm font-semibold text-gray-700 mb-2">Energy Level</label>
-                <select id="energy_level" name="energy_level" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition bg-white">
+                <label class="block text-gray-800 font-semibold mb-2">Energy Level <span class="text-red-600">*</span></label>
+                <select name="energy_level" class="w-full border-gray-300 rounded-lg shadow-sm px-4 py-3 border focus:border-purple-500 focus:ring focus:ring-purple-200 transition" required>
                     <option value="">Select energy level</option>
                     <option value="low" @selected($getProfileValue('energy_level') == 'low')>Low - Calm and relaxed</option>
                     <option value="medium" @selected($getProfileValue('energy_level') == 'medium')>Medium - Moderately active</option>
@@ -50,8 +82,8 @@
 
             <!-- Good with Kids -->
             <div>
-                <label for="good_with_kids" class="block text-sm font-semibold text-gray-700 mb-2">Good with Kids?</label>
-                <select id="good_with_kids" name="good_with_kids" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition bg-white">
+                <label class="block text-gray-800 font-semibold mb-2">Good with Kids? <span class="text-red-600">*</span></label>
+                <select name="good_with_kids" class="w-full border-gray-300 rounded-lg shadow-sm px-4 py-3 border focus:border-purple-500 focus:ring focus:ring-purple-200 transition" required>
                     <option value="">Select option</option>
                     <option value="1" @selected($getProfileValue('good_with_kids') == 1)>Yes</option>
                     <option value="0" @selected($getProfileValue('good_with_kids') == 0 && $getProfileValue('good_with_kids') !== null)>No</option>
@@ -60,8 +92,8 @@
 
             <!-- Good with Other Pets -->
             <div>
-                <label for="good_with_pets" class="block text-sm font-semibold text-gray-700 mb-2">Good with Other Pets?</label>
-                <select id="good_with_pets" name="good_with_pets" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition bg-white">
+                <label class="block text-gray-800 font-semibold mb-2">Good with Other Pets? <span class="text-red-600">*</span></label>
+                <select name="good_with_pets" class="w-full border-gray-300 rounded-lg shadow-sm px-4 py-3 border focus:border-purple-500 focus:ring focus:ring-purple-200 transition" required>
                     <option value="">Select option</option>
                     <option value="1" @selected($getProfileValue('good_with_pets') == 1)>Yes</option>
                     <option value="0" @selected($getProfileValue('good_with_pets') == 0 && $getProfileValue('good_with_pets') !== null)>No</option>
@@ -70,8 +102,8 @@
 
             <!-- Temperament -->
             <div>
-                <label for="temperament" class="block text-sm font-semibold text-gray-700 mb-2">Temperament</label>
-                <select id="temperament" name="temperament" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition bg-white">
+                <label class="block text-gray-800 font-semibold mb-2">Temperament <span class="text-red-600">*</span></label>
+                <select name="temperament" class="w-full border-gray-300 rounded-lg shadow-sm px-4 py-3 border focus:border-purple-500 focus:ring focus:ring-purple-200 transition" required>
                     <option value="">Select temperament</option>
                     <option value="calm" @selected($getProfileValue('temperament') == 'calm')>Calm</option>
                     <option value="active" @selected($getProfileValue('temperament') == 'active')>Active</option>
@@ -83,8 +115,8 @@
 
             <!-- Medical Needs -->
             <div>
-                <label for="medical_needs" class="block text-sm font-semibold text-gray-700 mb-2">Medical Needs</label>
-                <select id="medical_needs" name="medical_needs" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition bg-white">
+                <label class="block text-gray-800 font-semibold mb-2">Medical Needs <span class="text-red-600">*</span></label>
+                <select name="medical_needs" class="w-full border-gray-300 rounded-lg shadow-sm px-4 py-3 border focus:border-purple-500 focus:ring focus:ring-purple-200 transition" required>
                     <option value="">Select medical needs</option>
                     <option value="none" @selected($getProfileValue('medical_needs') == 'none')>None</option>
                     <option value="minor" @selected($getProfileValue('medical_needs') == 'minor')>Minor</option>
@@ -93,12 +125,17 @@
                 </select>
             </div>
 
-            <div class="flex gap-3 pt-4">
-                <button type="button" onclick="closeAnimalModal()" class="flex-1 px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-50 transition">
+            <div class="flex justify-end gap-3 pt-4">
+                <button type="button" onclick="closeAnimalModal()" class="px-6 py-3 bg-gray-200 text-gray-700 font-semibold rounded-lg hover:bg-gray-300 transition duration-300">
                     Cancel
                 </button>
-                <button type="submit" class="flex-1 px-6 py-3 bg-purple-500 text-white rounded-lg font-semibold hover:bg-purple-600 transition shadow-lg">
-                    Save Profile
+                <button type="submit" id="animalProfileSubmitBtn" class="px-6 py-3 bg-gradient-to-r from-purple-500 to-purple-600 text-white font-semibold rounded-lg hover:from-purple-600 hover:to-purple-700 transition duration-300 disabled:opacity-50 disabled:cursor-not-allowed">
+                    <span id="animalProfileBtnText">
+                        <i class="fas fa-save mr-2"></i>Save Profile
+                    </span>
+                    <span id="animalProfileBtnLoading" class="hidden">
+                        <i class="fas fa-spinner fa-spin mr-2"></i>Saving...
+                    </span>
                 </button>
             </div>
         </form>
@@ -108,13 +145,35 @@
 <script>
     // Function to open the modal
     function openAnimalModal() {
-        document.getElementById('animalModal').classList.remove('hidden');
-        document.getElementById('animalModal').classList.add('flex');
+        const modal = document.getElementById('animalModal');
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
     }
 
     // Function to close the modal
     function closeAnimalModal() {
         document.getElementById('animalModal').classList.add('hidden');
         document.getElementById('animalModal').classList.remove('flex');
+    }
+
+    // Close modal when clicking outside
+    document.getElementById('animalModal')?.addEventListener('click', function(e) {
+        if (e.target === this) {
+            closeAnimalModal();
+        }
+    });
+
+    // Handle form submission with loading state
+    function handleAnimalProfileSubmit(event) {
+        const submitBtn = document.getElementById('animalProfileSubmitBtn');
+        const btnText = document.getElementById('animalProfileBtnText');
+        const btnLoading = document.getElementById('animalProfileBtnLoading');
+
+        // Show loading state
+        submitBtn.disabled = true;
+        btnText.classList.add('hidden');
+        btnLoading.classList.remove('hidden');
+
+        // Form will submit normally, button stays disabled
     }
 </script>

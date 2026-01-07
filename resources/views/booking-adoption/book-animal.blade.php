@@ -1,5 +1,5 @@
 <!-- Book Adoption Modal -->
-<div id="bookAdoptionModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+<div id="bookAdoptionModal" class="hidden fixed inset-0 bg-black bg-opacity-50 backdrop-blur-md flex items-center justify-center z-[9999] p-4">
     <div class="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
         <!-- Modal Header -->
         <div class="bg-gradient-to-r from-purple-600 to-purple-700 text-white p-6">
@@ -143,19 +143,60 @@
 
             <!-- Modal Footer -->
             <div class="flex justify-end gap-3 pt-4 border-t border-gray-200">
-                <button type="button" 
-                        onclick="closeBookAdoptionModal()" 
+                <button type="button"
+                        onclick="closeBookAdoptionModal()"
+                        id="bookAdoptionCancelBtn"
                         class="px-6 py-3 bg-gray-200 text-gray-700 font-semibold rounded-lg hover:bg-gray-300 transition duration-300">
                     <i class="fas fa-times mr-1"></i>Cancel
                 </button>
-                <button type="submit" 
-                        class="px-6 py-3 bg-gradient-to-r from-purple-600 to-purple-700 text-white font-semibold rounded-lg hover:from-purple-700 hover:to-purple-800 transition duration-300 shadow-lg">
-                    <i class="fas fa-calendar-check mr-2"></i>Book Appointment
+                <button type="submit"
+                        id="bookAdoptionSubmitBtn"
+                        class="px-6 py-3 bg-gradient-to-r from-purple-600 to-purple-700 text-white font-semibold rounded-lg hover:from-purple-700 hover:to-purple-800 transition duration-300 shadow-lg flex items-center gap-2">
+                    <i class="fas fa-calendar-check" id="bookAdoptionSubmitIcon"></i>
+                    <span id="bookAdoptionSubmitText">Book Appointment</span>
+                    <svg class="animate-spin h-5 w-5 text-white hidden" id="bookAdoptionSubmitSpinner" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
                 </button>
             </div>
         </form>
     </div>
 </div>
+
+<script>
+    // Book Adoption Form Loading State
+    document.addEventListener('DOMContentLoaded', function() {
+        const bookAdoptionForm = document.getElementById('bookAdoptionForm');
+        if (bookAdoptionForm) {
+            bookAdoptionForm.addEventListener('submit', function(e) {
+                const submitBtn = document.getElementById('bookAdoptionSubmitBtn');
+                const submitText = document.getElementById('bookAdoptionSubmitText');
+                const submitIcon = document.getElementById('bookAdoptionSubmitIcon');
+                const submitSpinner = document.getElementById('bookAdoptionSubmitSpinner');
+                const cancelBtn = document.getElementById('bookAdoptionCancelBtn');
+
+                // Disable button and show loading state
+                submitBtn.disabled = true;
+                submitBtn.classList.add('opacity-75', 'cursor-not-allowed');
+                submitBtn.classList.remove('hover:from-purple-700', 'hover:to-purple-800');
+
+                // Hide icon and text, show spinner
+                submitIcon.classList.add('hidden');
+                submitText.textContent = 'Booking...';
+                submitSpinner.classList.remove('hidden');
+
+                // Disable cancel button
+                cancelBtn.disabled = true;
+                cancelBtn.classList.add('opacity-50', 'cursor-not-allowed');
+
+                // Disable all form inputs
+                const inputs = bookAdoptionForm.querySelectorAll('input, select, textarea, button[type="button"]');
+                inputs.forEach(input => input.disabled = true);
+            });
+        }
+    });
+</script>
 
 <script>
     // Open Book Adoption Modal

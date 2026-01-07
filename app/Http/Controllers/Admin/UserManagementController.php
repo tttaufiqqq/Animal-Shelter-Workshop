@@ -6,12 +6,19 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Models\AuditLog;
 use App\Services\AuditService;
+use App\Services\TaufiqProcedureService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 
 class UserManagementController extends Controller
 {
+    protected TaufiqProcedureService $taufiqService;
+
+    public function __construct(TaufiqProcedureService $taufiqService)
+    {
+        $this->taufiqService = $taufiqService;
+    }
     /**
      * Get detailed user activity and statistics
      * OPTIMIZED: Reduced from 13+ queries to just 3 queries
@@ -94,32 +101,14 @@ class UserManagementController extends Controller
                 return response()->json(['success' => false, 'error' => 'You cannot suspend admin accounts'], 403);
             }
 
-            $user->update([
-                'account_status' => 'suspended',
-                'suspended_at' => now(),
-                'suspended_by' => $admin->id,
-                'suspension_reason' => $request->reason,
-            ]);
+            // Suspend user using stored procedure
+            $result = $this->taufiqService->suspendUser($userId, $request->reason);
 
-            // Log the action
-            AuditLog::create([
-                'user_id' => $admin->id,
-                'user_email' => $admin->email,
-                'user_name' => $admin->name,
-                'category' => 'authentication',
-                'action' => 'user_suspended',
-                'entity_type' => 'user',
-                'entity_id' => $user->id,
-                'status' => 'success',
-                'ip_address' => $request->ip(),
-                'user_agent' => $request->header('User-Agent'),
-                'performed_at' => now(),
-                'metadata' => [
-                    'suspended_user' => $user->name,
-                    'suspended_email' => $user->email,
-                    'reason' => $request->reason,
-                ],
-            ]);
+            if (!$result['success']) {
+                throw new \Exception($result['message']);
+            }
+
+            // Note: Database trigger will automatically log this action to audit_logs
 
             return response()->json([
                 'success' => true,
@@ -169,41 +158,24 @@ class UserManagementController extends Controller
                 return response()->json(['success' => false, 'error' => 'You cannot lock admin accounts'], 403);
             }
 
-            // Calculate lock duration
-            $lockedUntil = match($request->duration) {
-                '1_hour' => now()->addHour(),
-                '24_hours' => now()->addDay(),
-                '7_days' => now()->addDays(7),
-                'custom' => now()->addHours($request->custom_duration),
+            // Calculate lock duration in minutes
+            $durationMinutes = match($request->duration) {
+                '1_hour' => 60,
+                '24_hours' => 1440,
+                '7_days' => 10080,
+                'custom' => $request->custom_duration * 60,
             };
 
-            $user->update([
-                'account_status' => 'locked',
-                'locked_until' => $lockedUntil,
-                'lock_reason' => $request->reason,
-            ]);
+            // Lock user using stored procedure
+            $result = $this->taufiqService->lockUser($userId, $durationMinutes, $request->reason);
 
-            // Log the action
-            AuditLog::create([
-                'user_id' => $admin->id,
-                'user_email' => $admin->email,
-                'user_name' => $admin->name,
-                'category' => 'authentication',
-                'action' => 'user_locked',
-                'entity_type' => 'user',
-                'entity_id' => $user->id,
-                'status' => 'success',
-                'ip_address' => $request->ip(),
-                'user_agent' => $request->header('User-Agent'),
-                'performed_at' => now(),
-                'metadata' => [
-                    'locked_user' => $user->name,
-                    'locked_email' => $user->email,
-                    'locked_until' => $lockedUntil->toIso8601String(),
-                    'duration' => $request->duration,
-                    'reason' => $request->reason,
-                ],
-            ]);
+            if (!$result['success']) {
+                throw new \Exception($result['message']);
+            }
+
+            // Note: Database trigger will automatically log this action to audit_logs
+
+            $lockedUntil = \Carbon\Carbon::parse($result['locked_until']);
 
             return response()->json([
                 'success' => true,
@@ -234,35 +206,17 @@ class UserManagementController extends Controller
 
         $previousStatus = $user->account_status;
 
-        $user->update([
-            'account_status' => 'active',
-            'locked_until' => null,
-            'lock_reason' => null,
-            'suspended_at' => null,
-            'suspended_by' => null,
-            'suspension_reason' => null,
-            'failed_login_attempts' => 0,
-        ]);
+        // Unlock user using stored procedure
+        $result = $this->taufiqService->unlockUser($userId);
 
-        // Log the action
-        AuditLog::create([
-            'user_id' => $admin->id,
-            'user_email' => $admin->email,
-            'user_name' => $admin->name,
-            'category' => 'authentication',
-            'action' => 'user_unlocked',
-            'entity_type' => 'user',
-            'entity_id' => $user->id,
-            'status' => 'success',
-            'ip_address' => request()->ip(),
-            'user_agent' => request()->header('User-Agent'),
-            'performed_at' => now(),
-            'metadata' => [
-                'unlocked_user' => $user->name,
-                'unlocked_email' => $user->email,
-                'previous_status' => $previousStatus,
-            ],
-        ]);
+        if (!$result['success']) {
+            return response()->json([
+                'success' => false,
+                'error' => $result['message']
+            ], 500);
+        }
+
+        // Note: Database trigger will automatically log this action to audit_logs
 
         return response()->json([
             'success' => true,
@@ -300,26 +254,30 @@ class UserManagementController extends Controller
             return response()->json(['error' => 'You cannot reset admin passwords'], 403);
         }
 
-        // Update the password and force user to change it on next login
-        $user->update([
-            'password' => Hash::make($request->password),
-            'require_password_reset' => true,
-        ]);
+        // Update password using stored procedure
+        $passwordResult = $this->taufiqService->updateUserPassword(
+            $userId,
+            Hash::make($request->password)
+        );
 
-        // Log the action using AuditService (captures real IP address)
-        AuditService::log('authentication', 'password_reset_by_admin', [
-            'entity_type' => 'user',
-            'entity_id' => $user->id,
-            'source_database' => 'taufiq',
-            'metadata' => [
-                'target_user_id' => $user->id,
-                'target_user_name' => $user->name,
-                'target_user_email' => $user->email,
-                'reset_by_admin_id' => $admin->id,
-                'reset_by_admin_name' => $admin->name,
-                'reset_by_admin_email' => $admin->email,
-            ],
-        ], 'success');
+        if (!$passwordResult['success']) {
+            return response()->json([
+                'success' => false,
+                'error' => $passwordResult['message']
+            ], 500);
+        }
+
+        // Force password reset using stored procedure
+        $resetResult = $this->taufiqService->forcePasswordReset($userId);
+
+        if (!$resetResult['success']) {
+            return response()->json([
+                'success' => false,
+                'error' => $resetResult['message']
+            ], 500);
+        }
+
+        // Note: Database trigger will automatically log this action to audit_logs
 
         return response()->json([
             'success' => true,

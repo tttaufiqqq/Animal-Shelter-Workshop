@@ -16,10 +16,19 @@ use App\Models\Rescue;
 use App\Models\User;
 use App\Models\Animal;
 use App\DatabaseErrorHandler;
+use App\Services\EilyaProcedureService;
 
 class StrayReportingManagementController extends Controller
 {
     use DatabaseErrorHandler;
+
+    protected $procedureService;
+
+    public function __construct(EilyaProcedureService $procedureService)
+    {
+        $this->procedureService = $procedureService;
+    }
+
     public function indexUser()
     {
         $userReports = $this->safeQuery(
@@ -63,8 +72,8 @@ class StrayReportingManagementController extends Controller
 
     public function store(Request $request)
     {
-        // Start transactions on eilya database (Report and Image tables)
-        DB::connection('eilya')->beginTransaction();
+        // NOTE: Transactions are handled internally by stored procedures (sp_report_create, sp_image_create)
+        // No manual transaction management needed here
         $uploadedFiles = [];
 
         try {
@@ -104,22 +113,23 @@ class StrayReportingManagementController extends Controller
 
             $validated = $validator->validated();
 
-            // Combine description and additional notes
-            $fullDescription = $validated['description'];
-            if (!empty($validated['additional_notes'])) {
-                $fullDescription .= "\n\nAdditional Notes: " . $validated['additional_notes'];
-            }
-
-            $report = Report::create([
+            // Create report using procedure service
+            $reportResult = $this->procedureService->createReport([
                 'latitude' => $validated['latitude'],
                 'longitude' => $validated['longitude'],
                 'address' => $validated['address'],
                 'city' => $validated['city'],
                 'state' => $validated['state'],
+                'description' => $validated['description'],
+                'additional_notes' => $validated['additional_notes'] ?? null,
                 'report_status' => Report::STATUS_PENDING,
-                'description' => $fullDescription,
-                'userID' => Auth::id(),
             ]);
+
+            if (!$reportResult['success']) {
+                throw new \Exception($reportResult['message']);
+            }
+
+            $reportId = $reportResult['report_id'];
 
             if ($request->hasFile('images')) {
                 $imageIndex = 1;
@@ -127,7 +137,7 @@ class StrayReportingManagementController extends Controller
                     // Create descriptive filename: report_1_kuala_lumpur_selangor_1
                     $sanitizedCity = strtolower(preg_replace('/[^a-zA-Z0-9]/', '_', $validated['city']));
                     $sanitizedState = strtolower(preg_replace('/[^a-zA-Z0-9]/', '_', $validated['state']));
-                    $filename = "report_{$report->id}_{$sanitizedCity}_{$sanitizedState}_{$imageIndex}";
+                    $filename = "report_{$reportId}_{$sanitizedCity}_{$sanitizedState}_{$imageIndex}";
 
                     // Upload to Cloudinary and get the public_id
                     $uploadResult = cloudinary()->uploadApi()->upload($image->getRealPath(), [
@@ -137,17 +147,23 @@ class StrayReportingManagementController extends Controller
                     $path = $uploadResult['public_id'];
                     $uploadedFiles[] = $path;
 
-                    Image::create([
+                    // Create image using procedure service
+                    $imageResult = $this->procedureService->createImage([
                         'image_path' => $path,
-                        'reportID' => $report->id,
+                        'reportID' => $reportId,
                         'animalID' => null,
+                        'clinicID' => null,
                     ]);
+
+                    if (!$imageResult['success']) {
+                        throw new \Exception($imageResult['message']);
+                    }
 
                     $imageIndex++;
                 }
             }
 
-            DB::connection('eilya')->commit();
+            // NOTE: No commit needed - stored procedures handle their own transactions
 
             if ($request->wantsJson() || $request->ajax()) {
                 return response()->json([
@@ -159,7 +175,7 @@ class StrayReportingManagementController extends Controller
             return redirect()->back()->with('success', 'Report submitted successfully!');
 
         } catch (\Illuminate\Validation\ValidationException $e) {
-            DB::connection('eilya')->rollBack();
+            // NOTE: No rollback needed - stored procedures handle their own transactions
 
             // Clean up uploaded files
             foreach ($uploadedFiles as $filePath) {
@@ -179,7 +195,7 @@ class StrayReportingManagementController extends Controller
                 ->withInput()
                 ->with('error', 'Please check the form and try again.');
         } catch (\Exception $e) {
-            DB::connection('eilya')->rollBack();
+            // NOTE: No rollback needed - stored procedures handle their own transactions
 
             // Clean up uploaded files
             foreach ($uploadedFiles as $filePath) {
@@ -248,39 +264,45 @@ class StrayReportingManagementController extends Controller
 
     public function destroy($id)
     {
-        // Start transaction on eilya database (Report and Image tables)
-        DB::connection('eilya')->beginTransaction();
+        // NOTE: Transactions are handled internally by stored procedure (sp_report_delete)
+        // No manual transaction management needed here
 
         try {
-            $report = Report::with('images')->findOrFail($id);
+            // Get images before deletion for Cloudinary cleanup
+            $images = $this->procedureService->readImagesByReport($id);
 
-            // Check if report has an associated rescue
-            if ($report->rescue) {
+            // Attempt to delete report using procedure service
+            $deleteResult = $this->procedureService->deleteReport($id);
+
+            // Check if report has rescue (procedure returns flag)
+            if ($deleteResult['has_rescue']) {
                 return redirect()->back()->with('error', 'Cannot delete report with associated rescue. Please delete the rescue first.');
             }
 
-            foreach ($report->images as $image) {
+            if (!$deleteResult['success']) {
+                throw new \Exception($deleteResult['message']);
+            }
+
+            // Clean up Cloudinary images
+            foreach ($images as $image) {
                 try {
                     cloudinary()->uploadApi()->destroy($image->image_path);
                 } catch (\Exception $e) {
                     // Continue even if Cloudinary deletion fails
                 }
-                $image->delete();
             }
 
-            $report->delete();
-
-            DB::connection('eilya')->commit();
+            // NOTE: No commit needed - stored procedure handles its own transaction
 
             return redirect()->route('reports.index')->with('success', 'Report deleted successfully!');
 
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-            DB::connection('eilya')->rollBack();
+            // NOTE: No rollback needed - stored procedure handles its own transaction
 
             \Log::error('Report not found for deletion: ' . $e->getMessage(), ['report_id' => $id]);
             return redirect()->back()->with('error', 'Report not found or database connection unavailable.');
         } catch (\Exception $e) {
-            DB::connection('eilya')->rollBack();
+            // NOTE: No rollback needed - stored procedure handles its own transaction
 
             \Log::error('Error deleting report: ' . $e->getMessage(), [
                 'report_id' => $id,
@@ -293,8 +315,8 @@ class StrayReportingManagementController extends Controller
 
     public function assignCaretaker(Request $request, $id)
     {
-        // Start transaction on eilya database (Report and Rescue tables)
-        DB::connection('eilya')->beginTransaction();
+        // NOTE: Transactions are handled internally by stored procedure (sp_rescue_assign_caretaker)
+        // No manual transaction management needed here
 
         try {
             // Validate basic input (removed cross-database exists rule as it doesn't work with PostgreSQL)
@@ -317,73 +339,59 @@ class StrayReportingManagementController extends Controller
                     ->with('error', 'Selected caretaker not found or database connection unavailable.');
             }
 
-            $rescue = Rescue::where('reportID', $report->id)->first();
+            // Assign caretaker using procedure service
+            $assignResult = $this->procedureService->assignCaretaker($report->id, $request->caretaker_id);
 
-            if ($rescue) {
-                $oldCaretakerId = $rescue->caretakerID;
+            if (!$assignResult['success']) {
+                return redirect()->back()
+                    ->withInput()
+                    ->with('error', $assignResult['message']);
+            }
 
-                // Prevent reassignment to the same caretaker
-                if ($oldCaretakerId == $request->caretaker_id) {
-                    return redirect()->back()
-                        ->withInput()
-                        ->with('error', 'This report is already assigned to ' . $caretaker->name . '. Please select a different caretaker.');
-                }
+            $rescueId = $assignResult['rescue_id'];
+            $isReassignment = $assignResult['is_reassignment'];
+            $oldCaretakerId = $assignResult['old_caretaker_id'];
 
-                $rescue->update([
-                    'caretakerID' => $request->caretaker_id
-                ]);
-
-                // AUDIT: Caretaker reassigned
+            // AUDIT: Log based on whether this was a reassignment or new assignment
+            if ($isReassignment) {
                 AuditService::logRescue(
                     'caretaker_reassigned',
-                    $rescue->id,
+                    $rescueId,
                     ['caretaker_id' => $oldCaretakerId],
                     ['caretaker_id' => $request->caretaker_id],
                     [
                         'report_id' => $report->id,
                         'new_caretaker_name' => $caretaker->name,
                         'address' => $report->address,
-                        'priority' => $rescue->priority ?? 'normal',
+                        'priority' => 'normal',
                     ]
                 );
             } else {
-                $rescue = Rescue::create([
-                    'reportID' => $report->id,
-                    'caretakerID' => $request->caretaker_id,
-                    'status' => Rescue::STATUS_SCHEDULED,
-                    'date' => null
-                ]);
-
-                // AUDIT: Caretaker assigned (new rescue)
                 AuditService::logRescue(
                     'caretaker_assigned',
-                    $rescue->id,
+                    $rescueId,
                     null,
                     ['caretaker_id' => $request->caretaker_id, 'status' => Rescue::STATUS_SCHEDULED],
                     [
                         'report_id' => $report->id,
                         'caretaker_name' => $caretaker->name,
                         'address' => $report->address,
-                        'priority' => $rescue->priority ?? 'normal',
+                        'priority' => 'normal',
                     ]
                 );
             }
 
-            $report->update([
-                'report_status' => Report::STATUS_ASSIGNED
-            ]);
-
-            DB::connection('eilya')->commit();
+            // NOTE: No commit needed - stored procedure handles its own transaction
 
             return redirect()->back()->with('success', 'Caretaker assigned successfully!');
 
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-            DB::connection('eilya')->rollBack();
+            // NOTE: No rollback needed - stored procedure handles its own transaction
 
             \Log::error('Report not found for caretaker assignment: ' . $e->getMessage(), ['report_id' => $id]);
             return redirect()->back()->with('error', 'Report not found or database connection unavailable.');
         } catch (\Illuminate\Validation\ValidationException $e) {
-            DB::connection('eilya')->rollBack();
+            // NOTE: No rollback needed - stored procedure handles its own transaction
 
             \Log::error('Validation failed for caretaker assignment', [
                 'report_id' => $id,
@@ -396,7 +404,7 @@ class StrayReportingManagementController extends Controller
                 ->withInput()
                 ->with('error', 'Validation failed: ' . implode(', ', $e->validator->errors()->all()));
         } catch (\Exception $e) {
-            DB::connection('eilya')->rollBack();
+            // NOTE: No rollback needed - stored procedure handles its own transaction
 
             \Log::error('Error assigning caretaker: ' . $e->getMessage(), [
                 'report_id' => $id,
@@ -471,8 +479,8 @@ class StrayReportingManagementController extends Controller
             }
         }
 
-        // Start transaction on eilya database (Rescue and Report tables)
-        DB::connection('eilya')->beginTransaction();
+        // NOTE: Transactions are handled internally by stored procedure (sp_rescue_update_status)
+        // No manual transaction management needed here
 
         try {
             $rules = [
@@ -494,90 +502,84 @@ class StrayReportingManagementController extends Controller
                 'remarks.max' => 'Remarks must not exceed 1000 characters.',
             ]);
 
+            // Verify authorization: rescue belongs to current user (caretaker)
             $rescue = Rescue::where('id', $id)
                 ->where('caretakerID', Auth::id())
                 ->firstOrFail();
 
-            $oldStatus = $rescue->status;
-            $oldRemarks = $rescue->remarks;
+            // Update rescue status using procedure service
+            $updateResult = $this->procedureService->updateRescueStatus(
+                $id,
+                $request->status,
+                $request->remarks ?? null
+            );
 
-            $updateData = ['status' => $request->status];
-
-            if ($request->filled('remarks')) {
-                $updateData['remarks'] = $request->remarks;
+            if (!$updateResult['success']) {
+                throw new \Exception($updateResult['message']);
             }
 
-            $rescue->update($updateData);
+            $oldStatus = $updateResult['old_status'];
+            $reportId = $updateResult['report_id'];
 
             // AUDIT: Rescue status updated
             AuditService::logRescue(
                 'status_updated',
-                $rescue->id,
-                ['status' => $oldStatus, 'remarks' => $oldRemarks],
-                ['status' => $request->status, 'remarks' => $request->remarks ?? $oldRemarks],
+                $id,
+                ['status' => $oldStatus, 'remarks' => $rescue->remarks],
+                ['status' => $request->status, 'remarks' => $request->remarks ?? $rescue->remarks],
                 [
                     'priority' => $rescue->priority ?? 'normal',
-                    'report_id' => $rescue->reportID,
+                    'report_id' => $reportId,
                     'caretaker_name' => Auth::user()->name,
                     'address' => $rescue->report->address ?? 'Unknown',
                 ]
             );
 
-            // Update report status based on rescue status (sync them)
-            // Case-insensitive status comparison for cross-RDBMS compatibility
+            // NOTE: Report status synchronization is now handled automatically by database triggers
+            // No manual status sync needed - triggers handle:
+            // - 'In Progress' → Report: 'In Progress'
+            // - 'Success'/'Failed' → Report: 'Completed'
+
+            // Log the automatic synchronization for audit trail
             $currentStatus = strtolower($request->status);
             $inProgressStatus = strtolower(Rescue::STATUS_IN_PROGRESS);
             $successStatus = strtolower(Rescue::STATUS_SUCCESS);
             $failedStatus = strtolower(Rescue::STATUS_FAILED);
 
-            // When caretaker starts working → Report: "In Progress"
             if ($currentStatus === $inProgressStatus) {
-                $oldReportStatus = $rescue->report->report_status;
-                $rescue->report->update([
-                    'report_status' => Report::STATUS_IN_PROGRESS
-                ]);
-
-                // AUDIT: Report status changed to "In Progress" (synced with rescue)
                 AuditService::logRescue(
                     'report_status_synced_in_progress',
-                    $rescue->id,
-                    ['report_status' => $oldReportStatus],
-                    ['report_status' => Report::STATUS_IN_PROGRESS],
+                    $id,
+                    null,
+                    null,
                     [
-                        'report_id' => $rescue->reportID,
+                        'report_id' => $reportId,
                         'rescue_status' => $request->status,
                         'caretaker_name' => Auth::user()->name,
                         'address' => $rescue->report->address ?? 'Unknown',
-                        'sync_trigger' => 'Caretaker started rescue operation',
+                        'sync_trigger' => 'Automatic trigger synchronization',
                     ]
                 );
             }
 
-            // When rescue is completed (success or failed) → Report: "Completed"
             if ($currentStatus === $successStatus || $currentStatus === $failedStatus) {
-                $oldReportStatus = $rescue->report->report_status;
-                $rescue->report->update([
-                    'report_status' => Report::STATUS_COMPLETED
-                ]);
-
-                // AUDIT: Report status changed to "Completed" (synced with rescue)
                 AuditService::logRescue(
                     'report_status_synced_completed',
-                    $rescue->id,
-                    ['report_status' => $oldReportStatus],
-                    ['report_status' => Report::STATUS_COMPLETED],
+                    $id,
+                    null,
+                    null,
                     [
-                        'report_id' => $rescue->reportID,
+                        'report_id' => $reportId,
                         'rescue_status' => $request->status,
-                        'rescue_final_status' => $request->status, // "Success" or "Failed"
+                        'rescue_final_status' => $request->status,
                         'caretaker_name' => Auth::user()->name,
                         'address' => $rescue->report->address ?? 'Unknown',
-                        'sync_trigger' => 'Rescue operation completed',
+                        'sync_trigger' => 'Automatic trigger synchronization',
                     ]
                 );
             }
 
-            DB::connection('eilya')->commit();
+            // NOTE: No commit needed - stored procedure handles its own transaction
 
             if ($currentStatus === $successStatus) {
                 return redirect()
@@ -588,7 +590,7 @@ class StrayReportingManagementController extends Controller
             return redirect()->back()->with('success', 'Rescue status updated successfully!');
 
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-            DB::connection('eilya')->rollBack();
+            // NOTE: No rollback needed - stored procedure handles its own transaction
 
             \Log::error('Rescue not found or unauthorized: ' . $e->getMessage(), [
                 'rescue_id' => $id,
@@ -596,14 +598,14 @@ class StrayReportingManagementController extends Controller
             ]);
             return redirect()->back()->with('error', 'Rescue not found or you are not authorized to update it.');
         } catch (\Illuminate\Validation\ValidationException $e) {
-            DB::connection('eilya')->rollBack();
+            // NOTE: No rollback needed - stored procedure handles its own transaction
 
             return redirect()->back()
                 ->withErrors($e->errors())
                 ->withInput()
                 ->with('error', 'Please check the form and try again.');
         } catch (\Exception $e) {
-            DB::connection('eilya')->rollBack();
+            // NOTE: No rollback needed - stored procedure handles its own transaction
 
             \Log::error('Error updating rescue status: ' . $e->getMessage(), [
                 'rescue_id' => $id,

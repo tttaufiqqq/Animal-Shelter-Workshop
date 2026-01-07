@@ -6,6 +6,7 @@ use App\Http\Requests\ProfileUpdateRequest;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Redirect;
 use Illuminate\View\View;
@@ -13,10 +14,19 @@ use App\Models\AdopterProfile;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
 use App\DatabaseErrorHandler;
+use App\Services\TaufiqProcedureService;
 
 class ProfileController extends Controller
 {
     use DatabaseErrorHandler;
+
+    protected TaufiqProcedureService $taufiqService;
+
+    public function __construct(TaufiqProcedureService $taufiqService)
+    {
+        $this->taufiqService = $taufiqService;
+    }
+
     /**
      * Display the user's profile form.
      */
@@ -34,17 +44,15 @@ class ProfileController extends Controller
                 'preferred_size' => ['required', Rule::in(['small', 'medium', 'large', 'any'])],
             ]);
 
-            // 2. Upsert (Update or Insert) the Profile
-            // We look for a profile linked to the authenticated user's ID.
-            AdopterProfile::updateOrCreate(
-                ['adopterID' => Auth::id()], // Key to find the record
-                $validated                 // Data to create or update
-            );
+            // 2. Upsert (Update or Insert) the Profile using stored procedure
+            $result = $this->taufiqService->upsertAdopterProfile(Auth::id(), $validated);
 
-            // 3. Determine message based on action
-            $message = AdopterProfile::where('adopterID', Auth::id())->exists() ?
-                       'Adopter Profile updated successfully!' :
-                       'Adopter Profile created successfully!';
+            if (!$result['success']) {
+                throw new \Exception($result['message']);
+            }
+
+            // 3. Use message from procedure
+            $message = $result['message'];
 
             // 4. Return JSON for AJAX requests, redirect for regular requests
             if ($request->wantsJson() || $request->ajax()) {
@@ -114,13 +122,45 @@ class ProfileController extends Controller
     private function getAdminStats(): array
     {
         try {
-            // Cross-database statistics
-            $totalUsers = \App\Models\User::count();
+            // Get user account statistics using stored procedure
+            $userStats = DB::connection('taufiq')->select('SELECT * FROM get_user_account_stats()');
+            $userStats = $userStats[0] ?? null;
+
+            // Get adopter profile statistics using stored procedure
+            $adopterStats = DB::connection('taufiq')->select('SELECT * FROM get_adopter_profile_stats()');
+            $adopterStats = $adopterStats[0] ?? null;
+
+            // Get recent registrations (last 7 days)
+            $recentRegistrations = DB::connection('taufiq')->select('SELECT * FROM get_recent_registrations(7)');
+
+            // Get high-risk users
+            $highRiskUsers = DB::connection('taufiq')->select('SELECT * FROM get_high_risk_users(3)');
+
+            // Cross-database statistics (for other modules)
             $totalReports = \App\Models\Report::count();
             $totalAnimals = \App\Models\Animal::count();
 
             return [
-                'totalUsers' => $totalUsers,
+                // User statistics from stored procedure
+                'totalUsers' => $userStats->total_users ?? 0,
+                'activeUsers' => $userStats->active_users ?? 0,
+                'suspendedUsers' => $userStats->suspended_users ?? 0,
+                'lockedUsers' => $userStats->locked_users ?? 0,
+                'usersWithProfiles' => $userStats->users_with_profiles ?? 0,
+                'avgFailedLoginAttempts' => $userStats->avg_failed_login_attempts ?? 0,
+
+                // Adopter profile statistics from stored procedure
+                'totalAdopterProfiles' => $adopterStats->total_profiles ?? 0,
+                'profilesWithChildren' => $adopterStats->with_children ?? 0,
+                'profilesWithOtherPets' => $adopterStats->with_other_pets ?? 0,
+                'preferCats' => $adopterStats->prefer_cats ?? 0,
+                'preferDogs' => $adopterStats->prefer_dogs ?? 0,
+
+                // Recent activity
+                'recentRegistrations' => count($recentRegistrations),
+                'highRiskUsersCount' => count($highRiskUsers),
+
+                // Cross-database statistics
                 'totalReports' => $totalReports,
                 'totalAnimals' => $totalAnimals,
             ];
@@ -130,6 +170,18 @@ class ProfileController extends Controller
             // Return empty stats if there's an error
             return [
                 'totalUsers' => 0,
+                'activeUsers' => 0,
+                'suspendedUsers' => 0,
+                'lockedUsers' => 0,
+                'usersWithProfiles' => 0,
+                'avgFailedLoginAttempts' => 0,
+                'totalAdopterProfiles' => 0,
+                'profilesWithChildren' => 0,
+                'profilesWithOtherPets' => 0,
+                'preferCats' => 0,
+                'preferDogs' => 0,
+                'recentRegistrations' => 0,
+                'highRiskUsersCount' => 0,
                 'totalReports' => 0,
                 'totalAnimals' => 0,
             ];
@@ -142,9 +194,15 @@ class ProfileController extends Controller
     public function update(ProfileUpdateRequest $request): RedirectResponse
     {
         try {
-            $request->user()->fill($request->validated());
+            $userId = $request->user()->id;
+            $validated = $request->validated();
 
-            $request->user()->save();
+            // Update user using stored procedure
+            $result = $this->taufiqService->updateUser($userId, $validated);
+
+            if (!$result['success']) {
+                throw new \Exception($result['message']);
+            }
 
             return Redirect::route('profile.edit')->with('status', 'profile-updated');
 
@@ -175,12 +233,20 @@ class ProfileController extends Controller
 
             Auth::logout();
 
-            $user->delete();
+            // Delete user using stored procedure
+            $result = $this->taufiqService->deleteUser($userId);
+
+            if (!$result['success']) {
+                throw new \Exception($result['message']);
+            }
 
             $request->session()->invalidate();
             $request->session()->regenerateToken();
 
-            \Log::info('User account deleted successfully', ['user_id' => $userId]);
+            \Log::info('User account deleted successfully', [
+                'user_id' => $userId,
+                'user_name' => $result['user_name']
+            ]);
 
             return Redirect::to('/');
 
@@ -228,11 +294,15 @@ class ProfileController extends Controller
                 'password' => ['required', 'confirmed', Password::min(8)],
             ]);
 
-            // Update password and clear the requirement flag
-            $user->update([
-                'password' => Hash::make($validated['password']),
-                'require_password_reset' => false,
-            ]);
+            // Update password using stored procedure
+            $result = $this->taufiqService->updateUserPassword(
+                $user->id,
+                Hash::make($validated['password'])
+            );
+
+            if (!$result['success']) {
+                throw new \Exception($result['message']);
+            }
 
             return redirect('/')
                 ->with('success', 'Your password has been changed successfully!');
@@ -265,9 +335,15 @@ class ProfileController extends Controller
                 'current_password.current_password' => 'The provided password does not match your current password.',
             ]);
 
-            $request->user()->update([
-                'password' => Hash::make($validated['password']),
-            ]);
+            // Update password using stored procedure
+            $result = $this->taufiqService->updateUserPassword(
+                $request->user()->id,
+                Hash::make($validated['password'])
+            );
+
+            if (!$result['success']) {
+                throw new \Exception($result['message']);
+            }
 
             return redirect()->route('profile.edit')
                 ->with('status', 'password-updated');

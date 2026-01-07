@@ -44,7 +44,7 @@
 @endphp
 
     <!-- Booking Details Modal -->
-<div id="bookingModal-{{ $booking->id }}" class="modal-backdrop hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+<div id="bookingModal-{{ $booking->id }}" class="modal-backdrop hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999] p-4">
     <div class="bg-white rounded-2xl shadow-2xl max-w-[1400px] w-full max-h-[95vh] overflow-y-auto" onclick="event.stopPropagation()">
 
         <!-- Modal Header -->
