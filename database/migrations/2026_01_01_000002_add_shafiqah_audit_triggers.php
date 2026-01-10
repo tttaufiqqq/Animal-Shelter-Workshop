@@ -7,9 +7,18 @@ return new class extends Migration
 {
     /**
      * Run the migrations.
+     *
+     * NOTE: Audit triggers DISABLED - auditing is now handled at the application layer
+     * and written to the centralized audit_logs table in the taufiq (PostgreSQL) database.
+     * MySQL triggers cannot insert into PostgreSQL databases.
      */
     public function up(): void
     {
+        // DISABLED: Cross-database auditing not possible with MySQL triggers
+        // Auditing is now handled in ShafiqahProcedureService.php via application-level logging
+        // to the taufiq database's audit_logs table.
+        return;
+
         $connection = DB::connection('shafiqah');
 
         // ===========================

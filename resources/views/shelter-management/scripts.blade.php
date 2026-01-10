@@ -207,7 +207,15 @@
         document.getElementById(view + 'Content').classList.remove('hidden');
         document.getElementById(view + 'Stats').classList.remove('hidden');
         document.getElementById(view + 'Filters').classList.remove('hidden');
-        document.getElementById('add' + view.charAt(0).toUpperCase() + view.slice(1, -1) + 'Btn').classList.remove('hidden');
+
+        // Determine correct button ID (handle 'categories' -> 'Category' special case)
+        let buttonId;
+        if (view === 'categories') {
+            buttonId = 'addCategoryBtn';
+        } else {
+            buttonId = 'add' + view.charAt(0).toUpperCase() + view.slice(1, -1) + 'Btn';
+        }
+        document.getElementById(buttonId).classList.remove('hidden');
 
         // Clear filters when switching views
         clearFilters();

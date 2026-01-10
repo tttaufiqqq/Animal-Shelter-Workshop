@@ -41,6 +41,50 @@ class AuditController extends Controller
     }
 
     /**
+     * Display all audit logs across all categories.
+     */
+    public function all(Request $request)
+    {
+        $query = AuditLog::with('user')
+            ->orderBy('performed_at', 'desc');
+
+        // Apply filters
+        if ($request->filled('date_from')) {
+            $query->where('performed_at', '>=', $request->date_from);
+        }
+
+        if ($request->filled('date_to')) {
+            $query->where('performed_at', '<=', $request->date_to . ' 23:59:59');
+        }
+
+        if ($request->filled('category')) {
+            $query->category($request->category);
+        }
+
+        if ($request->filled('action')) {
+            $query->action($request->action);
+        }
+
+        if ($request->filled('status')) {
+            $query->status($request->status);
+        }
+
+        if ($request->filled('search')) {
+            $query->search($request->search);
+        }
+
+        $logs = $query->paginate(100)->withQueryString();
+
+        // Get unique categories for filter dropdown
+        $categories = AuditLog::distinct('category')->pluck('category')->filter()->sort()->values();
+
+        // Get unique actions for filter dropdown
+        $actions = AuditLog::distinct('action')->pluck('action')->filter()->sort()->values();
+
+        return view('admin.audit.all', compact('logs', 'categories', 'actions'));
+    }
+
+    /**
      * Display authentication audit logs.
      */
     public function authentication(Request $request)
@@ -317,9 +361,14 @@ class AuditController extends Controller
      */
     public function export(Request $request, $category)
     {
-        $query = AuditLog::category($category)
-            ->with('user')
-            ->orderBy('performed_at', 'desc');
+        // Handle "all" category - no category filter
+        if ($category === 'all') {
+            $query = AuditLog::with('user')->orderBy('performed_at', 'desc');
+        } else {
+            $query = AuditLog::category($category)
+                ->with('user')
+                ->orderBy('performed_at', 'desc');
+        }
 
         // Apply same filters as the view
         if ($request->filled('date_from')) {
@@ -328,6 +377,10 @@ class AuditController extends Controller
 
         if ($request->filled('date_to')) {
             $query->where('performed_at', '<=', $request->date_to . ' 23:59:59');
+        }
+
+        if ($request->filled('category') && $category === 'all') {
+            $query->category($request->category);
         }
 
         if ($request->filled('action')) {
@@ -352,7 +405,9 @@ class AuditController extends Controller
             $file = fopen('php://output', 'w');
 
             // CSV Headers based on category
-            if ($category === 'authentication') {
+            if ($category === 'all') {
+                fputcsv($file, ['Timestamp', 'Category', 'User', 'Email', 'Action', 'Entity ID', 'Status', 'IP Address', 'Details']);
+            } elseif ($category === 'authentication') {
                 fputcsv($file, ['Timestamp', 'User', 'Email', 'Action', 'IP Address', 'User Agent', 'Status', 'Error Message']);
             } elseif ($category === 'payment') {
                 fputcsv($file, ['Timestamp', 'User', 'Action', 'Booking ID', 'Amount', 'Animals', 'Bill Code', 'Status']);
@@ -364,7 +419,19 @@ class AuditController extends Controller
 
             // CSV Data
             foreach ($logs as $log) {
-                if ($category === 'authentication') {
+                if ($category === 'all') {
+                    fputcsv($file, [
+                        $log->performed_at,
+                        ucwords(str_replace('_', ' ', $log->category)),
+                        $log->user_name,
+                        $log->user_email,
+                        ucwords(str_replace('_', ' ', $log->action)),
+                        $log->entity_id,
+                        $log->status,
+                        $log->ip_address,
+                        json_encode($log->metadata),
+                    ]);
+                } elseif ($category === 'authentication') {
                     fputcsv($file, [
                         $log->performed_at,
                         $log->user_name,
