@@ -34,18 +34,6 @@
             <p class="text-sm text-gray-600 mt-1">Overview of booking performance and trends</p>
         </div>
 
-        {{-- Filters --}}
-        <div class="flex gap-4">
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">Year</label>
-                <select wire:model.live="selectedYear" class="w-80 border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-purple-500 focus:border-purple-500">
-                    @foreach($years as $year)
-                        <option value="{{ $year }}">{{ $year }}</option>
-                    @endforeach
-                </select>
-            </div>
-        </div>
-
         {{-- Key Metrics Cards --}}
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
             <!-- Total Bookings -->
@@ -115,7 +103,7 @@
             <div class="bg-white rounded-lg shadow">
                 <div class="p-6 border-b border-gray-200">
                     <div class="flex justify-between items-center">
-                        <h2 class="text-xl font-bold text-gray-800">Revenue by Adopted Species</h2>
+                        <h2 class="text-xl font-bold text-gray-800">Revenue by Adopted Species (All Time)</h2>
                         <div class="text-right">
                             <p class="text-sm text-gray-500">Total Revenue</p>
                             <p class="text-2xl font-bold text-purple-700">
@@ -163,7 +151,7 @@
             <!-- Bookings by Month -->
             <div class="bg-white rounded-lg shadow">
                 <div class="p-6 border-b border-gray-200">
-                    <h2 class="text-xl font-bold text-gray-800">Bookings by Month</h2>
+                    <h2 class="text-xl font-bold text-gray-800">Bookings by Month (Last 12 Months)</h2>
                 </div>
                 <div class="p-6">
                     <div class="h-96">
@@ -175,7 +163,7 @@
             <!-- Volume vs Average Value -->
             <div class="bg-white rounded-lg shadow">
                 <div class="p-6 border-b border-gray-200">
-                    <h2 class="text-xl font-bold text-gray-800">Adoption Volume vs Average Value (MoM)</h2>
+                    <h2 class="text-xl font-bold text-gray-800">Adoption Volume vs Average Value (Last 6 Months)</h2>
                 </div>
                 <div class="p-6">
                     <div class="h-96">
@@ -191,6 +179,13 @@
             <script>
                 let bookingTypeChart, bookingsByMonthChart, volumeVsValueChart;
 
+                // Store chart data - initially from PHP, then updated via Livewire events
+                let chartData = {
+                    bookingTypeBreakdown: @json($bookingTypeBreakdown),
+                    bookingsByMonth: @json($bookingsByMonth),
+                    volumeVsValue: @json($volumeVsValue)
+                };
+
                 function initializeCharts() {
                     // Destroy existing charts to prevent memory leaks
                     if (bookingTypeChart) bookingTypeChart.destroy();
@@ -198,7 +193,7 @@
                     if (volumeVsValueChart) volumeVsValueChart.destroy();
 
                     // Booking Type Pie Chart
-                    const bookingTypeData = @json($bookingTypeBreakdown);
+                    const bookingTypeData = chartData.bookingTypeBreakdown;
                     const bookingTypeCtx = document.getElementById('bookingTypeChart');
 
                     if (bookingTypeCtx && bookingTypeData.length > 0) {
@@ -230,7 +225,7 @@
                     }
 
                     // Bookings by Month Line Chart
-                    const bookingsByMonthData = @json($bookingsByMonth);
+                    const bookingsByMonthData = chartData.bookingsByMonth;
                     const bookingsByMonthCtx = document.getElementById('bookingsByMonthChart');
 
                     if (bookingsByMonthCtx && bookingsByMonthData.length > 0) {
@@ -289,7 +284,7 @@
                     }
 
                     // Volume vs Average Value Chart
-                    const volumeVsValueData = @json($volumeVsValue);
+                    const volumeVsValueData = chartData.volumeVsValue;
                     const volumeVsValueCtx = document.getElementById('volumeVsValueChart');
 
                     if (volumeVsValueCtx && volumeVsValueData.length > 0) {
@@ -394,13 +389,8 @@
                 // Initialize on page load
                 document.addEventListener('DOMContentLoaded', initializeCharts);
 
-                // Re-initialize when Livewire updates (like when year changes)
+                // Re-initialize when Livewire navigates
                 document.addEventListener('livewire:navigated', initializeCharts);
-
-                // For Livewire v3
-                Livewire.hook('morph.updated', () => {
-                    initializeCharts();
-                });
             </script>
         @endpush
     </div>

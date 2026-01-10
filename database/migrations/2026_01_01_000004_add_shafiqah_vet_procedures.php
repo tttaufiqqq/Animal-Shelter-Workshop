@@ -47,10 +47,10 @@ return new class extends Migration
 
                 START TRANSACTION;
 
-                -- Check email uniqueness (case-insensitive)
+                -- Check email uniqueness (case-insensitive) with explicit collation to avoid mismatch
                 SELECT COUNT(*) INTO v_email_exists
                 FROM vet
-                WHERE LOWER(email) = LOWER(p_email);
+                WHERE LOWER(email) = LOWER(p_email COLLATE utf8mb4_0900_ai_ci);
 
                 IF v_email_exists > 0 THEN
                     SET o_status = 'error';
@@ -139,10 +139,10 @@ return new class extends Migration
                     SET o_message = 'Veterinarian not found';
                     ROLLBACK;
                 ELSE
-                    -- Check email uniqueness (case-insensitive), excluding current vet
+                    -- Check email uniqueness (case-insensitive), excluding current vet, with explicit collation
                     SELECT COUNT(*) INTO v_email_exists
                     FROM vet
-                    WHERE LOWER(email) = LOWER(p_email) AND id != p_vet_id;
+                    WHERE LOWER(email) = LOWER(p_email COLLATE utf8mb4_0900_ai_ci) AND id != p_vet_id;
 
                     IF v_email_exists > 0 THEN
                         SET o_status = 'error';

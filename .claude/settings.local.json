@@ -56,7 +56,9 @@
       "Bash(sc query:*)",
       "Bash(do sed -i 's/FROM bookings/FROM booking/g; s/INTO bookings/INTO booking/g; s/UPDATE bookings/UPDATE booking/g; s/ON bookings/ON booking/g; s/FROM transactions/FROM transaction/g; s/INTO transactions/INTO transaction/g; s/UPDATE transactions/UPDATE booking/g; s/ON transactions/ON transaction/g; s/FROM adoptions/FROM adoption/g; s/INTO adoptions/INTO adoption/g; s/UPDATE adoptions/UPDATE adoption/g; s/ON adoptions/ON adoption/g; s/FROM visit_lists/FROM visit_list/g; s/INTO visit_lists/INTO visit_list/g; s/UPDATE visit_lists/UPDATE visit_list/g; s/ON visit_lists/ON visit_list/g' \"$file\")",
       "Bash(done)",
-      "Bash(do sed -i 's/FROM transaction/FROM [transaction]/g; s/INTO transaction /INTO [transaction] /g; s/UPDATE transaction/UPDATE [transaction]/g; s/ON transaction/ON [transaction]/g; s/DELETE FROM transaction/DELETE FROM [transaction]/g' \"$file\")"
+      "Bash(do sed -i 's/FROM transaction/FROM [transaction]/g; s/INTO transaction /INTO [transaction] /g; s/UPDATE transaction/UPDATE [transaction]/g; s/ON transaction/ON [transaction]/g; s/DELETE FROM transaction/DELETE FROM [transaction]/g' \"$file\")",
+      "Bash(node -c:*)",
+      "Bash(timeout:*)"
     ]
   }
 }

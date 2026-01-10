@@ -1203,6 +1203,10 @@ public function update(Request $request, $id)
 
     public function storeClinic(Request $request)
     {
+        // CRITICAL FIX: Increase execution time for stored procedures
+        // Stored procedures with triggers can take 5-30 seconds
+        set_time_limit(60);
+
         try {
             $validated = $request->validate([
                 'clinic_name' => 'required|string|max:255',
@@ -1241,6 +1245,16 @@ public function update(Request $request, $id)
 
     public function storeVet(Request $request)
     {
+        // CRITICAL FIX: Increase execution time for stored procedures
+        // Stored procedures with triggers can take 5-30 seconds
+        set_time_limit(60);
+
+        // DEBUG: Log that we reached the controller
+        \Log::info('storeVet: Controller method reached', [
+            'request_data' => $request->except(['_token']),
+            'session_id' => session()->getId()
+        ]);
+
         try {
             $validated = $request->validate([
                 'full_name' => 'required|string|max:255',
@@ -1250,6 +1264,8 @@ public function update(Request $request, $id)
                 'phone' => 'required|string|max:20',
                 'email' => 'required|email|max:255',
             ]);
+
+            \Log::info('storeVet: Validation passed', ['validated' => $validated]);
 
             // Create vet using stored procedure (includes email uniqueness check)
             $result = $this->procedureService->createVet([
@@ -1261,18 +1277,24 @@ public function update(Request $request, $id)
                 'email' => $validated['email'],
             ]);
 
+            \Log::info('storeVet: Procedure result', ['result' => $result]);
+
             if ($result['success']) {
+                \Log::info('storeVet: Success - redirecting with success message');
                 return redirect()->back()->with('success', $result['message']);
             } else {
+                \Log::warning('storeVet: Failed - redirecting with error message', ['message' => $result['message']]);
                 return redirect()->back()->withInput()->with('error', $result['message']);
             }
 
         } catch (\Illuminate\Validation\ValidationException $e) {
+            \Log::error('storeVet: Validation exception', ['errors' => $e->errors()]);
             return redirect()->back()
                 ->withErrors($e->errors())
                 ->withInput()
                 ->with('error', 'Please check the form and try again.');
         } catch (\Exception $e) {
+            \Log::error('storeVet: Exception', ['message' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
             return redirect()->back()
                 ->withInput()
                 ->with('error', 'Failed to add veterinarian: ' . $e->getMessage());

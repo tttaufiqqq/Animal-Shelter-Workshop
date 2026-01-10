@@ -2,22 +2,95 @@
 
 namespace App\Services;
 
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
 class ShafiqahProcedureService
 {
     /**
+     * Extract validation message from a trigger exception
+     *
+     * When MySQL triggers use SIGNAL SQLSTATE '45000', they throw an exception
+     * with the custom MESSAGE_TEXT. This method extracts that message.
+     *
+     * @param QueryException $e
+     * @return string|null The validation message if it's a trigger error, null otherwise
+     */
+    protected function extractTriggerValidationMessage(QueryException $e): ?string
+    {
+        // SQLSTATE 45000 is used for custom validation errors in triggers
+        if (str_contains($e->getMessage(), '45000')) {
+            // Extract the message text from the exception
+            // Format: SQLSTATE[45000]: <<Unknown error>>: 1644 Custom message here
+            if (preg_match('/1644\s+(.+?)(?:\s*\(|$)/i', $e->getMessage(), $matches)) {
+                return trim($matches[1]);
+            }
+            // Alternative format without error code
+            if (preg_match('/45000.*?:\s*(.+?)(?:\s*\(|$)/i', $e->getMessage(), $matches)) {
+                return trim($matches[1]);
+            }
+        }
+        return null;
+    }
+
+    /**
      * Set audit context variables for MySQL triggers
+     *
+     * NOTE: Triggers have been disabled. Auditing is now handled at application level
+     * via writeAuditLog() method which writes to taufiq's centralized audit_logs table.
+     * This method is kept for backward compatibility but does nothing.
      */
     protected function setAuditContext(): void
     {
-        $user = Auth::user();
+        // DISABLED: MySQL triggers removed - using centralized auditing in taufiq database
+        // No longer need to set session variables for triggers
+        return;
+    }
 
-        DB::connection('shafiqah')->statement('SET @audit_user_id = ?', [$user->id ?? null]);
-        DB::connection('shafiqah')->statement('SET @audit_user_name = ?', [$user->name ?? null]);
-        DB::connection('shafiqah')->statement('SET @audit_user_email = ?', [$user->email ?? null]);
-        DB::connection('shafiqah')->statement('SET @audit_user_role = ?', [$user ? $user->getRoleNames()->first() : null]);
+    /**
+     * Write audit log to centralized taufiq database
+     *
+     * @param string $category Entity category (clinic, vet, animal, medical, vaccination)
+     * @param string $action Action performed (created, updated, deleted)
+     * @param string $entityType Entity class name (Clinic, Vet, Animal, etc.)
+     * @param int|null $entityId Entity ID
+     * @param array|null $oldValues Previous values (for update/delete)
+     * @param array|null $newValues New values (for create/update)
+     * @param string $status Outcome status (success, failure, error)
+     */
+    protected function writeAuditLog(
+        string $category,
+        string $action,
+        string $entityType,
+        ?int $entityId,
+        ?array $oldValues = null,
+        ?array $newValues = null,
+        string $status = 'success'
+    ): void {
+        try {
+            $user = Auth::user();
+
+            DB::connection('taufiq')->table('audit_logs')->insert([
+                'user_id' => $user->id ?? null,
+                'user_name' => $user->name ?? null,
+                'user_email' => $user->email ?? null,
+                'user_role' => $user ? $user->getRoleNames()->first() : null,
+                'category' => $category,
+                'action' => $action,
+                'entity_type' => $entityType,
+                'entity_id' => $entityId,
+                'old_values' => $oldValues ? json_encode($oldValues) : null,
+                'new_values' => $newValues ? json_encode($newValues) : null,
+                'ip_address' => request()->ip(),
+                'user_agent' => request()->userAgent(),
+                'performed_at' => now(),
+                'status' => $status,
+            ]);
+        } catch (\Exception $e) {
+            // Log audit failure but don't break the main operation
+            \Log::warning('Failed to write audit log to taufiq: ' . $e->getMessage());
+        }
     }
 
     // ==========================================
@@ -36,24 +109,37 @@ class ShafiqahProcedureService
 
         $user = Auth::user();
 
-        DB::connection('shafiqah')->statement('CALL sp_clinic_create(?, ?, ?, ?, ?, ?, ?, ?, @o_clinic_id, @o_status, @o_message)', [
-            $data['name'],
-            $data['address'] ?? null,
-            $data['contactNum'] ?? null,
-            $data['latitude'] ?? null,
-            $data['longitude'] ?? null,
-            $user->id ?? null,
-            $user->name ?? null,
-            $user->email ?? null,
-        ]);
+        try {
+            DB::connection('shafiqah')->statement('CALL sp_clinic_create(?, ?, ?, ?, ?, ?, ?, ?, @o_clinic_id, @o_status, @o_message)', [
+                $data['name'],
+                $data['address'] ?? null,
+                $data['contactNum'] ?? null,
+                $data['latitude'] ?? null,
+                $data['longitude'] ?? null,
+                $user->id ?? null,
+                $user->name ?? null,
+                $user->email ?? null,
+            ]);
 
-        $result = DB::connection('shafiqah')->select('SELECT @o_clinic_id as clinic_id, @o_status as status, @o_message as message')[0];
+            $result = DB::connection('shafiqah')->select('SELECT @o_clinic_id as clinic_id, @o_status as status, @o_message as message')[0];
 
-        return [
-            'success' => $result->status === 'success',
-            'clinic_id' => $result->clinic_id,
-            'message' => $result->message,
-        ];
+            return [
+                'success' => $result->status === 'success',
+                'clinic_id' => $result->clinic_id,
+                'message' => $result->message,
+            ];
+        } catch (QueryException $e) {
+            // Check if this is a validation trigger error
+            $validationMessage = $this->extractTriggerValidationMessage($e);
+            if ($validationMessage) {
+                return [
+                    'success' => false,
+                    'clinic_id' => null,
+                    'message' => $validationMessage,
+                ];
+            }
+            throw $e; // Re-throw if not a validation error
+        }
     }
 
     /**
@@ -104,24 +190,35 @@ class ShafiqahProcedureService
 
         $user = Auth::user();
 
-        DB::connection('shafiqah')->statement('CALL sp_clinic_update(?, ?, ?, ?, ?, ?, ?, ?, ?, @o_status, @o_message)', [
-            $clinicId,
-            $data['name'],
-            $data['address'] ?? null,
-            $data['contactNum'] ?? null,
-            $data['latitude'] ?? null,
-            $data['longitude'] ?? null,
-            $user->id ?? null,
-            $user->name ?? null,
-            $user->email ?? null,
-        ]);
+        try {
+            DB::connection('shafiqah')->statement('CALL sp_clinic_update(?, ?, ?, ?, ?, ?, ?, ?, ?, @o_status, @o_message)', [
+                $clinicId,
+                $data['name'],
+                $data['address'] ?? null,
+                $data['contactNum'] ?? null,
+                $data['latitude'] ?? null,
+                $data['longitude'] ?? null,
+                $user->id ?? null,
+                $user->name ?? null,
+                $user->email ?? null,
+            ]);
 
-        $result = DB::connection('shafiqah')->select('SELECT @o_status as status, @o_message as message')[0];
+            $result = DB::connection('shafiqah')->select('SELECT @o_status as status, @o_message as message')[0];
 
-        return [
-            'success' => $result->status === 'success',
-            'message' => $result->message,
-        ];
+            return [
+                'success' => $result->status === 'success',
+                'message' => $result->message,
+            ];
+        } catch (QueryException $e) {
+            $validationMessage = $this->extractTriggerValidationMessage($e);
+            if ($validationMessage) {
+                return [
+                    'success' => false,
+                    'message' => $validationMessage,
+                ];
+            }
+            throw $e;
+        }
     }
 
     /**
@@ -136,19 +233,30 @@ class ShafiqahProcedureService
 
         $user = Auth::user();
 
-        DB::connection('shafiqah')->statement('CALL sp_clinic_delete(?, ?, ?, ?, @o_status, @o_message)', [
-            $clinicId,
-            $user->id ?? null,
-            $user->name ?? null,
-            $user->email ?? null,
-        ]);
+        try {
+            DB::connection('shafiqah')->statement('CALL sp_clinic_delete(?, ?, ?, ?, @o_status, @o_message)', [
+                $clinicId,
+                $user->id ?? null,
+                $user->name ?? null,
+                $user->email ?? null,
+            ]);
 
-        $result = DB::connection('shafiqah')->select('SELECT @o_status as status, @o_message as message')[0];
+            $result = DB::connection('shafiqah')->select('SELECT @o_status as status, @o_message as message')[0];
 
-        return [
-            'success' => $result->status === 'success',
-            'message' => $result->message,
-        ];
+            return [
+                'success' => $result->status === 'success',
+                'message' => $result->message,
+            ];
+        } catch (QueryException $e) {
+            $validationMessage = $this->extractTriggerValidationMessage($e);
+            if ($validationMessage) {
+                return [
+                    'success' => false,
+                    'message' => $validationMessage,
+                ];
+            }
+            throw $e;
+        }
     }
 
     // ==========================================
@@ -167,25 +275,54 @@ class ShafiqahProcedureService
 
         $user = Auth::user();
 
-        DB::connection('shafiqah')->statement('CALL sp_vet_create(?, ?, ?, ?, ?, ?, ?, ?, ?, @o_vet_id, @o_status, @o_message)', [
-            $data['name'],
-            $data['email'] ?? null,
-            $data['contactNum'] ?? null,
-            $data['specialization'] ?? null,
-            $data['license_no'] ?? null,
-            $data['clinicID'] ?? null,
-            $user->id ?? null,
-            $user->name ?? null,
-            $user->email ?? null,
-        ]);
+        try {
+            DB::connection('shafiqah')->statement('CALL sp_vet_create(?, ?, ?, ?, ?, ?, ?, ?, ?, @o_vet_id, @o_status, @o_message)', [
+                $data['name'],
+                $data['email'] ?? null,
+                $data['contactNum'] ?? null,
+                $data['specialization'] ?? null,
+                $data['license_no'] ?? null,
+                $data['clinicID'] ?? null,
+                $user->id ?? null,
+                $user->name ?? null,
+                $user->email ?? null,
+            ]);
 
-        $result = DB::connection('shafiqah')->select('SELECT @o_vet_id as vet_id, @o_status as status, @o_message as message')[0];
+            $result = DB::connection('shafiqah')->select('SELECT @o_vet_id as vet_id, @o_status as status, @o_message as message')[0];
 
-        return [
-            'success' => $result->status === 'success',
-            'vet_id' => $result->vet_id,
-            'message' => $result->message,
-        ];
+            // Handle null/empty status - treat as failure with default message
+            $status = $result->status ?? 'error';
+            $message = $result->message ?? ($status === 'success' ? 'Veterinarian added successfully!' : 'Failed to add veterinarian. Please try again.');
+
+            // Write audit log to taufiq database
+            $this->writeAuditLog(
+                'vet',
+                'created',
+                'Vet',
+                $result->vet_id,
+                null,
+                $status === 'success' ? $data : null,
+                $status
+            );
+
+            return [
+                'success' => $status === 'success',
+                'vet_id' => $result->vet_id,
+                'message' => $message,
+            ];
+        } catch (QueryException $e) {
+            $validationMessage = $this->extractTriggerValidationMessage($e);
+            if ($validationMessage) {
+                // Write audit log for validation failure
+                $this->writeAuditLog('vet', 'created', 'Vet', null, null, $data, 'validation_error');
+                return [
+                    'success' => false,
+                    'vet_id' => null,
+                    'message' => $validationMessage,
+                ];
+            }
+            throw $e;
+        }
     }
 
     /**
@@ -220,25 +357,36 @@ class ShafiqahProcedureService
 
         $user = Auth::user();
 
-        DB::connection('shafiqah')->statement('CALL sp_vet_update(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, @o_status, @o_message)', [
-            $vetId,
-            $data['name'],
-            $data['email'] ?? null,
-            $data['contactNum'] ?? null,
-            $data['specialization'] ?? null,
-            $data['license_no'] ?? null,
-            $data['clinicID'] ?? null,
-            $user->id ?? null,
-            $user->name ?? null,
-            $user->email ?? null,
-        ]);
+        try {
+            DB::connection('shafiqah')->statement('CALL sp_vet_update(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, @o_status, @o_message)', [
+                $vetId,
+                $data['name'],
+                $data['email'] ?? null,
+                $data['contactNum'] ?? null,
+                $data['specialization'] ?? null,
+                $data['license_no'] ?? null,
+                $data['clinicID'] ?? null,
+                $user->id ?? null,
+                $user->name ?? null,
+                $user->email ?? null,
+            ]);
 
-        $result = DB::connection('shafiqah')->select('SELECT @o_status as status, @o_message as message')[0];
+            $result = DB::connection('shafiqah')->select('SELECT @o_status as status, @o_message as message')[0];
 
-        return [
-            'success' => $result->status === 'success',
-            'message' => $result->message,
-        ];
+            return [
+                'success' => $result->status === 'success',
+                'message' => $result->message,
+            ];
+        } catch (QueryException $e) {
+            $validationMessage = $this->extractTriggerValidationMessage($e);
+            if ($validationMessage) {
+                return [
+                    'success' => false,
+                    'message' => $validationMessage,
+                ];
+            }
+            throw $e;
+        }
     }
 
     /**
@@ -253,19 +401,30 @@ class ShafiqahProcedureService
 
         $user = Auth::user();
 
-        DB::connection('shafiqah')->statement('CALL sp_vet_delete(?, ?, ?, ?, @o_status, @o_message)', [
-            $vetId,
-            $user->id ?? null,
-            $user->name ?? null,
-            $user->email ?? null,
-        ]);
+        try {
+            DB::connection('shafiqah')->statement('CALL sp_vet_delete(?, ?, ?, ?, @o_status, @o_message)', [
+                $vetId,
+                $user->id ?? null,
+                $user->name ?? null,
+                $user->email ?? null,
+            ]);
 
-        $result = DB::connection('shafiqah')->select('SELECT @o_status as status, @o_message as message')[0];
+            $result = DB::connection('shafiqah')->select('SELECT @o_status as status, @o_message as message')[0];
 
-        return [
-            'success' => $result->status === 'success',
-            'message' => $result->message,
-        ];
+            return [
+                'success' => $result->status === 'success',
+                'message' => $result->message,
+            ];
+        } catch (QueryException $e) {
+            $validationMessage = $this->extractTriggerValidationMessage($e);
+            if ($validationMessage) {
+                return [
+                    'success' => false,
+                    'message' => $validationMessage,
+                ];
+            }
+            throw $e;
+        }
     }
 
     // ==========================================
@@ -284,28 +443,40 @@ class ShafiqahProcedureService
 
         $user = Auth::user();
 
-        DB::connection('shafiqah')->statement('CALL sp_animal_create(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, @o_animal_id, @o_status, @o_message)', [
-            $data['name'],
-            $data['species'] ?? null,
-            $data['health_details'] ?? null,
-            $data['age'] ?? null,
-            $data['gender'] ?? 'Unknown',
-            $data['weight'] ?? null,
-            $data['adoption_status'] ?? 'Not Adopted',
-            $data['rescueID'] ?? null,
-            $data['slotID'] ?? null,
-            $user->id ?? null,
-            $user->name ?? null,
-            $user->email ?? null,
-        ]);
+        try {
+            DB::connection('shafiqah')->statement('CALL sp_animal_create(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, @o_animal_id, @o_status, @o_message)', [
+                $data['name'],
+                $data['species'] ?? null,
+                $data['health_details'] ?? null,
+                $data['age'] ?? null,
+                $data['gender'] ?? 'Unknown',
+                $data['weight'] ?? null,
+                $data['adoption_status'] ?? 'Not Adopted',
+                $data['rescueID'] ?? null,
+                $data['slotID'] ?? null,
+                $user->id ?? null,
+                $user->name ?? null,
+                $user->email ?? null,
+            ]);
 
-        $result = DB::connection('shafiqah')->select('SELECT @o_animal_id as animal_id, @o_status as status, @o_message as message')[0];
+            $result = DB::connection('shafiqah')->select('SELECT @o_animal_id as animal_id, @o_status as status, @o_message as message')[0];
 
-        return [
-            'success' => $result->status === 'success',
-            'animal_id' => $result->animal_id,
-            'message' => $result->message,
-        ];
+            return [
+                'success' => $result->status === 'success',
+                'animal_id' => $result->animal_id,
+                'message' => $result->message,
+            ];
+        } catch (QueryException $e) {
+            $validationMessage = $this->extractTriggerValidationMessage($e);
+            if ($validationMessage) {
+                return [
+                    'success' => false,
+                    'animal_id' => null,
+                    'message' => $validationMessage,
+                ];
+            }
+            throw $e;
+        }
     }
 
     /**
@@ -369,26 +540,37 @@ class ShafiqahProcedureService
 
         $user = Auth::user();
 
-        DB::connection('shafiqah')->statement('CALL sp_animal_update(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, @o_status, @o_message)', [
-            $animalId,
-            $data['name'],
-            $data['species'] ?? null,
-            $data['health_details'] ?? null,
-            $data['age'] ?? null,
-            $data['gender'] ?? 'Unknown',
-            $data['weight'] ?? null,
-            $data['slotID'] ?? null,
-            $user->id ?? null,
-            $user->name ?? null,
-            $user->email ?? null,
-        ]);
+        try {
+            DB::connection('shafiqah')->statement('CALL sp_animal_update(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, @o_status, @o_message)', [
+                $animalId,
+                $data['name'],
+                $data['species'] ?? null,
+                $data['health_details'] ?? null,
+                $data['age'] ?? null,
+                $data['gender'] ?? 'Unknown',
+                $data['weight'] ?? null,
+                $data['slotID'] ?? null,
+                $user->id ?? null,
+                $user->name ?? null,
+                $user->email ?? null,
+            ]);
 
-        $result = DB::connection('shafiqah')->select('SELECT @o_status as status, @o_message as message')[0];
+            $result = DB::connection('shafiqah')->select('SELECT @o_status as status, @o_message as message')[0];
 
-        return [
-            'success' => $result->status === 'success',
-            'message' => $result->message,
-        ];
+            return [
+                'success' => $result->status === 'success',
+                'message' => $result->message,
+            ];
+        } catch (QueryException $e) {
+            $validationMessage = $this->extractTriggerValidationMessage($e);
+            if ($validationMessage) {
+                return [
+                    'success' => false,
+                    'message' => $validationMessage,
+                ];
+            }
+            throw $e;
+        }
     }
 
     /**
@@ -403,21 +585,34 @@ class ShafiqahProcedureService
 
         $user = Auth::user();
 
-        DB::connection('shafiqah')->statement('CALL sp_animal_delete(?, ?, ?, ?, @o_animal_name, @o_slot_id, @o_status, @o_message)', [
-            $animalId,
-            $user->id ?? null,
-            $user->name ?? null,
-            $user->email ?? null,
-        ]);
+        try {
+            DB::connection('shafiqah')->statement('CALL sp_animal_delete(?, ?, ?, ?, @o_animal_name, @o_slot_id, @o_status, @o_message)', [
+                $animalId,
+                $user->id ?? null,
+                $user->name ?? null,
+                $user->email ?? null,
+            ]);
 
-        $result = DB::connection('shafiqah')->select('SELECT @o_animal_name as animal_name, @o_slot_id as slot_id, @o_status as status, @o_message as message')[0];
+            $result = DB::connection('shafiqah')->select('SELECT @o_animal_name as animal_name, @o_slot_id as slot_id, @o_status as status, @o_message as message')[0];
 
-        return [
-            'success' => $result->status === 'success',
-            'animal_name' => $result->animal_name,
-            'slot_id' => $result->slot_id,
-            'message' => $result->message,
-        ];
+            return [
+                'success' => $result->status === 'success',
+                'animal_name' => $result->animal_name,
+                'slot_id' => $result->slot_id,
+                'message' => $result->message,
+            ];
+        } catch (QueryException $e) {
+            $validationMessage = $this->extractTriggerValidationMessage($e);
+            if ($validationMessage) {
+                return [
+                    'success' => false,
+                    'animal_name' => null,
+                    'slot_id' => null,
+                    'message' => $validationMessage,
+                ];
+            }
+            throw $e;
+        }
     }
 
     /**
@@ -433,21 +628,33 @@ class ShafiqahProcedureService
 
         $user = Auth::user();
 
-        DB::connection('shafiqah')->statement('CALL sp_animal_assign_slot(?, ?, ?, ?, ?, @o_previous_slot_id, @o_status, @o_message)', [
-            $animalId,
-            $slotId,
-            $user->id ?? null,
-            $user->name ?? null,
-            $user->email ?? null,
-        ]);
+        try {
+            DB::connection('shafiqah')->statement('CALL sp_animal_assign_slot(?, ?, ?, ?, ?, @o_previous_slot_id, @o_status, @o_message)', [
+                $animalId,
+                $slotId,
+                $user->id ?? null,
+                $user->name ?? null,
+                $user->email ?? null,
+            ]);
 
-        $result = DB::connection('shafiqah')->select('SELECT @o_previous_slot_id as previous_slot_id, @o_status as status, @o_message as message')[0];
+            $result = DB::connection('shafiqah')->select('SELECT @o_previous_slot_id as previous_slot_id, @o_status as status, @o_message as message')[0];
 
-        return [
-            'success' => $result->status === 'success',
-            'previous_slot_id' => $result->previous_slot_id,
-            'message' => $result->message,
-        ];
+            return [
+                'success' => $result->status === 'success',
+                'previous_slot_id' => $result->previous_slot_id,
+                'message' => $result->message,
+            ];
+        } catch (QueryException $e) {
+            $validationMessage = $this->extractTriggerValidationMessage($e);
+            if ($validationMessage) {
+                return [
+                    'success' => false,
+                    'previous_slot_id' => null,
+                    'message' => $validationMessage,
+                ];
+            }
+            throw $e;
+        }
     }
 
     // ==========================================
@@ -466,26 +673,38 @@ class ShafiqahProcedureService
 
         $user = Auth::user();
 
-        DB::connection('shafiqah')->statement('CALL sp_medical_create(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, @o_medical_id, @o_status, @o_message)', [
-            $data['animalID'],
-            $data['treatment_type'] ?? null,
-            $data['diagnosis'] ?? null,
-            $data['action'] ?? null,
-            $data['remarks'] ?? null,
-            $data['vetID'] ?? null,
-            $data['costs'] ?? null,
-            $user->id ?? null,
-            $user->name ?? null,
-            $user->email ?? null,
-        ]);
+        try {
+            DB::connection('shafiqah')->statement('CALL sp_medical_create(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, @o_medical_id, @o_status, @o_message)', [
+                $data['animalID'],
+                $data['treatment_type'] ?? null,
+                $data['diagnosis'] ?? null,
+                $data['action'] ?? null,
+                $data['remarks'] ?? null,
+                $data['vetID'] ?? null,
+                $data['costs'] ?? null,
+                $user->id ?? null,
+                $user->name ?? null,
+                $user->email ?? null,
+            ]);
 
-        $result = DB::connection('shafiqah')->select('SELECT @o_medical_id as medical_id, @o_status as status, @o_message as message')[0];
+            $result = DB::connection('shafiqah')->select('SELECT @o_medical_id as medical_id, @o_status as status, @o_message as message')[0];
 
-        return [
-            'success' => $result->status === 'success',
-            'medical_id' => $result->medical_id,
-            'message' => $result->message,
-        ];
+            return [
+                'success' => $result->status === 'success',
+                'medical_id' => $result->medical_id,
+                'message' => $result->message,
+            ];
+        } catch (QueryException $e) {
+            $validationMessage = $this->extractTriggerValidationMessage($e);
+            if ($validationMessage) {
+                return [
+                    'success' => false,
+                    'medical_id' => null,
+                    'message' => $validationMessage,
+                ];
+            }
+            throw $e;
+        }
     }
 
     /**
@@ -526,26 +745,38 @@ class ShafiqahProcedureService
 
         $user = Auth::user();
 
-        DB::connection('shafiqah')->statement('CALL sp_vaccination_create(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, @o_vaccination_id, @o_status, @o_message)', [
-            $data['animalID'],
-            $data['name'],
-            $data['type'] ?? null,
-            $data['next_due_date'] ?? null,
-            $data['remarks'] ?? null,
-            $data['vetID'] ?? null,
-            $data['costs'] ?? null,
-            $user->id ?? null,
-            $user->name ?? null,
-            $user->email ?? null,
-        ]);
+        try {
+            DB::connection('shafiqah')->statement('CALL sp_vaccination_create(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, @o_vaccination_id, @o_status, @o_message)', [
+                $data['animalID'],
+                $data['name'],
+                $data['type'] ?? null,
+                $data['next_due_date'] ?? null,
+                $data['remarks'] ?? null,
+                $data['vetID'] ?? null,
+                $data['costs'] ?? null,
+                $user->id ?? null,
+                $user->name ?? null,
+                $user->email ?? null,
+            ]);
 
-        $result = DB::connection('shafiqah')->select('SELECT @o_vaccination_id as vaccination_id, @o_status as status, @o_message as message')[0];
+            $result = DB::connection('shafiqah')->select('SELECT @o_vaccination_id as vaccination_id, @o_status as status, @o_message as message')[0];
 
-        return [
-            'success' => $result->status === 'success',
-            'vaccination_id' => $result->vaccination_id,
-            'message' => $result->message,
-        ];
+            return [
+                'success' => $result->status === 'success',
+                'vaccination_id' => $result->vaccination_id,
+                'message' => $result->message,
+            ];
+        } catch (QueryException $e) {
+            $validationMessage = $this->extractTriggerValidationMessage($e);
+            if ($validationMessage) {
+                return [
+                    'success' => false,
+                    'vaccination_id' => null,
+                    'message' => $validationMessage,
+                ];
+            }
+            throw $e;
+        }
     }
 
     /**
@@ -587,27 +818,39 @@ class ShafiqahProcedureService
 
         $user = Auth::user();
 
-        DB::connection('shafiqah')->statement('CALL sp_animal_profile_upsert(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, @o_profile_id, @o_status, @o_message)', [
-            $animalId,
-            $data['age'] ?? null,
-            $data['size'] ?? null,
-            $data['energy_level'] ?? null,
-            $data['good_with_kids'] ?? false,
-            $data['good_with_pets'] ?? false,
-            $data['temperament'] ?? null,
-            $data['medical_needs'] ?? null,
-            $user->id ?? null,
-            $user->name ?? null,
-            $user->email ?? null,
-        ]);
+        try {
+            DB::connection('shafiqah')->statement('CALL sp_animal_profile_upsert(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, @o_profile_id, @o_status, @o_message)', [
+                $animalId,
+                $data['age'] ?? null,
+                $data['size'] ?? null,
+                $data['energy_level'] ?? null,
+                $data['good_with_kids'] ?? false,
+                $data['good_with_pets'] ?? false,
+                $data['temperament'] ?? null,
+                $data['medical_needs'] ?? null,
+                $user->id ?? null,
+                $user->name ?? null,
+                $user->email ?? null,
+            ]);
 
-        $result = DB::connection('shafiqah')->select('SELECT @o_profile_id as profile_id, @o_status as status, @o_message as message')[0];
+            $result = DB::connection('shafiqah')->select('SELECT @o_profile_id as profile_id, @o_status as status, @o_message as message')[0];
 
-        return [
-            'success' => $result->status === 'success',
-            'profile_id' => $result->profile_id,
-            'message' => $result->message,
-        ];
+            return [
+                'success' => $result->status === 'success',
+                'profile_id' => $result->profile_id,
+                'message' => $result->message,
+            ];
+        } catch (QueryException $e) {
+            $validationMessage = $this->extractTriggerValidationMessage($e);
+            if ($validationMessage) {
+                return [
+                    'success' => false,
+                    'profile_id' => null,
+                    'message' => $validationMessage,
+                ];
+            }
+            throw $e;
+        }
     }
 
     /**
