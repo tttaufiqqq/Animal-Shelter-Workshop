@@ -10,415 +10,259 @@ use Carbon\Carbon;
 class AdoptionSeeder extends Seeder
 {
     /**
-     * Run the database seeds.
+     * OPTIMIZED FOR SQL SERVER - No long transactions, small batches
      *
-     * REALISTIC ADOPTION PROCESS:
-     * - Process completed bookings chronologically
-     * - Not all visits lead to adoption (30-40% success rate)
-     * - Adoption probability factors:
-     *   - Young animals: 70% chance
-     *   - Adult animals: 35% chance
-     *   - Senior animals: 20% chance
-     *   - Healthy: +10% bonus
-     *   - Sick/observation: -10% penalty
-     *   - Time at shelter: slight bonus for longer stays
-     * - When adopted: update animal status, free slot, create transaction
+     * Business Flow:
+     * - Confirmed bookings = User decided to adopt, awaiting payment (NO adoptions)
+     * - Completed bookings = Payment successful (CREATE adoptions)
      */
     public function run()
     {
-        $this->command->info('Starting Adoption Seeder (Realistic Progression)...');
-        $this->command->info('========================================');
+        $this->command->info('Starting Adoption Seeder (SQL Server Optimized)...');
 
-        // Get all "Completed" bookings chronologically
-        $this->command->info('Fetching completed bookings from Danish\'s database...');
-        $completedBookings = DB::connection('danish')
-            ->table('booking')
+        // Check Atiqah availability
+        $atiqahAvailable = false;
+        try {
+            DB::connection('atiqah')->getPdo();
+            $atiqahAvailable = true;
+            $this->command->info('Atiqah: ONLINE');
+        } catch (\Exception $e) {
+            $this->command->warn('Atiqah: OFFLINE (slot updates skipped)');
+        }
+
+        // Get completed bookings
+        $completedBookings = DB::connection('danish')->table('booking')
             ->where('status', 'Completed')
-            ->orderBy('appointment_date', 'asc')
-            ->orderBy('appointment_time', 'asc')
+            ->orderBy('id', 'asc')
             ->get();
 
         if ($completedBookings->isEmpty()) {
-            $this->command->warn('No completed bookings found. Adoptions cannot be created.');
+            $this->command->warn('No completed bookings found.');
             return;
         }
-
         $this->command->info("Found " . $completedBookings->count() . " completed bookings");
 
-        // Get users for transactions
-        $users = DB::connection('taufiq')->table('users')->pluck('id')->toArray();
+        // Get animal-booking relationships
+        $bookingIds = $completedBookings->pluck('id')->toArray();
+        $animalBookings = DB::connection('danish')->table('animal_booking')
+            ->whereIn('bookingID', $bookingIds)
+            ->get();
+
+        // Group animals by booking
+        $animalsByBooking = [];
+        foreach ($animalBookings as $ab) {
+            $animalsByBooking[$ab->bookingID][] = $ab->animalID;
+        }
+
+        // Get all animal data
+        $allAnimalIds = $animalBookings->pluck('animalID')->unique()->toArray();
+        $animalsData = DB::connection('shafiqah')->table('animal')
+            ->whereIn('id', $allAnimalIds)
+            ->get()->keyBy('id');
+
+        // Get medical/vaccination counts
+        $medicalCounts = DB::connection('shafiqah')->table('medical')
+            ->whereIn('animalID', $allAnimalIds)
+            ->selectRaw('animalID, COUNT(*) as cnt')
+            ->groupBy('animalID')
+            ->pluck('cnt', 'animalID')->toArray();
+
+        $vaccinationCounts = DB::connection('shafiqah')->table('vaccination')
+            ->whereIn('animalID', $allAnimalIds)
+            ->selectRaw('animalID, COUNT(*) as cnt')
+            ->groupBy('animalID')
+            ->pluck('cnt', 'animalID')->toArray();
+
+        $this->command->info('Generating adoption data...');
 
         // Fee structure
-        $speciesBaseFees = [
-            'dog' => 20,
-            'cat' => 10,
-        ];
+        $baseFees = ['dog' => 20, 'cat' => 10];
         $medicalRate = 10;
         $vaccinationRate = 20;
 
-        // Use transaction for cross-database operations
-        DB::connection('danish')->beginTransaction();
-        DB::connection('shafiqah')->beginTransaction();
-        DB::connection('atiqah')->beginTransaction();
+        // Target: adopt ~50% of total animals
+        $totalAnimals = count($allAnimalIds);
+        $targetAdoptions = (int) ceil($totalAnimals * 0.5); // 50% of animals
+        $this->command->info("Target: ~{$targetAdoptions} adoptions (50% of {$totalAnimals} animals)");
 
-        try {
-            $this->command->info('');
-            $this->command->info('Processing bookings for adoptions (30-40% success rate - BATCH MODE)...');
+        // Pre-generate all data
+        $allTransactions = [];
+        $transactionMeta = []; // index => [bookingID, animalIds, date]
+        $adoptedAnimalIds = [];
+        $affectedSlotIds = [];
 
-            // STEP 1: Preload all animal data with medical/vaccination counts (single query per type)
-            $this->command->info('Preloading animal data...');
+        foreach ($completedBookings as $booking) {
+            // Stop if we've reached target adoptions
+            if (count($adoptedAnimalIds) >= $targetAdoptions) {
+                break;
+            }
 
-            $allAnimalIds = DB::connection('danish')
-                ->table('animal_booking')
-                ->distinct()
-                ->pluck('animalID')
-                ->toArray();
+            $bookingAnimalIds = $animalsByBooking[$booking->id] ?? [];
+            if (empty($bookingAnimalIds)) continue;
 
-            // Get all animals at once
-            $animalsData = DB::connection('shafiqah')
-                ->table('animal')
-                ->whereIn('id', $allAnimalIds)
-                ->get()
-                ->keyBy('id');
+            // Filter already adopted
+            $available = array_diff($bookingAnimalIds, $adoptedAnimalIds);
+            if (empty($available)) continue;
 
-            // Get medical counts for all animals (single query)
-            $medicalCounts = DB::connection('shafiqah')
-                ->table('medical')
-                ->whereIn('animalID', $allAnimalIds)
-                ->selectRaw('animalID, COUNT(*) as count')
-                ->groupBy('animalID')
-                ->pluck('count', 'animalID')
-                ->toArray();
+            // Check how many more we can adopt
+            $remainingQuota = $targetAdoptions - count($adoptedAnimalIds);
+            if ($remainingQuota <= 0) break;
 
-            // Get vaccination counts for all animals (single query)
-            $vaccinationCounts = DB::connection('shafiqah')
-                ->table('vaccination')
-                ->whereIn('animalID', $allAnimalIds)
-                ->selectRaw('animalID, COUNT(*) as count')
-                ->groupBy('animalID')
-                ->pluck('count', 'animalID')
-                ->toArray();
+            // Adoption count: 60% one, 30% two, 10% all (but limited by quota)
+            $roll = rand(1, 100);
+            $adoptCount = $roll <= 60 ? 1 : ($roll <= 90 ? min(2, count($available)) : count($available));
+            $adoptCount = min($adoptCount, $remainingQuota); // Don't exceed quota
 
-            $this->command->info('Loaded data for ' . count($animalsData) . ' animals');
+            shuffle($available);
+            $animalsToAdopt = array_slice($available, 0, $adoptCount);
 
-            // STEP 2: Determine which animals get adopted (collect data for batch insert)
-            $adoptionCount = 0;
-            $processedAnimals = [];
-            $ageBreakdown = ['young' => 0, 'adult' => 0, 'senior' => 0];
+            $adoptionDate = Carbon::parse($booking->appointment_date);
+            $totalFee = 0;
+            $names = [];
 
-            $allTransactions = [];
-            $allAdoptions = [];
-            $adoptedAnimalIds = [];
-            $affectedSlotIds = [];
-            $adoptionDates = []; // Track adoption date per animal for updates
+            foreach ($animalsToAdopt as $animalId) {
+                $animal = $animalsData->get($animalId);
+                if (!$animal) continue;
 
-            foreach ($completedBookings as $booking) {
-                // Get animals in this booking
-                $bookingAnimals = DB::connection('danish')
-                    ->table('animal_booking')
-                    ->where('bookingID', $booking->id)
-                    ->pluck('animalID')
-                    ->toArray();
+                $species = strtolower($animal->species);
+                $base = $baseFees[$species] ?? 15;
+                $medical = ($medicalCounts[$animalId] ?? 0) * $medicalRate;
+                $vaccination = ($vaccinationCounts[$animalId] ?? 0) * $vaccinationRate;
 
-                foreach ($bookingAnimals as $animalId) {
-                    // Skip if already adopted
-                    if (in_array($animalId, $processedAnimals)) {
-                        continue;
-                    }
+                $totalFee += $base + $medical + $vaccination;
+                $names[] = $animal->name;
+                $adoptedAnimalIds[] = $animalId;
 
-                    // Get animal from preloaded data
-                    $animal = $animalsData->get($animalId);
-
-                    if (!$animal) {
-                        continue;
-                    }
-
-                    // Calculate adoption probability
-                    $adoptionChance = $this->calculateAdoptionProbability($animal, $booking);
-
-                    // Determine if adoption happens
-                    $randomRoll = rand(1, 100);
-                    if ($randomRoll > $adoptionChance) {
-                        continue; // Not adopted this visit
-                    }
-
-                    // ===== ADOPTION HAPPENS! =====
-
-                    // Calculate adoption fee using preloaded counts
-                    $species = strtolower($animal->species);
-                    $baseFee = $speciesBaseFees[$species] ?? 15;
-
-                    $medicalCount = $medicalCounts[$animal->id] ?? 0;
-                    $medicalFee = $medicalCount * $medicalRate;
-
-                    $vaccinationCount = $vaccinationCounts[$animal->id] ?? 0;
-                    $vaccinationFee = $vaccinationCount * $vaccinationRate;
-
-                    $totalFee = $baseFee + $medicalFee + $vaccinationFee;
-
-                    $adoptionDate = Carbon::parse($booking->appointment_date);
-
-                    // Collect transaction data (will be batch inserted)
-                    $allTransactions[] = [
-                        'amount'       => $totalFee,
-                        'status'       => 'Success',
-                        'remarks'      => 'Adoption fee for ' . $animal->name,
-                        'type'         => 'FPX Online Banking',
-                        'bill_code'    => 'BILL-' . strtoupper(Str::random(8)),
-                        'reference_no' => 'REF-' . $adoptionDate->format('Ymd') . '-' . rand(1000, 9999),
-                        'userID'       => $booking->userID,
-                        'created_at'   => $adoptionDate,
-                        'updated_at'   => $adoptionDate,
-                        // Temporary fields for adoption record creation
-                        'adoption_fee' => $totalFee,
-                        'adoption_remarks' => $animal->name . ' successfully adopted',
-                        'bookingID'    => $booking->id,
-                        'animalID'     => $animal->id,
-                    ];
-
-                    // Track adopted animals
-                    $processedAnimals[] = $animal->id;
-                    $adoptedAnimalIds[] = $animal->id;
-                    $adoptionDates[$animal->id] = $adoptionDate;
-
-                    // Track slots to update
-                    if ($animal->slotID) {
-                        $affectedSlotIds[] = $animal->slotID;
-                    }
-
-                    $adoptionCount++;
-
-                    // Track age breakdown
-                    if (in_array($animal->age, ['kitten', 'puppy'])) {
-                        $ageBreakdown['young']++;
-                    } elseif ($animal->age === 'senior') {
-                        $ageBreakdown['senior']++;
-                    } else {
-                        $ageBreakdown['adult']++;
-                    }
+                if ($animal->slotID) {
+                    $affectedSlotIds[] = $animal->slotID;
                 }
             }
 
-            // STEP 3: BATCH INSERT transactions and get IDs
-            $this->command->info("Batch inserting {$adoptionCount} transactions...");
-            // Use chunk size of 200 for SQL Server 2100 parameter limit
-            // Each transaction has 9 fields, so 200 × 9 = 1800 parameters (safe)
-            $chunkSize = 200;
-            $transactionChunks = array_chunk($allTransactions, $chunkSize);
-            $transactionIds = [];
+            $billCode = 'BILL-' . strtoupper(Str::random(8));
 
-            foreach ($transactionChunks as $chunkIndex => $chunk) {
-                // Prepare transactions without temporary fields
-                $transactionsToInsert = array_map(function($trans) {
-                    return [
-                        'amount'       => $trans['amount'],
-                        'status'       => $trans['status'],
-                        'remarks'      => $trans['remarks'],
-                        'type'         => $trans['type'],
-                        'bill_code'    => $trans['bill_code'],
-                        'reference_no' => $trans['reference_no'],
-                        'userID'       => $trans['userID'],
-                        'created_at'   => $trans['created_at'],
-                        'updated_at'   => $trans['updated_at'],
-                    ];
-                }, $chunk);
+            $allTransactions[] = [
+                'amount' => $totalFee,
+                'status' => 'Success',
+                'remarks' => 'Adoption fee for ' . implode(', ', $names),
+                'type' => 'FPX Online Banking',
+                'bill_code' => $billCode,
+                'reference_no' => 'REF-' . $adoptionDate->format('Ymd') . '-' . rand(1000, 9999),
+                'userID' => $booking->userID,
+                'created_at' => $adoptionDate->format('Y-m-d H:i:s'),
+                'updated_at' => $adoptionDate->format('Y-m-d H:i:s'),
+            ];
 
-                // Batch insert
-                DB::connection('danish')->table('transaction')->insert($transactionsToInsert);
-
-                // Get inserted IDs (SQL Server approach - use bill_code for matching)
-                $billCodes = array_column($chunk, 'bill_code');
-                $insertedTransactions = DB::connection('danish')
-                    ->table('transaction')
-                    ->whereIn('bill_code', $billCodes)
-                    ->orderBy('id', 'asc')
-                    ->get(['id', 'bill_code']);
-
-                // Map transaction IDs to original chunk order
-                foreach ($chunk as $index => $trans) {
-                    $matchingTrans = $insertedTransactions->firstWhere('bill_code', $trans['bill_code']);
-                    if ($matchingTrans) {
-                        // Create adoption record data
-                        $allAdoptions[] = [
-                            'fee'           => $trans['adoption_fee'],
-                            'remarks'       => $trans['adoption_remarks'],
-                            'bookingID'     => $trans['bookingID'],
-                            'transactionID' => $matchingTrans->id,
-                            'animalID'      => $trans['animalID'],
-                            'created_at'    => $trans['created_at'],
-                            'updated_at'    => $trans['updated_at'],
-                        ];
-                    }
-                }
-
-                $this->command->info("  Inserted transaction chunk " . ($chunkIndex + 1) . "/" . count($transactionChunks));
-            }
-
-            // STEP 4: BATCH INSERT adoptions
-            $this->command->info("Batch inserting {$adoptionCount} adoption records...");
-            $adoptionChunks = array_chunk($allAdoptions, $chunkSize);
-
-            foreach ($adoptionChunks as $chunkIndex => $chunk) {
-                DB::connection('danish')->table('adoption')->insert($chunk);
-                $this->command->info("  Inserted adoption chunk " . ($chunkIndex + 1) . "/" . count($adoptionChunks));
-            }
-
-            // STEP 5: BATCH UPDATE animals (set slotID to NULL and status to Adopted)
-            $this->command->info("Batch updating {$adoptionCount} animals to 'Adopted' status...");
-            $animalChunks = array_chunk($adoptedAnimalIds, $chunkSize);
-
-            foreach ($animalChunks as $chunkIndex => $chunk) {
-                DB::connection('shafiqah')->table('animal')
-                    ->whereIn('id', $chunk)
-                    ->update([
-                        'adoption_status' => 'Adopted',
-                        'slotID'          => null, // Clear slot (animal leaves shelter)
-                        'updated_at'      => now(),
-                    ]);
-                $this->command->info("  Updated animal chunk " . ($chunkIndex + 1) . "/" . count($animalChunks));
-            }
-
-            // STEP 6: BATCH UPDATE slots - Recalculate status based on remaining animals
-            if (!empty($affectedSlotIds)) {
-                $uniqueSlotIds = array_unique($affectedSlotIds);
-                $this->command->info("Recalculating status for " . count($uniqueSlotIds) . " affected slots...");
-
-                // Get slot capacities (1 query)
-                $slots = DB::connection('atiqah')
-                    ->table('slot')
-                    ->whereIn('id', $uniqueSlotIds)
-                    ->get(['id', 'capacity', 'name'])
-                    ->keyBy('id');
-
-                // Count remaining animals for ALL affected slots in ONE query (instead of N queries)
-                $animalCounts = DB::connection('shafiqah')
-                    ->table('animal')
-                    ->whereIn('slotID', $uniqueSlotIds)
-                    ->selectRaw('slotID, COUNT(*) as count')
-                    ->groupBy('slotID')
-                    ->pluck('count', 'slotID')
-                    ->toArray();
-
-                // Group slots by their new status for batch updates
-                $slotsToOccupy = [];
-                $slotsToFree = [];
-
-                foreach ($slots as $slotId => $slot) {
-                    $remainingAnimals = $animalCounts[$slotId] ?? 0;
-
-                    // Determine new status
-                    if ($remainingAnimals >= $slot->capacity) {
-                        $slotsToOccupy[] = $slotId;
-                    } else {
-                        $slotsToFree[] = $slotId;
-                    }
-                }
-
-                // Batch update slots by status (2 queries instead of N queries)
-                if (!empty($slotsToOccupy)) {
-                    DB::connection('atiqah')
-                        ->table('slot')
-                        ->whereIn('id', $slotsToOccupy)
-                        ->update([
-                            'status' => 'occupied',
-                            'updated_at' => now(),
-                        ]);
-                }
-
-                if (!empty($slotsToFree)) {
-                    DB::connection('atiqah')
-                        ->table('slot')
-                        ->whereIn('id', $slotsToFree)
-                        ->update([
-                            'status' => 'available',
-                            'updated_at' => now(),
-                        ]);
-                }
-
-                $this->command->info("  Slot statuses recalculated (" . count($slotsToOccupy) . " occupied, " . count($slotsToFree) . " available)");
-            }
-
-            // Commit all transactions
-            DB::connection('danish')->commit();
-            DB::connection('shafiqah')->commit();
-            DB::connection('atiqah')->commit();
-
-            // Calculate statistics
-            $totalAnimals = DB::connection('shafiqah')->table('animal')->count();
-            $adoptionRate = round(($adoptionCount / $totalAnimals) * 100, 1);
-            $stillAvailable = $totalAnimals - $adoptionCount;
-
-            $this->command->info('');
-            $this->command->info('=================================');
-            $this->command->info('✓ Adoption Seeding Completed!');
-            $this->command->info('=================================');
-            $this->command->info("{$adoptionCount} animals successfully adopted");
-            $this->command->info("{$stillAvailable} animals still available at shelter");
-            $this->command->info("Adoption rate: {$adoptionRate}% (realistic: 30-40%)");
-            $this->command->info('');
-            $this->command->info('Adoptions by Age:');
-            $this->command->info("  - Young (kitten/puppy): {$ageBreakdown['young']}");
-            $this->command->info("  - Adult: {$ageBreakdown['adult']}");
-            $this->command->info("  - Senior: {$ageBreakdown['senior']}");
-            $this->command->info('');
-            $this->command->info('Updated Resources:');
-            $this->command->info('  - Animal statuses updated (Shafiqah database)');
-            $this->command->info('  - Slots freed up (Atiqah database)');
-            $this->command->info('  - Transactions & adoptions created (Danish database)');
-            $this->command->info('=================================');
-
-        } catch (\Exception $e) {
-            DB::connection('danish')->rollBack();
-            DB::connection('shafiqah')->rollBack();
-            DB::connection('atiqah')->rollBack();
-
-            $this->command->error('');
-            $this->command->error('Error seeding adoptions: ' . $e->getMessage());
-            $this->command->error('All transactions rolled back');
-
-            throw $e;
-        }
-    }
-
-    /**
-     * Calculate adoption probability based on animal characteristics
-     *
-     * @param object $animal Animal record from database
-     * @param object $booking Booking record from database
-     * @return int Adoption probability percentage (0-100)
-     */
-    private function calculateAdoptionProbability($animal, $booking)
-    {
-        // Base probability by age
-        if (in_array($animal->age, ['kitten', 'puppy'])) {
-            $probability = 70; // Young animals: 70% base chance
-        } elseif ($animal->age === 'senior') {
-            $probability = 20; // Senior animals: 20% base chance
-        } else {
-            $probability = 35; // Adult animals: 35% base chance
+            $transactionMeta[] = [
+                'billCode' => $billCode,
+                'bookingID' => $booking->id,
+                'animalIds' => $animalsToAdopt,
+                'date' => $adoptionDate->format('Y-m-d H:i:s'),
+            ];
         }
 
-        // Health factor: +10% if healthy, -10% if sick/observation
-        if ($animal->health_details === 'Healthy') {
-            $probability += 10;
-        } elseif (in_array($animal->health_details, ['Sick', 'Need Observation'])) {
-            $probability -= 10;
+        $this->command->info("Creating " . count($allTransactions) . " transactions, " . count($adoptedAnimalIds) . " adoptions...");
+
+        // Insert transactions in small chunks (no transaction wrapper)
+        $chunkSize = 50;
+        $transChunks = array_chunk($allTransactions, $chunkSize);
+        foreach ($transChunks as $idx => $chunk) {
+            DB::connection('danish')->table('transaction')->insert($chunk);
         }
 
-        // Time at shelter bonus: animals available longer get slight boost
-        $arrivalDate = Carbon::parse($animal->created_at);
-        $bookingDate = Carbon::parse($booking->appointment_date);
-        $daysAtShelter = $arrivalDate->diffInDays($bookingDate);
+        // Get transaction IDs by bill_code
+        $billCodes = array_column($transactionMeta, 'billCode');
+        $insertedTrans = DB::connection('danish')->table('transaction')
+            ->whereIn('bill_code', $billCodes)
+            ->get(['id', 'bill_code'])
+            ->keyBy('bill_code');
 
-        if ($daysAtShelter > 90) {
-            $probability += 5; // +5% for animals waiting 90+ days
-        } elseif ($daysAtShelter > 60) {
-            $probability += 3; // +3% for animals waiting 60+ days
+        // Build adoption records
+        $allAdoptions = [];
+        foreach ($transactionMeta as $meta) {
+            $trans = $insertedTrans->get($meta['billCode']);
+            if (!$trans) continue;
+
+            foreach ($meta['animalIds'] as $animalId) {
+                $animal = $animalsData->get($animalId);
+                if (!$animal) continue;
+
+                $species = strtolower($animal->species);
+                $base = $baseFees[$species] ?? 15;
+                $medical = ($medicalCounts[$animalId] ?? 0) * $medicalRate;
+                $vaccination = ($vaccinationCounts[$animalId] ?? 0) * $vaccinationRate;
+
+                $allAdoptions[] = [
+                    'fee' => $base + $medical + $vaccination,
+                    'remarks' => $animal->name . ' successfully adopted',
+                    'bookingID' => $meta['bookingID'],
+                    'transactionID' => $trans->id,
+                    'animalID' => $animalId,
+                    'created_at' => $meta['date'],
+                    'updated_at' => $meta['date'],
+                ];
+            }
         }
 
-        // Cap probability between 5% and 95%
-        $probability = max(5, min(95, $probability));
+        // Insert adoptions
+        $adoptionChunks = array_chunk($allAdoptions, $chunkSize);
+        foreach ($adoptionChunks as $chunk) {
+            DB::connection('danish')->table('adoption')->insert($chunk);
+        }
 
-        return $probability;
+        $this->command->info('Updating animal statuses in Shafiqah...');
+
+        // Update animals in Shafiqah (small chunks)
+        $animalChunks = array_chunk($adoptedAnimalIds, $chunkSize);
+        foreach ($animalChunks as $chunk) {
+            DB::connection('shafiqah')->table('animal')
+                ->whereIn('id', $chunk)
+                ->update([
+                    'adoption_status' => 'Adopted',
+                    'slotID' => null,
+                    'updated_at' => now(),
+                ]);
+        }
+
+        // Update slots in Atiqah if available
+        if ($atiqahAvailable && !empty($affectedSlotIds)) {
+            $uniqueSlots = array_unique($affectedSlotIds);
+            $this->command->info("Updating " . count($uniqueSlots) . " slots in Atiqah...");
+
+            $slots = DB::connection('atiqah')->table('slot')
+                ->whereIn('id', $uniqueSlots)
+                ->get(['id', 'capacity'])->keyBy('id');
+
+            $animalCounts = DB::connection('shafiqah')->table('animal')
+                ->whereIn('slotID', $uniqueSlots)
+                ->selectRaw('slotID, COUNT(*) as cnt')
+                ->groupBy('slotID')
+                ->pluck('cnt', 'slotID')->toArray();
+
+            $slotsToFree = [];
+            foreach ($slots as $slotId => $slot) {
+                $remaining = $animalCounts[$slotId] ?? 0;
+                if ($remaining < $slot->capacity) {
+                    $slotsToFree[] = $slotId;
+                }
+            }
+
+            if (!empty($slotsToFree)) {
+                DB::connection('atiqah')->table('slot')
+                    ->whereIn('id', $slotsToFree)
+                    ->update(['status' => 'available', 'updated_at' => now()]);
+            }
+        } elseif (!$atiqahAvailable && !empty($affectedSlotIds)) {
+            $this->command->warn("Skipped " . count(array_unique($affectedSlotIds)) . " slot updates (Atiqah offline)");
+        }
+
+        // Stats
+        $totalAdoptions = DB::connection('danish')->table('adoption')->count();
+        $totalTrans = DB::connection('danish')->table('transaction')->count();
+
+        $this->command->info('');
+        $this->command->info('=== Adoption Seeder Complete ===');
+        $this->command->info("Transactions: {$totalTrans}");
+        $this->command->info("Adoptions: {$totalAdoptions}");
+        $this->command->info("Animals adopted: " . count($adoptedAnimalIds));
     }
 }

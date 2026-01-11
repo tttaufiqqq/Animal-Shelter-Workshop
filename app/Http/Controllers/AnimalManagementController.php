@@ -787,7 +787,16 @@ public function update(Request $request, $id)
                 $query->where('health_details', $request->health_details);
             }
 
-            if ($request->filled('adoption_status')) {
+            // Adoption status filter
+            // Only ADMIN can see all animals (including adopted)
+            // Non-admin users and guests can ONLY see "Not Adopted" animals (available for adoption)
+            $isAdmin = Auth::check() && Auth::user()->hasRole('admin');
+
+            if (!$isAdmin) {
+                // Force filter to "Not Adopted" for non-admin users and guests
+                $query->where('adoption_status', 'Not Adopted');
+            } elseif ($request->filled('adoption_status')) {
+                // Admin can filter by any status
                 $query->where('adoption_status', $request->adoption_status);
             }
 
