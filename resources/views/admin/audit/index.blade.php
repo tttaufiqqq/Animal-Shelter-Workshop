@@ -203,12 +203,6 @@ $breadcrumbs = [
                     <h3 class="text-lg font-semibold text-gray-900">Recent Activity</h3>
                     <p class="text-sm text-gray-600 mt-1">Last 20 audit log entries</p>
                 </div>
-                <div class="flex items-center space-x-2">
-                    <span class="text-sm text-gray-500">Auto-refresh</span>
-                    <div class="relative inline-block w-10 h-6 transition duration-200 ease-in-out bg-gray-300 rounded-full">
-                        <span class="absolute left-0 inline-block w-5 h-5 transition duration-200 ease-in-out transform translate-x-0.5 translate-y-0.5 bg-white rounded-full shadow"></span>
-                    </div>
-                </div>
             </div>
         </div>
 
@@ -248,15 +242,25 @@ $breadcrumbs = [
                                 </div>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap">
-                                <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold
-                                    {{ $log->category === 'authentication' ? 'bg-indigo-100 text-indigo-800' : '' }}
-                                    {{ $log->category === 'payment' ? 'bg-green-100 text-green-800' : '' }}
-                                    {{ $log->category === 'animal' ? 'bg-purple-100 text-purple-800' : '' }}
-                                    {{ $log->category === 'rescue' ? 'bg-blue-100 text-blue-800' : '' }}">
+                                @php
+                                    $categoryColors = [
+                                        'authentication' => 'bg-indigo-100 text-indigo-800',
+                                        'payment' => 'bg-green-100 text-green-800',
+                                        'animal' => 'bg-purple-100 text-purple-800',
+                                        'rescue' => 'bg-blue-100 text-blue-800',
+                                        'user_management' => 'bg-cyan-100 text-cyan-800',
+                                        'authorization' => 'bg-amber-100 text-amber-800',
+                                        'shelter' => 'bg-teal-100 text-teal-800',
+                                        'booking' => 'bg-pink-100 text-pink-800',
+                                        'system' => 'bg-gray-100 text-gray-800',
+                                    ];
+                                    $colorClass = $categoryColors[$log->category] ?? 'bg-slate-100 text-slate-800';
+                                @endphp
+                                <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold {{ $colorClass }}">
                                     <svg class="w-2 h-2 mr-1.5 fill-current" viewBox="0 0 8 8">
                                         <circle cx="4" cy="4" r="3" />
                                     </svg>
-                                    {{ ucfirst($log->category) }}
+                                    {{ ucwords(str_replace('_', ' ', $log->category)) }}
                                 </span>
                             </td>
                             <td class="px-6 py-4">
@@ -335,7 +339,7 @@ $breadcrumbs = [
         <div class="px-6 py-4 border-t border-gray-200 bg-gray-50">
             <div class="flex items-center justify-between text-sm text-gray-600">
                 <span>Showing {{ $recentLogs->count() }} of {{ number_format($stats['total_logs']) }} total logs</span>
-                <a href="{{ route('admin.audit.authentication') }}" class="text-indigo-600 hover:text-indigo-900 font-medium inline-flex items-center">
+                <a href="{{ route('admin.audit.all') }}" class="text-indigo-600 hover:text-indigo-900 font-medium inline-flex items-center">
                     View all audit logs
                     <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path>

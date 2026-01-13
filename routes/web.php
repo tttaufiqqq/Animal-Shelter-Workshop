@@ -191,6 +191,7 @@ Route::middleware('auth')->group(function () {
 // Admin Audit Trail Routes
 Route::middleware(['auth'])->prefix('admin/audit')->name('admin.audit.')->group(function () {
     Route::get('/', [AuditController::class, 'index'])->name('index');
+    Route::get('/all', [AuditController::class, 'all'])->name('all');
     Route::get('/authentication', [AuditController::class, 'authentication'])->name('authentication');
     Route::get('/payments', [AuditController::class, 'payments'])->name('payments');
     Route::get('/animals', [AuditController::class, 'animals'])->name('animals');

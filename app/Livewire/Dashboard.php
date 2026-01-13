@@ -15,28 +15,10 @@ use App\DatabaseErrorHandler;
 class Dashboard extends Component
 {
     use DatabaseErrorHandler;
-    public $selectedYear;
-    public $selectedCategory = 'all';
-    public $years = [];
-
-    public function mount()
-    {
-        $this->selectedYear = date('Y');
-
-        // Get years from Danish's database (bookings) with error handling
-        $this->years = $this->safeQuery(
-            fn() => Booking::selectRaw($this->getYearExpression('created_at', 'danish') . ' as year')
-                ->distinct()
-                ->orderBy('year', 'desc')
-                ->pluck('year')
-                ->toArray(),
-            [date('Y')],
-            'danish' // Pre-check danish database
-        );
-    }
 
     public function render()
     {
+
         // Key Metrics (all from Danish's database)
         $totalBookings = $this->getTotalBookings();
         $successfulBookings = $this->getSuccessfulBookings();
@@ -77,22 +59,6 @@ class Dashboard extends Component
     }
 
     /**
-     * Get database-specific YEAR extraction expression
-     */
-    private function getYearExpression($column, $connection = 'danish')
-    {
-        $driver = DB::connection($connection)->getDriverName();
-
-        return match($driver) {
-            'pgsql' => "EXTRACT(YEAR FROM {$column})",
-            'mysql' => "YEAR({$column})",
-            'sqlite' => "strftime('%Y', {$column})",
-            'sqlsrv' => "YEAR({$column})",
-            default => "YEAR({$column})",
-        };
-    }
-
-    /**
      * Get database-specific MONTH extraction expression
      */
     private function getMonthExpression($column, $connection = 'danish')
@@ -109,77 +75,66 @@ class Dashboard extends Component
     }
 
     /**
-     * Get WHERE clause for year filtering
+     * Get database-specific YEAR extraction expression
      */
-    private function whereYear($query, $column, $connection = 'danish')
+    private function getYearExpression($column, $connection = 'danish')
     {
         $driver = DB::connection($connection)->getDriverName();
 
-        if ($driver === 'pgsql') {
-            return $query->whereRaw("EXTRACT(YEAR FROM {$column}) = ?", [$this->selectedYear]);
-        } elseif ($driver === 'sqlsrv') {
-            return $query->whereRaw("YEAR({$column}) = ?", [$this->selectedYear]);
-        } else {
-            return $query->whereYear($column, $this->selectedYear);
-        }
+        return match($driver) {
+            'pgsql' => "EXTRACT(YEAR FROM {$column})",
+            'mysql' => "YEAR({$column})",
+            'sqlite' => "strftime('%Y', {$column})",
+            'sqlsrv' => "YEAR({$column})",
+            default => "YEAR({$column})",
+        };
     }
 
     /**
-     * Get total bookings from Danish's database
+     * Get total bookings from Danish's database (all time)
      */
     private function getTotalBookings()
     {
         return $this->safeQuery(
-            fn() => $this->whereYear(Booking::query(), 'created_at', 'danish')->count(),
+            fn() => Booking::count(),
             0,
-            'danish' // Pre-check danish database
+            'danish'
         );
     }
 
     /**
-     * Get successful bookings from Danish's database
+     * Get successful bookings from Danish's database (all time)
      */
     private function getSuccessfulBookings()
     {
         return $this->safeQuery(
-            fn() => $this->whereYear(Booking::query(), 'created_at', 'danish')
-                ->where('status', 'Completed')
-                ->count(),
+            fn() => Booking::where('status', 'Completed')->count(),
             0,
-            'danish' // Pre-check danish database
+            'danish'
         );
     }
 
     /**
-     * Get cancelled bookings from Danish's database
+     * Get cancelled bookings from Danish's database (all time)
      */
     private function getCancelledBookings()
     {
         return $this->safeQuery(
-            fn() => $this->whereYear(Booking::query(), 'created_at', 'danish')
-                ->where('status', 'Cancelled')
-                ->count(),
+            fn() => Booking::where('status', 'Cancelled')->count(),
             0,
-            'danish' // Pre-check danish database
+            'danish'
         );
     }
 
     /**
-     * Get repeat customer rate from Danish's database
+     * Get repeat customer rate from Danish's database (all time)
      */
     private function getRepeatCustomerRate()
     {
         return $this->safeQuery(function() {
-            $query = $this->whereYear(Booking::query(), 'created_at', 'danish');
+            $totalCustomers = Booking::distinct()->count('userID');
 
-            // Clone query for total customers
-            $totalCustomers = (clone $query)
-                ->distinct()
-                ->count('userID');
-
-            // Get repeat customers using subquery (works across all databases)
-            $repeatCustomers = (clone $query)
-                ->select('userID')
+            $repeatCustomers = Booking::select('userID')
                 ->groupBy('userID')
                 ->havingRaw('COUNT(*) > 1')
                 ->get()
@@ -187,14 +142,12 @@ class Dashboard extends Component
 
             return $totalCustomers > 0 ?
                 round(($repeatCustomers / $totalCustomers) * 100, 2) : 0;
-        }, 0, 'danish'); // Pre-check danish database
+        }, 0, 'danish');
     }
 
     /**
-     * Get top animals by revenue
+     * Get top animals by revenue (all time)
      * Complex cross-database query: Danish (adoptions, bookings) + Shafiqah (animals)
-     *
-     * Note: This requires manual data fetching and processing due to cross-database joins
      */
     private function getTopAnimalsByRevenue()
     {
@@ -205,13 +158,9 @@ class Dashboard extends Component
         }
 
         try {
-            // Step 1: Get adoptions with animal IDs from Danish's database
-            $adoptionsQuery = Adoption::on('danish')
-                ->join('animal_booking', 'adoption.bookingID', '=', 'animal_booking.bookingID');
-
-            $adoptionsQuery = $this->whereYear($adoptionsQuery, 'adoption.created_at', 'danish');
-
-            $adoptionData = $adoptionsQuery
+            // Step 1: Get all adoptions with animal IDs from Danish's database
+            $adoptionData = Adoption::on('danish')
+                ->join('animal_booking', 'adoption.bookingID', '=', 'animal_booking.bookingID')
                 ->select('animal_booking.animalID', 'adoption.fee')
                 ->get();
 
@@ -271,16 +220,14 @@ class Dashboard extends Component
     }
 
     /**
-     * Get booking type breakdown from Danish's database
+     * Get booking type breakdown from Danish's database (all time)
      */
     private function getBookingTypeBreakdown()
     {
         return $this->safeQuery(function() {
-            $query = $this->whereYear(Booking::on('danish'), 'created_at', 'danish');
-            $total = (clone $query)->count();
+            $total = Booking::count();
 
-            $breakdown = (clone $query)
-                ->select('status', DB::raw('count(*) as count'))
+            $breakdown = Booking::select('status', DB::raw('count(*) as count'))
                 ->groupBy('status')
                 ->get()
                 ->map(function($item) use ($total) {
@@ -290,34 +237,38 @@ class Dashboard extends Component
                 });
 
             return $breakdown;
-        }, collect([]), 'danish'); // Pre-check danish database
+        }, collect([]), 'danish');
     }
 
     /**
-     * Get bookings by month from Danish's database
+     * Get bookings by month from Danish's database (last 12 months)
      */
     private function getBookingsByMonth()
     {
         return $this->safeQuery(function() {
             $monthExpression = $this->getMonthExpression('created_at', 'danish');
+            $yearExpression = $this->getYearExpression('created_at', 'danish');
 
-            $query = $this->whereYear(Booking::on('danish'), 'created_at', 'danish');
+            // Get last 12 months of data
+            $twelveMonthsAgo = Carbon::now()->subMonths(11)->startOfMonth();
 
-            return $query
+            return Booking::where('created_at', '>=', $twelveMonthsAgo)
+                ->selectRaw("{$yearExpression} as year")
                 ->selectRaw("{$monthExpression} as month")
                 ->selectRaw('COUNT(*) as count')
-                ->groupBy(DB::raw($monthExpression))
+                ->groupBy(DB::raw($yearExpression), DB::raw($monthExpression))
+                ->orderBy('year')
                 ->orderBy('month')
                 ->get()
                 ->map(function($item) {
-                    $item->month_name = Carbon::create()->month((int)$item->month)->format('F');
+                    $item->month_name = Carbon::create($item->year, $item->month, 1)->format('M Y');
                     return $item;
                 });
-        }, collect([]), 'danish'); // Pre-check danish database
+        }, collect([]), 'danish');
     }
 
     /**
-     * Get volume vs average value from Danish's database
+     * Get volume vs average value from Danish's database (last 6 months)
      */
     private function getVolumeVsAverageValue()
     {
@@ -325,12 +276,9 @@ class Dashboard extends Component
             $monthExpression = $this->getMonthExpression('created_at', 'danish');
             $yearExpression = $this->getYearExpression('created_at', 'danish');
 
+            // Get last 6 months of data
             $sixMonthsAgo = Carbon::now()->subMonths(5)->startOfMonth();
 
-            // Debug: check the date
-            Log::info('Six months ago: ' . $sixMonthsAgo);
-
-            // Query Danish's database for adoptions
             $results = Adoption::on('danish')
                 ->where('created_at', '>=', $sixMonthsAgo)
                 ->selectRaw("{$yearExpression} as year")
@@ -342,35 +290,25 @@ class Dashboard extends Component
                 ->orderBy('month')
                 ->get();
 
-            // Debug: check results
-            Log::info('Volume vs Value Results: ' . $results->toJson());
-
             return $results->map(function($item) {
                 $item->month_name = Carbon::create($item->year, $item->month, 1)->format('M Y');
                 $item->avg_value = round((float) $item->avg_value, 2);
                 return $item;
             });
-        }, collect([]), 'danish'); // Pre-check danish database
+        }, collect([]), 'danish');
     }
 
     /**
-     * Get additional statistics for enhanced dashboard
-     * All from Danish's database
+     * Get additional statistics for enhanced dashboard (all time)
      */
     public function getAdditionalStats()
     {
         try {
-            $query = $this->whereYear(Booking::on('danish'), 'created_at', 'danish');
-
             return [
-                'pending_bookings' => (clone $query)->where('status', 'Pending')->count(),
-                'confirmed_bookings' => (clone $query)->where('status', 'Confirmed')->count(),
-                'total_revenue' => Adoption::on('danish')
-                    ->whereYear('created_at', $this->selectedYear)
-                    ->sum('fee'),
-                'average_booking_value' => Adoption::on('danish')
-                    ->whereYear('created_at', $this->selectedYear)
-                    ->avg('fee'),
+                'pending_bookings' => Booking::where('status', 'Pending')->count(),
+                'confirmed_bookings' => Booking::where('status', 'Confirmed')->count(),
+                'total_revenue' => Adoption::sum('fee'),
+                'average_booking_value' => Adoption::avg('fee'),
             ];
         } catch (\Exception $e) {
             Log::error('Error getting additional stats: ' . $e->getMessage());

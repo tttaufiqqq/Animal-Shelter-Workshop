@@ -5,7 +5,7 @@
 
 <script>
     // =============================================
-    // GPS LOCATION TRACKING - FIXED VERSION
+    // GPS LOCATION TRACKING - ENHANCED ACCURACY VERSION
     // =============================================
 
     // Global variables
@@ -13,25 +13,26 @@
     let mapInitialized = false;
     let watchPositionId = null;
     let currentPosition = null;
+    let isManualAdjustment = false;
 
-    // Malaysian state mapping
+    // Enhanced Malaysian state mapping
     const malaysiaStates = {
-        'Johor': ['johor', 'johore', 'johor bahru'],
-        'Kedah': ['kedah', 'alor setar'],
-        'Kelantan': ['kelantan', 'kota bharu'],
-        'Malacca': ['malacca', 'melaka'],
-        'Negeri Sembilan': ['negeri sembilan', 'n.sembilan', 'n sembilan', 'seremban'],
-        'Pahang': ['pahang', 'kuantan'],
-        'Penang': ['penang', 'pulau pinang', 'georgetown', 'george town'],
-        'Perak': ['perak', 'ipoh'],
+        'Johor': ['johor', 'johore', 'johor bahru', 'jb', 'j.b.', 'j.b'],
+        'Kedah': ['kedah', 'alor setar', 'alor star'],
+        'Kelantan': ['kelantan', 'kota bharu', 'kota bahru'],
+        'Malacca': ['malacca', 'melaka', 'malaka'],
+        'Negeri Sembilan': ['negeri sembilan', 'n.sembilan', 'n sembilan', 'seremban', 'n.s', 'n.s.'],
+        'Pahang': ['pahang', 'kuantan', 'kuala lipis'],
+        'Penang': ['penang', 'pulau pinang', 'georgetown', 'george town', 'penang island'],
+        'Perak': ['perak', 'ipoh', 'taiping'],
         'Perlis': ['perlis', 'kangar'],
-        'Sabah': ['sabah', 'kota kinabalu'],
-        'Sarawak': ['sarawak', 'kuching'],
-        'Selangor': ['selangor', 'shah alam', 'petaling jaya'],
-        'Terengganu': ['terengganu', 'kuala terengganu'],
-        'Kuala Lumpur': ['kuala lumpur', 'kl'],
-        'Putrajaya': ['putrajaya'],
-        'Labuan': ['labuan', 'w.p. labuan']
+        'Sabah': ['sabah', 'kota kinabalu', 'kk', 'sandakan', 'tawau'],
+        'Sarawak': ['sarawak', 'kuching', 'sibu', 'miri'],
+        'Selangor': ['selangor', 'shah alam', 'petaling jaya', 'pj', 'subang jaya', 'klang'],
+        'Terengganu': ['terengganu', 'kuala terengganu', 'k.terengganu'],
+        'Kuala Lumpur': ['kuala lumpur', 'kl', 'k.l.', 'k.lumpur', 'wilayah persekutuan kuala lumpur'],
+        'Putrajaya': ['putrajaya', 'putra jaya', 'wilayah persekutuan putrajaya'],
+        'Labuan': ['labuan', 'w.p. labuan', 'wilayah persekutuan labuan']
     };
 
     // Toast notification system
@@ -81,9 +82,9 @@
             <div class="flex items-start gap-3 p-4 bg-${isSuccess ? 'green' : 'red'}-50 border border-${isSuccess ? 'green' : 'red'}-200 rounded-xl shadow-sm">
                 <svg class="w-6 h-6 text-${isSuccess ? 'green' : 'red'}-600 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                     ${isSuccess
-                        ? '<path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />'
-                        : '<path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />'
-                    }
+            ? '<path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />'
+            : '<path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />'
+        }
                 </svg>
                 <div class="flex-1">
                     <p class="font-semibold text-${isSuccess ? 'green' : 'red'}-700">${message}</p>
@@ -112,33 +113,88 @@
         return true;
     }
 
-    // Request location permission
-    async function requestLocationPermission() {
-        if (!checkGeolocationSupport()) return;
-
+    // Get location from IP address as fallback
+    async function getLocationFromIP(btn, statusDiv) {
         try {
-            // Test permission with a simple request
-            const permission = await navigator.permissions.query({ name: 'geolocation' });
+            statusDiv.innerHTML = '<span class="text-yellow-600">📍 Getting approximate location from IP...</span>';
 
-            if (permission.state === 'granted') {
-                startLocationTracking();
-                document.getElementById('gpsInstructions').classList.add('hidden');
-            } else if (permission.state === 'prompt') {
-                // Show instructions
-                document.getElementById('gpsInstructions').classList.remove('hidden');
-                showToast('Please allow location access in the browser prompt.', 'info');
-            } else {
-                document.getElementById('gpsInstructions').classList.remove('hidden');
-                showToast('Location access denied. Please enable it in browser settings.', 'error');
+            // Try multiple free IP geolocation APIs
+            const ipApis = [
+                'https://ipapi.co/json/',
+                'https://ipinfo.io/json',
+                'https://geolocation-db.com/json/'
+            ];
+
+            let locationData = null;
+
+            for (const apiUrl of ipApis) {
+                try {
+                    const response = await fetch(apiUrl, { timeout: 5000 });
+                    if (response.ok) {
+                        locationData = await response.json();
+                        console.log('IP location data:', locationData);
+                        break;
+                    }
+                } catch (e) {
+                    console.log(`API ${apiUrl} failed:`, e);
+                    continue;
+                }
             }
+
+            if (locationData) {
+                // Extract lat/lng from different API formats
+                let lat, lng, city, state;
+
+                if (locationData.latitude && locationData.longitude) {
+                    lat = parseFloat(locationData.latitude);
+                    lng = parseFloat(locationData.longitude);
+                    city = locationData.city || locationData.city_name || '';
+                    state = locationData.region || locationData.region_name || locationData.state || '';
+                } else if (locationData.loc) {
+                    // ipinfo.io format: "loc": "3.1390,101.6869"
+                    const [latStr, lngStr] = locationData.loc.split(',');
+                    lat = parseFloat(latStr);
+                    lng = parseFloat(lngStr);
+                    city = locationData.city || '';
+                    state = locationData.region || '';
+                } else if (locationData.lat && locationData.lon) {
+                    lat = parseFloat(locationData.lat);
+                    lng = parseFloat(locationData.lon);
+                    city = locationData.city || '';
+                    state = locationData.state || '';
+                }
+
+                if (lat && lng) {
+                    // Create artificial position object
+                    const artificialPosition = {
+                        coords: {
+                            latitude: lat,
+                            longitude: lng,
+                            accuracy: 5000, // IP location is very approximate (5km)
+                            altitude: null,
+                            altitudeAccuracy: null,
+                            heading: null,
+                            speed: null
+                        },
+                        timestamp: Date.now()
+                    };
+
+                    await handlePositionSuccess(artificialPosition, btn, statusDiv);
+                    showToast('Using IP-based location (5km accuracy)', 'warning');
+                    return;
+                }
+            }
+
+            // If all IP APIs fail, use default Kuala Lumpur location
+            throw new Error('All location methods failed');
+
         } catch (error) {
-            console.error('Permission check failed:', error);
-            // Fallback to direct geolocation request
-            getCurrentLocation();
+            console.error('IP location failed:', error);
+            handlePositionError(error, btn, statusDiv);
         }
     }
 
-    // Get current location - MAIN FIXED FUNCTION
+    // Get current location - ENHANCED ACCURACY VERSION
     function getCurrentLocation() {
         if (!checkGeolocationSupport()) return;
 
@@ -152,10 +208,13 @@
             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
         </svg>
-        <span id="gpsBtnText">Getting location...</span>
-    `;
+        <span id="gpsBtnText">Getting precise location...</span>
+        `;
 
-        statusDiv.innerHTML = '<span class="text-blue-600">🔍 Detecting your location...</span>';
+        statusDiv.innerHTML = '<span class="text-blue-600">🔍 Getting precise location (this may take 10-20 seconds)...</span>';
+
+        // Show accuracy tips
+        document.getElementById('accuracyTips')?.classList.remove('hidden');
 
         // Clear any previous watcher
         if (watchPositionId !== null) {
@@ -163,76 +222,125 @@
             watchPositionId = null;
         }
 
-        // First try with high accuracy
+        // FIRST: Try high accuracy with maximum settings (for mobile/outdoor)
         navigator.geolocation.getCurrentPosition(
             // Success callback
             async (position) => {
-                console.log('GPS Position obtained:', position);
+                console.log('High accuracy GPS position:', position);
                 await handlePositionSuccess(position, btn, statusDiv);
             },
-            // Error callback
-            (error) => {
-                handlePositionError(error, btn, statusDiv);
-            },
-            // Options - IMPORTANT: enableHighAccuracy and longer timeout
-            {
-                enableHighAccuracy: true,  // Use GPS if available
-                timeout: 30000,           // 30 second timeout
-                maximumAge: 0             // Don't use cached position
-            }
-        );
+            // Error callback - try multiple fallback methods
+            async (error) => {
+                console.log('High accuracy failed, trying medium accuracy...', error);
 
-        // Also start watching for position updates
-        watchPositionId = navigator.geolocation.watchPosition(
-            (position) => {
-                console.log('GPS Update:', position);
-                handlePositionSuccess(position, document.getElementById('gpsBtn'), statusDiv);
+                // SECOND: Try medium accuracy (for desktop with Wi-Fi)
+                navigator.geolocation.getCurrentPosition(
+                    async (position) => {
+                        console.log('Medium accuracy position:', position);
+                        await handlePositionSuccess(position, btn, statusDiv);
+                    },
+                    // Error callback - try low accuracy
+                    async (error) => {
+                        console.log('Medium accuracy failed, trying low accuracy...', error);
+
+                        // THIRD: Try low accuracy (IP-based, quick response)
+                        navigator.geolocation.getCurrentPosition(
+                            async (position) => {
+                                console.log('Low accuracy (IP-based) position:', position);
+                                position.coords.accuracy = 10000; // Mark as low accuracy (10km)
+                                await handlePositionSuccess(position, btn, statusDiv);
+                            },
+                            // Final error - use IP geolocation API
+                            async (error) => {
+                                console.log('All geolocation methods failed, using IP API...', error);
+                                await getLocationFromIP(btn, statusDiv);
+                            },
+                            {
+                                enableHighAccuracy: false,
+                                timeout: 10000,
+                                maximumAge: 60000
+                            }
+                        );
+                    },
+                    {
+                        enableHighAccuracy: false,
+                        timeout: 15000,
+                        maximumAge: 30000
+                    }
+                );
             },
-            (error) => {
-                console.error('Watch position error:', error);
-            },
+            // Options - MAXIMUM accuracy for first attempt
             {
-                enableHighAccuracy: true,
-                timeout: 30000,
-                maximumAge: 10000  // Accept positions up to 10 seconds old
+                enableHighAccuracy: true,  // Force GPS if available
+                timeout: 20000,           // 20 second timeout
+                maximumAge: 0             // Force fresh location
             }
         );
     }
 
-    // Handle successful position
+    // Enhanced position success handler
     async function handlePositionSuccess(position, btn, statusDiv) {
         currentPosition = position;
         const lat = position.coords.latitude;
         const lng = position.coords.longitude;
-        const accuracy = position.coords.accuracy;
+        const accuracy = position.coords.accuracy || 10000; // Default to 10km if not specified
 
-        console.log(`Location: ${lat}, ${lng}, Accuracy: ${accuracy}m`);
+        console.log(`Final Location: ${lat}, ${lng}, Accuracy: ${accuracy}m`);
+        console.log('Full position data:', position);
 
-        // Update button to show success
+        // Update button to show success with accuracy info
+        let accuracyText = '';
+        if (accuracy <= 20) {
+            accuracyText = ' (High precision)';
+        } else if (accuracy <= 100) {
+            accuracyText = ' (Good)';
+        } else if (accuracy <= 1000) {
+            accuracyText = ' (Approximate)';
+        } else {
+            accuracyText = ' (Very approximate)';
+        }
+
         btn.innerHTML = `
         <svg class="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
         </svg>
-        <span id="gpsBtnText">Location Found!</span>
-    `;
+        <span id="gpsBtnText">Location Found${accuracyText}</span>
+        `;
         btn.disabled = false;
 
-        // Update status
+        // Update status with detailed accuracy info
         if (accuracy <= 20) {
-            statusDiv.innerHTML = `<span class="text-green-600">✅ High accuracy location (${Math.round(accuracy)}m)</span>`;
+            statusDiv.innerHTML = `<span class="text-green-600">✅ High precision GPS (${Math.round(accuracy)}m) - Excellent accuracy</span>`;
         } else if (accuracy <= 100) {
-            statusDiv.innerHTML = `<span class="text-yellow-600">⚠️ Moderate accuracy (${Math.round(accuracy)}m)</span>`;
+            statusDiv.innerHTML = `<span class="text-green-600">✅ Good location (${Math.round(accuracy)}m) - Suitable for reporting</span>`;
+        } else if (accuracy <= 500) {
+            statusDiv.innerHTML = `<span class="text-yellow-600">⚠️ Moderate accuracy (${Math.round(accuracy)}m) - May need adjustment</span>`;
+            document.getElementById('adjustLocationSection')?.classList.remove('hidden');
+        } else if (accuracy <= 5000) {
+            statusDiv.innerHTML = `<span class="text-orange-600">⚠️ Approximate location (${Math.round(accuracy)}m) - Consider moving outdoors</span>`;
+            document.getElementById('adjustLocationSection')?.classList.remove('hidden');
+            showToast('Location is approximate. Please drag the pin to exact position.', 'warning');
         } else {
-            statusDiv.innerHTML = `<span class="text-red-600">📡 Low accuracy (${Math.round(accuracy)}m) - Move to open area</span>`;
+            statusDiv.innerHTML = `<span class="text-red-600">📡 Very approximate (${Math.round(accuracy/1000)}km) - IP-based location, drag pin to correct position</span>`;
+            document.getElementById('adjustLocationSection')?.classList.remove('hidden');
+            showToast('Location is very approximate. Please drag the pin to exact position.', 'warning');
         }
+
+        // Hide accuracy tips
+        document.getElementById('accuracyTips')?.classList.add('hidden');
 
         // Update map
         await updateLocationOnMap(lat, lng, accuracy);
 
         // Get address details
-        await getAddressDetails(lat, lng);
+        await getAddressDetailsWithFallback(lat, lng);
 
-        // Reset button after 2 seconds
+        // If accuracy is poor, zoom out to show context
+        if (accuracy > 1000 && map) {
+            map.setView([lat, lng], 12); // Zoom out more for approximate locations
+        }
+
+        // Reset button after 3 seconds
         setTimeout(() => {
             btn.innerHTML = `
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -240,8 +348,8 @@
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
             </svg>
             <span id="gpsBtnText">Use My Current Location</span>
-        `;
-        }, 2000);
+            `;
+        }, 3000);
     }
 
     // Handle position error
@@ -274,7 +382,7 @@
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
         </svg>
         <span id="gpsBtnText">Use My Current Location</span>
-    `;
+        `;
         btn.disabled = false;
 
         // Clear watcher
@@ -292,8 +400,11 @@
 
         watchPositionId = navigator.geolocation.watchPosition(
             (position) => {
-                console.log('Continuous tracking:', position);
-                updateLocationOnMap(position.coords.latitude, position.coords.longitude, position.coords.accuracy);
+                console.log('Continuous tracking update:', position);
+                // Only update if accuracy improves significantly
+                if (!currentPosition || position.coords.accuracy < currentPosition.coords.accuracy * 0.7) {
+                    updateLocationOnMap(position.coords.latitude, position.coords.longitude, position.coords.accuracy);
+                }
             },
             (error) => {
                 console.error('Tracking error:', error);
@@ -330,31 +441,35 @@
             if (accuracy !== null) {
                 updateAccuracyIndicator(accuracy);
 
-                // Add or update accuracy circle with enhanced styling
+                // Add or update accuracy circle
                 if (circle) {
                     circle.setLatLng([lat, lng]).setRadius(accuracy);
                 } else {
                     circle = L.circle([lat, lng], {
                         radius: accuracy,
-                        color: '#06B6D4',
-                        fillColor: '#06B6D4',
-                        fillOpacity: 0.3,
-                        weight: 3,
-                        dashArray: '5, 10'
+                        color: accuracy <= 100 ? '#10B981' : accuracy <= 1000 ? '#F59E0B' : '#EF4444',
+                        fillColor: accuracy <= 100 ? '#10B981' : accuracy <= 1000 ? '#F59E0B' : '#EF4444',
+                        fillOpacity: accuracy <= 100 ? 0.2 : accuracy <= 1000 ? 0.15 : 0.1,
+                        weight: accuracy <= 100 ? 2 : 1,
+                        dashArray: accuracy <= 100 ? null : '5, 5'
                     }).addTo(map);
                 }
             }
 
-            // Update marker with vibrant gradient
+            // Update marker with color based on accuracy
+            const markerColor = accuracy <= 100 ? 'from-green-500 to-emerald-600' :
+                accuracy <= 1000 ? 'from-yellow-500 to-amber-600' :
+                    'from-red-500 to-pink-600';
+
             const markerIcon = L.divIcon({
                 html: `
                 <div class="relative">
-                    <div class="w-10 h-10 bg-gradient-to-br from-pink-500 via-purple-500 to-indigo-600 rounded-full border-3 border-white shadow-2xl flex items-center justify-center animate-pulse">
+                    <div class="w-10 h-10 bg-gradient-to-br ${markerColor} rounded-full border-3 border-white shadow-2xl flex items-center justify-center animate-pulse">
                         <svg class="w-5 h-5 text-white drop-shadow-lg" fill="currentColor" viewBox="0 0 20 20">
                             <path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd"/>
                         </svg>
                     </div>
-                    <div class="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-[6px] border-r-[6px] border-t-[6px] border-l-transparent border-r-transparent border-t-indigo-600"></div>
+                    <div class="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-[6px] border-r-[6px] border-t-[6px] border-l-transparent border-r-transparent ${accuracy <= 100 ? 'border-t-emerald-600' : accuracy <= 1000 ? 'border-t-amber-600' : 'border-t-pink-600'}"></div>
                 </div>
             `,
                 className: 'custom-marker',
@@ -368,19 +483,42 @@
                 marker = L.marker([lat, lng], {
                     icon: markerIcon,
                     draggable: true,
-                    title: 'Your current location'
+                    title: 'Your current location - Drag to adjust'
                 }).addTo(map);
 
                 // Allow dragging to adjust
+                marker.on('dragstart', function() {
+                    isManualAdjustment = true;
+                    showToast('Drag the pin to adjust location', 'info');
+                });
+
                 marker.on('dragend', async function(e) {
                     const newPos = e.target.getLatLng();
-                    await updateLocationOnMap(newPos.lat, newPos.lng, accuracy);
-                    await getAddressDetails(newPos.lat, newPos.lng);
+                    const manualAccuracy = 10; // Manual placement is high accuracy
+
+                    // Show loading
+                    showToast('Getting address for new location...', 'info');
+
+                    await updateLocationOnMap(newPos.lat, newPos.lng, manualAccuracy);
+                    await getAddressDetailsWithFallback(newPos.lat, newPos.lng);
+
+                    showToast('Location manually adjusted', 'success');
+
+                    // Update accuracy display
+                    document.getElementById('accuracyValue').textContent = manualAccuracy;
+                    document.getElementById('accuracyIndicator').classList.remove('hidden');
+
+                    // Hide adjustment section
+                    document.getElementById('adjustLocationSection')?.classList.add('hidden');
                 });
             }
 
-            // Center map on location
-            map.setView([lat, lng], 16);
+            // Center map on location with appropriate zoom
+            let zoomLevel = 16;
+            if (accuracy > 1000) zoomLevel = 13;
+            if (accuracy > 5000) zoomLevel = 11;
+
+            map.setView([lat, lng], zoomLevel);
 
             // Hide any map errors
             document.getElementById('mapError')?.classList.add('hidden');
@@ -398,12 +536,19 @@
 
         if (!indicator || !valueSpan) return;
 
-        valueSpan.textContent = Math.round(accuracy);
+        // Convert to km if > 1000m
+        if (accuracy >= 1000) {
+            valueSpan.textContent = (accuracy / 1000).toFixed(1) + 'km';
+        } else {
+            valueSpan.textContent = Math.round(accuracy) + 'm';
+        }
 
         // Color code based on accuracy
         if (accuracy <= 20) {
             valueSpan.className = 'accuracy-good font-bold';
         } else if (accuracy <= 100) {
+            valueSpan.className = 'accuracy-good font-bold';
+        } else if (accuracy <= 1000) {
             valueSpan.className = 'accuracy-medium font-bold';
         } else {
             valueSpan.className = 'accuracy-poor font-bold';
@@ -412,8 +557,8 @@
         indicator.classList.remove('hidden');
     }
 
-    // Get address details
-    async function getAddressDetails(lat, lng) {
+    // Get address details with guaranteed city and state (NEVER blank)
+    async function getAddressDetailsWithFallback(lat, lng) {
         try {
             showToast('Getting address details...', 'info');
 
@@ -431,49 +576,217 @@
             const data = await response.json();
             const addr = data.address || {};
 
+            console.log('Full address data:', data);
+
             // Update form fields
             if (data.display_name) {
                 document.getElementById('addressInput').value = data.display_name;
             }
 
-            // Extract city
-            const city = addr.city || addr.town || addr.village || addr.suburb || '';
-            if (city) {
-                document.getElementById('cityInput').value = city;
-            }
+            // ==================== CITY EXTRACTION (GUARANTEED) ====================
+            let city = '';
 
-            // Extract and match state
-            const state = addr.state || '';
-            if (state) {
-                const matchedState = matchState(state);
-                if (matchedState) {
-                    const stateSelect = document.getElementById('stateInput');
-                    stateSelect.value = matchedState;
-                    stateSelect.disabled = false;
-                    setTimeout(() => stateSelect.disabled = true, 100);
+            // Try multiple possible city fields (in order of preference)
+            const citySources = [
+                addr.city,
+                addr.town,
+                addr.village,
+                addr.suburb,
+                addr.municipality,
+                addr.county,
+                addr.district,
+                addr.neighbourhood,
+                addr.quarter,
+                addr.residential,
+                addr.road,  // Use road name if nothing else
+                addr.hamlet,
+                addr.locality,
+                addr.region
+            ];
+
+            for (const source of citySources) {
+                if (source && typeof source === 'string' && source.trim().length > 0) {
+                    city = source.trim();
+                    console.log(`City found in ${Object.keys(addr).find(key => addr[key] === source)}: ${city}`);
+                    break;
                 }
             }
 
-            showToast('Address details updated', 'success');
+            // If still no city, use coordinates as fallback
+            if (!city) {
+                city = `Location near ${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+                console.log('Using coordinates as city fallback');
+            }
+
+            // Update city field - GUARANTEED to have value
+            const cityInput = document.getElementById('cityInput');
+            cityInput.value = city;
+            cityInput.classList.add('auto-filled');
+            setTimeout(() => cityInput.classList.add('auto-filled-success'), 500);
+            setTimeout(() => {
+                cityInput.classList.remove('auto-filled', 'auto-filled-success');
+            }, 3000);
+
+            console.log('Final city value:', city);
+            // ==================== END CITY EXTRACTION ====================
+
+            // ==================== STATE EXTRACTION (GUARANTEED) ====================
+            let state = '';
+
+            // Try to find state from address components
+            const stateSources = [
+                addr.state,
+                addr.region,
+                addr.province,
+                addr.county,
+                addr.district,
+                addr.island
+            ];
+
+            for (const source of stateSources) {
+                if (source && typeof source === 'string') {
+                    const matchedState = matchState(source);
+                    if (matchedState) {
+                        state = matchedState;
+                        console.log(`State found: ${state} from ${source}`);
+                        break;
+                    }
+                }
+            }
+
+            // If state not found in address, try to match from display_name
+            if (!state && data.display_name) {
+                state = matchState(data.display_name);
+                if (state) console.log(`State matched from display_name: ${state}`);
+            }
+
+            // If still no state, try to estimate from GPS coordinates
+            if (!state) {
+                state = estimateStateFromCoordinates(lat, lng);
+                if (state) console.log(`State estimated from coordinates: ${state}`);
+            }
+
+            // LAST RESORT: If still no state, use Kuala Lumpur as default
+            if (!state) {
+                state = 'Kuala Lumpur';
+                console.log('Using default state: Kuala Lumpur');
+            }
+
+            // Update state field - GUARANTEED to have value
+            const stateSelect = document.getElementById('stateInput');
+            stateSelect.value = state;
+            stateSelect.disabled = false;
+            stateSelect.classList.add('auto-filled');
+            setTimeout(() => stateSelect.classList.add('auto-filled-success'), 500);
+            setTimeout(() => {
+                stateSelect.classList.remove('auto-filled', 'auto-filled-success');
+                stateSelect.disabled = true;
+            }, 3000);
+            // ==================== END STATE EXTRACTION ====================
+
+            showToast('Address, city, and state updated successfully', 'success');
+            return { city, state };
 
         } catch (error) {
             console.warn('Geocoding failed:', error);
-            showToast('Could not get address details. Please fill manually.', 'warning');
+
+            // ==================== FALLBACK VALUES WHEN API FAILS ====================
+            // Set fallback values to ensure fields are NEVER null
+
+            const cityInput = document.getElementById('cityInput');
+            const stateSelect = document.getElementById('stateInput');
+
+            // If city is empty, use coordinates
+            if (!cityInput.value) {
+                cityInput.value = `Location near ${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+                cityInput.classList.add('auto-filled');
+            }
+
+            // If state is empty, try to estimate or use default
+            if (!stateSelect.value) {
+                const estimatedState = estimateStateFromCoordinates(lat, lng) || 'Kuala Lumpur';
+                stateSelect.value = estimatedState;
+                stateSelect.disabled = false;
+                stateSelect.classList.add('auto-filled');
+                setTimeout(() => {
+                    stateSelect.disabled = true;
+                }, 100);
+            }
+            // ==================== END FALLBACK ====================
+
+            showToast('Using fallback values for city/state', 'warning');
+            return null;
         }
     }
 
-    // Match state string to Malaysian state
-    function matchState(stateStr) {
-        if (!stateStr) return '';
+    // Estimate state from GPS coordinates in Malaysia
+    function estimateStateFromCoordinates(lat, lng) {
+        // Malaysia coordinate boundaries by state (approximate)
+        const stateBoundaries = [
+            { state: 'Johor', bounds: { minLat: 1.2, maxLat: 2.8, minLng: 102.5, maxLng: 104.5 } },
+            { state: 'Kedah', bounds: { minLat: 5.0, maxLat: 6.5, minLng: 99.5, maxLng: 101.5 } },
+            { state: 'Kelantan', bounds: { minLat: 4.5, maxLat: 6.0, minLng: 101.5, maxLng: 103.5 } },
+            { state: 'Malacca', bounds: { minLat: 2.0, maxLat: 2.5, minLng: 102.0, maxLng: 102.5 } },
+            { state: 'Negeri Sembilan', bounds: { minLat: 2.5, maxLat: 3.5, minLng: 101.5, maxLng: 102.5 } },
+            { state: 'Pahang', bounds: { minLat: 2.5, maxLat: 4.5, minLng: 101.5, maxLng: 103.5 } },
+            { state: 'Penang', bounds: { minLat: 5.1, maxLat: 5.5, minLng: 100.1, maxLng: 100.5 } },
+            { state: 'Perak', bounds: { minLat: 3.5, maxLat: 5.5, minLng: 100.5, maxLng: 101.5 } },
+            { state: 'Perlis', bounds: { minLat: 6.5, maxLat: 6.8, minLng: 99.5, maxLng: 100.5 } },
+            { state: 'Sabah', bounds: { minLat: 4.0, maxLat: 7.5, minLng: 115.0, maxLng: 119.0 } },
+            { state: 'Sarawak', bounds: { minLat: 0.5, maxLat: 4.5, minLng: 109.5, maxLng: 115.5 } },
+            { state: 'Selangor', bounds: { minLat: 2.5, maxLat: 3.5, minLng: 101.0, maxLng: 102.0 } },
+            { state: 'Terengganu', bounds: { minLat: 4.0, maxLat: 5.5, minLng: 102.5, maxLng: 103.5 } },
+            { state: 'Kuala Lumpur', bounds: { minLat: 3.0, maxLat: 3.3, minLng: 101.6, maxLng: 101.8 } },
+            { state: 'Putrajaya', bounds: { minLat: 2.9, maxLat: 3.0, minLng: 101.6, maxLng: 101.7 } },
+            { state: 'Labuan', bounds: { minLat: 5.2, maxLat: 5.4, minLng: 115.1, maxLng: 115.3 } }
+        ];
 
-        const stateLower = stateStr.toLowerCase();
-
-        for (const [state, variations] of Object.entries(malaysiaStates)) {
-            if (variations.some(v => stateLower.includes(v))) {
+        for (const { state, bounds } of stateBoundaries) {
+            if (lat >= bounds.minLat && lat <= bounds.maxLat &&
+                lng >= bounds.minLng && lng <= bounds.maxLng) {
+                console.log(`Estimated state from coordinates: ${state}`);
                 return state;
             }
         }
 
+        console.log('Could not estimate state from coordinates');
+        return '';
+    }
+
+    // Enhanced state matching
+    function matchState(stateStr) {
+        if (!stateStr || typeof stateStr !== 'string') return '';
+
+        const stateLower = stateStr.toLowerCase().trim();
+
+        // Check for exact matches first
+        for (const [state, variations] of Object.entries(malaysiaStates)) {
+            for (const variation of variations) {
+                if (stateLower === variation ||
+                    stateLower.includes(variation) ||
+                    variation.includes(stateLower)) {
+                    console.log(`Matched "${stateStr}" to "${state}" via variation "${variation}"`);
+                    return state;
+                }
+            }
+        }
+
+        // Check for partial matches (words in string)
+        const words = stateLower.split(/[\s,\-\.\(\)]+/);
+        for (const word of words) {
+            if (word.length < 2) continue;
+
+            for (const [state, variations] of Object.entries(malaysiaStates)) {
+                for (const variation of variations) {
+                    if (variation.includes(word) || word.includes(variation)) {
+                        console.log(`Matched "${stateStr}" to "${state}" via word "${word}"`);
+                        return state;
+                    }
+                }
+            }
+        }
+
+        console.log(`Could not match state: "${stateStr}"`);
         return '';
     }
 
@@ -486,7 +799,8 @@
             map = L.map('map', {
                 zoomControl: true,
                 attributionControl: true,
-                scrollWheelZoom: true
+                scrollWheelZoom: true,
+                doubleClickZoom: true
             }).setView([3.1390, 101.6869], 13);
 
             // Add tile layer with original colors
@@ -495,10 +809,11 @@
                 maxZoom: 19
             }).addTo(map);
 
-            // Click to pin location
+            // Click to pin location - ALSO GETS CITY/STATE
             map.on('click', async function(e) {
+                showToast('Getting address for clicked location...', 'info');
                 await updateLocationOnMap(e.latlng.lat, e.latlng.lng, 50);
-                await getAddressDetails(e.latlng.lat, e.latlng.lng);
+                await getAddressDetailsWithFallback(e.latlng.lat, e.latlng.lng);
             });
 
             mapInitialized = true;
@@ -507,6 +822,20 @@
             console.error('Map initialization failed:', error);
             showToast('Map failed to load', 'error');
         }
+    }
+
+    // Enable manual adjustment mode
+    function enableManualAdjustment() {
+        if (!marker) return;
+
+        showToast('Drag the pin to adjust location', 'info');
+        document.getElementById('adjustLocationSection').classList.add('hidden');
+
+        // Briefly animate the marker
+        marker.getElement().classList.add('animate-bounce');
+        setTimeout(() => {
+            marker.getElement().classList.remove('animate-bounce');
+        }, 1000);
     }
 
     // Open modal
@@ -547,6 +876,8 @@
         document.getElementById('imagePreview').innerHTML = '';
         document.getElementById('gpsStatus').innerHTML = '';
         document.getElementById('gpsInstructions').classList.add('hidden');
+        document.getElementById('accuracyTips').classList.add('hidden');
+        document.getElementById('adjustLocationSection').classList.add('hidden');
 
         // Reset GPS button
         document.getElementById('gpsBtn').innerHTML = `
@@ -555,7 +886,7 @@
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
         </svg>
         <span id="gpsBtnText">Use My Current Location</span>
-    `;
+        `;
         document.getElementById('gpsBtn').disabled = false;
     }
 
@@ -568,8 +899,46 @@
             form.addEventListener('submit', async function(e) {
                 e.preventDefault(); // Prevent default form submission
 
-                // Enable state field before submission
+                // ==================== VALIDATE CITY AND STATE ARE FILLED ====================
+                const cityField = document.getElementById('cityInput');
                 const stateField = document.getElementById('stateInput');
+                const addressField = document.getElementById('addressInput');
+
+                let validationErrors = [];
+
+                if (!addressField.value) {
+                    validationErrors.push('Address is required');
+                    addressField.classList.add('border-red-500', 'border-2');
+                }
+
+                if (!cityField.value) {
+                    validationErrors.push('City is required');
+                    cityField.classList.add('border-red-500', 'border-2');
+                }
+
+                if (!stateField.value) {
+                    validationErrors.push('State is required');
+                    stateField.classList.add('border-red-500', 'border-2');
+                }
+
+                // Remove error styling after 3 seconds
+                setTimeout(() => {
+                    [addressField, cityField, stateField].forEach(field => {
+                        field.classList.remove('border-red-500', 'border-2');
+                    });
+                }, 3000);
+
+                if (validationErrors.length > 0) {
+                    showToast('Please fill all location fields', 'error');
+                    showReportModalAlert('error',
+                        '<strong>Location information incomplete:</strong><br>' +
+                        validationErrors.map(err => `• ${err}`).join('<br>')
+                    );
+                    return false;
+                }
+                // ==================== END VALIDATION ====================
+
+                // Enable state field before submission
                 stateField.disabled = false;
 
                 const lat = document.getElementById('latitudeInput').value;
@@ -718,7 +1087,7 @@
             });
         }
 
-        // Location search functionality
+        // Location search functionality - ALSO GETS CITY/STATE
         const locationSearch = document.getElementById('locationSearch');
         const searchResults = document.getElementById('searchResults');
         let searchTimeout;
@@ -789,9 +1158,9 @@
                                     const lon = parseFloat(this.dataset.lon);
                                     const name = this.dataset.name;
 
-                                    // Update map
-                                    await updateLocationOnMap(lat, lon, 50);
-                                    await getAddressDetails(lat, lon);
+                                    // Update map and get city/state
+                                    await updateLocationOnMap(lat, lon, 10); // Search results are precise
+                                    await getAddressDetailsWithFallback(lat, lon);
 
                                     // Update search input
                                     locationSearch.value = name;
@@ -801,7 +1170,7 @@
                                     searchResults.innerHTML = '';
 
                                     // Show success message
-                                    showToast('Location selected successfully', 'success');
+                                    showToast('Location selected. City and state auto-filled.', 'success');
                                 });
                             });
                         }
@@ -835,3 +1204,62 @@
         return div.innerHTML;
     }
 </script>
+
+<style>
+    /* Visual feedback for auto-filled fields */
+    .auto-filled {
+        background-color: #f0f9ff !important;
+        border-color: #0ea5e9 !important;
+        color: #0369a1 !important;
+        transition: all 0.3s ease;
+    }
+
+    .auto-filled-success {
+        background-color: #f0fdf4 !important;
+        border-color: #22c55e !important;
+        color: #15803d !important;
+    }
+
+    /* Accuracy indicator colors */
+    .accuracy-good { color: #10B981; }
+    .accuracy-medium { color: #F59E0B; }
+    .accuracy-poor { color: #EF4444; }
+
+    /* Toast animations */
+    #toastContainer > div {
+        animation: slideIn 0.3s ease-out;
+    }
+
+    @keyframes slideIn {
+        from { transform: translateX(100%); opacity: 0; }
+        to { transform: translateX(0); opacity: 1; }
+    }
+
+    /* Loading spinner */
+    .animate-spin {
+        animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+
+    /* Bounce animation for manual adjustment */
+    @keyframes bounce {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-10px); }
+    }
+    .animate-bounce {
+        animation: bounce 0.5s ease-in-out 2;
+    }
+
+    /* Map marker pulse animation */
+    @keyframes pulse {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.1); }
+    }
+    .animate-pulse {
+        animation: pulse 2s ease-in-out infinite;
+    }
+</style>

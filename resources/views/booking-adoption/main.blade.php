@@ -343,12 +343,18 @@
                             </td>
                             <td class="px-4 py-4 whitespace-nowrap text-center">
                                 @if($booking->adoptions->isNotEmpty())
-                                    <span class="inline-flex items-center px-3 py-1 bg-green-100 text-green-800 rounded-full text-xs font-semibold">
-                                        <i class="fas fa-check-circle mr-1"></i>
-                                        Confirmed
-                                    </span>
+                                    <button type="button"
+                                            onclick="openAdoptionModal({{ $booking->id }})"
+                                            class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg text-xs font-semibold hover:from-green-600 hover:to-green-700 transition-all duration-200 shadow-sm hover:shadow-md transform hover:-translate-y-0.5">
+                                        <i class="fas fa-heart"></i>
+                                        <span>View Details</span>
+                                        <span class="bg-white/20 px-1.5 py-0.5 rounded text-[10px]">{{ $booking->adoptions->count() }}</span>
+                                    </button>
                                 @else
-                                    <span class="text-xs text-gray-400">—</span>
+                                    <span class="inline-flex items-center px-3 py-1.5 bg-gray-100 text-gray-500 rounded-lg text-xs font-medium">
+                                        <i class="fas fa-hourglass-half mr-1"></i>
+                                        Pending
+                                    </span>
                                 @endif
                             </td>
                             <td class="px-4 py-4 whitespace-nowrap text-center">
@@ -517,10 +523,330 @@
 <!-- Global Loading Overlay -->
 @include('booking-adoption.partials.loading-overlay')
 
+<!-- Adoption Detail Modal -->
+<div id="adoptionDetailModal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-[60]">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden transform transition-all duration-300 scale-95 opacity-0" id="adoptionModalContent">
+        <!-- Modal Header -->
+        <div class="bg-gradient-to-r from-green-600 to-emerald-600 text-white p-6 flex-shrink-0">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div class="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
+                        <i class="fas fa-heart text-2xl"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-xl font-bold" id="adoptionModalTitle">Adoption Details</h2>
+                        <p class="text-green-100 text-sm" id="adoptionModalSubtitle">Booking #000</p>
+                    </div>
+                </div>
+                <button onclick="closeAdoptionModal()" class="w-10 h-10 bg-white/10 hover:bg-white/20 rounded-xl flex items-center justify-center transition-colors">
+                    <i class="fas fa-times text-lg"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Modal Body -->
+        <div class="flex-1 overflow-y-auto p-6" id="adoptionModalBody">
+            <!-- Loading State -->
+            <div id="adoptionModalLoading" class="flex flex-col items-center justify-center py-12">
+                <div class="w-16 h-16 border-4 border-green-200 border-t-green-600 rounded-full animate-spin mb-4"></div>
+                <p class="text-gray-600 font-medium">Loading adoption details...</p>
+            </div>
+            <!-- Content will be populated dynamically -->
+            <div id="adoptionModalContent-inner" class="hidden"></div>
+        </div>
+
+        <!-- Modal Footer -->
+        <div class="bg-gray-50 px-6 py-4 flex-shrink-0 border-t border-gray-100">
+            <button onclick="closeAdoptionModal()" class="w-full px-6 py-3 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-xl font-semibold transition-colors flex items-center justify-center gap-2">
+                <i class="fas fa-times"></i>
+                Close
+            </button>
+        </div>
+    </div>
+</div>
+
 <!-- Booking Modal JavaScript -->
 <script src="{{ asset('js/booking-modal.js') }}"></script>
 
+@php
+    $bookingsDataArray = $bookings->map(function($booking) {
+        return [
+            'id' => $booking->id,
+            'status' => $booking->status,
+            'appointment_date' => $booking->appointment_date,
+            'appointment_time' => $booking->appointment_time,
+            'created_at' => $booking->created_at,
+            'animals' => $booking->animals->map(function($animal) {
+                return [
+                    'id' => $animal->id,
+                    'name' => $animal->name,
+                    'species' => $animal->species,
+                    'breed' => $animal->breed,
+                    'gender' => $animal->gender,
+                    'image_url' => $animal->images->first()?->url ?? null,
+                ];
+            })->values(),
+            'adoptions' => $booking->adoptions->map(function($adoption) {
+                return [
+                    'id' => $adoption->id,
+                    'fee' => $adoption->fee,
+                    'remarks' => $adoption->remarks,
+                    'created_at' => \Carbon\Carbon::parse($adoption->created_at)->format('M d, Y'),
+                    'animal' => $adoption->animal ? [
+                        'id' => $adoption->animal->id,
+                        'name' => $adoption->animal->name,
+                        'species' => $adoption->animal->species,
+                        'breed' => $adoption->animal->breed,
+                        'gender' => $adoption->animal->gender,
+                        'image_url' => $adoption->animal->images->first()?->url ?? null,
+                    ] : null,
+                    'transaction' => $adoption->transaction ? [
+                        'id' => $adoption->transaction->id,
+                        'amount' => $adoption->transaction->amount,
+                        'status' => $adoption->transaction->status,
+                        'bill_code' => $adoption->transaction->bill_code,
+                        'reference_no' => $adoption->transaction->reference_no,
+                        'created_at' => \Carbon\Carbon::parse($adoption->transaction->created_at)->format('M d, Y h:i A'),
+                    ] : null,
+                ];
+            })->values(),
+        ];
+    })->values();
+@endphp
+
 <script>
+    // Store bookings data for modal access
+    const bookingsData = @json($bookingsDataArray);
+
+    // Open adoption modal
+    function openAdoptionModal(bookingId) {
+        const modal = document.getElementById('adoptionDetailModal');
+        const content = document.getElementById('adoptionModalContent');
+        const loading = document.getElementById('adoptionModalLoading');
+        const innerContent = document.getElementById('adoptionModalContent-inner');
+
+        // Show modal with animation
+        modal.classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+
+        // Reset state
+        loading.classList.remove('hidden');
+        innerContent.classList.add('hidden');
+
+        // Animate in
+        setTimeout(() => {
+            content.classList.remove('scale-95', 'opacity-0');
+            content.classList.add('scale-100', 'opacity-100');
+        }, 10);
+
+        // Find booking data
+        const booking = bookingsData.find(b => b.id === bookingId);
+
+        if (!booking) {
+            innerContent.innerHTML = `
+                <div class="text-center py-8">
+                    <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <i class="fas fa-exclamation-triangle text-red-500 text-2xl"></i>
+                    </div>
+                    <h3 class="text-lg font-semibold text-gray-900 mb-2">Booking Not Found</h3>
+                    <p class="text-gray-600">Unable to load adoption details for this booking.</p>
+                </div>
+            `;
+            loading.classList.add('hidden');
+            innerContent.classList.remove('hidden');
+            return;
+        }
+
+        // Update title
+        document.getElementById('adoptionModalTitle').textContent = 'Adoption Details';
+        document.getElementById('adoptionModalSubtitle').textContent = `Booking #${booking.id}`;
+
+        // Simulate loading for better UX
+        setTimeout(() => {
+            // Build adoption cards
+            let adoptionsHtml = '';
+
+            if (booking.adoptions && booking.adoptions.length > 0) {
+                adoptionsHtml = booking.adoptions.map((adoption, index) => `
+                    <div class="bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200 rounded-xl p-5 ${index > 0 ? 'mt-4' : ''}">
+                        <!-- Adoption Header -->
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="flex items-center gap-3">
+                                <div class="w-10 h-10 bg-green-500 rounded-lg flex items-center justify-center">
+                                    <i class="fas fa-check text-white"></i>
+                                </div>
+                                <div>
+                                    <h3 class="font-bold text-gray-900">Adoption #${adoption.id}</h3>
+                                    <p class="text-sm text-gray-600">${adoption.created_at}</p>
+                                </div>
+                            </div>
+                            <span class="px-3 py-1 bg-green-500 text-white text-xs font-bold rounded-full">
+                                Completed
+                            </span>
+                        </div>
+
+                        <!-- Animal Info -->
+                        ${adoption.animal ? `
+                            <div class="bg-white rounded-lg p-4 mb-4 border border-gray-100">
+                                <div class="flex items-center gap-4">
+                                    ${adoption.animal.image_url ? `
+                                        <img src="${adoption.animal.image_url}" alt="${adoption.animal.name}" class="w-16 h-16 rounded-lg object-cover">
+                                    ` : `
+                                        <div class="w-16 h-16 bg-gray-200 rounded-lg flex items-center justify-center">
+                                            <i class="fas fa-paw text-gray-400 text-xl"></i>
+                                        </div>
+                                    `}
+                                    <div class="flex-1">
+                                        <h4 class="font-bold text-gray-900">${adoption.animal.name}</h4>
+                                        <p class="text-sm text-gray-600">${adoption.animal.species} ${adoption.animal.breed ? '• ' + adoption.animal.breed : ''}</p>
+                                        <p class="text-xs text-gray-500">${adoption.animal.gender}</p>
+                                    </div>
+                                    <div class="text-right">
+                                        <p class="text-sm text-gray-500">Adoption Fee</p>
+                                        <p class="text-xl font-bold text-green-600">RM ${parseFloat(adoption.fee).toFixed(2)}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        ` : ''}
+
+                        <!-- Remarks -->
+                        ${adoption.remarks ? `
+                            <div class="bg-white rounded-lg p-4 mb-4 border border-gray-100">
+                                <div class="flex items-start gap-3">
+                                    <i class="fas fa-comment-alt text-gray-400 mt-1"></i>
+                                    <div>
+                                        <p class="text-xs font-semibold text-gray-500 uppercase mb-1">Remarks</p>
+                                        <p class="text-gray-700">${adoption.remarks}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        ` : ''}
+
+                        <!-- Transaction Info -->
+                        ${adoption.transaction ? `
+                            <div class="bg-blue-50 rounded-lg p-4 border border-blue-200">
+                                <div class="flex items-center gap-2 mb-3">
+                                    <i class="fas fa-credit-card text-blue-600"></i>
+                                    <h4 class="font-semibold text-gray-900">Payment Information</h4>
+                                </div>
+                                <div class="grid grid-cols-2 gap-3 text-sm">
+                                    <div>
+                                        <p class="text-gray-500">Amount Paid</p>
+                                        <p class="font-semibold text-gray-900">RM ${parseFloat(adoption.transaction.amount).toFixed(2)}</p>
+                                    </div>
+                                    <div>
+                                        <p class="text-gray-500">Status</p>
+                                        <p class="font-semibold text-green-600 flex items-center gap-1">
+                                            <i class="fas fa-check-circle text-xs"></i>
+                                            ${adoption.transaction.status}
+                                        </p>
+                                    </div>
+                                    ${adoption.transaction.bill_code ? `
+                                        <div>
+                                            <p class="text-gray-500">Bill Code</p>
+                                            <p class="font-mono font-semibold text-gray-900">${adoption.transaction.bill_code}</p>
+                                        </div>
+                                    ` : ''}
+                                    ${adoption.transaction.reference_no ? `
+                                        <div>
+                                            <p class="text-gray-500">Reference No</p>
+                                            <p class="font-mono font-semibold text-gray-900">${adoption.transaction.reference_no}</p>
+                                        </div>
+                                    ` : ''}
+                                    <div class="col-span-2">
+                                        <p class="text-gray-500">Transaction Date</p>
+                                        <p class="font-semibold text-gray-900">${adoption.transaction.created_at}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        ` : ''}
+                    </div>
+                `).join('');
+
+                // Add summary
+                const totalFee = booking.adoptions.reduce((sum, a) => sum + parseFloat(a.fee), 0);
+                adoptionsHtml += `
+                    <div class="mt-6 bg-gradient-to-r from-purple-600 to-purple-700 rounded-xl p-5 text-white">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-3">
+                                <div class="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
+                                    <i class="fas fa-receipt text-2xl"></i>
+                                </div>
+                                <div>
+                                    <p class="text-purple-200 text-sm">Total Adoption Fee</p>
+                                    <p class="text-2xl font-bold">RM ${totalFee.toFixed(2)}</p>
+                                </div>
+                            </div>
+                            <div class="text-right">
+                                <p class="text-purple-200 text-sm">Animals Adopted</p>
+                                <p class="text-3xl font-bold">${booking.adoptions.length}</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Success Message -->
+                    <div class="mt-4 bg-green-50 border border-green-200 rounded-xl p-4">
+                        <div class="flex items-start gap-3">
+                            <div class="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center flex-shrink-0">
+                                <i class="fas fa-heart text-white text-sm"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-semibold text-green-800">Thank you for adopting!</h4>
+                                <p class="text-sm text-green-700 mt-1">Your adoption has been successfully completed. You can pick up your new family member at the shelter during operating hours.</p>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            } else {
+                adoptionsHtml = `
+                    <div class="text-center py-8">
+                        <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <i class="fas fa-inbox text-gray-400 text-2xl"></i>
+                        </div>
+                        <h3 class="text-lg font-semibold text-gray-900 mb-2">No Adoptions Yet</h3>
+                        <p class="text-gray-600">This booking doesn't have any adoption records.</p>
+                    </div>
+                `;
+            }
+
+            innerContent.innerHTML = adoptionsHtml;
+            loading.classList.add('hidden');
+            innerContent.classList.remove('hidden');
+        }, 300);
+    }
+
+    // Close adoption modal
+    function closeAdoptionModal() {
+        const modal = document.getElementById('adoptionDetailModal');
+        const content = document.getElementById('adoptionModalContent');
+
+        // Animate out
+        content.classList.remove('scale-100', 'opacity-100');
+        content.classList.add('scale-95', 'opacity-0');
+
+        setTimeout(() => {
+            modal.classList.add('hidden');
+            document.body.style.overflow = 'auto';
+        }, 200);
+    }
+
+    // Close on backdrop click
+    document.getElementById('adoptionDetailModal')?.addEventListener('click', function(e) {
+        if (e.target === this) {
+            closeAdoptionModal();
+        }
+    });
+
+    // Close on Escape key
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            const modal = document.getElementById('adoptionDetailModal');
+            if (modal && !modal.classList.contains('hidden')) {
+                closeAdoptionModal();
+            }
+        }
+    });
+
     // Close payment status modal
     function closePaymentModal() {
         const modal = document.getElementById('paymentStatusModal');

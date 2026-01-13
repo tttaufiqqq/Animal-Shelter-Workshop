@@ -114,6 +114,7 @@
 
         <!-- Action Button -->
         <a href="{{ route('animal-management.show', $animal->id) }}"
+           onclick="showLoadingOverlay()"
            class="block w-full bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white py-3 rounded-xl font-bold transition-all duration-300 text-center shadow-md hover:shadow-xl transform hover:-translate-y-1">
             <i class="fas fa-arrow-right mr-2"></i>
             View Full Profile

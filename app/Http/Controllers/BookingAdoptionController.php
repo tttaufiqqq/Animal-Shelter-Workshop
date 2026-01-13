@@ -835,7 +835,8 @@ class BookingAdoptionController extends Controller
     public function cancel(Booking $booking)
     {
         try {
-            if ($booking->userID !== Auth::id()) {
+            // Use loose comparison to handle type mismatch between SQL Server BIGINT and PHP int
+            if ($booking->userID != Auth::id()) {
                 abort(403, 'Unauthorized action.');
             }
 
@@ -867,8 +868,8 @@ class BookingAdoptionController extends Controller
     public function showAdoptionFee(Booking $booking, Request $request)
     {
         try {
-            // Authorization
-            if ($booking->userID !== Auth::id()) {
+            // Authorization - Use loose comparison to handle type mismatch between SQL Server BIGINT and PHP int
+            if ($booking->userID != Auth::id()) {
                 abort(403, 'Unauthorized action.');
             }
 

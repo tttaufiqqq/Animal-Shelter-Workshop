@@ -2,12 +2,170 @@
         let clinicMap;
         let clinicMarker;
 
-        // Open modal function
+        // ============================================
+        // Toast Notification System
+        // ============================================
+        function showToast(message, type = 'info', duration = 4000) {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+
+            const colors = {
+                success: 'bg-green-500',
+                error: 'bg-red-500',
+                warning: 'bg-yellow-500',
+                info: 'bg-blue-500'
+            };
+
+            const icons = {
+                success: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>',
+                error: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>',
+                warning: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>',
+                info: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>'
+            };
+
+            toast.className = `${colors[type]} text-white px-4 py-3 rounded-lg shadow-lg flex items-center gap-3 transform translate-x-full transition-transform duration-300 max-w-sm`;
+            toast.innerHTML = `
+                <span class="flex-shrink-0">${icons[type]}</span>
+                <span class="flex-1 text-sm font-medium">${message}</span>
+                <button onclick="this.parentElement.remove()" class="flex-shrink-0 hover:opacity-75">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            `;
+
+            container.appendChild(toast);
+
+            // Animate in
+            setTimeout(() => toast.classList.remove('translate-x-full'), 10);
+
+            // Auto remove
+            setTimeout(() => {
+                toast.classList.add('translate-x-full');
+                setTimeout(() => toast.remove(), 300);
+            }, duration);
+        }
+
+        // ============================================
+        // Confirmation Modal System
+        // ============================================
+        let pendingDeleteAction = null;
+
+        function openConfirmModal(type, id, name) {
+            const modal = document.getElementById('confirmDeleteModal');
+            const content = document.getElementById('confirmDeleteModalContent');
+            const title = document.getElementById('confirmDeleteTitle');
+            const message = document.getElementById('confirmDeleteMessage');
+
+            // Set content based on type
+            if (type === 'clinic') {
+                title.textContent = 'Delete Clinic?';
+                message.innerHTML = `Are you sure you want to delete <strong class="text-gray-900">${name}</strong>? This action cannot be undone and may affect associated veterinarians.`;
+            } else if (type === 'vet') {
+                title.textContent = 'Delete Veterinarian?';
+                message.innerHTML = `Are you sure you want to delete <strong class="text-gray-900">${name}</strong>? This action cannot be undone.`;
+            }
+
+            // Store the pending action
+            pendingDeleteAction = { type, id };
+
+            // Reset button state
+            resetConfirmButton();
+
+            // Show modal with animation
+            modal.classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+            setTimeout(() => {
+                content.classList.remove('scale-95', 'opacity-0');
+                content.classList.add('scale-100', 'opacity-100');
+            }, 10);
+        }
+
+        function closeConfirmModal() {
+            const modal = document.getElementById('confirmDeleteModal');
+            const content = document.getElementById('confirmDeleteModalContent');
+
+            content.classList.remove('scale-100', 'opacity-100');
+            content.classList.add('scale-95', 'opacity-0');
+
+            setTimeout(() => {
+                modal.classList.add('hidden');
+                document.body.style.overflow = 'auto';
+                pendingDeleteAction = null;
+            }, 200);
+        }
+
+        function resetConfirmButton() {
+            const btn = document.getElementById('confirmDeleteBtn');
+            const btnText = document.getElementById('confirmDeleteBtnText');
+            const spinner = document.getElementById('confirmDeleteSpinner');
+            const cancelBtn = document.getElementById('confirmCancelBtn');
+
+            btn.disabled = false;
+            btnText.textContent = 'Delete';
+            spinner.classList.add('hidden');
+            cancelBtn.disabled = false;
+        }
+
+        function executeDelete() {
+            if (!pendingDeleteAction) return;
+
+            const btn = document.getElementById('confirmDeleteBtn');
+            const btnText = document.getElementById('confirmDeleteBtnText');
+            const spinner = document.getElementById('confirmDeleteSpinner');
+            const cancelBtn = document.getElementById('confirmCancelBtn');
+
+            // Show loading state
+            btn.disabled = true;
+            cancelBtn.disabled = true;
+            btnText.textContent = 'Deleting...';
+            spinner.classList.remove('hidden');
+
+            // Create and submit the form
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = pendingDeleteAction.type === 'clinic'
+                ? `/clinics/${pendingDeleteAction.id}`
+                : `/vets/${pendingDeleteAction.id}`;
+
+            const csrfToken = document.createElement('input');
+            csrfToken.type = 'hidden';
+            csrfToken.name = '_token';
+            csrfToken.value = '{{ csrf_token() }}';
+
+            const methodField = document.createElement('input');
+            methodField.type = 'hidden';
+            methodField.name = '_method';
+            methodField.value = 'DELETE';
+
+            form.appendChild(csrfToken);
+            form.appendChild(methodField);
+            document.body.appendChild(form);
+            form.submit();
+        }
+
+        // Close modal on backdrop click
+        document.getElementById('confirmDeleteModal')?.addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeConfirmModal();
+            }
+        });
+
+        // Close on escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                const modal = document.getElementById('confirmDeleteModal');
+                if (modal && !modal.classList.contains('hidden')) {
+                    closeConfirmModal();
+                }
+            }
+        });
+
+        // ============================================
+        // Modal Functions
+        // ============================================
         function openModal(type) {
             if (type === 'clinic') {
                 document.getElementById('clinicModal').classList.remove('hidden');
                 document.body.style.overflow = 'hidden';
-                // Initialize map after modal is visible
                 setTimeout(() => {
                     initClinicMap();
                 }, 100);
@@ -17,18 +175,15 @@
             }
         }
 
-        // Close modal function - FIXED
         function closeModal(type) {
             if (type === 'clinic') {
                 document.getElementById('clinicModal').classList.add('hidden');
                 document.body.style.overflow = 'auto';
-                // Reset map
                 if (clinicMap) {
                     clinicMap.remove();
                     clinicMap = null;
                     clinicMarker = null;
                 }
-                // Reset form fields
                 document.getElementById('clinicLatitude').value = '';
                 document.getElementById('clinicLongitude').value = '';
                 document.getElementById('clinicAddress').value = '';
@@ -53,33 +208,29 @@
             }
         });
 
-        // Initialize map when modal opens
+        // ============================================
+        // Clinic Map Functions
+        // ============================================
         function initClinicMap() {
             if (!clinicMap) {
-                // Default center to Malaysia (Seremban, Negeri Sembilan)
                 clinicMap = L.map('clinicMap').setView([2.7258, 101.9424], 13);
                 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                     attribution: '© OpenStreetMap contributors',
                     maxZoom: 19
                 }).addTo(clinicMap);
 
-                // Fix map display issue
                 setTimeout(() => {
                     clinicMap.invalidateSize();
                 }, 200);
 
-                // Click on map to pin location
                 clinicMap.on('click', function (e) {
                     const { lat, lng } = e.latlng;
                     updateClinicLocation(lat, lng);
-
-                    // Reverse geocode to get address when clicking on map
                     reverseGeocodeClinic(lat, lng);
                 });
             }
         }
 
-        // Function to update marker and form fields
         function updateClinicLocation(lat, lng, address = '') {
             if (clinicMarker) {
                 clinicMarker.setLatLng([lat, lng]);
@@ -95,12 +246,9 @@
             }
 
             clinicMap.setView([lat, lng], 15);
-
-            // Hide map error when location is selected
             document.getElementById('clinicMapError').classList.add('hidden');
         }
 
-        // Reverse geocode function
         function reverseGeocodeClinic(lat, lng) {
             fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&addressdetails=1`)
                 .then(response => response.json())
@@ -114,13 +262,12 @@
                 });
         }
 
-        // Search address functionality
         function searchClinicAddress() {
             const query = document.getElementById('clinicAddressSearch').value.trim();
             const searchBtn = document.getElementById('clinicSearchBtn');
 
             if (!query) {
-                alert('Please enter an address to search');
+                showToast('Please enter an address to search', 'warning');
                 return;
             }
 
@@ -128,7 +275,6 @@
             searchBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Searching...';
             searchBtn.disabled = true;
 
-            // Try first search with Malaysia country code
             fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5&countrycodes=my`)
                 .then(response => response.json())
                 .then(data => {
@@ -137,10 +283,9 @@
                         const lat = parseFloat(result.lat);
                         const lng = parseFloat(result.lon);
                         const address = result.display_name;
-
                         updateClinicLocation(lat, lng, address);
+                        showToast('Location found!', 'success');
                     } else {
-                        // If no results with country code, try without it but add "Malaysia" to query
                         return fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query + ', Malaysia')}&limit=5`)
                             .then(response => response.json())
                             .then(data => {
@@ -149,17 +294,17 @@
                                     const lat = parseFloat(result.lat);
                                     const lng = parseFloat(result.lon);
                                     const address = result.display_name;
-
                                     updateClinicLocation(lat, lng, address);
+                                    showToast('Location found!', 'success');
                                 } else {
-                                    alert('Address not found. Please try:\n\n1. A more specific address (include area/city)\n2. Click directly on the map instead\n3. Use a well-known landmark nearby');
+                                    showToast('Address not found. Try a more specific address or click on the map.', 'warning', 5000);
                                 }
                             });
                     }
                 })
                 .catch(error => {
                     console.error('Error:', error);
-                    alert('Error searching address. Please try again or click on the map to select location manually.');
+                    showToast('Error searching address. Please try again.', 'error');
                 })
                 .finally(() => {
                     searchBtn.innerHTML = '<i class="fas fa-search mr-1"></i>Search';
@@ -167,48 +312,12 @@
                 });
         }
 
-        // Add event listeners when document is ready
-        document.addEventListener('DOMContentLoaded', function() {
-            // Search on button click
-            const searchBtn = document.getElementById('clinicSearchBtn');
-            if (searchBtn) {
-                searchBtn.addEventListener('click', searchClinicAddress);
-            }
-
-            // Search on Enter key
-            const addressSearch = document.getElementById('clinicAddressSearch');
-            if (addressSearch) {
-                addressSearch.addEventListener('keypress', function(e) {
-                    if (e.key === 'Enter') {
-                        e.preventDefault();
-                        searchClinicAddress();
-                    }
-                });
-            }
-
-            // Form validation
-            const clinicForm = document.querySelector('#clinicModal form');
-            if (clinicForm) {
-                clinicForm.addEventListener('submit', function(e) {
-                    const latitude = document.getElementById('clinicLatitude').value;
-                    const longitude = document.getElementById('clinicLongitude').value;
-
-                    if (!latitude || !longitude) {
-                        e.preventDefault();
-                        document.getElementById('clinicMapError').classList.remove('hidden');
-                        document.getElementById('clinicMap').scrollIntoView({ behavior: 'smooth', block: 'center' });
-
-                        alert('Please select a location on the map before submitting the form.');
-                        return false;
-                    }
-                });
-            }
-        });
+        // ============================================
+        // Edit Clinic Map Functions
+        // ============================================
         let editClinicMap;
         let editClinicMarker;
-        let editClinicGeocoder;
 
-        // Initialize edit map when modal opens
         function initEditClinicMap(lat, lng) {
             if (!editClinicMap) {
                 editClinicMap = L.map('editClinicMap').setView([lat || 2.7297, lng || 101.9381], 13);
@@ -224,12 +333,10 @@
                 editClinicMap.setView([lat || 2.7297, lng || 101.9381], 13);
             }
 
-            // Set initial marker if coordinates exist
             if (lat && lng) {
                 setEditClinicLocation(lat, lng);
             }
 
-            // Fix map display issue
             setTimeout(() => {
                 editClinicMap.invalidateSize();
             }, 100);
@@ -246,7 +353,6 @@
             document.getElementById('edit_clinicLatitude').value = lat.toFixed(6);
             document.getElementById('edit_clinicLongitude').value = lng.toFixed(6);
 
-            // Reverse geocode to get address
             fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`)
                 .then(response => response.json())
                 .then(data => {
@@ -256,112 +362,93 @@
                 });
         }
 
-        // Search address for edit modal
-        document.getElementById('editClinicSearchBtn')?.addEventListener('click', function() {
-            const address = document.getElementById('editClinicAddressSearch').value;
-            if (!address) return;
-
-            fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}`)
-                .then(response => response.json())
-                .then(data => {
-                    if (data && data.length > 0) {
-                        const result = data[0];
-                        setEditClinicLocation(parseFloat(result.lat), parseFloat(result.lon));
-                    } else {
-                        alert('Address not found. Please try a different search term.');
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    alert('Error searching for address');
-                });
-        });
-
+        // ============================================
         // Edit Clinic Function
+        // ============================================
         function editClinic(clinicId) {
+            // Show loading on the edit button
+            const editBtn = event.currentTarget;
+            const originalContent = editBtn.innerHTML;
+            editBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            editBtn.disabled = true;
+
             fetch(`/clinics/${clinicId}/edit`)
                 .then(response => response.json())
                 .then(data => {
-                    // Populate form fields
                     document.getElementById('edit_clinic_name').value = data.name || '';
                     document.getElementById('edit_clinicAddress').value = data.address || '';
                     document.getElementById('edit_phone').value = data.contactNum || '';
                     document.getElementById('edit_clinicLatitude').value = data.latitude || '';
                     document.getElementById('edit_clinicLongitude').value = data.longitude || '';
-
-                    // Update form action
                     document.getElementById('editClinicForm').action = `/clinics/${clinicId}`;
 
-                    // Show modal
                     document.getElementById('editClinicModal').classList.remove('hidden');
 
-                    // Initialize map with clinic location
                     setTimeout(() => {
                         initEditClinicMap(parseFloat(data.latitude), parseFloat(data.longitude));
                     }, 100);
                 })
                 .catch(error => {
                     console.error('Error:', error);
-                    alert('Failed to load clinic data');
+                    showToast('Failed to load clinic data. Please try again.', 'error');
+                })
+                .finally(() => {
+                    editBtn.innerHTML = originalContent;
+                    editBtn.disabled = false;
                 });
         }
 
-        // Close Edit Modal
         function closeEditClinicModal() {
             document.getElementById('editClinicModal').classList.add('hidden');
             document.getElementById('editClinicForm').reset();
 
-            // Clear marker
             if (editClinicMarker && editClinicMap) {
                 editClinicMap.removeLayer(editClinicMarker);
                 editClinicMarker = null;
             }
         }
 
-        // Close modal when clicking outside
         document.getElementById('editClinicModal')?.addEventListener('click', function(e) {
             if (e.target === this) {
                 closeEditClinicModal();
             }
         });
 
-        // Delete Clinic Function
+        // ============================================
+        // Delete Functions (using confirmation modal)
+        // ============================================
         function deleteClinic(clinicId) {
-            if (confirm('Are you sure you want to delete this clinic? This action cannot be undone.')) {
-                const form = document.createElement('form');
-                form.method = 'POST';
-                form.action = `/clinics/${clinicId}`;
-
-                const csrfToken = document.createElement('input');
-                csrfToken.type = 'hidden';
-                csrfToken.name = '_token';
-                csrfToken.value = '{{ csrf_token() }}';
-
-                const methodField = document.createElement('input');
-                methodField.type = 'hidden';
-                methodField.name = '_method';
-                methodField.value = 'DELETE';
-
-                form.appendChild(csrfToken);
-                form.appendChild(methodField);
-                document.body.appendChild(form);
-                form.submit();
-            }
+            // Find clinic name from the table
+            const row = event.currentTarget.closest('tr');
+            const clinicName = row?.querySelector('.font-semibold')?.textContent || 'this clinic';
+            openConfirmModal('clinic', clinicId, clinicName);
         }
+
+        function deleteVet(vetId) {
+            // Find vet name from the table
+            const row = event.currentTarget.closest('tr');
+            const vetName = row?.querySelector('.font-semibold')?.textContent || 'this veterinarian';
+            openConfirmModal('vet', vetId, vetName);
+        }
+
+        // ============================================
+        // Edit Vet Function
+        // ============================================
         function editVet(vetId) {
-            console.log('Edit vet clicked:', vetId); // Debug
+            const editBtn = event.currentTarget;
+            const originalContent = editBtn.innerHTML;
+            editBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            editBtn.disabled = true;
 
             const modal = document.getElementById('editVetModal');
             if (!modal) {
-                console.error('Modal not found!');
+                showToast('Error: Modal not found. Please refresh the page.', 'error');
+                editBtn.innerHTML = originalContent;
+                editBtn.disabled = false;
                 return;
             }
 
-            modal.classList.remove('hidden');
-
-            const url = `/vets/${vetId}/edit`;
-
-            fetch(url, {
+            fetch(`/vets/${vetId}/edit`, {
                 method: 'GET',
                 headers: {
                     'Accept': 'application/json',
@@ -376,9 +463,6 @@
                     return response.json();
                 })
                 .then(data => {
-                    console.log('Vet data received:', data); // Debug
-
-                    // Check if elements exist before setting values
                     const nameInput = document.getElementById('edit_vet_name');
                     const specializationInput = document.getElementById('edit_vet_specialization');
                     const licenseInput = document.getElementById('edit_vet_license_no');
@@ -387,18 +471,10 @@
                     const emailInput = document.getElementById('edit_vet_email');
 
                     if (!nameInput || !specializationInput || !licenseInput || !clinicSelect || !contactInput || !emailInput) {
-                        console.error('One or more form fields not found!');
-                        console.log('Name:', nameInput);
-                        console.log('Specialization:', specializationInput);
-                        console.log('License:', licenseInput);
-                        console.log('Clinic:', clinicSelect);
-                        console.log('Contact:', contactInput);
-                        console.log('Email:', emailInput);
-                        alert('Error: Form fields not found. Please refresh the page.');
+                        showToast('Error: Form fields not found. Please refresh the page.', 'error');
                         return;
                     }
 
-                    // Populate form fields
                     nameInput.value = data.name || '';
                     specializationInput.value = data.specialization || '';
                     licenseInput.value = data.license_no || '';
@@ -406,17 +482,19 @@
                     contactInput.value = data.contactNum || '';
                     emailInput.value = data.email || '';
 
-                    // Update form action
                     document.getElementById('editVetForm').action = `/vets/${vetId}`;
+                    modal.classList.remove('hidden');
                 })
                 .catch(error => {
                     console.error('Error details:', error);
-                    alert('Failed to load veterinarian data: ' + error.message);
-                    closeEditVetModal();
+                    showToast('Failed to load veterinarian data: ' + error.message, 'error');
+                })
+                .finally(() => {
+                    editBtn.innerHTML = originalContent;
+                    editBtn.disabled = false;
                 });
         }
 
-        // Close Edit Vet Modal
         function closeEditVetModal() {
             const modal = document.getElementById('editVetModal');
             if (modal) {
@@ -428,7 +506,6 @@
             }
         }
 
-        // Close modal when clicking outside
         document.addEventListener('DOMContentLoaded', function() {
             const modal = document.getElementById('editVetModal');
             if (modal) {
@@ -440,27 +517,119 @@
             }
         });
 
-        // Delete Vet Function
-        function deleteVet(vetId) {
-            if (confirm('Are you sure you want to delete this veterinarian? This action cannot be undone.')) {
-                const form = document.createElement('form');
-                form.method = 'POST';
-                form.action = `/vets/${vetId}`;
-
-                const csrfToken = document.createElement('input');
-                csrfToken.type = 'hidden';
-                csrfToken.name = '_token';
-                csrfToken.value = '{{ csrf_token() }}';
-
-                const methodField = document.createElement('input');
-                methodField.type = 'hidden';
-                methodField.name = '_method';
-                methodField.value = 'DELETE';
-
-                form.appendChild(csrfToken);
-                form.appendChild(methodField);
-                document.body.appendChild(form);
-                form.submit();
+        // ============================================
+        // Form Submission with Loading States
+        // ============================================
+        document.addEventListener('DOMContentLoaded', function() {
+            // Search button click
+            const searchBtn = document.getElementById('clinicSearchBtn');
+            if (searchBtn) {
+                searchBtn.addEventListener('click', searchClinicAddress);
             }
-        }
+
+            // Search on Enter key
+            const addressSearch = document.getElementById('clinicAddressSearch');
+            if (addressSearch) {
+                addressSearch.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        searchClinicAddress();
+                    }
+                });
+            }
+
+            // Edit clinic address search
+            document.getElementById('editClinicSearchBtn')?.addEventListener('click', function() {
+                const address = document.getElementById('editClinicAddressSearch').value;
+                const searchBtn = this;
+
+                if (!address) {
+                    showToast('Please enter an address to search', 'warning');
+                    return;
+                }
+
+                searchBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Searching...';
+                searchBtn.disabled = true;
+
+                fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data && data.length > 0) {
+                            const result = data[0];
+                            setEditClinicLocation(parseFloat(result.lat), parseFloat(result.lon));
+                            showToast('Location found!', 'success');
+                        } else {
+                            showToast('Address not found. Please try a different search term.', 'warning');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        showToast('Error searching for address. Please try again.', 'error');
+                    })
+                    .finally(() => {
+                        searchBtn.innerHTML = '<i class="fas fa-search mr-1"></i>Search';
+                        searchBtn.disabled = false;
+                    });
+            });
+
+            // Clinic form validation and loading state
+            const clinicForm = document.querySelector('#clinicModal form');
+            if (clinicForm) {
+                clinicForm.addEventListener('submit', function(e) {
+                    const latitude = document.getElementById('clinicLatitude').value;
+                    const longitude = document.getElementById('clinicLongitude').value;
+
+                    if (!latitude || !longitude) {
+                        e.preventDefault();
+                        document.getElementById('clinicMapError').classList.remove('hidden');
+                        document.getElementById('clinicMap').scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        showToast('Please select a location on the map before submitting.', 'warning');
+                        return false;
+                    }
+
+                    // Show loading state on submit button
+                    const submitBtn = clinicForm.querySelector('button[type="submit"]');
+                    if (submitBtn) {
+                        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Adding Clinic...';
+                        submitBtn.disabled = true;
+                    }
+                });
+            }
+
+            // Vet form loading state
+            const vetForm = document.querySelector('#vetModal form');
+            if (vetForm) {
+                vetForm.addEventListener('submit', function(e) {
+                    const submitBtn = vetForm.querySelector('button[type="submit"]');
+                    if (submitBtn) {
+                        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Adding Veterinarian...';
+                        submitBtn.disabled = true;
+                    }
+                });
+            }
+
+            // Edit Clinic form loading state
+            const editClinicForm = document.getElementById('editClinicForm');
+            if (editClinicForm) {
+                editClinicForm.addEventListener('submit', function(e) {
+                    const submitBtn = editClinicForm.querySelector('button[type="submit"]');
+                    if (submitBtn) {
+                        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Saving Changes...';
+                        submitBtn.disabled = true;
+                    }
+                });
+            }
+
+            // Edit Vet form loading state
+            const editVetForm = document.getElementById('editVetForm');
+            if (editVetForm) {
+                editVetForm.addEventListener('submit', function(e) {
+                    const submitBtn = editVetForm.querySelector('button[type="submit"]');
+                    if (submitBtn) {
+                        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Saving Changes...';
+                        submitBtn.disabled = true;
+                    }
+                });
+            }
+        });
 </script>

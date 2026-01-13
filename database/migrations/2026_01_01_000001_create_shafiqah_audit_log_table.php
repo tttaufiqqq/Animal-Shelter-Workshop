@@ -8,9 +8,15 @@ return new class extends Migration
 {
     /**
      * Run the migrations.
+     *
+     * DISABLED: Audit logging is handled at application layer via taufiq database.
+     * Only validation triggers are used in shafiqah database.
      */
     public function up(): void
     {
+        // DISABLED: Using centralized audit_logs in taufiq database instead
+        return;
+
         Schema::connection('shafiqah')->create('audit_log', function (Blueprint $table) {
             $table->id();
 

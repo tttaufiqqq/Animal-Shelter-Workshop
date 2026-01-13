@@ -453,34 +453,54 @@ function closeSuccessModal() {
 }
 
 function updateStepDisplay() {
-    // Hide all steps
-    document.getElementById('step1Content').classList.add('hidden');
-    document.getElementById('step2Content').classList.add('hidden');
-    document.getElementById('step3Content').classList.add('hidden');
-
     // Hide validation alert when changing steps
     hideValidationAlert();
 
-    // Update progress indicators
+    // Update progress indicators with animations
     updateProgressIndicator();
 
-    // Show current step
+    // Handle step content transitions with fade animations
+    const steps = [
+        { id: 'step1Content', num: 1 },
+        { id: 'step2Content', num: 2 },
+        { id: 'step3Content', num: 3 }
+    ];
+
+    steps.forEach(step => {
+        const element = document.getElementById(step.id);
+        if (step.num === currentStep) {
+            // Fade in the active step
+            element.classList.remove('hidden', 'animate-fadeOut');
+            element.classList.add('animate-fadeInSlide');
+
+            // Reset scroll position
+            setTimeout(() => {
+                element.scrollTop = 0;
+            }, 50);
+        } else {
+            // Fade out inactive steps
+            element.classList.add('animate-fadeOut');
+            setTimeout(() => {
+                element.classList.add('hidden');
+                element.classList.remove('animate-fadeOut', 'animate-fadeInSlide');
+            }, 300);
+        }
+    });
+
+    // Show current step buttons
     if (currentStep === 1) {
-        document.getElementById('step1Content').classList.remove('hidden');
         document.getElementById('backBtn').classList.add('hidden');
         document.getElementById('nextBtn').classList.remove('hidden');
         document.getElementById('submitSuccessBtn').classList.add('hidden');
     } else if (currentStep === 2) {
-        document.getElementById('step2Content').classList.remove('hidden');
         document.getElementById('backBtn').classList.remove('hidden');
         document.getElementById('nextBtn').classList.remove('hidden');
         document.getElementById('submitSuccessBtn').classList.add('hidden');
         updateAnimalProgress();
 
         // Scroll to top when entering step 2 or moving between animals
-        scrollModalToTop();
+        setTimeout(() => scrollModalToTop(), 100);
     } else if (currentStep === 3) {
-        document.getElementById('step3Content').classList.remove('hidden');
         document.getElementById('backBtn').classList.remove('hidden');
         document.getElementById('nextBtn').classList.add('hidden');
         document.getElementById('submitSuccessBtn').classList.remove('hidden');
@@ -497,24 +517,24 @@ function updateProgressIndicator() {
     if (currentStep === 1) {
         step1.innerHTML = `
             <div class="flex flex-col items-center">
-                <div class="w-10 h-10 rounded-full bg-purple-600 text-white flex items-center justify-center font-bold shadow-lg">
+                <div class="w-10 h-10 rounded-full bg-purple-600 text-white flex items-center justify-center font-bold shadow-lg animate-pulseSlow transition-all duration-400">
                     1
                 </div>
                 <div class="w-0.5 h-12 bg-gray-300"></div>
             </div>
-            <span class="text-sm font-medium text-gray-900 -mt-8">Count</span>
+            <span class="text-sm font-medium text-gray-900 -mt-8 animate-textSlideIn">Count</span>
         `;
     } else {
         step1.innerHTML = `
             <div class="flex flex-col items-center">
-                <div class="w-10 h-10 rounded-full bg-emerald-500 text-white flex items-center justify-center font-bold shadow-lg">
+                <div class="w-10 h-10 rounded-full bg-emerald-500 text-white flex items-center justify-center font-bold shadow-lg animate-checkmarkPop transition-all duration-400">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/>
                     </svg>
                 </div>
-                <div class="w-0.5 h-12 bg-gray-300"></div>
+                <div class="w-0.5 h-12 bg-emerald-300 transition-colors duration-400"></div>
             </div>
-            <span class="text-sm font-medium text-gray-900 -mt-8">Count</span>
+            <span class="text-sm font-medium text-emerald-700 -mt-8 animate-textSlideIn">Count</span>
         `;
     }
 
@@ -522,34 +542,34 @@ function updateProgressIndicator() {
     if (currentStep === 2) {
         step2.innerHTML = `
             <div class="flex flex-col items-center">
-                <div class="w-10 h-10 rounded-full bg-purple-600 text-white flex items-center justify-center font-bold shadow-lg">
+                <div class="w-10 h-10 rounded-full bg-purple-600 text-white flex items-center justify-center font-bold shadow-lg animate-pulseSlow transition-all duration-400">
                     2
                 </div>
                 <div class="w-0.5 h-12 bg-gray-300"></div>
             </div>
-            <span class="text-sm font-medium text-gray-900 -mt-8">Add Animals</span>
+            <span class="text-sm font-medium text-gray-900 -mt-8 animate-textSlideIn">Add Animals</span>
         `;
     } else if (currentStep > 2) {
         step2.innerHTML = `
             <div class="flex flex-col items-center">
-                <div class="w-10 h-10 rounded-full bg-emerald-500 text-white flex items-center justify-center font-bold shadow-lg">
+                <div class="w-10 h-10 rounded-full bg-emerald-500 text-white flex items-center justify-center font-bold shadow-lg animate-checkmarkPop transition-all duration-400">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/>
                     </svg>
                 </div>
-                <div class="w-0.5 h-12 bg-gray-300"></div>
+                <div class="w-0.5 h-12 bg-emerald-300 transition-colors duration-400"></div>
             </div>
-            <span class="text-sm font-medium text-gray-900 -mt-8">Add Animals</span>
+            <span class="text-sm font-medium text-emerald-700 -mt-8 animate-textSlideIn">Add Animals</span>
         `;
     } else {
         step2.innerHTML = `
             <div class="flex flex-col items-center">
-                <div class="w-10 h-10 rounded-full bg-gray-300 text-white flex items-center justify-center font-bold">
+                <div class="w-10 h-10 rounded-full bg-gray-300 text-white flex items-center justify-center font-bold transition-all duration-400 animate-fadeIn">
                     2
                 </div>
                 <div class="w-0.5 h-12 bg-gray-300"></div>
             </div>
-            <span class="text-sm font-medium text-gray-400 -mt-8">Add Animals</span>
+            <span class="text-sm font-medium text-gray-400 -mt-8 animate-fadeIn">Add Animals</span>
         `;
     }
 
@@ -557,22 +577,36 @@ function updateProgressIndicator() {
     if (currentStep === 3) {
         step3.innerHTML = `
             <div class="flex flex-col items-center">
-                <div class="w-10 h-10 rounded-full bg-purple-600 text-white flex items-center justify-center font-bold shadow-lg">
+                <div class="w-10 h-10 rounded-full bg-purple-600 text-white flex items-center justify-center font-bold shadow-lg animate-pulseSlow transition-all duration-400">
                     3
                 </div>
             </div>
-            <span class="text-sm font-medium text-gray-900 -mt-8">Confirm</span>
+            <span class="text-sm font-medium text-gray-900 -mt-8 animate-textSlideIn">Confirm</span>
         `;
     } else {
         step3.innerHTML = `
             <div class="flex flex-col items-center">
-                <div class="w-10 h-10 rounded-full bg-gray-300 text-white flex items-center justify-center font-bold">
+                <div class="w-10 h-10 rounded-full bg-gray-300 text-white flex items-center justify-center font-bold transition-all duration-400 animate-fadeIn">
                     3
                 </div>
             </div>
-            <span class="text-sm font-medium text-gray-400 -mt-8">Confirm</span>
+            <span class="text-sm font-medium text-gray-400 -mt-8 animate-fadeIn">Confirm</span>
         `;
     }
+
+    // Clean up animation classes after animation completes
+    setTimeout(() => {
+        [step1, step2, step3].forEach(step => {
+            const circle = step.querySelector('.w-10');
+            const label = step.querySelector('.text-sm');
+            if (circle) {
+                circle.classList.remove('animate-pulseSlow', 'animate-checkmarkPop', 'animate-fadeIn');
+            }
+            if (label) {
+                label.classList.remove('animate-textSlideIn', 'animate-fadeIn');
+            }
+        });
+    }, 1000);
 }
 
 function updateAnimalProgress() {
@@ -1006,3 +1040,121 @@ function submitSuccessRescue() {
         console.error('Network error:', error);
     });
 }
+
+// ==================== ANIMATIONS FOR MULTI-STEP MODAL ====================
+// Add animation styles for smooth step transitions
+(function() {
+    // Check if styles already exist to avoid duplication
+    if (document.getElementById('rescueModalAnimations')) return;
+
+    const style = document.createElement('style');
+    style.id = 'rescueModalAnimations';
+    style.textContent = `
+        /* Fade In with Slide Up - For Step Content */
+        @keyframes fadeInSlide {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .animate-fadeInSlide {
+            animation: fadeInSlide 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        /* Fade Out with Slide Down */
+        @keyframes fadeOut {
+            from {
+                opacity: 1;
+                transform: translateY(0);
+            }
+            to {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+        }
+
+        .animate-fadeOut {
+            animation: fadeOut 0.3s ease-out forwards;
+        }
+
+        /* Fade In Simple */
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
+        }
+
+        .animate-fadeIn {
+            animation: fadeIn 0.3s ease-in-out;
+        }
+
+        /* Checkmark Pop - Bounce Effect */
+        @keyframes checkmarkPop {
+            0% {
+                transform: scale(0.8);
+                opacity: 0;
+            }
+            50% {
+                transform: scale(1.15);
+            }
+            100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        .animate-checkmarkPop {
+            animation: checkmarkPop 0.5s cubic-bezier(0.68, -0.55, 0.27, 1.55);
+        }
+
+        /* Pulse Slow - For Active Step */
+        @keyframes pulseSlow {
+            0%, 100% {
+                opacity: 1;
+                box-shadow: 0 4px 6px rgba(147, 51, 234, 0.3);
+            }
+            50% {
+                opacity: 0.9;
+                box-shadow: 0 4px 12px rgba(147, 51, 234, 0.5), 0 0 20px rgba(147, 51, 234, 0.3);
+            }
+        }
+
+        .animate-pulseSlow {
+            animation: pulseSlow 2s ease-in-out infinite;
+        }
+
+        /* Text Slide In - For Step Labels */
+        @keyframes textSlideIn {
+            from {
+                transform: translateX(-5px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .animate-textSlideIn {
+            animation: textSlideIn 0.35s ease-out;
+        }
+
+        /* Smooth transitions for all step elements */
+        #step1Content, #step2Content, #step3Content {
+            transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out;
+        }
+
+        #step1Indicator, #step2Indicator, #step3Indicator {
+            transition: all 0.3s ease-in-out;
+        }
+    `;
+    document.head.appendChild(style);
+})();

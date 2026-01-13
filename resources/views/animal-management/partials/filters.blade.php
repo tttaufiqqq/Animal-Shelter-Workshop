@@ -17,7 +17,7 @@
         @endif
 
         {{-- Filter Grid --}}
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 {{ Auth::check() && Auth::user()->hasRole('admin') ? 'xl:grid-cols-5' : 'xl:grid-cols-4' }} gap-3">
             <!-- Search -->
             <div class="xl:col-span-2">
                 <label class="block text-xs font-bold text-gray-700 mb-1.5 flex items-center gap-1.5">
@@ -63,7 +63,8 @@
                 </select>
             </div>
 
-            <!-- Adoption Status -->
+            <!-- Adoption Status (Admin Only) -->
+            @if(Auth::check() && Auth::user()->hasRole('admin'))
             <div>
                 <label class="block text-xs font-bold text-gray-700 mb-1.5 flex items-center gap-1.5">
                     <i class="fas fa-home text-purple-600 text-xs"></i>
@@ -76,6 +77,7 @@
                     <option value="Adopted" {{ request('adoption_status') == 'Adopted' ? 'selected' : '' }}>Adopted</option>
                 </select>
             </div>
+            @endif
 
             <!-- Gender -->
             <div>
