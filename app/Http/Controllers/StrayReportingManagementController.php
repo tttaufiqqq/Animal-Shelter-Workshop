@@ -339,8 +339,11 @@ class StrayReportingManagementController extends Controller
                     ->with('error', 'Selected caretaker not found or database connection unavailable.');
             }
 
-            // Assign caretaker using procedure service
-            $assignResult = $this->procedureService->assignCaretaker($report->id, $request->caretaker_id);
+            // Calculate priority from report description (urgency level)
+            $priority = Rescue::getPriorityFromDescription($report->description);
+
+            // Assign caretaker using procedure service with calculated priority
+            $assignResult = $this->procedureService->assignCaretaker($report->id, $request->caretaker_id, $priority);
 
             if (!$assignResult['success']) {
                 return redirect()->back()
@@ -363,7 +366,7 @@ class StrayReportingManagementController extends Controller
                         'report_id' => $report->id,
                         'new_caretaker_name' => $caretaker->name,
                         'address' => $report->address,
-                        'priority' => 'normal',
+                        'priority' => $priority,
                     ]
                 );
             } else {
@@ -371,12 +374,12 @@ class StrayReportingManagementController extends Controller
                     'caretaker_assigned',
                     $rescueId,
                     null,
-                    ['caretaker_id' => $request->caretaker_id, 'status' => Rescue::STATUS_SCHEDULED],
+                    ['caretaker_id' => $request->caretaker_id, 'status' => Rescue::STATUS_SCHEDULED, 'priority' => $priority],
                     [
                         'report_id' => $report->id,
                         'caretaker_name' => $caretaker->name,
                         'address' => $report->address,
-                        'priority' => 'normal',
+                        'priority' => $priority,
                     ]
                 );
             }
@@ -435,15 +438,11 @@ class StrayReportingManagementController extends Controller
                 $query->where('status', $request->status);
             }
 
-            // Order by priority (critical=1, high=2, normal=3) then by created_at descending
+            // Order by latest submitted report (report.created_at descending)
             return $query
-                ->orderByRaw("CASE
-                    WHEN priority = 'critical' THEN 1
-                    WHEN priority = 'high' THEN 2
-                    WHEN priority = 'normal' THEN 3
-                    ELSE 4
-                END")
-                ->orderBy('created_at', 'desc')
+                ->join('report', 'rescue.reportID', '=', 'report.id')
+                ->select('rescue.*')
+                ->orderBy('report.created_at', 'desc')
                 ->paginate(50);
         }, new \Illuminate\Pagination\LengthAwarePaginator([], 0, 50), 'eilya'); // Pre-check eilya database
 
@@ -665,7 +664,7 @@ class StrayReportingManagementController extends Controller
                 'user_id' => Auth::id()
             ]);
 
-            return redirect()->route('stray-reporting.index-caretaker')
+            return redirect()->route(' rescues.index')
                 ->with('error', 'Rescue not found or you are not authorized to view it.');
         } catch (\Exception $e) {
             \Log::error('Error viewing rescue: ' . $e->getMessage(), [
@@ -674,7 +673,7 @@ class StrayReportingManagementController extends Controller
                 'trace' => $e->getTraceAsString()
             ]);
 
-            return redirect()->route('stray-reporting.index-caretaker')
+            return redirect()->route('rescues.index')
                 ->with('error', 'Failed to load rescue details: ' . $e->getMessage());
         }
     }

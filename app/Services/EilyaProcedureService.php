@@ -187,17 +187,19 @@ class EilyaProcedureService
      *
      * @param  int  $reportId
      * @param  int  $caretakerId
+     * @param  string|null  $priority  Priority level (critical, high, normal) - defaults to 'normal' if null
      * @return array ['success' => bool, 'rescue_id' => int|null, 'is_reassignment' => bool, 'old_caretaker_id' => int|null, 'message' => string]
      */
-    public function assignCaretaker(int $reportId, int $caretakerId): array
+    public function assignCaretaker(int $reportId, int $caretakerId, ?string $priority = null): array
     {
         $this->setAuditContext();
 
         $user = Auth::user();
 
-        DB::connection('eilya')->statement('CALL sp_rescue_assign_caretaker(?, ?, ?, ?, ?, @o_rescue_id, @o_is_reassignment, @o_old_caretaker_id, @o_status, @o_message)', [
+        DB::connection('eilya')->statement('CALL sp_rescue_assign_caretaker(?, ?, ?, ?, ?, ?, @o_rescue_id, @o_is_reassignment, @o_old_caretaker_id, @o_status, @o_message)', [
             $reportId,
             $caretakerId,
+            $priority,
             $user->id ?? null,
             $user->name ?? null,
             $user->email ?? null,
