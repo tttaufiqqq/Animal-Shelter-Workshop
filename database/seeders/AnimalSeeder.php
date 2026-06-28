@@ -697,8 +697,11 @@ class AnimalSeeder extends Seeder
                     ->addDays(rand(1, 30))
                     ->subDays($index * rand(30, 90)); // Space out vaccinations
 
-                // Next due date based on vaccine interval
+                // Next due date based on vaccine interval — must not be in the past (trigger enforced)
                 $nextDueDate = Carbon::parse($vaccinationDate)->addDays($vaccine['interval']);
+                if ($nextDueDate->isPast()) {
+                    $nextDueDate = Carbon::now()->addDays(rand(30, 365));
+                }
 
                 // Cost varies by vaccine type
                 $cost = $vaccine['type'] === 'Core'
