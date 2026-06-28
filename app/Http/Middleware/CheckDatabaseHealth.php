@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 namespace App\Http\Middleware;
 
@@ -16,7 +16,7 @@ class CheckDatabaseHealth
      *
      * @var array
      */
-    protected $connections = ['eilya', 'atiqah', 'shafiqah', 'danish', 'taufiq'];
+    protected $connections = ['reporting', 'shelter', 'animals', 'booking', 'users'];
 
     /**
      * Routes that should bypass database health check.

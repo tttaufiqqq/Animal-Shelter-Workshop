@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
@@ -11,7 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::connection('taufiq')->table('users', function (Blueprint $table) {
+        Schema::connection('users')->table('users', function (Blueprint $table) {
             // Account status: active, suspended, locked
             $table->string('account_status', 20)->default('active')->after('password');
 
@@ -38,7 +38,7 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::connection('taufiq')->table('users', function (Blueprint $table) {
+        Schema::connection('users')->table('users', function (Blueprint $table) {
             $table->dropColumn([
                 'account_status',
                 'suspended_at',

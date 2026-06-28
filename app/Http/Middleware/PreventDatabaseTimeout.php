@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 namespace App\Http\Middleware;
 
@@ -26,7 +26,7 @@ class PreventDatabaseTimeout
             // Pre-check if taufiq database (users) is online
             $checker = app(DatabaseConnectionChecker::class);
 
-            if (!$checker->isConnected('taufiq')) {
+            if (!$checker->isConnected('users')) {
                 Log::warning('Login attempt while user database (taufiq) is offline');
 
                 return redirect()->back()

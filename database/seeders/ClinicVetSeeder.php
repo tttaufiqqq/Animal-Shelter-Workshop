@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 namespace Database\Seeders;
 
@@ -60,16 +60,16 @@ class ClinicVetSeeder extends Seeder
         ];
 
         // Use transaction for Shafiqah's database
-        DB::connection('shafiqah')->beginTransaction();
+        DB::connection('animals')->beginTransaction();
 
         try {
             $this->command->info('Inserting clinics into Shafiqah\'s database...');
 
             // Insert clinics into Shafiqah's database
-            DB::connection('shafiqah')->table('clinic')->insert($clinics);
+            DB::connection('animals')->table('clinic')->insert($clinics);
 
             // Get inserted clinic IDs from Shafiqah's database
-            $clinicIds = DB::connection('shafiqah')->table('clinic')->pluck('id')->toArray();
+            $clinicIds = DB::connection('animals')->table('clinic')->pluck('id')->toArray();
 
         // Create Vets assigned to clinics
         $vets = [
@@ -170,9 +170,9 @@ class ClinicVetSeeder extends Seeder
             $this->command->info('Inserting vets into Shafiqah\'s database...');
 
             // Insert vets into Shafiqah's database
-            DB::connection('shafiqah')->table('vet')->insert($vets);
+            DB::connection('animals')->table('vet')->insert($vets);
 
-            DB::connection('shafiqah')->commit();
+            DB::connection('animals')->commit();
 
             $this->command->info('');
             $this->command->info('=================================');
@@ -184,7 +184,7 @@ class ClinicVetSeeder extends Seeder
             $this->command->info('=================================');
 
         } catch (\Exception $e) {
-            DB::connection('shafiqah')->rollBack();
+            DB::connection('animals')->rollBack();
 
             $this->command->error('');
             $this->command->error('Error seeding clinics and vets: ' . $e->getMessage());

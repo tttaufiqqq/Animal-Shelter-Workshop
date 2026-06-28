@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 namespace App\Models;
 
@@ -10,7 +10,7 @@ class Adoption extends Model
     use HasFactory;
 
     // Specify the database connection for this model (Danish's database)
-    protected $connection = 'danish';
+    protected $connection = 'booking';
 
     protected $table = 'adoption';
 
@@ -48,7 +48,7 @@ class Adoption extends Model
      */
     public function animal()
     {
-        return $this->setConnection('shafiqah')
+        return $this->setConnection('animals')
             ->belongsTo(Animal::class, 'animalID', 'id');
     }
 }

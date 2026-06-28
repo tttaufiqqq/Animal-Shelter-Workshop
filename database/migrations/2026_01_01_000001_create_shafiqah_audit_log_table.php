@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
@@ -17,7 +17,7 @@ return new class extends Migration
         // DISABLED: Using centralized audit_logs in taufiq database instead
         return;
 
-        Schema::connection('shafiqah')->create('audit_log', function (Blueprint $table) {
+        Schema::connection('animals')->create('audit_log', function (Blueprint $table) {
             $table->id();
 
             // User context
@@ -54,7 +54,7 @@ return new class extends Migration
         });
 
         // Add comment to table
-        DB::connection('shafiqah')->statement(
+        DB::connection('animals')->statement(
             "ALTER TABLE audit_log COMMENT = 'Comprehensive audit log for all Shafiqah database operations'"
         );
     }
@@ -64,6 +64,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::connection('shafiqah')->dropIfExists('audit_log');
+        Schema::connection('animals')->dropIfExists('audit_log');
     }
 };

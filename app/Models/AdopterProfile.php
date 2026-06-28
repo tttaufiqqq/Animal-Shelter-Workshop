@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 namespace App\Models;
 
@@ -10,7 +10,7 @@ class AdopterProfile extends Model
     use HasFactory;
 
     // Specify the database connection for this model
-    protected $connection = 'taufiq';
+    protected $connection = 'users';
 
     protected $table = 'adopter_profile';
 

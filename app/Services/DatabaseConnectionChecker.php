@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 namespace App\Services;
 
@@ -11,27 +11,27 @@ class DatabaseConnectionChecker
      * All database connections in the distributed architecture
      */
     private const CONNECTIONS = [
-        'taufiq' => [
+        'users' => [
             'name' => 'Taufiq (PostgreSQL)',
             'module' => 'User Management',
             'port' => 5434,
         ],
-        'eilya' => [
+        'reporting' => [
             'name' => 'Eilya (MySQL)',
             'module' => 'Stray Reporting',
             'port' => 3307,
         ],
-        'shafiqah' => [
+        'animals' => [
             'name' => 'Shafiqah (MySQL)',
             'module' => 'Animal Management',
             'port' => 3309,
         ],
-        'atiqah' => [
+        'shelter' => [
             'name' => 'Atiqah (MySQL)',
             'module' => 'Shelter Management',
             'port' => 3308,
         ],
-        'danish' => [
+        'booking' => [
             'name' => 'Danish (SQL Server)',
             'module' => 'Booking & Adoption',
             'port' => 1434,

@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
@@ -14,7 +14,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::connection('taufiq')->table('adopter_profile', function (Blueprint $table) {
+        Schema::connection('users')->table('adopter_profile', function (Blueprint $table) {
             // Drop the existing index
             $table->dropIndex(['adopterID']);
 
@@ -28,7 +28,7 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::connection('taufiq')->table('adopter_profile', function (Blueprint $table) {
+        Schema::connection('users')->table('adopter_profile', function (Blueprint $table) {
             // Drop the unique constraint
             $table->dropUnique(['adopterID']);
 

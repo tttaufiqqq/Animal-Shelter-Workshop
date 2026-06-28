@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
@@ -13,7 +13,7 @@ return new class extends Migration
         // ==========================================
         // USER CREATE PROCEDURE
         // ==========================================
-        DB::connection('taufiq')->unprepared("
+        DB::connection('users')->unprepared("
             CREATE OR REPLACE FUNCTION sp_user_create(
                 p_name VARCHAR,
                 p_email VARCHAR,
@@ -62,7 +62,7 @@ return new class extends Migration
                 ) VALUES (
                     p_audit_user_id, p_audit_user_name, p_audit_user_email, p_audit_user_role,
                     'user_management', 'user_created', 'User', v_user_id,
-                    'taufiq', NOW(), 'success',
+                    'users', NOW(), 'success',
                     jsonb_build_object(
                         'name', p_name,
                         'email', p_email,
@@ -83,7 +83,7 @@ return new class extends Migration
         // ==========================================
         // USER READ PROCEDURE
         // ==========================================
-        DB::connection('taufiq')->unprepared("
+        DB::connection('users')->unprepared("
             CREATE OR REPLACE FUNCTION sp_user_read(p_user_id BIGINT)
             RETURNS TABLE(
                 id BIGINT,
@@ -123,7 +123,7 @@ return new class extends Migration
         // ==========================================
         // USER UPDATE PROCEDURE
         // ==========================================
-        DB::connection('taufiq')->unprepared("
+        DB::connection('users')->unprepared("
             CREATE OR REPLACE FUNCTION sp_user_update(
                 p_user_id BIGINT,
                 p_name VARCHAR,
@@ -205,7 +205,7 @@ return new class extends Migration
         // ==========================================
         // USER UPDATE PASSWORD PROCEDURE
         // ==========================================
-        DB::connection('taufiq')->unprepared("
+        DB::connection('users')->unprepared("
             CREATE OR REPLACE FUNCTION sp_user_update_password(
                 p_user_id BIGINT,
                 p_new_password VARCHAR,
@@ -252,7 +252,7 @@ return new class extends Migration
         // ==========================================
         // USER DELETE PROCEDURE
         // ==========================================
-        DB::connection('taufiq')->unprepared("
+        DB::connection('users')->unprepared("
             CREATE OR REPLACE FUNCTION sp_user_delete(
                 p_user_id BIGINT,
                 p_audit_user_id BIGINT,
@@ -297,7 +297,7 @@ return new class extends Migration
         // ==========================================
         // USER SUSPEND PROCEDURE
         // ==========================================
-        DB::connection('taufiq')->unprepared("
+        DB::connection('users')->unprepared("
             CREATE OR REPLACE FUNCTION sp_user_suspend(
                 p_user_id BIGINT,
                 p_reason TEXT,
@@ -346,7 +346,7 @@ return new class extends Migration
         // ==========================================
         // USER LOCK PROCEDURE
         // ==========================================
-        DB::connection('taufiq')->unprepared("
+        DB::connection('users')->unprepared("
             CREATE OR REPLACE FUNCTION sp_user_lock(
                 p_user_id BIGINT,
                 p_duration_minutes INTEGER,
@@ -402,7 +402,7 @@ return new class extends Migration
         // ==========================================
         // USER UNLOCK PROCEDURE
         // ==========================================
-        DB::connection('taufiq')->unprepared("
+        DB::connection('users')->unprepared("
             CREATE OR REPLACE FUNCTION sp_user_unlock(
                 p_user_id BIGINT,
                 p_audit_user_id BIGINT,
@@ -451,7 +451,7 @@ return new class extends Migration
         // ==========================================
         // USER FORCE PASSWORD RESET PROCEDURE
         // ==========================================
-        DB::connection('taufiq')->unprepared("
+        DB::connection('users')->unprepared("
             CREATE OR REPLACE FUNCTION sp_user_force_password_reset(
                 p_user_id BIGINT,
                 p_audit_user_id BIGINT,
@@ -499,14 +499,14 @@ return new class extends Migration
      */
     public function down(): void
     {
-        DB::connection('taufiq')->unprepared('DROP FUNCTION IF EXISTS sp_user_create');
-        DB::connection('taufiq')->unprepared('DROP FUNCTION IF EXISTS sp_user_read');
-        DB::connection('taufiq')->unprepared('DROP FUNCTION IF EXISTS sp_user_update');
-        DB::connection('taufiq')->unprepared('DROP FUNCTION IF EXISTS sp_user_update_password');
-        DB::connection('taufiq')->unprepared('DROP FUNCTION IF EXISTS sp_user_delete');
-        DB::connection('taufiq')->unprepared('DROP FUNCTION IF EXISTS sp_user_suspend');
-        DB::connection('taufiq')->unprepared('DROP FUNCTION IF EXISTS sp_user_lock');
-        DB::connection('taufiq')->unprepared('DROP FUNCTION IF EXISTS sp_user_unlock');
-        DB::connection('taufiq')->unprepared('DROP FUNCTION IF EXISTS sp_user_force_password_reset');
+        DB::connection('users')->unprepared('DROP FUNCTION IF EXISTS sp_user_create');
+        DB::connection('users')->unprepared('DROP FUNCTION IF EXISTS sp_user_read');
+        DB::connection('users')->unprepared('DROP FUNCTION IF EXISTS sp_user_update');
+        DB::connection('users')->unprepared('DROP FUNCTION IF EXISTS sp_user_update_password');
+        DB::connection('users')->unprepared('DROP FUNCTION IF EXISTS sp_user_delete');
+        DB::connection('users')->unprepared('DROP FUNCTION IF EXISTS sp_user_suspend');
+        DB::connection('users')->unprepared('DROP FUNCTION IF EXISTS sp_user_lock');
+        DB::connection('users')->unprepared('DROP FUNCTION IF EXISTS sp_user_unlock');
+        DB::connection('users')->unprepared('DROP FUNCTION IF EXISTS sp_user_force_password_reset');
     }
 };

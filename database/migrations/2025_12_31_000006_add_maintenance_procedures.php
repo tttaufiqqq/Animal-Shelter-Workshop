@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         // 1. Session Cleanup
-        DB::connection('taufiq')->unprepared("
+        DB::connection('users')->unprepared("
             CREATE OR REPLACE FUNCTION cleanup_expired_sessions()
             RETURNS TABLE(deleted_count INTEGER) AS $$
             DECLARE
@@ -29,7 +29,7 @@ return new class extends Migration
         ");
 
         // 2. Cache Cleanup
-        DB::connection('taufiq')->unprepared("
+        DB::connection('users')->unprepared("
             CREATE OR REPLACE FUNCTION cleanup_expired_cache()
             RETURNS TABLE(deleted_count INTEGER) AS $$
             DECLARE
@@ -46,7 +46,7 @@ return new class extends Migration
         ");
 
         // 3. Combined Maintenance Procedure
-        DB::connection('taufiq')->unprepared("
+        DB::connection('users')->unprepared("
             CREATE OR REPLACE FUNCTION run_scheduled_maintenance()
             RETURNS TABLE(
                 task_name VARCHAR,
@@ -88,7 +88,7 @@ return new class extends Migration
         ");
 
         // 4. Database Vacuum and Analyze (for PostgreSQL performance)
-        DB::connection('taufiq')->unprepared("
+        DB::connection('users')->unprepared("
             CREATE OR REPLACE FUNCTION optimize_database_tables()
             RETURNS TABLE(
                 table_name VARCHAR,
@@ -121,9 +121,9 @@ return new class extends Migration
      */
     public function down(): void
     {
-        DB::connection('taufiq')->unprepared('DROP FUNCTION IF EXISTS cleanup_expired_sessions()');
-        DB::connection('taufiq')->unprepared('DROP FUNCTION IF EXISTS cleanup_expired_cache()');
-        DB::connection('taufiq')->unprepared('DROP FUNCTION IF EXISTS run_scheduled_maintenance()');
-        DB::connection('taufiq')->unprepared('DROP FUNCTION IF EXISTS optimize_database_tables()');
+        DB::connection('users')->unprepared('DROP FUNCTION IF EXISTS cleanup_expired_sessions()');
+        DB::connection('users')->unprepared('DROP FUNCTION IF EXISTS cleanup_expired_cache()');
+        DB::connection('users')->unprepared('DROP FUNCTION IF EXISTS run_scheduled_maintenance()');
+        DB::connection('users')->unprepared('DROP FUNCTION IF EXISTS optimize_database_tables()');
     }
 };

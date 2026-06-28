@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 namespace App\Models;
 
@@ -13,7 +13,7 @@ class User extends Authenticatable
     use HasFactory, Notifiable, HasRoles;
 
     // Specify the database connection for this model (Taufiq's database)
-    protected $connection = 'taufiq';
+    protected $connection = 'users';
 
     /**
      * The attributes that are mass assignable.
@@ -82,7 +82,7 @@ class User extends Authenticatable
      */
     public function visitList()
     {
-        return $this->setConnection('danish')
+        return $this->setConnection('booking')
             ->hasOne(VisitList::class, 'userID', 'id');
     }
 
@@ -92,7 +92,7 @@ class User extends Authenticatable
      */
     public function reports()
     {
-        return $this->setConnection('eilya')
+        return $this->setConnection('reporting')
             ->hasMany(Report::class, 'userID', 'id');
     }
 
@@ -103,7 +103,7 @@ class User extends Authenticatable
      */
     public function rescues()
     {
-        return $this->setConnection('eilya')
+        return $this->setConnection('reporting')
             ->hasMany(Rescue::class, 'caretakerID', 'id');
     }
 
@@ -113,7 +113,7 @@ class User extends Authenticatable
      */
     public function bookings()
     {
-        return $this->setConnection('danish')
+        return $this->setConnection('booking')
             ->hasMany(Booking::class, 'userID', 'id');
     }
 
@@ -123,7 +123,7 @@ class User extends Authenticatable
      */
     public function transactions()
     {
-        return $this->setConnection('danish')
+        return $this->setConnection('booking')
             ->hasMany(Transaction::class, 'userID', 'id');
     }
 

@@ -1,96 +1,77 @@
-<?php
+﻿<?php
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
-        $connection = DB::connection('danish');
+        $connection = DB::connection('booking');
 
         // ===========================
         // sp_booking_create
         // ===========================
-        $connection->unprepared('
-            IF OBJECT_ID(\'sp_booking_create\', \'P\') IS NOT NULL
-                DROP PROCEDURE sp_booking_create
-        ');
+        $connection->unprepared('DROP PROCEDURE IF EXISTS sp_booking_create');
 
         $connection->unprepared("
-            CREATE PROCEDURE sp_booking_create
-                @p_user_id BIGINT,
-                @p_appointment_date DATE,
-                @p_appointment_time TIME,
-                @p_status NVARCHAR(50) = 'Pending',
-                @o_booking_id BIGINT OUTPUT,
-                @o_status NVARCHAR(20) OUTPUT,
-                @o_message NVARCHAR(MAX) OUTPUT
-            AS
-            BEGIN
-                SET NOCOUNT ON;
+            CREATE PROCEDURE sp_booking_create(
+                IN p_user_id BIGINT,
+                IN p_appointment_date DATE,
+                IN p_appointment_time TIME,
+                IN p_status VARCHAR(50),
+                OUT o_booking_id BIGINT,
+                OUT o_status VARCHAR(20),
+                OUT o_message TEXT
+            )
+            proc_exit: BEGIN
+                DECLARE EXIT HANDLER FOR SQLEXCEPTION
+                BEGIN
+                    ROLLBACK;
+                    SET o_status = 'error';
+                    SET o_message = 'Database error occurred';
+                    SET o_booking_id = NULL;
+                END;
 
-                BEGIN TRY
-                    BEGIN TRANSACTION;
+                SET p_status = IFNULL(p_status, 'Pending');
 
-                    -- Validation: Check required fields
-                    IF @p_user_id IS NULL
-                    BEGIN
-                        SET @o_status = 'error';
-                        SET @o_message = 'User ID is required';
-                        SET @o_booking_id = NULL;
-                        ROLLBACK TRANSACTION;
-                        RETURN;
-                    END
+                IF p_user_id IS NULL THEN
+                    SET o_status = 'error';
+                    SET o_message = 'User ID is required';
+                    SET o_booking_id = NULL;
+                    LEAVE proc_exit;
+                END IF;
 
-                    IF @p_appointment_date IS NULL OR @p_appointment_time IS NULL
-                    BEGIN
-                        SET @o_status = 'error';
-                        SET @o_message = 'Appointment date and time are required';
-                        SET @o_booking_id = NULL;
-                        ROLLBACK TRANSACTION;
-                        RETURN;
-                    END
+                IF p_appointment_date IS NULL OR p_appointment_time IS NULL THEN
+                    SET o_status = 'error';
+                    SET o_message = 'Appointment date and time are required';
+                    SET o_booking_id = NULL;
+                    LEAVE proc_exit;
+                END IF;
 
-                    -- Insert booking
-                    INSERT INTO booking (userID, appointment_date, appointment_time, status, created_at, updated_at)
-                    VALUES (@p_user_id, @p_appointment_date, @p_appointment_time, @p_status, GETDATE(), GETDATE());
+                START TRANSACTION;
 
-                    SET @o_booking_id = SCOPE_IDENTITY();
-                    SET @o_status = 'success';
-                    SET @o_message = 'Booking created successfully';
+                INSERT INTO booking (userID, appointment_date, appointment_time, status, created_at, updated_at)
+                VALUES (p_user_id, p_appointment_date, p_appointment_time, p_status, NOW(), NOW());
 
-                    COMMIT TRANSACTION;
-                END TRY
-                BEGIN CATCH
-                    IF @@TRANCOUNT > 0
-                        ROLLBACK TRANSACTION;
+                SET o_booking_id = LAST_INSERT_ID();
+                SET o_status = 'success';
+                SET o_message = 'Booking created successfully';
 
-                    SET @o_status = 'error';
-                    SET @o_message = ERROR_MESSAGE();
-                    SET @o_booking_id = NULL;
-                END CATCH
+                COMMIT;
             END
         ");
 
         // ===========================
         // sp_booking_read
         // ===========================
-        $connection->unprepared('
-            IF OBJECT_ID(\'sp_booking_read\', \'P\') IS NOT NULL
-                DROP PROCEDURE sp_booking_read
-        ');
+        $connection->unprepared('DROP PROCEDURE IF EXISTS sp_booking_read');
 
         $connection->unprepared("
-            CREATE PROCEDURE sp_booking_read
-                @p_booking_id BIGINT
-            AS
+            CREATE PROCEDURE sp_booking_read(
+                IN p_booking_id BIGINT
+            )
             BEGIN
-                SET NOCOUNT ON;
-
                 SELECT
                     id,
                     userID,
@@ -101,203 +82,164 @@ return new class extends Migration
                     created_at,
                     updated_at
                 FROM booking
-                WHERE id = @p_booking_id;
+                WHERE id = p_booking_id;
             END
         ");
 
         // ===========================
         // sp_booking_update_status
         // ===========================
-        $connection->unprepared('
-            IF OBJECT_ID(\'sp_booking_update_status\', \'P\') IS NOT NULL
-                DROP PROCEDURE sp_booking_update_status
-        ');
+        $connection->unprepared('DROP PROCEDURE IF EXISTS sp_booking_update_status');
 
         $connection->unprepared("
-            CREATE PROCEDURE sp_booking_update_status
-                @p_booking_id BIGINT,
-                @p_new_status NVARCHAR(50),
-                @p_user_id BIGINT = NULL,
-                @o_old_status NVARCHAR(50) OUTPUT,
-                @o_status NVARCHAR(20) OUTPUT,
-                @o_message NVARCHAR(MAX) OUTPUT
-            AS
-            BEGIN
-                SET NOCOUNT ON;
+            CREATE PROCEDURE sp_booking_update_status(
+                IN p_booking_id BIGINT,
+                IN p_new_status VARCHAR(50),
+                IN p_user_id BIGINT,
+                OUT o_old_status VARCHAR(50),
+                OUT o_status VARCHAR(20),
+                OUT o_message TEXT
+            )
+            proc_exit: BEGIN
+                DECLARE v_exists INT DEFAULT 0;
+                DECLARE v_booking_user_id BIGINT DEFAULT NULL;
 
-                DECLARE @v_exists BIT;
-                DECLARE @v_booking_user_id BIGINT;
+                DECLARE EXIT HANDLER FOR SQLEXCEPTION
+                BEGIN
+                    ROLLBACK;
+                    SET o_status = 'error';
+                    SET o_message = 'Database error occurred';
+                    SET o_old_status = NULL;
+                END;
 
-                BEGIN TRY
-                    BEGIN TRANSACTION;
+                SELECT COUNT(*), status, userID
+                INTO v_exists, o_old_status, v_booking_user_id
+                FROM booking
+                WHERE id = p_booking_id;
 
-                    -- Check if booking exists and get current status
-                    SELECT @v_exists = 1, @o_old_status = status, @v_booking_user_id = userID
-                    FROM booking
-                    WHERE id = @p_booking_id;
+                IF v_exists = 0 THEN
+                    SET o_status = 'error';
+                    SET o_message = 'Booking not found';
+                    SET o_old_status = NULL;
+                    LEAVE proc_exit;
+                END IF;
 
-                    IF @v_exists IS NULL
-                    BEGIN
-                        SET @o_status = 'error';
-                        SET @o_message = 'Booking not found';
-                        SET @o_old_status = NULL;
-                        ROLLBACK TRANSACTION;
-                        RETURN;
-                    END
+                IF p_user_id IS NOT NULL AND v_booking_user_id != p_user_id THEN
+                    SET o_status = 'error';
+                    SET o_message = 'Unauthorized: This booking belongs to another user';
+                    LEAVE proc_exit;
+                END IF;
 
-                    -- Optionally check authorization
-                    IF @p_user_id IS NOT NULL AND @v_booking_user_id != @p_user_id
-                    BEGIN
-                        SET @o_status = 'error';
-                        SET @o_message = 'Unauthorized: This booking belongs to another user';
-                        ROLLBACK TRANSACTION;
-                        RETURN;
-                    END
+                START TRANSACTION;
 
-                    -- Update booking status
-                    UPDATE booking
-                    SET status = @p_new_status,
-                        updated_at = GETDATE()
-                    WHERE id = @p_booking_id;
+                UPDATE booking
+                SET status = p_new_status,
+                    updated_at = NOW()
+                WHERE id = p_booking_id;
 
-                    SET @o_status = 'success';
-                    SET @o_message = 'Booking status updated successfully';
+                SET o_status = 'success';
+                SET o_message = 'Booking status updated successfully';
 
-                    COMMIT TRANSACTION;
-                END TRY
-                BEGIN CATCH
-                    IF @@TRANCOUNT > 0
-                        ROLLBACK TRANSACTION;
-
-                    SET @o_status = 'error';
-                    SET @o_message = ERROR_MESSAGE();
-                    SET @o_old_status = NULL;
-                END CATCH
+                COMMIT;
             END
         ");
 
         // ===========================
         // sp_booking_cancel
         // ===========================
-        $connection->unprepared('
-            IF OBJECT_ID(\'sp_booking_cancel\', \'P\') IS NOT NULL
-                DROP PROCEDURE sp_booking_cancel
-        ');
+        $connection->unprepared('DROP PROCEDURE IF EXISTS sp_booking_cancel');
 
         $connection->unprepared("
-            CREATE PROCEDURE sp_booking_cancel
-                @p_booking_id BIGINT,
-                @p_user_id BIGINT,
-                @o_old_status NVARCHAR(50) OUTPUT,
-                @o_status NVARCHAR(20) OUTPUT,
-                @o_message NVARCHAR(MAX) OUTPUT
-            AS
-            BEGIN
-                SET NOCOUNT ON;
+            CREATE PROCEDURE sp_booking_cancel(
+                IN p_booking_id BIGINT,
+                IN p_user_id BIGINT,
+                OUT o_old_status VARCHAR(50),
+                OUT o_status VARCHAR(20),
+                OUT o_message TEXT
+            )
+            proc_exit: BEGIN
+                DECLARE v_exists INT DEFAULT 0;
+                DECLARE v_booking_user_id BIGINT DEFAULT NULL;
+                DECLARE v_current_status VARCHAR(50) DEFAULT NULL;
 
-                DECLARE @v_exists BIT;
-                DECLARE @v_booking_user_id BIGINT;
-                DECLARE @v_current_status NVARCHAR(50);
+                DECLARE EXIT HANDLER FOR SQLEXCEPTION
+                BEGIN
+                    ROLLBACK;
+                    SET o_status = 'error';
+                    SET o_message = 'Database error occurred';
+                    SET o_old_status = NULL;
+                END;
 
-                BEGIN TRY
-                    BEGIN TRANSACTION;
+                SELECT COUNT(*), status, userID
+                INTO v_exists, v_current_status, v_booking_user_id
+                FROM booking
+                WHERE id = p_booking_id;
 
-                    -- Check if booking exists and belongs to user
-                    SELECT @v_exists = 1, @v_current_status = status, @v_booking_user_id = userID
-                    FROM booking
-                    WHERE id = @p_booking_id;
+                IF v_exists = 0 THEN
+                    SET o_status = 'error';
+                    SET o_message = 'Booking not found';
+                    SET o_old_status = NULL;
+                    LEAVE proc_exit;
+                END IF;
 
-                    IF @v_exists IS NULL
-                    BEGIN
-                        SET @o_status = 'error';
-                        SET @o_message = 'Booking not found';
-                        SET @o_old_status = NULL;
-                        ROLLBACK TRANSACTION;
-                        RETURN;
-                    END
+                IF v_booking_user_id != p_user_id THEN
+                    SET o_status = 'error';
+                    SET o_message = 'Unauthorized: This booking belongs to another user';
+                    SET o_old_status = v_current_status;
+                    LEAVE proc_exit;
+                END IF;
 
-                    -- Check authorization
-                    IF @v_booking_user_id != @p_user_id
-                    BEGIN
-                        SET @o_status = 'error';
-                        SET @o_message = 'Unauthorized: This booking belongs to another user';
-                        SET @o_old_status = @v_current_status;
-                        ROLLBACK TRANSACTION;
-                        RETURN;
-                    END
+                IF v_current_status NOT IN ('Pending', 'Confirmed') THEN
+                    SET o_status = 'error';
+                    SET o_message = CONCAT('Cannot cancel booking with status: ', v_current_status);
+                    SET o_old_status = v_current_status;
+                    LEAVE proc_exit;
+                END IF;
 
-                    -- Check if booking can be cancelled (only Pending or Confirmed)
-                    IF @v_current_status NOT IN ('Pending', 'Confirmed')
-                    BEGIN
-                        SET @o_status = 'error';
-                        SET @o_message = 'Cannot cancel booking with status: ' + @v_current_status;
-                        SET @o_old_status = @v_current_status;
-                        ROLLBACK TRANSACTION;
-                        RETURN;
-                    END
+                SET o_old_status = v_current_status;
 
-                    SET @o_old_status = @v_current_status;
+                START TRANSACTION;
 
-                    -- Cancel booking
-                    UPDATE booking
-                    SET status = 'Cancelled',
-                        updated_at = GETDATE()
-                    WHERE id = @p_booking_id;
+                UPDATE booking
+                SET status = 'Cancelled',
+                    updated_at = NOW()
+                WHERE id = p_booking_id;
 
-                    SET @o_status = 'success';
-                    SET @o_message = 'Booking cancelled successfully';
+                SET o_status = 'success';
+                SET o_message = 'Booking cancelled successfully';
 
-                    COMMIT TRANSACTION;
-                END TRY
-                BEGIN CATCH
-                    IF @@TRANCOUNT > 0
-                        ROLLBACK TRANSACTION;
-
-                    SET @o_status = 'error';
-                    SET @o_message = ERROR_MESSAGE();
-                    SET @o_old_status = NULL;
-                END CATCH
+                COMMIT;
             END
         ");
 
         // ===========================
         // sp_booking_check_time_conflicts
         // ===========================
-        $connection->unprepared('
-            IF OBJECT_ID(\'sp_booking_check_time_conflicts\', \'P\') IS NOT NULL
-                DROP PROCEDURE sp_booking_check_time_conflicts
-        ');
+        $connection->unprepared('DROP PROCEDURE IF EXISTS sp_booking_check_time_conflicts');
 
         $connection->unprepared("
-            CREATE PROCEDURE sp_booking_check_time_conflicts
-                @p_appointment_date DATE,
-                @p_appointment_time TIME,
-                @p_animal_ids NVARCHAR(MAX), -- Comma-separated list of animal IDs
-                @p_exclude_booking_id BIGINT = NULL
-            AS
+            CREATE PROCEDURE sp_booking_check_time_conflicts(
+                IN p_appointment_date DATE,
+                IN p_appointment_time TIME,
+                IN p_animal_ids TEXT,
+                IN p_exclude_booking_id BIGINT
+            )
             BEGIN
-                SET NOCOUNT ON;
-
-                -- Find bookings at this date/time with active status
-                -- Then check which of the requested animals are already booked
                 SELECT DISTINCT ab.animalID
                 FROM booking b
                 INNER JOIN animal_booking ab ON b.id = ab.bookingID
-                WHERE b.appointment_date = @p_appointment_date
-                  AND b.appointment_time = @p_appointment_time
+                WHERE b.appointment_date = p_appointment_date
+                  AND b.appointment_time = p_appointment_time
                   AND b.status IN ('Pending', 'Confirmed')
-                  AND (@p_exclude_booking_id IS NULL OR b.id != @p_exclude_booking_id)
-                  AND ab.animalID IN (SELECT value FROM STRING_SPLIT(@p_animal_ids, ','));
+                  AND (p_exclude_booking_id IS NULL OR b.id != p_exclude_booking_id)
+                  AND FIND_IN_SET(ab.animalID, p_animal_ids) > 0;
             END
         ");
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
-        $connection = DB::connection('danish');
+        $connection = DB::connection('booking');
 
         $connection->unprepared('DROP PROCEDURE IF EXISTS sp_booking_create');
         $connection->unprepared('DROP PROCEDURE IF EXISTS sp_booking_read');

@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 /**
  * Global helper functions for the Animal Shelter application
@@ -45,7 +45,7 @@ if (!function_exists('getReportImageOrPlaceholder')) {
 
         try {
             // Check if Eilya database is available
-            if (!app(\App\Services\DatabaseConnectionChecker::class)->isConnected('eilya')) {
+            if (!app(\App\Services\DatabaseConnectionChecker::class)->isConnected('reporting')) {
                 return asset($placeholder);
             }
 
@@ -74,7 +74,7 @@ if (!function_exists('safeLoadImages')) {
     {
         try {
             // Check if Eilya database is available
-            if (!app(\App\Services\DatabaseConnectionChecker::class)->isConnected('eilya')) {
+            if (!app(\App\Services\DatabaseConnectionChecker::class)->isConnected('reporting')) {
                 return collect([]);
             }
 
@@ -90,7 +90,7 @@ if (!function_exists('isDatabaseOnline')) {
     /**
      * Check if a database connection is online
      *
-     * @param string $connection Connection name (e.g., 'eilya', 'danish', etc.)
+     * @param string $connection Connection name (e.g., 'reporting', 'booking', etc.)
      * @return bool
      */
     function isDatabaseOnline($connection)

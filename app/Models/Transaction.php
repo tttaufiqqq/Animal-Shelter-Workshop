@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 namespace App\Models;
 
@@ -10,7 +10,7 @@ class Transaction extends Model
     use HasFactory;
 
     // Specify the database connection for this model (Danish's database)
-    protected $connection = 'danish';
+    protected $connection = 'booking';
 
     protected $table = 'transaction';
 
@@ -34,7 +34,7 @@ class Transaction extends Model
      */
     public function user()
     {
-        return $this->setConnection('taufiq')
+        return $this->setConnection('users')
             ->belongsTo(User::class, 'userID', 'id');
     }
 

@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 namespace Database\Seeders;
 
@@ -16,7 +16,7 @@ class UserSeeder extends Seeder
     public function run(): void
     {
         // Use transaction for Taufiq's database
-        DB::connection('taufiq')->beginTransaction();
+        DB::connection('users')->beginTransaction();
 
         try {
             $this->command->info('Seeding users in Taufiq\'s database...');
@@ -135,7 +135,7 @@ class UserSeeder extends Seeder
                 $this->command->info("  ✓ {$user->name} ({$user->email})");
             }
 
-            DB::connection('taufiq')->commit();
+            DB::connection('users')->commit();
 
             $this->command->info('');
             $this->command->info('========================================');
@@ -146,7 +146,7 @@ class UserSeeder extends Seeder
             $this->command->info('  Password: password');
 
         } catch (\Exception $e) {
-            DB::connection('taufiq')->rollBack();
+            DB::connection('users')->rollBack();
 
             $this->command->error('');
             $this->command->error('Error seeding users: ' . $e->getMessage());

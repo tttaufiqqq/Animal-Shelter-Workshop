@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 namespace App\Services;
 
@@ -16,7 +16,7 @@ use Illuminate\Support\Facades\DB;
  * - v_adopter_profile_stats: 50-100x faster (materialized, no table scan)
  * - v_high_risk_users: 5-10x faster (pre-filtered, pre-calculated)
  */
-class TaufiqViewService
+class UserViewService
 {
     // ==========================================
     // USER PROFILE VIEWS
@@ -31,7 +31,7 @@ class TaufiqViewService
      */
     public function getFullUserProfile(int $userId): ?object
     {
-        $result = DB::connection('taufiq')->select(
+        $result = DB::connection('users')->select(
             'SELECT * FROM v_user_full_profile WHERE id = ?',
             [$userId]
         );
@@ -56,7 +56,7 @@ class TaufiqViewService
 
         $sql .= ' ORDER BY readiness_score DESC, profile_created_at DESC';
 
-        return DB::connection('taufiq')->select($sql);
+        return DB::connection('users')->select($sql);
     }
 
     /**
@@ -68,7 +68,7 @@ class TaufiqViewService
      */
     public function getUsersByReadinessScore(int $minScore = 75): array
     {
-        return DB::connection('taufiq')->select(
+        return DB::connection('users')->select(
             'SELECT * FROM v_active_users_with_profiles
              WHERE readiness_score >= ?
              ORDER BY readiness_score DESC',
@@ -90,7 +90,7 @@ class TaufiqViewService
      */
     public function getUserAccountStats(): ?object
     {
-        $result = DB::connection('taufiq')->select('SELECT * FROM v_user_account_stats');
+        $result = DB::connection('users')->select('SELECT * FROM v_user_account_stats');
 
         return $result[0] ?? null;
     }
@@ -105,7 +105,7 @@ class TaufiqViewService
      */
     public function getAdopterProfileStats(): ?object
     {
-        $result = DB::connection('taufiq')->select('SELECT * FROM v_adopter_profile_stats');
+        $result = DB::connection('users')->select('SELECT * FROM v_adopter_profile_stats');
 
         return $result[0] ?? null;
     }
@@ -132,7 +132,7 @@ class TaufiqViewService
      */
     public function refreshMaterializedViews(): string
     {
-        $result = DB::connection('taufiq')->select('SELECT refresh_all_taufiq_stats()');
+        $result = DB::connection('users')->select('SELECT refresh_all_taufiq_stats()');
 
         return $result[0]->refresh_all_taufiq_stats ?? 'Refresh completed';
     }
@@ -161,7 +161,7 @@ class TaufiqViewService
 
         $sql .= ' ORDER BY risk_score DESC, failed_login_attempts DESC';
 
-        return DB::connection('taufiq')->select($sql, $params);
+        return DB::connection('users')->select($sql, $params);
     }
 
     /**
@@ -172,7 +172,7 @@ class TaufiqViewService
      */
     public function getCriticalSecurityAlerts(): array
     {
-        return DB::connection('taufiq')->select(
+        return DB::connection('users')->select(
             "SELECT * FROM v_high_risk_users
              WHERE risk_score >= 60
              ORDER BY risk_score DESC"
@@ -203,7 +203,7 @@ class TaufiqViewService
 
         $sql .= ' ORDER BY last_activity_at DESC NULLS LAST';
 
-        return DB::connection('taufiq')->select($sql, $params);
+        return DB::connection('users')->select($sql, $params);
     }
 
     /**
@@ -215,7 +215,7 @@ class TaufiqViewService
      */
     public function getMostActiveUsers(int $limit = 10): array
     {
-        return DB::connection('taufiq')->select(
+        return DB::connection('users')->select(
             "SELECT * FROM v_user_activity_last_30_days
              WHERE activity_status != 'never_active'
              ORDER BY total_actions_30_days DESC
@@ -232,7 +232,7 @@ class TaufiqViewService
      */
     public function getInactiveUsers(): array
     {
-        return DB::connection('taufiq')->select(
+        return DB::connection('users')->select(
             "SELECT * FROM v_user_activity_last_30_days
              WHERE activity_status = 'inactive'
              ORDER BY days_since_last_activity DESC"
@@ -266,7 +266,7 @@ class TaufiqViewService
 
         $sql .= " ORDER BY readiness_score DESC, profile_created_at DESC";
 
-        return DB::connection('taufiq')->select($sql, $params);
+        return DB::connection('users')->select($sql, $params);
     }
 
     /**
@@ -280,7 +280,7 @@ class TaufiqViewService
      */
     public function getAdoptersByHousing(string $housingType, bool $hasChildren = false, bool $hasOtherPets = false): array
     {
-        return DB::connection('taufiq')->select(
+        return DB::connection('users')->select(
             "SELECT * FROM v_active_users_with_profiles
              WHERE housing_type = ?
              AND has_children = ?
@@ -304,7 +304,7 @@ class TaufiqViewService
      */
     public function searchUsers(string $searchTerm): array
     {
-        return DB::connection('taufiq')->select(
+        return DB::connection('users')->select(
             "SELECT * FROM v_user_full_profile
              WHERE LOWER(name) LIKE LOWER(?)
              OR LOWER(email) LIKE LOWER(?)
@@ -322,7 +322,7 @@ class TaufiqViewService
      */
     public function getUsersByStatus(string $status): array
     {
-        return DB::connection('taufiq')->select(
+        return DB::connection('users')->select(
             'SELECT * FROM v_user_full_profile
              WHERE account_status = ?
              ORDER BY user_created_at DESC',
@@ -338,7 +338,7 @@ class TaufiqViewService
      */
     public function getSuspendedUsers(): array
     {
-        return DB::connection('taufiq')->select(
+        return DB::connection('users')->select(
             "SELECT * FROM v_user_full_profile
              WHERE is_suspended = TRUE
              ORDER BY suspended_at DESC"
@@ -353,7 +353,7 @@ class TaufiqViewService
      */
     public function getLockedUsers(): array
     {
-        return DB::connection('taufiq')->select(
+        return DB::connection('users')->select(
             "SELECT * FROM v_user_full_profile
              WHERE is_locked = TRUE
              ORDER BY locked_until DESC"

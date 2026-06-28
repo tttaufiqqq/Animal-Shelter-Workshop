@@ -1,11 +1,11 @@
-<?php
+﻿<?php
 
 namespace App\Console\Commands;
 
-use App\Services\TaufiqViewService;
+use App\Services\UserViewService;
 use Illuminate\Console\Command;
 
-class RefreshTaufiqStats extends Command
+class RefreshUserStats extends Command
 {
     /**
      * The name and signature of the console command.
@@ -32,7 +32,7 @@ class RefreshTaufiqStats extends Command
         $startTime = microtime(true);
 
         try {
-            $service = new TaufiqViewService;
+            $service = new UserViewService;
             $result = $service->refreshMaterializedViews();
 
             $duration = round((microtime(true) - $startTime) * 1000, 2);
@@ -54,7 +54,7 @@ class RefreshTaufiqStats extends Command
     /**
      * Display current statistics after refresh
      */
-    protected function displayCurrentStats(TaufiqViewService $service): void
+    protected function displayCurrentStats(UserViewService $service): void
     {
         $this->newLine();
         $this->info('📊 Current Statistics:');

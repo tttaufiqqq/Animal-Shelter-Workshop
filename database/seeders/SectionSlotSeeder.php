@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 namespace Database\Seeders;
 
@@ -85,13 +85,13 @@ class SectionSlotSeeder extends Seeder
         $capacityBreakdown = [];
 
         // Use transaction for Atiqah's database
-        DB::connection('atiqah')->beginTransaction();
+        DB::connection('shelter')->beginTransaction();
 
         try {
             // Insert sections and create slots for each
             foreach ($sections as $sectionData) {
                 // Insert section into Atiqah's database
-                $sectionId = DB::connection('atiqah')->table('section')->insertGetId([
+                $sectionId = DB::connection('shelter')->table('section')->insertGetId([
                     'name' => $sectionData['name'],
                     'description' => $sectionData['description'],
                     'created_at' => now(),
@@ -153,7 +153,7 @@ class SectionSlotSeeder extends Seeder
 
                 // Insert slots for this section in chunks into Atiqah's database
                 foreach (array_chunk($allSlots, 50) as $chunk) {
-                    DB::connection('atiqah')->table('slot')->insert($chunk);
+                    DB::connection('shelter')->table('slot')->insert($chunk);
                 }
 
                 $this->command->info("✓ Created section '{$sectionData['name']}' with {$sectionSlotCount} slots");
@@ -167,7 +167,7 @@ class SectionSlotSeeder extends Seeder
                 }
             }
 
-            DB::connection('atiqah')->commit();
+            DB::connection('shelter')->commit();
 
             $this->command->info('');
             $this->command->info('=================================');
@@ -195,7 +195,7 @@ class SectionSlotSeeder extends Seeder
             $this->command->info('=================================');
 
         } catch (\Exception $e) {
-            DB::connection('atiqah')->rollBack();
+            DB::connection('shelter')->rollBack();
 
             $this->command->error('');
             $this->command->error('Error seeding sections and slots: ' . $e->getMessage());

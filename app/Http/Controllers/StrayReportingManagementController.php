@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 namespace App\Http\Controllers;
 
@@ -16,7 +16,7 @@ use App\Models\Rescue;
 use App\Models\User;
 use App\Models\Animal;
 use App\DatabaseErrorHandler;
-use App\Services\EilyaProcedureService;
+use App\Services\ReportingProcedureService;
 
 class StrayReportingManagementController extends Controller
 {
@@ -24,7 +24,7 @@ class StrayReportingManagementController extends Controller
 
     protected $procedureService;
 
-    public function __construct(EilyaProcedureService $procedureService)
+    public function __construct(ReportingProcedureService $procedureService)
     {
         $this->procedureService = $procedureService;
     }
@@ -37,13 +37,13 @@ class StrayReportingManagementController extends Controller
                 ->orderBy('created_at', 'desc')
                 ->paginate(50),
             new \Illuminate\Pagination\LengthAwarePaginator([], 0, 50),
-            'eilya' // Pre-check eilya database
+            'reporting' // Pre-check eilya database
         );
 
         $adopterProfile = $this->safeQuery(
             fn() => AdopterProfile::where('adopterID', auth()->id())->first(),
             null,
-            'taufiq' // Pre-check taufiq database
+            'users' // Pre-check taufiq database
         );
 
         if (!$adopterProfile) {
@@ -62,7 +62,7 @@ class StrayReportingManagementController extends Controller
                     })
                     ->get(),
                 collect([]),
-                'shafiqah' // Pre-check shafiqah database
+                'animals' // Pre-check shafiqah database
             );
         }
 
@@ -232,7 +232,7 @@ class StrayReportingManagementController extends Controller
         $report = $this->safeQuery(
             fn() => Report::with(['images', 'rescue.caretaker'])->findOrFail($id),
             null,
-            'eilya' // Pre-check eilya database
+            'reporting' // Pre-check eilya database
         );
 
         if (!$report) {
@@ -243,7 +243,7 @@ class StrayReportingManagementController extends Controller
         $caretakers = $this->safeQuery(
             fn() => User::role('caretaker')->orderBy('name')->get(),
             collect([]),
-            'taufiq' // Pre-check taufiq database
+            'users' // Pre-check taufiq database
         );
 
         return view('stray-reporting.show', compact('report', 'caretakers'));
@@ -256,7 +256,7 @@ class StrayReportingManagementController extends Controller
                 ->orderBy('created_at', 'desc')
                 ->paginate(50),
             new \Illuminate\Pagination\LengthAwarePaginator([], 0, 50),
-            'eilya' // Pre-check eilya database
+            'reporting' // Pre-check eilya database
         );
 
         return view('stray-reporting.admin-index', compact('reports'));
@@ -330,7 +330,7 @@ class StrayReportingManagementController extends Controller
             $caretaker = $this->safeQuery(
                 fn() => User::findOrFail($request->caretaker_id),
                 null,
-                'taufiq'
+                'users'
             );
 
             if (!$caretaker) {
@@ -444,16 +444,16 @@ class StrayReportingManagementController extends Controller
                 ->select('rescue.*')
                 ->orderBy('report.created_at', 'desc')
                 ->paginate(50);
-        }, new \Illuminate\Pagination\LengthAwarePaginator([], 0, 50), 'eilya'); // Pre-check eilya database
+        }, new \Illuminate\Pagination\LengthAwarePaginator([], 0, 50), 'reporting'); // Pre-check eilya database
 
         // Get status counts for filter cards
         $statusCounts = $this->safeQuery(
-            fn() => Rescue::select('status', DB::connection('eilya')->raw('COUNT(*) as total'))
+            fn() => Rescue::select('status', DB::connection('reporting')->raw('COUNT(*) as total'))
                 ->where('caretakerID', Auth::id())
                 ->groupBy('status')
                 ->pluck('total', 'status'),
             collect([]),
-            'eilya'
+            'reporting'
         );
 
         return view('stray-reporting.index-caretaker', compact('rescues', 'statusCounts'));
@@ -463,14 +463,14 @@ class StrayReportingManagementController extends Controller
     {
         // Check if atiqah database (Slots) is required and available
         if ($request->status === Rescue::STATUS_SUCCESS) {
-            if (!$this->isDatabaseAvailable('atiqah')) {
+            if (!$this->isDatabaseAvailable('shelter')) {
                 return redirect()->back()->with('error',
                     'Cannot complete rescue: Shelter Management database (slots) is currently offline. ' .
                     'Animals must be assigned to shelter slots. Please try again later or contact the system administrator.'
                 );
             }
 
-            if (!$this->isDatabaseAvailable('shafiqah')) {
+            if (!$this->isDatabaseAvailable('animals')) {
                 return redirect()->back()->with('error',
                     'Cannot complete rescue: Animal Management database is currently offline. ' .
                     'Please try again later or contact the system administrator.'
@@ -628,15 +628,15 @@ class StrayReportingManagementController extends Controller
                 ->firstOrFail();
 
             // Check if databases required for animal addition are available
-            $canCompleteRescue = $this->isDatabaseAvailable('atiqah') && $this->isDatabaseAvailable('shafiqah');
+            $canCompleteRescue = $this->isDatabaseAvailable('shelter') && $this->isDatabaseAvailable('animals');
             $dbWarning = null;
 
             if (!$canCompleteRescue) {
                 $offlineDbs = [];
-                if (!$this->isDatabaseAvailable('atiqah')) {
+                if (!$this->isDatabaseAvailable('shelter')) {
                     $offlineDbs[] = 'Shelter Management (Slots)';
                 }
-                if (!$this->isDatabaseAvailable('shafiqah')) {
+                if (!$this->isDatabaseAvailable('animals')) {
                     $offlineDbs[] = 'Animal Management';
                 }
                 $dbWarning = 'Cannot complete rescue and add animals: ' . implode(', ', $offlineDbs) . ' database is offline.';
@@ -644,7 +644,7 @@ class StrayReportingManagementController extends Controller
 
             // Fetch available slots for animal assignment (only if atiqah is online)
             $availableSlots = collect([]);
-            if ($this->isDatabaseAvailable('atiqah')) {
+            if ($this->isDatabaseAvailable('shelter')) {
                 $availableSlots = $this->safeQuery(
                     fn() => \App\Models\Slot::with('section')
                         ->where('status', 'available')
@@ -652,7 +652,7 @@ class StrayReportingManagementController extends Controller
                         ->orderBy('id')
                         ->get(),
                     collect([]),
-                    'atiqah'
+                    'shelter'
                 );
             }
 
@@ -709,21 +709,21 @@ class StrayReportingManagementController extends Controller
     public function updateStatusWithAnimals(Request $request, $id)
     {
         // Check critical database availability before processing
-        if (!$this->isDatabaseAvailable('atiqah')) {
+        if (!$this->isDatabaseAvailable('shelter')) {
             return response()->json([
                 'success' => false,
                 'message' => 'Cannot add animals: Shelter Management database (slots) is currently offline. Animals must be assigned to shelter slots. Please try again later.'
             ], 503);
         }
 
-        if (!$this->isDatabaseAvailable('shafiqah')) {
+        if (!$this->isDatabaseAvailable('animals')) {
             return response()->json([
                 'success' => false,
                 'message' => 'Cannot add animals: Animal Management database is currently offline. Please try again later.'
             ], 503);
         }
 
-        if (!$this->isDatabaseAvailable('eilya')) {
+        if (!$this->isDatabaseAvailable('reporting')) {
             return response()->json([
                 'success' => false,
                 'message' => 'Cannot update rescue: Rescue database is currently offline. Please try again later.'
@@ -731,8 +731,8 @@ class StrayReportingManagementController extends Controller
         }
 
         // Start transactions on both eilya (Rescue) and shafiqah (Animal) databases
-        DB::connection('eilya')->beginTransaction();
-        DB::connection('shafiqah')->beginTransaction();
+        DB::connection('reporting')->beginTransaction();
+        DB::connection('animals')->beginTransaction();
 
         $uploadedFiles = [];
 
@@ -836,8 +836,8 @@ class StrayReportingManagementController extends Controller
                 ]
             );
 
-            DB::connection('eilya')->commit();
-            DB::connection('shafiqah')->commit();
+            DB::connection('reporting')->commit();
+            DB::connection('animals')->commit();
 
             // Store success message in session for display after redirect
             session()->flash('success', 'Rescue completed successfully! ' . count($animalsData) . ' animal(s) added to the shelter.');
@@ -849,8 +849,8 @@ class StrayReportingManagementController extends Controller
             ]);
 
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-            DB::connection('eilya')->rollBack();
-            DB::connection('shafiqah')->rollBack();
+            DB::connection('reporting')->rollBack();
+            DB::connection('animals')->rollBack();
 
             // Clean up uploaded files
             foreach ($uploadedFiles as $filePath) {
@@ -867,8 +867,8 @@ class StrayReportingManagementController extends Controller
             ], 404);
 
         } catch (\Exception $e) {
-            DB::connection('eilya')->rollBack();
-            DB::connection('shafiqah')->rollBack();
+            DB::connection('reporting')->rollBack();
+            DB::connection('animals')->rollBack();
 
             // Clean up uploaded files
             foreach ($uploadedFiles as $filePath) {

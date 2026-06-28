@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 namespace Database\Seeders;
 
@@ -17,15 +17,15 @@ class BookingSeeder extends Seeder
         $this->command->info('Starting Booking Seeder (600 Bookings - SQL Server Optimized)...');
 
         // Get NON-ADMIN users from Taufiq's database
-        $adminRole = DB::connection('taufiq')->table('roles')->where('name', 'admin')->first();
+        $adminRole = DB::connection('users')->table('roles')->where('name', 'admin')->first();
         $adminUserIds = $adminRole
-            ? DB::connection('taufiq')->table('model_has_roles')
+            ? DB::connection('users')->table('model_has_roles')
                 ->where('role_id', $adminRole->id)
                 ->where('model_type', 'App\\Models\\User')
                 ->pluck('model_id')->toArray()
             : [];
 
-        $users = DB::connection('taufiq')->table('users')
+        $users = DB::connection('users')->table('users')
             ->whereNotIn('id', $adminUserIds)
             ->pluck('id')->toArray();
 
@@ -36,7 +36,7 @@ class BookingSeeder extends Seeder
         $this->command->info("Found " . count($users) . " non-admin users");
 
         // Get animals from Shafiqah's database
-        $animals = DB::connection('shafiqah')->table('animal')->pluck('id')->toArray();
+        $animals = DB::connection('animals')->table('animal')->pluck('id')->toArray();
         if (empty($animals)) {
             $this->command->error('No animals found.');
             return;
@@ -104,12 +104,12 @@ class BookingSeeder extends Seeder
         $insertedIds = [];
 
         foreach ($chunks as $idx => $chunk) {
-            DB::connection('danish')->table('booking')->insert($chunk);
+            DB::connection('booking')->table('booking')->insert($chunk);
             $this->command->info("  Bookings: " . (($idx + 1) * $chunkSize) . "/600");
         }
 
         // Get all booking IDs (ordered by id to match insertion order)
-        $insertedIds = DB::connection('danish')->table('booking')
+        $insertedIds = DB::connection('booking')->table('booking')
             ->orderBy('id', 'asc')
             ->pluck('id')
             ->toArray();
@@ -139,12 +139,12 @@ class BookingSeeder extends Seeder
         // Insert pivot records in small chunks
         $pivotChunks = array_chunk($pivotRecords, $chunkSize);
         foreach ($pivotChunks as $idx => $chunk) {
-            DB::connection('danish')->table('animal_booking')->insert($chunk);
+            DB::connection('booking')->table('animal_booking')->insert($chunk);
         }
 
         // Quick stats
-        $totalBookings = DB::connection('danish')->table('booking')->count();
-        $totalPivots = DB::connection('danish')->table('animal_booking')->count();
+        $totalBookings = DB::connection('booking')->table('booking')->count();
+        $totalPivots = DB::connection('booking')->table('animal_booking')->count();
 
         $this->command->info('');
         $this->command->info('=== Booking Seeder Complete ===');

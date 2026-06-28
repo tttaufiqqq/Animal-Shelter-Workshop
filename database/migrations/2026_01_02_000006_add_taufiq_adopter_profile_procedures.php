@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
@@ -13,7 +13,7 @@ return new class extends Migration
         // ==========================================
         // ADOPTER PROFILE UPSERT PROCEDURE
         // ==========================================
-        DB::connection('taufiq')->unprepared("
+        DB::connection('users')->unprepared("
             CREATE OR REPLACE FUNCTION sp_adopter_profile_upsert(
                 p_adopter_id BIGINT,
                 p_housing_type VARCHAR,
@@ -96,7 +96,7 @@ return new class extends Migration
         // ==========================================
         // ADOPTER PROFILE READ PROCEDURE
         // ==========================================
-        DB::connection('taufiq')->unprepared("
+        DB::connection('users')->unprepared("
             CREATE OR REPLACE FUNCTION sp_adopter_profile_read(p_adopter_id BIGINT)
             RETURNS TABLE(
                 id BIGINT,
@@ -127,7 +127,7 @@ return new class extends Migration
         // ==========================================
         // ADOPTER PROFILE DELETE PROCEDURE
         // ==========================================
-        DB::connection('taufiq')->unprepared("
+        DB::connection('users')->unprepared("
             CREATE OR REPLACE FUNCTION sp_adopter_profile_delete(
                 p_adopter_id BIGINT,
                 p_audit_user_id BIGINT,
@@ -173,8 +173,8 @@ return new class extends Migration
      */
     public function down(): void
     {
-        DB::connection('taufiq')->unprepared('DROP FUNCTION IF EXISTS sp_adopter_profile_upsert');
-        DB::connection('taufiq')->unprepared('DROP FUNCTION IF EXISTS sp_adopter_profile_read');
-        DB::connection('taufiq')->unprepared('DROP FUNCTION IF EXISTS sp_adopter_profile_delete');
+        DB::connection('users')->unprepared('DROP FUNCTION IF EXISTS sp_adopter_profile_upsert');
+        DB::connection('users')->unprepared('DROP FUNCTION IF EXISTS sp_adopter_profile_read');
+        DB::connection('users')->unprepared('DROP FUNCTION IF EXISTS sp_adopter_profile_delete');
     }
 };

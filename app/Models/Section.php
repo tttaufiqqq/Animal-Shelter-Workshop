@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 namespace App\Models;
 
@@ -10,7 +10,7 @@ class Section extends Model
     use HasFactory;
 
     // Specify the database connection for this model (Atiqah's database)
-    protected $connection = 'atiqah';
+    protected $connection = 'shelter';
 
     protected $table = 'section';
 

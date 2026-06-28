@@ -1,11 +1,11 @@
-<?php
+﻿<?php
 
 namespace App\Services;
 
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
-class AtiqahProcedureService
+class ShelterProcedureService
 {
     /**
      * Set audit context variables for MySQL triggers
@@ -14,10 +14,10 @@ class AtiqahProcedureService
     {
         $user = Auth::user();
 
-        DB::connection('atiqah')->statement('SET @audit_user_id = ?', [$user->id ?? null]);
-        DB::connection('atiqah')->statement('SET @audit_user_name = ?', [$user->name ?? null]);
-        DB::connection('atiqah')->statement('SET @audit_user_email = ?', [$user->email ?? null]);
-        DB::connection('atiqah')->statement('SET @audit_user_role = ?', [$user ? $user->getRoleNames()->first() : null]);
+        DB::connection('shelter')->statement('SET @audit_user_id = ?', [$user->id ?? null]);
+        DB::connection('shelter')->statement('SET @audit_user_name = ?', [$user->name ?? null]);
+        DB::connection('shelter')->statement('SET @audit_user_email = ?', [$user->email ?? null]);
+        DB::connection('shelter')->statement('SET @audit_user_role = ?', [$user ? $user->getRoleNames()->first() : null]);
     }
 
     // ==========================================
@@ -36,7 +36,7 @@ class AtiqahProcedureService
 
         $user = Auth::user();
 
-        DB::connection('atiqah')->statement('CALL sp_section_create(?, ?, ?, ?, ?, @o_section_id, @o_status, @o_message)', [
+        DB::connection('shelter')->statement('CALL sp_section_create(?, ?, ?, ?, ?, @o_section_id, @o_status, @o_message)', [
             $data['name'],
             $data['description'],
             $user->id ?? null,
@@ -44,7 +44,7 @@ class AtiqahProcedureService
             $user->email ?? null,
         ]);
 
-        $result = DB::connection('atiqah')->select('SELECT @o_section_id as section_id, @o_status as status, @o_message as message')[0];
+        $result = DB::connection('shelter')->select('SELECT @o_section_id as section_id, @o_status as status, @o_message as message')[0];
 
         return [
             'success' => $result->status === 'success',
@@ -61,9 +61,9 @@ class AtiqahProcedureService
      */
     public function readSection(int $sectionId): ?object
     {
-        DB::connection('atiqah')->statement('CALL sp_section_read(?)', [$sectionId]);
+        DB::connection('shelter')->statement('CALL sp_section_read(?)', [$sectionId]);
 
-        $result = DB::connection('atiqah')->select('SELECT * FROM section WHERE id = ?', [$sectionId]);
+        $result = DB::connection('shelter')->select('SELECT * FROM section WHERE id = ?', [$sectionId]);
 
         return $result[0] ?? null;
     }
@@ -81,7 +81,7 @@ class AtiqahProcedureService
 
         $user = Auth::user();
 
-        DB::connection('atiqah')->statement('CALL sp_section_update(?, ?, ?, ?, ?, ?, @o_status, @o_message)', [
+        DB::connection('shelter')->statement('CALL sp_section_update(?, ?, ?, ?, ?, ?, @o_status, @o_message)', [
             $sectionId,
             $data['name'],
             $data['description'],
@@ -90,7 +90,7 @@ class AtiqahProcedureService
             $user->email ?? null,
         ]);
 
-        $result = DB::connection('atiqah')->select('SELECT @o_status as status, @o_message as message')[0];
+        $result = DB::connection('shelter')->select('SELECT @o_status as status, @o_message as message')[0];
 
         return [
             'success' => $result->status === 'success',
@@ -110,14 +110,14 @@ class AtiqahProcedureService
 
         $user = Auth::user();
 
-        DB::connection('atiqah')->statement('CALL sp_section_delete(?, ?, ?, ?, @o_has_slots, @o_status, @o_message)', [
+        DB::connection('shelter')->statement('CALL sp_section_delete(?, ?, ?, ?, @o_has_slots, @o_status, @o_message)', [
             $sectionId,
             $user->id ?? null,
             $user->name ?? null,
             $user->email ?? null,
         ]);
 
-        $result = DB::connection('atiqah')->select('SELECT @o_has_slots as has_slots, @o_status as status, @o_message as message')[0];
+        $result = DB::connection('shelter')->select('SELECT @o_has_slots as has_slots, @o_status as status, @o_message as message')[0];
 
         return [
             'success' => $result->status === 'success',
@@ -142,7 +142,7 @@ class AtiqahProcedureService
 
         $user = Auth::user();
 
-        DB::connection('atiqah')->statement('CALL sp_slot_create(?, ?, ?, ?, ?, ?, ?, @o_slot_id, @o_status, @o_message)', [
+        DB::connection('shelter')->statement('CALL sp_slot_create(?, ?, ?, ?, ?, ?, ?, @o_slot_id, @o_status, @o_message)', [
             $data['name'],
             $data['sectionID'],
             $data['capacity'],
@@ -152,7 +152,7 @@ class AtiqahProcedureService
             $user->email ?? null,
         ]);
 
-        $result = DB::connection('atiqah')->select('SELECT @o_slot_id as slot_id, @o_status as status, @o_message as message')[0];
+        $result = DB::connection('shelter')->select('SELECT @o_slot_id as slot_id, @o_status as status, @o_message as message')[0];
 
         return [
             'success' => $result->status === 'success',
@@ -169,9 +169,9 @@ class AtiqahProcedureService
      */
     public function readSlot(int $slotId): ?object
     {
-        DB::connection('atiqah')->statement('CALL sp_slot_read(?)', [$slotId]);
+        DB::connection('shelter')->statement('CALL sp_slot_read(?)', [$slotId]);
 
-        $result = DB::connection('atiqah')->select('SELECT * FROM slot WHERE id = ?', [$slotId]);
+        $result = DB::connection('shelter')->select('SELECT * FROM slot WHERE id = ?', [$slotId]);
 
         return $result[0] ?? null;
     }
@@ -189,7 +189,7 @@ class AtiqahProcedureService
 
         $user = Auth::user();
 
-        DB::connection('atiqah')->statement('CALL sp_slot_update(?, ?, ?, ?, ?, ?, ?, ?, @o_status, @o_message)', [
+        DB::connection('shelter')->statement('CALL sp_slot_update(?, ?, ?, ?, ?, ?, ?, ?, @o_status, @o_message)', [
             $slotId,
             $data['name'],
             $data['sectionID'],
@@ -200,7 +200,7 @@ class AtiqahProcedureService
             $user->email ?? null,
         ]);
 
-        $result = DB::connection('atiqah')->select('SELECT @o_status as status, @o_message as message')[0];
+        $result = DB::connection('shelter')->select('SELECT @o_status as status, @o_message as message')[0];
 
         return [
             'success' => $result->status === 'success',
@@ -220,14 +220,14 @@ class AtiqahProcedureService
 
         $user = Auth::user();
 
-        DB::connection('atiqah')->statement('CALL sp_slot_delete(?, ?, ?, ?, @o_has_animals, @o_animal_count, @o_status, @o_message)', [
+        DB::connection('shelter')->statement('CALL sp_slot_delete(?, ?, ?, ?, @o_has_animals, @o_animal_count, @o_status, @o_message)', [
             $slotId,
             $user->id ?? null,
             $user->name ?? null,
             $user->email ?? null,
         ]);
 
-        $result = DB::connection('atiqah')->select('SELECT @o_has_animals as has_animals, @o_animal_count as animal_count, @o_status as status, @o_message as message')[0];
+        $result = DB::connection('shelter')->select('SELECT @o_has_animals as has_animals, @o_animal_count as animal_count, @o_status as status, @o_message as message')[0];
 
         return [
             'success' => $result->status === 'success',
@@ -253,7 +253,7 @@ class AtiqahProcedureService
 
         $user = Auth::user();
 
-        DB::connection('atiqah')->statement('CALL sp_category_create(?, ?, ?, ?, ?, @o_category_id, @o_status, @o_message)', [
+        DB::connection('shelter')->statement('CALL sp_category_create(?, ?, ?, ?, ?, @o_category_id, @o_status, @o_message)', [
             $data['main'],
             $data['sub'],
             $user->id ?? null,
@@ -261,7 +261,7 @@ class AtiqahProcedureService
             $user->email ?? null,
         ]);
 
-        $result = DB::connection('atiqah')->select('SELECT @o_category_id as category_id, @o_status as status, @o_message as message')[0];
+        $result = DB::connection('shelter')->select('SELECT @o_category_id as category_id, @o_status as status, @o_message as message')[0];
 
         return [
             'success' => $result->status === 'success',
@@ -278,9 +278,9 @@ class AtiqahProcedureService
      */
     public function readCategory(int $categoryId): ?object
     {
-        DB::connection('atiqah')->statement('CALL sp_category_read(?)', [$categoryId]);
+        DB::connection('shelter')->statement('CALL sp_category_read(?)', [$categoryId]);
 
-        $result = DB::connection('atiqah')->select('SELECT * FROM category WHERE id = ?', [$categoryId]);
+        $result = DB::connection('shelter')->select('SELECT * FROM category WHERE id = ?', [$categoryId]);
 
         return $result[0] ?? null;
     }
@@ -298,7 +298,7 @@ class AtiqahProcedureService
 
         $user = Auth::user();
 
-        DB::connection('atiqah')->statement('CALL sp_category_update(?, ?, ?, ?, ?, ?, @o_status, @o_message)', [
+        DB::connection('shelter')->statement('CALL sp_category_update(?, ?, ?, ?, ?, ?, @o_status, @o_message)', [
             $categoryId,
             $data['main'],
             $data['sub'],
@@ -307,7 +307,7 @@ class AtiqahProcedureService
             $user->email ?? null,
         ]);
 
-        $result = DB::connection('atiqah')->select('SELECT @o_status as status, @o_message as message')[0];
+        $result = DB::connection('shelter')->select('SELECT @o_status as status, @o_message as message')[0];
 
         return [
             'success' => $result->status === 'success',
@@ -327,14 +327,14 @@ class AtiqahProcedureService
 
         $user = Auth::user();
 
-        DB::connection('atiqah')->statement('CALL sp_category_delete(?, ?, ?, ?, @o_has_inventories, @o_status, @o_message)', [
+        DB::connection('shelter')->statement('CALL sp_category_delete(?, ?, ?, ?, @o_has_inventories, @o_status, @o_message)', [
             $categoryId,
             $user->id ?? null,
             $user->name ?? null,
             $user->email ?? null,
         ]);
 
-        $result = DB::connection('atiqah')->select('SELECT @o_has_inventories as has_inventories, @o_status as status, @o_message as message')[0];
+        $result = DB::connection('shelter')->select('SELECT @o_has_inventories as has_inventories, @o_status as status, @o_message as message')[0];
 
         return [
             'success' => $result->status === 'success',
@@ -359,7 +359,7 @@ class AtiqahProcedureService
 
         $user = Auth::user();
 
-        DB::connection('atiqah')->statement('CALL sp_inventory_create(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, @o_inventory_id, @o_status, @o_message)', [
+        DB::connection('shelter')->statement('CALL sp_inventory_create(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, @o_inventory_id, @o_status, @o_message)', [
             $data['slotID'],
             $data['item_name'],
             $data['categoryID'],
@@ -372,7 +372,7 @@ class AtiqahProcedureService
             $user->email ?? null,
         ]);
 
-        $result = DB::connection('atiqah')->select('SELECT @o_inventory_id as inventory_id, @o_status as status, @o_message as message')[0];
+        $result = DB::connection('shelter')->select('SELECT @o_inventory_id as inventory_id, @o_status as status, @o_message as message')[0];
 
         return [
             'success' => $result->status === 'success',
@@ -389,9 +389,9 @@ class AtiqahProcedureService
      */
     public function readInventory(int $inventoryId): ?object
     {
-        DB::connection('atiqah')->statement('CALL sp_inventory_read(?)', [$inventoryId]);
+        DB::connection('shelter')->statement('CALL sp_inventory_read(?)', [$inventoryId]);
 
-        $result = DB::connection('atiqah')->select('SELECT * FROM inventory WHERE id = ?', [$inventoryId]);
+        $result = DB::connection('shelter')->select('SELECT * FROM inventory WHERE id = ?', [$inventoryId]);
 
         return $result[0] ?? null;
     }
@@ -409,7 +409,7 @@ class AtiqahProcedureService
 
         $user = Auth::user();
 
-        DB::connection('atiqah')->statement('CALL sp_inventory_update(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, @o_status, @o_message)', [
+        DB::connection('shelter')->statement('CALL sp_inventory_update(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, @o_status, @o_message)', [
             $inventoryId,
             $data['item_name'],
             $data['categoryID'],
@@ -422,7 +422,7 @@ class AtiqahProcedureService
             $user->email ?? null,
         ]);
 
-        $result = DB::connection('atiqah')->select('SELECT @o_status as status, @o_message as message')[0];
+        $result = DB::connection('shelter')->select('SELECT @o_status as status, @o_message as message')[0];
 
         return [
             'success' => $result->status === 'success',
@@ -442,14 +442,14 @@ class AtiqahProcedureService
 
         $user = Auth::user();
 
-        DB::connection('atiqah')->statement('CALL sp_inventory_delete(?, ?, ?, ?, @o_status, @o_message)', [
+        DB::connection('shelter')->statement('CALL sp_inventory_delete(?, ?, ?, ?, @o_status, @o_message)', [
             $inventoryId,
             $user->id ?? null,
             $user->name ?? null,
             $user->email ?? null,
         ]);
 
-        $result = DB::connection('atiqah')->select('SELECT @o_status as status, @o_message as message')[0];
+        $result = DB::connection('shelter')->select('SELECT @o_status as status, @o_message as message')[0];
 
         return [
             'success' => $result->status === 'success',

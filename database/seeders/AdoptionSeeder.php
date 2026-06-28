@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 namespace Database\Seeders;
 
@@ -23,7 +23,7 @@ class AdoptionSeeder extends Seeder
         // Check Atiqah availability
         $atiqahAvailable = false;
         try {
-            DB::connection('atiqah')->getPdo();
+            DB::connection('shelter')->getPdo();
             $atiqahAvailable = true;
             $this->command->info('Atiqah: ONLINE');
         } catch (\Exception $e) {
@@ -31,7 +31,7 @@ class AdoptionSeeder extends Seeder
         }
 
         // Get completed bookings
-        $completedBookings = DB::connection('danish')->table('booking')
+        $completedBookings = DB::connection('booking')->table('booking')
             ->where('status', 'Completed')
             ->orderBy('id', 'asc')
             ->get();
@@ -44,7 +44,7 @@ class AdoptionSeeder extends Seeder
 
         // Get animal-booking relationships
         $bookingIds = $completedBookings->pluck('id')->toArray();
-        $animalBookings = DB::connection('danish')->table('animal_booking')
+        $animalBookings = DB::connection('booking')->table('animal_booking')
             ->whereIn('bookingID', $bookingIds)
             ->get();
 
@@ -56,18 +56,18 @@ class AdoptionSeeder extends Seeder
 
         // Get all animal data
         $allAnimalIds = $animalBookings->pluck('animalID')->unique()->toArray();
-        $animalsData = DB::connection('shafiqah')->table('animal')
+        $animalsData = DB::connection('animals')->table('animal')
             ->whereIn('id', $allAnimalIds)
             ->get()->keyBy('id');
 
         // Get medical/vaccination counts
-        $medicalCounts = DB::connection('shafiqah')->table('medical')
+        $medicalCounts = DB::connection('animals')->table('medical')
             ->whereIn('animalID', $allAnimalIds)
             ->selectRaw('animalID, COUNT(*) as cnt')
             ->groupBy('animalID')
             ->pluck('cnt', 'animalID')->toArray();
 
-        $vaccinationCounts = DB::connection('shafiqah')->table('vaccination')
+        $vaccinationCounts = DB::connection('animals')->table('vaccination')
             ->whereIn('animalID', $allAnimalIds)
             ->selectRaw('animalID, COUNT(*) as cnt')
             ->groupBy('animalID')
@@ -166,12 +166,12 @@ class AdoptionSeeder extends Seeder
         $chunkSize = 50;
         $transChunks = array_chunk($allTransactions, $chunkSize);
         foreach ($transChunks as $idx => $chunk) {
-            DB::connection('danish')->table('transaction')->insert($chunk);
+            DB::connection('booking')->table('transaction')->insert($chunk);
         }
 
         // Get transaction IDs by bill_code
         $billCodes = array_column($transactionMeta, 'billCode');
-        $insertedTrans = DB::connection('danish')->table('transaction')
+        $insertedTrans = DB::connection('booking')->table('transaction')
             ->whereIn('bill_code', $billCodes)
             ->get(['id', 'bill_code'])
             ->keyBy('bill_code');
@@ -206,7 +206,7 @@ class AdoptionSeeder extends Seeder
         // Insert adoptions
         $adoptionChunks = array_chunk($allAdoptions, $chunkSize);
         foreach ($adoptionChunks as $chunk) {
-            DB::connection('danish')->table('adoption')->insert($chunk);
+            DB::connection('booking')->table('adoption')->insert($chunk);
         }
 
         $this->command->info('Updating animal statuses in Shafiqah...');
@@ -214,7 +214,7 @@ class AdoptionSeeder extends Seeder
         // Update animals in Shafiqah (small chunks)
         $animalChunks = array_chunk($adoptedAnimalIds, $chunkSize);
         foreach ($animalChunks as $chunk) {
-            DB::connection('shafiqah')->table('animal')
+            DB::connection('animals')->table('animal')
                 ->whereIn('id', $chunk)
                 ->update([
                     'adoption_status' => 'Adopted',
@@ -228,11 +228,11 @@ class AdoptionSeeder extends Seeder
             $uniqueSlots = array_unique($affectedSlotIds);
             $this->command->info("Updating " . count($uniqueSlots) . " slots in Atiqah...");
 
-            $slots = DB::connection('atiqah')->table('slot')
+            $slots = DB::connection('shelter')->table('slot')
                 ->whereIn('id', $uniqueSlots)
                 ->get(['id', 'capacity'])->keyBy('id');
 
-            $animalCounts = DB::connection('shafiqah')->table('animal')
+            $animalCounts = DB::connection('animals')->table('animal')
                 ->whereIn('slotID', $uniqueSlots)
                 ->selectRaw('slotID, COUNT(*) as cnt')
                 ->groupBy('slotID')
@@ -247,7 +247,7 @@ class AdoptionSeeder extends Seeder
             }
 
             if (!empty($slotsToFree)) {
-                DB::connection('atiqah')->table('slot')
+                DB::connection('shelter')->table('slot')
                     ->whereIn('id', $slotsToFree)
                     ->update(['status' => 'available', 'updated_at' => now()]);
             }
@@ -256,8 +256,8 @@ class AdoptionSeeder extends Seeder
         }
 
         // Stats
-        $totalAdoptions = DB::connection('danish')->table('adoption')->count();
-        $totalTrans = DB::connection('danish')->table('transaction')->count();
+        $totalAdoptions = DB::connection('booking')->table('adoption')->count();
+        $totalTrans = DB::connection('booking')->table('transaction')->count();
 
         $this->command->info('');
         $this->command->info('=== Adoption Seeder Complete ===');

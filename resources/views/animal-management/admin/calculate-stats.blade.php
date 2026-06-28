@@ -1,4 +1,4 @@
-@php
+﻿@php
 /**
  * Admin Dashboard Statistics Calculator
  *
@@ -34,7 +34,7 @@ if (!isset($animals)) {
     // Try to fetch statistics with fault tolerance
     try {
         // Test database connection first
-        \DB::connection('shafiqah')->getPdo();
+        \DB::connection('animals')->getPdo();
 
         // Calculate core statistics
         $stats['totalAnimals'] = $animals->total();
@@ -64,7 +64,7 @@ if (!isset($animals)) {
 
         // Log the error for admin awareness
         \Log::warning('Animal Management Admin: Database connection failed', [
-            'connection' => 'shafiqah',
+            'connection' => 'animals',
             'error' => $e->getMessage(),
         ]);
     }

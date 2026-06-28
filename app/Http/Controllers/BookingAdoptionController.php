@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 namespace App\Http\Controllers;
 
@@ -33,7 +33,7 @@ class BookingAdoptionController extends Controller
         }
 
         // Check if shafiqah database is available
-        if (!$this->isDatabaseAvailable('shafiqah')) {
+        if (!$this->isDatabaseAvailable('animals')) {
             // Set empty animals collection for each booking
             $bookings->each(function($booking) {
                 $booking->setRelation('animals', collect([]));
@@ -86,12 +86,12 @@ class BookingAdoptionController extends Controller
     private function loadAnimalsForVisitList($visitList, $withRelations = [])
     {
         // Check if shafiqah database is available
-        if (!$this->isDatabaseAvailable('shafiqah')) {
+        if (!$this->isDatabaseAvailable('animals')) {
             return collect([]);
         }
 
         // Get animal IDs from the pivot table (on danish database)
-        $animalIds = DB::connection('danish')
+        $animalIds = DB::connection('booking')
             ->table('visit_list_animal')
             ->where('listID', $visitList->id)
             ->pluck('animalID')
@@ -133,7 +133,7 @@ class BookingAdoptionController extends Controller
 
         // Step 2: Get animal IDs from pivot table for these bookings (danish database)
         $bookingIds = $conflictingBookings->pluck('id')->toArray();
-        $conflictingAnimalIds = DB::connection('danish')
+        $conflictingAnimalIds = DB::connection('booking')
             ->table('animal_booking')
             ->whereIn('bookingID', $bookingIds)
             ->whereIn('animalID', $animalIds) // Only check animals in our input list
@@ -146,7 +146,7 @@ class BookingAdoptionController extends Controller
         }
 
         // Step 3: Load animals from shafiqah database
-        if (!$this->isDatabaseAvailable('shafiqah')) {
+        if (!$this->isDatabaseAvailable('animals')) {
             return collect([]);
         }
 
@@ -155,7 +155,7 @@ class BookingAdoptionController extends Controller
         // Step 4: Attach booking information to each animal
         $animals->each(function($animal) use ($conflictingBookings, $bookingIds) {
             // Find which bookings this animal is in
-            $animalBookingIds = DB::connection('danish')
+            $animalBookingIds = DB::connection('booking')
                 ->table('animal_booking')
                 ->where('animalID', $animal->id)
                 ->whereIn('bookingID', $bookingIds)
@@ -205,7 +205,7 @@ class BookingAdoptionController extends Controller
                 ->where('userID', auth()->id())
                 ->orderBy('appointment_date', 'desc')->get(),
             collect([]),
-            'danish'
+            'booking'
         );
 
         return view('booking-adoption.main', compact('bookings'));
@@ -230,12 +230,12 @@ class BookingAdoptionController extends Controller
             $withRelations = [];
 
             // Add images if eilya is online
-            if ($this->isDatabaseAvailable('eilya')) {
+            if ($this->isDatabaseAvailable('reporting')) {
                 $withRelations[] = 'images';
             }
 
             // Add bookings if danish is online
-            if ($this->isDatabaseAvailable('danish')) {
+            if ($this->isDatabaseAvailable('booking')) {
                 $withRelations['bookings'] = function($query) use ($user) {
                     $query->where('userID', $user->id)
                         ->where('status', 'Pending')
@@ -244,7 +244,7 @@ class BookingAdoptionController extends Controller
             }
 
             return $this->loadAnimalsForVisitList($visitList, $withRelations);
-        }, collect([]), 'danish');
+        }, collect([]), 'booking');
 
         return view('booking-adoption.visit-list', compact('animals'));
     }
@@ -260,7 +260,7 @@ class BookingAdoptionController extends Controller
         $animal = $this->safeQuery(
             fn() => Animal::find($animalId),
             null,
-            'shafiqah'
+            'animals'
         );
 
         if (!$animal) {
@@ -279,7 +279,7 @@ class BookingAdoptionController extends Controller
 
             // ===== CHECK: Prevent duplicate in visit list =====
             // Query pivot table directly to avoid cross-database JOIN
-            $exists = DB::connection('danish')
+            $exists = DB::connection('booking')
                 ->table('visit_list_animal')
                 ->where('listID', $visitList->id)
                 ->where('animalID', $animalId)
@@ -291,7 +291,7 @@ class BookingAdoptionController extends Controller
             // ===== END CHECK =====
 
             // Attach to pivot table directly (no JOIN needed for attach)
-            DB::connection('danish')
+            DB::connection('booking')
                 ->table('visit_list_animal')
                 ->insert([
                     'listID' => $visitList->id,
@@ -301,7 +301,7 @@ class BookingAdoptionController extends Controller
                 ]);
 
             return ['success' => "{$animal->name} has been added to your visit list. You can view the list at the top right"];
-        }, ['error' => 'Database connection unavailable. Please try again later.'], 'danish');
+        }, ['error' => 'Database connection unavailable. Please try again later.'], 'booking');
 
         if (isset($result['error'])) {
             return back()->with('error', $result['error']);
@@ -325,16 +325,16 @@ class BookingAdoptionController extends Controller
             ]);
 
             // Direct database operation with proper transaction
-            DB::connection('danish')->beginTransaction();
+            DB::connection('booking')->beginTransaction();
 
             try {
                 // Find the visit list directly from Danish database
-                $visitList = VisitList::on('danish')
+                $visitList = VisitList::on('booking')
                     ->where('userID', $userId)
                     ->first();
 
                 if (!$visitList) {
-                    DB::connection('danish')->rollBack();
+                    DB::connection('booking')->rollBack();
                     \Log::warning('Visit list not found', ['user_id' => $userId]);
                     return back()->with('error', 'Visit list not found.');
                 }
@@ -342,7 +342,7 @@ class BookingAdoptionController extends Controller
                 \Log::info('Visit list found', ['visit_list_id' => $visitList->id]);
 
                 // Detach the animal from visit list using the pivot table
-                DB::connection('danish')
+                DB::connection('booking')
                     ->table('visit_list_animal')
                     ->where('listID', $visitList->id)
                     ->where('animalID', $animalId)
@@ -353,7 +353,7 @@ class BookingAdoptionController extends Controller
                     'animal_id' => $animalId
                 ]);
 
-                DB::connection('danish')->commit();
+                DB::connection('booking')->commit();
 
                 return back()->with([
                     'success' => 'Animal removed from your visit list.',
@@ -361,7 +361,7 @@ class BookingAdoptionController extends Controller
                 ]);
 
             } catch (\Exception $e) {
-                DB::connection('danish')->rollBack();
+                DB::connection('booking')->rollBack();
                 \Log::error('Database error in removeList transaction', [
                     'error' => $e->getMessage(),
                     'trace' => $e->getTraceAsString()
@@ -423,7 +423,7 @@ class BookingAdoptionController extends Controller
             }
 
             // Get animal IDs from pivot table directly (avoid cross-database JOIN)
-            $visitListAnimalIds = DB::connection('danish')
+            $visitListAnimalIds = DB::connection('booking')
                 ->table('visit_list_animal')
                 ->where('listID', $visitList->id)
                 ->pluck('animalID')
@@ -535,7 +535,7 @@ class BookingAdoptionController extends Controller
 
             // Use database transaction to ensure data integrity
             // All operations are on danish database (Booking, VisitList, pivot tables)
-            DB::connection('danish')->beginTransaction();
+            DB::connection('booking')->beginTransaction();
 
             try {
                 // Create new booking
@@ -553,7 +553,7 @@ class BookingAdoptionController extends Controller
                 AuditService::log('payment', 'booking_created', [
                     'entity_type' => 'Booking',
                     'entity_id' => $booking->id,
-                    'source_database' => 'danish',
+                    'source_database' => 'booking',
                     'metadata' => [
                         'appointment_date' => $appointmentDate,
                         'appointment_time' => $appointmentTime,
@@ -577,7 +577,7 @@ class BookingAdoptionController extends Controller
                 \Log::info('Attached animals to booking', ['count' => count($animalData)]);
 
                 // Remove the confirmed animals from the visit list
-                DB::connection('danish')
+                DB::connection('booking')
                     ->table('visit_list_animal')
                     ->where('listID', $visitList->id)
                     ->whereIn('animalID', $validated['animal_ids'])
@@ -585,7 +585,7 @@ class BookingAdoptionController extends Controller
                 \Log::info('Removed animals from visit list');
 
                 // If visit list has no more animals, delete it
-                $remainingCount = DB::connection('danish')
+                $remainingCount = DB::connection('booking')
                     ->table('visit_list_animal')
                     ->where('listID', $visitList->id)
                     ->count();
@@ -595,14 +595,14 @@ class BookingAdoptionController extends Controller
                     \Log::info('Deleted empty visit list');
                 }
 
-                DB::connection('danish')->commit();
+                DB::connection('booking')->commit();
                 \Log::info('=== CONFIRM APPOINTMENT COMPLETED SUCCESSFULLY ===');
 
                 return redirect()->route('animal-management.index')
                     ->with('success', 'Your visit appointment has been scheduled! View them at My Booking tab');
 
             } catch (\Illuminate\Database\QueryException $e) {
-                DB::connection('danish')->rollBack();
+                DB::connection('booking')->rollBack();
 
                 // Check if it's a unique constraint violation
                 if ($e->getCode() == 23000 || strpos($e->getMessage(), 'unique') !== false) {
@@ -631,8 +631,8 @@ class BookingAdoptionController extends Controller
                 ->with('open_visit_modal', true);
 
         } catch (\Exception $e) {
-            if (DB::connection('danish')->transactionLevel() > 0) {
-                DB::connection('danish')->rollBack();
+            if (DB::connection('booking')->transactionLevel() > 0) {
+                DB::connection('booking')->rollBack();
             }
 
             \Log::error('Booking Confirmation Error: ' . $e->getMessage(), [
@@ -650,9 +650,9 @@ class BookingAdoptionController extends Controller
     {
         $result = $this->safeQuery(function() use ($request) {
             // Check which databases are available for conditional loading
-            $shafiqahOnline = $this->isDatabaseAvailable('shafiqah');
-            $eilyaOnline = $this->isDatabaseAvailable('eilya');
-            $taufiqOnline = $this->isDatabaseAvailable('taufiq');
+            $shafiqahOnline = $this->isDatabaseAvailable('animals');
+            $eilyaOnline = $this->isDatabaseAvailable('reporting');
+            $taufiqOnline = $this->isDatabaseAvailable('users');
 
             // Build relationships array based on database availability
             $relationships = [];
@@ -713,7 +713,7 @@ class BookingAdoptionController extends Controller
 
             // Count statuses for this user only
             $statusCounts = Booking::where('userID', Auth::id())
-                ->select('status', DB::connection('danish')->raw('COUNT(*) as total'))
+                ->select('status', DB::connection('booking')->raw('COUNT(*) as total'))
                 ->groupBy('status')
                 ->pluck('total', 'status');
 
@@ -725,7 +725,7 @@ class BookingAdoptionController extends Controller
             'bookings' => new \Illuminate\Pagination\LengthAwarePaginator([], 0, 40),
             'statusCounts' => collect([]),
             'totalBookings' => 0
-        ], 'danish'); // Pre-check danish database
+        ], 'booking'); // Pre-check danish database
 
         return view('booking-adoption.main', $result);
     }
@@ -737,9 +737,9 @@ class BookingAdoptionController extends Controller
     {
         $result = $this->safeQuery(function() use ($request) {
             // Check which databases are available for conditional loading
-            $shafiqahOnline = $this->isDatabaseAvailable('shafiqah');
-            $eilyaOnline = $this->isDatabaseAvailable('eilya');
-            $taufiqOnline = $this->isDatabaseAvailable('taufiq');
+            $shafiqahOnline = $this->isDatabaseAvailable('animals');
+            $eilyaOnline = $this->isDatabaseAvailable('reporting');
+            $taufiqOnline = $this->isDatabaseAvailable('users');
 
             // Build relationships array based on database availability
             $relationships = [];
@@ -768,7 +768,7 @@ class BookingAdoptionController extends Controller
                 $userSearch = $request->user_search;
 
                 // Get user IDs from taufiq database that match search
-                $userIds = DB::connection('taufiq')
+                $userIds = DB::connection('users')
                     ->table('users')
                     ->where(function($q) use ($userSearch) {
                         $q->where('name', 'LIKE', "%{$userSearch}%")
@@ -814,7 +814,7 @@ class BookingAdoptionController extends Controller
                 }
             });
 
-            $statusCounts = Booking::select('status', DB::connection('danish')->raw('COUNT(*) as total'))
+            $statusCounts = Booking::select('status', DB::connection('booking')->raw('COUNT(*) as total'))
                 ->groupBy('status')
                 ->pluck('total', 'status');
 
@@ -826,7 +826,7 @@ class BookingAdoptionController extends Controller
             'bookings' => new \Illuminate\Pagination\LengthAwarePaginator([], 0, 40),
             'statusCounts' => collect([]),
             'totalBookings' => 0
-        ], 'danish'); // Pre-check danish database
+        ], 'booking'); // Pre-check danish database
 
         return view('booking-adoption.admin', $result);
     }
@@ -874,7 +874,7 @@ class BookingAdoptionController extends Controller
             }
 
             // Get animal IDs from pivot table directly (avoid cross-database JOIN)
-            $bookingAnimalIds = DB::connection('danish')
+            $bookingAnimalIds = DB::connection('booking')
                 ->table('animal_booking')
                 ->where('bookingID', $booking->id)
                 ->pluck('animalID')
@@ -885,7 +885,7 @@ class BookingAdoptionController extends Controller
 
             // Load animals from shafiqah database
             $animals = collect([]);
-            if ($this->isDatabaseAvailable('shafiqah')) {
+            if ($this->isDatabaseAvailable('animals')) {
                 $animals = Animal::whereIn('id', $animalIds)
                     ->with(['medicals', 'vaccinations']) // eager load
                     ->get();
@@ -1172,13 +1172,13 @@ class BookingAdoptionController extends Controller
 
                 if ($booking) {
                     // Start transactions for cross-database updates
-                    DB::connection('danish')->beginTransaction();
-                    DB::connection('shafiqah')->beginTransaction();
+                    DB::connection('booking')->beginTransaction();
+                    DB::connection('animals')->beginTransaction();
 
                     // Check if atiqah (slots) database is available
-                    $atiqahOnline = $this->isDatabaseAvailable('atiqah');
+                    $atiqahOnline = $this->isDatabaseAvailable('shelter');
                     if ($atiqahOnline) {
-                        DB::connection('atiqah')->beginTransaction();
+                        DB::connection('shelter')->beginTransaction();
                     }
 
                     try {
@@ -1261,18 +1261,18 @@ class BookingAdoptionController extends Controller
                         }
 
                         // Commit all transactions
-                        DB::connection('danish')->commit();
-                        DB::connection('shafiqah')->commit();
+                        DB::connection('booking')->commit();
+                        DB::connection('animals')->commit();
                         if ($atiqahOnline) {
-                            DB::connection('atiqah')->commit();
+                            DB::connection('shelter')->commit();
                         }
 
                     } catch (\Exception $e) {
                         // Rollback all transactions
-                        DB::connection('danish')->rollBack();
-                        DB::connection('shafiqah')->rollBack();
+                        DB::connection('booking')->rollBack();
+                        DB::connection('animals')->rollBack();
                         if ($atiqahOnline) {
-                            DB::connection('atiqah')->rollBack();
+                            DB::connection('shelter')->rollBack();
                         }
                         throw $e;
                     }
@@ -1318,7 +1318,7 @@ class BookingAdoptionController extends Controller
                         AuditService::log('payment', 'adoption_completed', [
                             'entity_type' => 'Adoption',
                             'entity_id' => $adoption->id,
-                            'source_database' => 'danish',
+                            'source_database' => 'booking',
                             'metadata' => [
                                 'animal_id' => $animalId,
                                 'animal_name' => $animalName,
@@ -1435,13 +1435,13 @@ class BookingAdoptionController extends Controller
 
                     if ($booking && $statusId == 1) {
                         // Start transaction for cross-database updates
-                        DB::connection('danish')->beginTransaction();
-                        DB::connection('shafiqah')->beginTransaction();
+                        DB::connection('booking')->beginTransaction();
+                        DB::connection('animals')->beginTransaction();
 
                         // Check if atiqah (slots) database is available
-                        $atiqahOnline = $this->isDatabaseAvailable('atiqah');
+                        $atiqahOnline = $this->isDatabaseAvailable('shelter');
                         if ($atiqahOnline) {
-                            DB::connection('atiqah')->beginTransaction();
+                            DB::connection('shelter')->beginTransaction();
                         }
 
                         try {
@@ -1513,10 +1513,10 @@ class BookingAdoptionController extends Controller
                                 ]);
                             }
 
-                            DB::connection('danish')->commit();
-                            DB::connection('shafiqah')->commit();
+                            DB::connection('booking')->commit();
+                            DB::connection('animals')->commit();
                             if ($atiqahOnline) {
-                                DB::connection('atiqah')->commit();
+                                DB::connection('shelter')->commit();
                             }
 
                             Log::info('Callback: Booking Completed', [
@@ -1526,10 +1526,10 @@ class BookingAdoptionController extends Controller
                             ]);
 
                         } catch (\Exception $e) {
-                            DB::connection('danish')->rollBack();
-                            DB::connection('shafiqah')->rollBack();
+                            DB::connection('booking')->rollBack();
+                            DB::connection('animals')->rollBack();
                             if ($atiqahOnline) {
-                                DB::connection('atiqah')->rollBack();
+                                DB::connection('shelter')->rollBack();
                             }
                             throw $e;
                         }

@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 namespace App\Livewire;
 
@@ -37,7 +37,7 @@ class UserReportsTracker extends Component
                 ->select('id', 'report_status')
                 ->get(),
             collect([]),
-            'eilya'
+            'reporting'
         );
 
         foreach ($reports as $report) {
@@ -55,7 +55,7 @@ class UserReportsTracker extends Component
                 ->select('id', 'report_status')
                 ->get(),
             collect([]),
-            'eilya'
+            'reporting'
         );
 
         $changes = [];
@@ -122,7 +122,7 @@ class UserReportsTracker extends Component
                 ->orderBy('created_at', 'desc')
                 ->paginate(50),
             new \Illuminate\Pagination\LengthAwarePaginator([], 0, 50),
-            'eilya'
+            'reporting'
         );
 
         return view('livewire.user-reports-tracker', [

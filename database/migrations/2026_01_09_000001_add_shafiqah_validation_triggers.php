@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
@@ -13,7 +13,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        $connection = DB::connection('shafiqah');
+        $connection = DB::connection('animals');
 
         // ===========================
         // VET VALIDATION TRIGGERS
@@ -348,7 +348,7 @@ return new class extends Migration
      */
     public function down(): void
     {
-        $connection = DB::connection('shafiqah');
+        $connection = DB::connection('animals');
 
         // Drop all validation triggers
         $triggers = [

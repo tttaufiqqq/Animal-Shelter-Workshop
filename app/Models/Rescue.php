@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 namespace App\Models;
 
@@ -10,7 +10,7 @@ class Rescue extends Model
     use HasFactory;
 
     // Specify the database connection for this model (Eilya's database)
-    protected $connection = 'eilya';
+    protected $connection = 'reporting';
 
     protected $table = 'rescue';
 
@@ -48,7 +48,7 @@ class Rescue extends Model
      */
     public function caretaker()
     {
-        return $this->setConnection('taufiq')
+        return $this->setConnection('users')
             ->belongsTo(User::class, 'caretakerID', 'id');
     }
 
@@ -59,7 +59,7 @@ class Rescue extends Model
      */
     public function animals()
     {
-        return $this->setConnection('shafiqah')
+        return $this->setConnection('animals')
             ->hasMany(Animal::class, 'rescueID', 'id');
     }
 

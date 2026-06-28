@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 namespace App\Models;
 
@@ -10,7 +10,7 @@ class Animal extends Model
     use HasFactory;
 
     // Specify the database connection for this model (Shafiqah's database)
-    protected $connection = 'shafiqah';
+    protected $connection = 'animals';
 
     protected $table = 'animal';
 
@@ -44,7 +44,7 @@ class Animal extends Model
      */
     public function rescue()
     {
-        return $this->setConnection('eilya')
+        return $this->setConnection('reporting')
             ->belongsTo(Rescue::class, 'rescueID', 'id');
     }
 
@@ -54,7 +54,7 @@ class Animal extends Model
      */
     public function slot()
     {
-        return $this->setConnection('atiqah')
+        return $this->setConnection('shelter')
             ->belongsTo(Slot::class, 'slotID', 'id');
     }
 
@@ -80,7 +80,7 @@ class Animal extends Model
      */
     public function images()
     {
-        return $this->setConnection('eilya')
+        return $this->setConnection('reporting')
             ->hasMany(Image::class, 'animalID', 'id');
     }
 
@@ -94,7 +94,7 @@ class Animal extends Model
     {
         try {
             // Check if Eilya database is available
-            if (!app(\App\Services\DatabaseConnectionChecker::class)->isConnected('eilya')) {
+            if (!app(\App\Services\DatabaseConnectionChecker::class)->isConnected('reporting')) {
                 \Log::warning("Animal {$this->id}: Eilya database unavailable, returning empty images collection");
                 return collect([]);
             }
@@ -128,7 +128,7 @@ class Animal extends Model
      */
     public function animalBookings()
     {
-        return $this->setConnection('danish')
+        return $this->setConnection('booking')
             ->hasMany(AnimalBooking::class, 'animalID', 'id');
     }
 
@@ -139,7 +139,7 @@ class Animal extends Model
      */
     public function bookings()
     {
-        return $this->setConnection('danish')
+        return $this->setConnection('booking')
             ->belongsToMany(Booking::class, 'animal_booking', 'animalID', 'bookingID')
             ->using(AnimalBooking::class)
             ->withPivot('remarks')
@@ -153,7 +153,7 @@ class Animal extends Model
      */
     public function visitLists()
     {
-        return $this->setConnection('danish')
+        return $this->setConnection('booking')
             ->belongsToMany(VisitList::class, 'visit_list_animal', 'animalID', 'listID')
             ->using(VisitListAnimal::class)
             ->withPivot('remarks')

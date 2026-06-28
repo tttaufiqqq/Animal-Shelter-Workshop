@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         // Create sessions table in taufiq database (PostgreSQL)
-        Schema::connection('taufiq')->create('sessions', function (Blueprint $table) {
+        Schema::connection('users')->create('sessions', function (Blueprint $table) {
             $table->string('id')->primary();
             $table->foreignId('user_id')->nullable()->index();
             $table->string('ip_address', 45)->nullable();
@@ -27,6 +27,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::connection('taufiq')->dropIfExists('sessions');
+        Schema::connection('users')->dropIfExists('sessions');
     }
 };

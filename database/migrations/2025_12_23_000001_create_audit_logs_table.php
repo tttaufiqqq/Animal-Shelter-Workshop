@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
@@ -11,7 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::connection('taufiq')->create('audit_logs', function (Blueprint $table) {
+        Schema::connection('users')->create('audit_logs', function (Blueprint $table) {
             $table->id();
 
             // WHO performed the action
@@ -27,7 +27,7 @@ return new class extends Migration
             $table->unsignedBigInteger('entity_id')->nullable()->index(); // ID of the affected record
 
             // WHERE in the distributed system
-            $table->string('source_database', 20)->nullable(); // 'taufiq', 'eilya', 'shafiqah', 'atiqah', 'danish'
+            $table->string('source_database', 20)->nullable(); // 'users', 'reporting', 'animals', 'shelter', 'booking'
 
             // WHEN it happened
             $table->timestamp('performed_at')->index();
@@ -62,9 +62,9 @@ return new class extends Migration
         });
 
         // GIN indexes for JSONB querying (PostgreSQL specific)
-        DB::connection('taufiq')->statement('CREATE INDEX idx_audit_metadata ON audit_logs USING GIN (metadata)');
-        DB::connection('taufiq')->statement('CREATE INDEX idx_audit_old_values ON audit_logs USING GIN (old_values)');
-        DB::connection('taufiq')->statement('CREATE INDEX idx_audit_new_values ON audit_logs USING GIN (new_values)');
+        DB::connection('users')->statement('CREATE INDEX idx_audit_metadata ON audit_logs USING GIN (metadata)');
+        DB::connection('users')->statement('CREATE INDEX idx_audit_old_values ON audit_logs USING GIN (old_values)');
+        DB::connection('users')->statement('CREATE INDEX idx_audit_new_values ON audit_logs USING GIN (new_values)');
     }
 
     /**
@@ -72,6 +72,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::connection('taufiq')->dropIfExists('audit_logs');
+        Schema::connection('users')->dropIfExists('audit_logs');
     }
 };

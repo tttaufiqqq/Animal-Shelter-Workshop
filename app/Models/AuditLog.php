@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 namespace App\Models;
 
@@ -10,7 +10,7 @@ class AuditLog extends Model
      * The connection name for the model.
      * Always stored on taufiq (PostgreSQL) as it's always online.
      */
-    protected $connection = 'taufiq';
+    protected $connection = 'users';
 
     /**
      * The table associated with the model.

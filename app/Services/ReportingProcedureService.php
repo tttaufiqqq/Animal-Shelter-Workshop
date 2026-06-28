@@ -1,11 +1,11 @@
-<?php
+﻿<?php
 
 namespace App\Services;
 
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
-class EilyaProcedureService
+class ReportingProcedureService
 {
     /**
      * Set audit context variables for MySQL triggers
@@ -14,10 +14,10 @@ class EilyaProcedureService
     {
         $user = Auth::user();
 
-        DB::connection('eilya')->statement('SET @audit_user_id = ?', [$user->id ?? null]);
-        DB::connection('eilya')->statement('SET @audit_user_name = ?', [$user->name ?? null]);
-        DB::connection('eilya')->statement('SET @audit_user_email = ?', [$user->email ?? null]);
-        DB::connection('eilya')->statement('SET @audit_user_role = ?', [$user ? $user->getRoleNames()->first() : null]);
+        DB::connection('reporting')->statement('SET @audit_user_id = ?', [$user->id ?? null]);
+        DB::connection('reporting')->statement('SET @audit_user_name = ?', [$user->name ?? null]);
+        DB::connection('reporting')->statement('SET @audit_user_email = ?', [$user->email ?? null]);
+        DB::connection('reporting')->statement('SET @audit_user_role = ?', [$user ? $user->getRoleNames()->first() : null]);
     }
 
     // ==========================================
@@ -42,7 +42,7 @@ class EilyaProcedureService
             $fullDescription .= "\n\nAdditional Notes: ".$data['additional_notes'];
         }
 
-        DB::connection('eilya')->statement('CALL sp_report_create(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, @o_report_id, @o_status, @o_message)', [
+        DB::connection('reporting')->statement('CALL sp_report_create(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, @o_report_id, @o_status, @o_message)', [
             $data['latitude'],
             $data['longitude'],
             $data['address'],
@@ -55,7 +55,7 @@ class EilyaProcedureService
             $user->email ?? null,
         ]);
 
-        $result = DB::connection('eilya')->select('SELECT @o_report_id as report_id, @o_status as status, @o_message as message')[0];
+        $result = DB::connection('reporting')->select('SELECT @o_report_id as report_id, @o_status as status, @o_message as message')[0];
 
         return [
             'success' => $result->status === 'success',
@@ -72,9 +72,9 @@ class EilyaProcedureService
      */
     public function readReport(int $reportId): ?object
     {
-        DB::connection('eilya')->statement('CALL sp_report_read(?)', [$reportId]);
+        DB::connection('reporting')->statement('CALL sp_report_read(?)', [$reportId]);
 
-        $result = DB::connection('eilya')->select('SELECT * FROM report WHERE id = ?', [$reportId]);
+        $result = DB::connection('reporting')->select('SELECT * FROM report WHERE id = ?', [$reportId]);
 
         return $result[0] ?? null;
     }
@@ -89,7 +89,7 @@ class EilyaProcedureService
      */
     public function readPaginatedReports(array $filters, int $offset = 0, int $limit = 50): array
     {
-        DB::connection('eilya')->statement('CALL sp_report_read_paginated(?, ?, ?, ?, ?, @o_total_count)', [
+        DB::connection('reporting')->statement('CALL sp_report_read_paginated(?, ?, ?, ?, ?, @o_total_count)', [
             $filters['user_id'] ?? null,
             $filters['status'] ?? null,
             $filters['city'] ?? null,
@@ -98,10 +98,10 @@ class EilyaProcedureService
         ]);
 
         // Get total count
-        $totalResult = DB::connection('eilya')->select('SELECT @o_total_count as total')[0];
+        $totalResult = DB::connection('reporting')->select('SELECT @o_total_count as total')[0];
 
         // Get paginated data
-        $data = DB::connection('eilya')->select('
+        $data = DB::connection('reporting')->select('
             SELECT * FROM report
             WHERE (? IS NULL OR userID = ?)
               AND (? IS NULL OR report_status = ?)
@@ -134,7 +134,7 @@ class EilyaProcedureService
 
         $user = Auth::user();
 
-        DB::connection('eilya')->statement('CALL sp_report_update_status(?, ?, ?, ?, ?, @o_status, @o_message)', [
+        DB::connection('reporting')->statement('CALL sp_report_update_status(?, ?, ?, ?, ?, @o_status, @o_message)', [
             $reportId,
             $newStatus,
             $user->id ?? null,
@@ -142,7 +142,7 @@ class EilyaProcedureService
             $user->email ?? null,
         ]);
 
-        $result = DB::connection('eilya')->select('SELECT @o_status as status, @o_message as message')[0];
+        $result = DB::connection('reporting')->select('SELECT @o_status as status, @o_message as message')[0];
 
         return [
             'success' => $result->status === 'success',
@@ -162,14 +162,14 @@ class EilyaProcedureService
 
         $user = Auth::user();
 
-        DB::connection('eilya')->statement('CALL sp_report_delete(?, ?, ?, ?, @o_has_rescue, @o_status, @o_message)', [
+        DB::connection('reporting')->statement('CALL sp_report_delete(?, ?, ?, ?, @o_has_rescue, @o_status, @o_message)', [
             $reportId,
             $user->id ?? null,
             $user->name ?? null,
             $user->email ?? null,
         ]);
 
-        $result = DB::connection('eilya')->select('SELECT @o_has_rescue as has_rescue, @o_status as status, @o_message as message')[0];
+        $result = DB::connection('reporting')->select('SELECT @o_has_rescue as has_rescue, @o_status as status, @o_message as message')[0];
 
         return [
             'success' => $result->status === 'success',
@@ -196,7 +196,7 @@ class EilyaProcedureService
 
         $user = Auth::user();
 
-        DB::connection('eilya')->statement('CALL sp_rescue_assign_caretaker(?, ?, ?, ?, ?, ?, @o_rescue_id, @o_is_reassignment, @o_old_caretaker_id, @o_status, @o_message)', [
+        DB::connection('reporting')->statement('CALL sp_rescue_assign_caretaker(?, ?, ?, ?, ?, ?, @o_rescue_id, @o_is_reassignment, @o_old_caretaker_id, @o_status, @o_message)', [
             $reportId,
             $caretakerId,
             $priority,
@@ -205,7 +205,7 @@ class EilyaProcedureService
             $user->email ?? null,
         ]);
 
-        $result = DB::connection('eilya')->select('SELECT @o_rescue_id as rescue_id, @o_is_reassignment as is_reassignment, @o_old_caretaker_id as old_caretaker_id, @o_status as status, @o_message as message')[0];
+        $result = DB::connection('reporting')->select('SELECT @o_rescue_id as rescue_id, @o_is_reassignment as is_reassignment, @o_old_caretaker_id as old_caretaker_id, @o_status as status, @o_message as message')[0];
 
         return [
             'success' => $result->status === 'success',
@@ -230,7 +230,7 @@ class EilyaProcedureService
 
         $user = Auth::user();
 
-        DB::connection('eilya')->statement('CALL sp_rescue_update_status(?, ?, ?, ?, ?, ?, @o_old_status, @o_report_id, @o_status, @o_message)', [
+        DB::connection('reporting')->statement('CALL sp_rescue_update_status(?, ?, ?, ?, ?, ?, @o_old_status, @o_report_id, @o_status, @o_message)', [
             $rescueId,
             $newStatus,
             $remarks,
@@ -239,7 +239,7 @@ class EilyaProcedureService
             $user->email ?? null,
         ]);
 
-        $result = DB::connection('eilya')->select('SELECT @o_old_status as old_status, @o_report_id as report_id, @o_status as status, @o_message as message')[0];
+        $result = DB::connection('reporting')->select('SELECT @o_old_status as old_status, @o_report_id as report_id, @o_status as status, @o_message as message')[0];
 
         return [
             'success' => $result->status === 'success',
@@ -262,7 +262,7 @@ class EilyaProcedureService
 
         $user = Auth::user();
 
-        DB::connection('eilya')->statement('CALL sp_rescue_update_priority(?, ?, ?, ?, ?, @o_old_priority, @o_status, @o_message)', [
+        DB::connection('reporting')->statement('CALL sp_rescue_update_priority(?, ?, ?, ?, ?, @o_old_priority, @o_status, @o_message)', [
             $rescueId,
             $priority,
             $user->id ?? null,
@@ -270,7 +270,7 @@ class EilyaProcedureService
             $user->email ?? null,
         ]);
 
-        $result = DB::connection('eilya')->select('SELECT @o_old_priority as old_priority, @o_status as status, @o_message as message')[0];
+        $result = DB::connection('reporting')->select('SELECT @o_old_priority as old_priority, @o_status as status, @o_message as message')[0];
 
         return [
             'success' => $result->status === 'success',
@@ -290,7 +290,7 @@ class EilyaProcedureService
      */
     public function readRescuesByCaretaker(int $caretakerId, array $filters = [], int $offset = 0, int $limit = 50): array
     {
-        DB::connection('eilya')->statement('CALL sp_rescue_read_by_caretaker(?, ?, ?, ?, ?, @o_total_count)', [
+        DB::connection('reporting')->statement('CALL sp_rescue_read_by_caretaker(?, ?, ?, ?, ?, @o_total_count)', [
             $caretakerId,
             $filters['priority'] ?? null,
             $filters['status'] ?? null,
@@ -299,10 +299,10 @@ class EilyaProcedureService
         ]);
 
         // Get total count
-        $totalResult = DB::connection('eilya')->select('SELECT @o_total_count as total')[0];
+        $totalResult = DB::connection('reporting')->select('SELECT @o_total_count as total')[0];
 
         // Get paginated data
-        $data = DB::connection('eilya')->select("
+        $data = DB::connection('reporting')->select("
             SELECT * FROM rescue
             WHERE caretakerID = ?
               AND (? IS NULL OR priority = ?)
@@ -337,9 +337,9 @@ class EilyaProcedureService
      */
     public function getRescueStatusCounts(int $caretakerId): array
     {
-        DB::connection('eilya')->statement('CALL sp_rescue_get_status_counts(?)', [$caretakerId]);
+        DB::connection('reporting')->statement('CALL sp_rescue_get_status_counts(?)', [$caretakerId]);
 
-        $results = DB::connection('eilya')->select('
+        $results = DB::connection('reporting')->select('
             SELECT status, COUNT(*) as total
             FROM rescue
             WHERE caretakerID = ?
@@ -370,7 +370,7 @@ class EilyaProcedureService
 
         $user = Auth::user();
 
-        DB::connection('eilya')->statement('CALL sp_image_create(?, ?, ?, ?, ?, ?, ?, @o_image_id, @o_status, @o_message)', [
+        DB::connection('reporting')->statement('CALL sp_image_create(?, ?, ?, ?, ?, ?, ?, @o_image_id, @o_status, @o_message)', [
             $data['image_path'],
             $data['reportID'] ?? null,
             $data['animalID'] ?? null,
@@ -380,7 +380,7 @@ class EilyaProcedureService
             $user->email ?? null,
         ]);
 
-        $result = DB::connection('eilya')->select('SELECT @o_image_id as image_id, @o_status as status, @o_message as message')[0];
+        $result = DB::connection('reporting')->select('SELECT @o_image_id as image_id, @o_status as status, @o_message as message')[0];
 
         return [
             'success' => $result->status === 'success',
@@ -401,14 +401,14 @@ class EilyaProcedureService
 
         $user = Auth::user();
 
-        DB::connection('eilya')->statement('CALL sp_image_delete(?, ?, ?, ?, @o_image_path, @o_status, @o_message)', [
+        DB::connection('reporting')->statement('CALL sp_image_delete(?, ?, ?, ?, @o_image_path, @o_status, @o_message)', [
             $imageId,
             $user->id ?? null,
             $user->name ?? null,
             $user->email ?? null,
         ]);
 
-        $result = DB::connection('eilya')->select('SELECT @o_image_path as image_path, @o_status as status, @o_message as message')[0];
+        $result = DB::connection('reporting')->select('SELECT @o_image_path as image_path, @o_status as status, @o_message as message')[0];
 
         return [
             'success' => $result->status === 'success',
@@ -425,9 +425,9 @@ class EilyaProcedureService
      */
     public function readImagesByReport(int $reportId): array
     {
-        DB::connection('eilya')->statement('CALL sp_image_read_by_report(?)', [$reportId]);
+        DB::connection('reporting')->statement('CALL sp_image_read_by_report(?)', [$reportId]);
 
-        return DB::connection('eilya')->select('
+        return DB::connection('reporting')->select('
             SELECT * FROM image
             WHERE reportID = ?
             ORDER BY created_at
@@ -442,9 +442,9 @@ class EilyaProcedureService
      */
     public function readImagesByAnimal(int $animalId): array
     {
-        DB::connection('eilya')->statement('CALL sp_image_read_by_animal(?)', [$animalId]);
+        DB::connection('reporting')->statement('CALL sp_image_read_by_animal(?)', [$animalId]);
 
-        return DB::connection('eilya')->select('
+        return DB::connection('reporting')->select('
             SELECT * FROM image
             WHERE animalID = ?
             ORDER BY created_at

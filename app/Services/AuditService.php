@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 namespace App\Services;
 
@@ -15,12 +15,12 @@ class AuditService
      * Team member IP address mapping (from SSH tunnels setup)
      */
     protected static $teamIpMapping = [
-        'eilya' => '10.18.26.14',
-        'atiqah' => '10.18.26.84',
+        'reporting' => '10.18.26.14',
+        'shelter' => '10.18.26.84',
         'piqa' => '10.18.26.121',
-        'shafiqah' => '10.18.26.121', // Same as piqa
-        'danish' => '10.18.26.18',
-        'taufiq' => '10.18.26.156',
+        'animals' => '10.18.26.121', // Same as piqa
+        'booking' => '10.18.26.18',
+        'users' => '10.18.26.156',
     ];
 
     /**
@@ -186,7 +186,7 @@ class AuditService
                 'action' => $action,
                 'entity_type' => null,
                 'entity_id' => null,
-                'source_database' => 'taufiq',
+                'source_database' => 'users',
 
                 // Request context
                 'performed_at' => now(),
@@ -210,7 +210,7 @@ class AuditService
         }
 
         return self::log('authentication', $action, [
-            'source_database' => 'taufiq',
+            'source_database' => 'users',
             'metadata' => [
                 'email_attempted' => $email,
             ],
@@ -249,7 +249,7 @@ class AuditService
         return self::log('payment', $action, [
             'entity_type' => 'Booking',
             'entity_id' => $bookingId,
-            'source_database' => 'danish',
+            'source_database' => 'booking',
             'metadata' => [
                 'amount' => $amount,
                 'animal_ids' => $animalIds,
@@ -282,7 +282,7 @@ class AuditService
         return self::log('animal', $action, [
             'entity_type' => 'Animal',
             'entity_id' => $animalId,
-            'source_database' => 'shafiqah',
+            'source_database' => 'animals',
             'old_values' => $oldValues,
             'new_values' => $newValues,
             'metadata' => array_merge(['animal_name' => $animalName], $metadata),
@@ -309,7 +309,7 @@ class AuditService
         return self::log('rescue', $action, [
             'entity_type' => 'Rescue',
             'entity_id' => $rescueId,
-            'source_database' => 'eilya',
+            'source_database' => 'reporting',
             'old_values' => $oldValues,
             'new_values' => $newValues,
             'metadata' => $metadata,
@@ -336,7 +336,7 @@ class AuditService
         return self::log('animal', $action, [
             'entity_type' => 'Medical',
             'entity_id' => $medicalId,
-            'source_database' => 'shafiqah',
+            'source_database' => 'animals',
             'metadata' => array_merge([
                 'animal_id' => $animalId,
                 'animal_name' => $animalName,
@@ -364,7 +364,7 @@ class AuditService
         return self::log('animal', $action, [
             'entity_type' => 'Vaccination',
             'entity_id' => $vaccinationId,
-            'source_database' => 'shafiqah',
+            'source_database' => 'animals',
             'metadata' => array_merge([
                 'animal_id' => $animalId,
                 'animal_name' => $animalName,

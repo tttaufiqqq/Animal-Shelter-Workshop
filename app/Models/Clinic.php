@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 namespace App\Models;
 
@@ -10,7 +10,7 @@ class Clinic extends Model
     use HasFactory;
 
     // Specify the database connection for this model (Shafiqah's database)
-    protected $connection = 'shafiqah';
+    protected $connection = 'animals';
 
     protected $table = 'clinic';
 
@@ -41,7 +41,7 @@ class Clinic extends Model
      */
     public function images()
     {
-        return $this->setConnection('eilya')
+        return $this->setConnection('reporting')
             ->hasMany(Image::class, 'clinicID', 'id');
     }
 }

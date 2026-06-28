@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 namespace App\Services;
 
@@ -6,7 +6,7 @@ use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
-class ShafiqahProcedureService
+class AnimalProcedureService
 {
     /**
      * Extract validation message from a trigger exception
@@ -71,7 +71,7 @@ class ShafiqahProcedureService
         try {
             $user = Auth::user();
 
-            DB::connection('taufiq')->table('audit_logs')->insert([
+            DB::connection('users')->table('audit_logs')->insert([
                 'user_id' => $user->id ?? null,
                 'user_name' => $user->name ?? null,
                 'user_email' => $user->email ?? null,
@@ -110,7 +110,7 @@ class ShafiqahProcedureService
         $user = Auth::user();
 
         try {
-            DB::connection('shafiqah')->statement('CALL sp_clinic_create(?, ?, ?, ?, ?, ?, ?, ?, @o_clinic_id, @o_status, @o_message)', [
+            DB::connection('animals')->statement('CALL sp_clinic_create(?, ?, ?, ?, ?, ?, ?, ?, @o_clinic_id, @o_status, @o_message)', [
                 $data['name'],
                 $data['address'] ?? null,
                 $data['contactNum'] ?? null,
@@ -121,7 +121,7 @@ class ShafiqahProcedureService
                 $user->email ?? null,
             ]);
 
-            $result = DB::connection('shafiqah')->select('SELECT @o_clinic_id as clinic_id, @o_status as status, @o_message as message')[0];
+            $result = DB::connection('animals')->select('SELECT @o_clinic_id as clinic_id, @o_status as status, @o_message as message')[0];
 
             return [
                 'success' => $result->status === 'success',
@@ -150,9 +150,9 @@ class ShafiqahProcedureService
      */
     public function readClinic(int $clinicId): ?object
     {
-        DB::connection('shafiqah')->statement('CALL sp_clinic_read(?)', [$clinicId]);
+        DB::connection('animals')->statement('CALL sp_clinic_read(?)', [$clinicId]);
 
-        $result = DB::connection('shafiqah')->select('SELECT * FROM clinic WHERE id = ?', [$clinicId]);
+        $result = DB::connection('animals')->select('SELECT * FROM clinic WHERE id = ?', [$clinicId]);
 
         return $result[0] ?? null;
     }
@@ -164,9 +164,9 @@ class ShafiqahProcedureService
      */
     public function readAllClinics(): array
     {
-        DB::connection('shafiqah')->statement('CALL sp_clinic_read_all()');
+        DB::connection('animals')->statement('CALL sp_clinic_read_all()');
 
-        return DB::connection('shafiqah')->select('
+        return DB::connection('animals')->select('
             SELECT
                 c.id, c.name, c.address, c.contactNum, c.latitude, c.longitude,
                 c.created_at, c.updated_at, COUNT(v.id) as vet_count
@@ -191,7 +191,7 @@ class ShafiqahProcedureService
         $user = Auth::user();
 
         try {
-            DB::connection('shafiqah')->statement('CALL sp_clinic_update(?, ?, ?, ?, ?, ?, ?, ?, ?, @o_status, @o_message)', [
+            DB::connection('animals')->statement('CALL sp_clinic_update(?, ?, ?, ?, ?, ?, ?, ?, ?, @o_status, @o_message)', [
                 $clinicId,
                 $data['name'],
                 $data['address'] ?? null,
@@ -203,7 +203,7 @@ class ShafiqahProcedureService
                 $user->email ?? null,
             ]);
 
-            $result = DB::connection('shafiqah')->select('SELECT @o_status as status, @o_message as message')[0];
+            $result = DB::connection('animals')->select('SELECT @o_status as status, @o_message as message')[0];
 
             return [
                 'success' => $result->status === 'success',
@@ -234,14 +234,14 @@ class ShafiqahProcedureService
         $user = Auth::user();
 
         try {
-            DB::connection('shafiqah')->statement('CALL sp_clinic_delete(?, ?, ?, ?, @o_status, @o_message)', [
+            DB::connection('animals')->statement('CALL sp_clinic_delete(?, ?, ?, ?, @o_status, @o_message)', [
                 $clinicId,
                 $user->id ?? null,
                 $user->name ?? null,
                 $user->email ?? null,
             ]);
 
-            $result = DB::connection('shafiqah')->select('SELECT @o_status as status, @o_message as message')[0];
+            $result = DB::connection('animals')->select('SELECT @o_status as status, @o_message as message')[0];
 
             return [
                 'success' => $result->status === 'success',
@@ -276,7 +276,7 @@ class ShafiqahProcedureService
         $user = Auth::user();
 
         try {
-            DB::connection('shafiqah')->statement('CALL sp_vet_create(?, ?, ?, ?, ?, ?, ?, ?, ?, @o_vet_id, @o_status, @o_message)', [
+            DB::connection('animals')->statement('CALL sp_vet_create(?, ?, ?, ?, ?, ?, ?, ?, ?, @o_vet_id, @o_status, @o_message)', [
                 $data['name'],
                 $data['email'] ?? null,
                 $data['contactNum'] ?? null,
@@ -288,7 +288,7 @@ class ShafiqahProcedureService
                 $user->email ?? null,
             ]);
 
-            $result = DB::connection('shafiqah')->select('SELECT @o_vet_id as vet_id, @o_status as status, @o_message as message')[0];
+            $result = DB::connection('animals')->select('SELECT @o_vet_id as vet_id, @o_status as status, @o_message as message')[0];
 
             // Handle null/empty status - treat as failure with default message
             $status = $result->status ?? 'error';
@@ -332,9 +332,9 @@ class ShafiqahProcedureService
      */
     public function readAllVets(): array
     {
-        DB::connection('shafiqah')->statement('CALL sp_vet_read_all()');
+        DB::connection('animals')->statement('CALL sp_vet_read_all()');
 
-        return DB::connection('shafiqah')->select('
+        return DB::connection('animals')->select('
             SELECT
                 v.id, v.name, v.email, v.contactNum, v.specialization, v.license_no,
                 v.clinicID, c.name as clinic_name, v.created_at, v.updated_at
@@ -358,7 +358,7 @@ class ShafiqahProcedureService
         $user = Auth::user();
 
         try {
-            DB::connection('shafiqah')->statement('CALL sp_vet_update(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, @o_status, @o_message)', [
+            DB::connection('animals')->statement('CALL sp_vet_update(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, @o_status, @o_message)', [
                 $vetId,
                 $data['name'],
                 $data['email'] ?? null,
@@ -371,7 +371,7 @@ class ShafiqahProcedureService
                 $user->email ?? null,
             ]);
 
-            $result = DB::connection('shafiqah')->select('SELECT @o_status as status, @o_message as message')[0];
+            $result = DB::connection('animals')->select('SELECT @o_status as status, @o_message as message')[0];
 
             return [
                 'success' => $result->status === 'success',
@@ -402,14 +402,14 @@ class ShafiqahProcedureService
         $user = Auth::user();
 
         try {
-            DB::connection('shafiqah')->statement('CALL sp_vet_delete(?, ?, ?, ?, @o_status, @o_message)', [
+            DB::connection('animals')->statement('CALL sp_vet_delete(?, ?, ?, ?, @o_status, @o_message)', [
                 $vetId,
                 $user->id ?? null,
                 $user->name ?? null,
                 $user->email ?? null,
             ]);
 
-            $result = DB::connection('shafiqah')->select('SELECT @o_status as status, @o_message as message')[0];
+            $result = DB::connection('animals')->select('SELECT @o_status as status, @o_message as message')[0];
 
             return [
                 'success' => $result->status === 'success',
@@ -444,7 +444,7 @@ class ShafiqahProcedureService
         $user = Auth::user();
 
         try {
-            DB::connection('shafiqah')->statement('CALL sp_animal_create(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, @o_animal_id, @o_status, @o_message)', [
+            DB::connection('animals')->statement('CALL sp_animal_create(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, @o_animal_id, @o_status, @o_message)', [
                 $data['name'],
                 $data['species'] ?? null,
                 $data['health_details'] ?? null,
@@ -459,7 +459,7 @@ class ShafiqahProcedureService
                 $user->email ?? null,
             ]);
 
-            $result = DB::connection('shafiqah')->select('SELECT @o_animal_id as animal_id, @o_status as status, @o_message as message')[0];
+            $result = DB::connection('animals')->select('SELECT @o_animal_id as animal_id, @o_status as status, @o_message as message')[0];
 
             return [
                 'success' => $result->status === 'success',
@@ -487,9 +487,9 @@ class ShafiqahProcedureService
      */
     public function readAnimal(int $animalId): ?object
     {
-        DB::connection('shafiqah')->statement('CALL sp_animal_read(?)', [$animalId]);
+        DB::connection('animals')->statement('CALL sp_animal_read(?)', [$animalId]);
 
-        $result = DB::connection('shafiqah')->select('SELECT * FROM animal WHERE id = ?', [$animalId]);
+        $result = DB::connection('animals')->select('SELECT * FROM animal WHERE id = ?', [$animalId]);
 
         return $result[0] ?? null;
     }
@@ -504,7 +504,7 @@ class ShafiqahProcedureService
      */
     public function readPaginatedAnimals(array $filters, int $offset = 0, int $limit = 12): array
     {
-        DB::connection('shafiqah')->statement('CALL sp_animal_read_paginated(?, ?, ?, ?, ?, ?, ?, ?)', [
+        DB::connection('animals')->statement('CALL sp_animal_read_paginated(?, ?, ?, ?, ?, ?, ?, ?)', [
             $filters['search'] ?? null,
             $filters['species'] ?? null,
             $filters['health_details'] ?? null,
@@ -516,10 +516,10 @@ class ShafiqahProcedureService
         ]);
 
         // First result set: paginated data
-        $data = DB::connection('shafiqah')->select('SELECT * FROM animal LIMIT ? OFFSET ?', [$limit, $offset]);
+        $data = DB::connection('animals')->select('SELECT * FROM animal LIMIT ? OFFSET ?', [$limit, $offset]);
 
         // Second result set: total count
-        $total = DB::connection('shafiqah')->select('SELECT COUNT(*) as total FROM animal')[0]->total;
+        $total = DB::connection('animals')->select('SELECT COUNT(*) as total FROM animal')[0]->total;
 
         return [
             'data' => $data,
@@ -541,7 +541,7 @@ class ShafiqahProcedureService
         $user = Auth::user();
 
         try {
-            DB::connection('shafiqah')->statement('CALL sp_animal_update(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, @o_status, @o_message)', [
+            DB::connection('animals')->statement('CALL sp_animal_update(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, @o_status, @o_message)', [
                 $animalId,
                 $data['name'],
                 $data['species'] ?? null,
@@ -555,7 +555,7 @@ class ShafiqahProcedureService
                 $user->email ?? null,
             ]);
 
-            $result = DB::connection('shafiqah')->select('SELECT @o_status as status, @o_message as message')[0];
+            $result = DB::connection('animals')->select('SELECT @o_status as status, @o_message as message')[0];
 
             return [
                 'success' => $result->status === 'success',
@@ -586,14 +586,14 @@ class ShafiqahProcedureService
         $user = Auth::user();
 
         try {
-            DB::connection('shafiqah')->statement('CALL sp_animal_delete(?, ?, ?, ?, @o_animal_name, @o_slot_id, @o_status, @o_message)', [
+            DB::connection('animals')->statement('CALL sp_animal_delete(?, ?, ?, ?, @o_animal_name, @o_slot_id, @o_status, @o_message)', [
                 $animalId,
                 $user->id ?? null,
                 $user->name ?? null,
                 $user->email ?? null,
             ]);
 
-            $result = DB::connection('shafiqah')->select('SELECT @o_animal_name as animal_name, @o_slot_id as slot_id, @o_status as status, @o_message as message')[0];
+            $result = DB::connection('animals')->select('SELECT @o_animal_name as animal_name, @o_slot_id as slot_id, @o_status as status, @o_message as message')[0];
 
             return [
                 'success' => $result->status === 'success',
@@ -629,7 +629,7 @@ class ShafiqahProcedureService
         $user = Auth::user();
 
         try {
-            DB::connection('shafiqah')->statement('CALL sp_animal_assign_slot(?, ?, ?, ?, ?, @o_previous_slot_id, @o_status, @o_message)', [
+            DB::connection('animals')->statement('CALL sp_animal_assign_slot(?, ?, ?, ?, ?, @o_previous_slot_id, @o_status, @o_message)', [
                 $animalId,
                 $slotId,
                 $user->id ?? null,
@@ -637,7 +637,7 @@ class ShafiqahProcedureService
                 $user->email ?? null,
             ]);
 
-            $result = DB::connection('shafiqah')->select('SELECT @o_previous_slot_id as previous_slot_id, @o_status as status, @o_message as message')[0];
+            $result = DB::connection('animals')->select('SELECT @o_previous_slot_id as previous_slot_id, @o_status as status, @o_message as message')[0];
 
             return [
                 'success' => $result->status === 'success',
@@ -674,7 +674,7 @@ class ShafiqahProcedureService
         $user = Auth::user();
 
         try {
-            DB::connection('shafiqah')->statement('CALL sp_medical_create(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, @o_medical_id, @o_status, @o_message)', [
+            DB::connection('animals')->statement('CALL sp_medical_create(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, @o_medical_id, @o_status, @o_message)', [
                 $data['animalID'],
                 $data['treatment_type'] ?? null,
                 $data['diagnosis'] ?? null,
@@ -687,7 +687,7 @@ class ShafiqahProcedureService
                 $user->email ?? null,
             ]);
 
-            $result = DB::connection('shafiqah')->select('SELECT @o_medical_id as medical_id, @o_status as status, @o_message as message')[0];
+            $result = DB::connection('animals')->select('SELECT @o_medical_id as medical_id, @o_status as status, @o_message as message')[0];
 
             return [
                 'success' => $result->status === 'success',
@@ -715,9 +715,9 @@ class ShafiqahProcedureService
      */
     public function readMedicalByAnimal(int $animalId): array
     {
-        DB::connection('shafiqah')->statement('CALL sp_medical_read_by_animal(?)', [$animalId]);
+        DB::connection('animals')->statement('CALL sp_medical_read_by_animal(?)', [$animalId]);
 
-        return DB::connection('shafiqah')->select('
+        return DB::connection('animals')->select('
             SELECT
                 m.id, m.treatment_type, m.diagnosis, m.action, m.remarks, m.costs,
                 m.animalID, m.vetID, v.name as vet_name, v.specialization as vet_specialization,
@@ -746,7 +746,7 @@ class ShafiqahProcedureService
         $user = Auth::user();
 
         try {
-            DB::connection('shafiqah')->statement('CALL sp_vaccination_create(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, @o_vaccination_id, @o_status, @o_message)', [
+            DB::connection('animals')->statement('CALL sp_vaccination_create(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, @o_vaccination_id, @o_status, @o_message)', [
                 $data['animalID'],
                 $data['name'],
                 $data['type'] ?? null,
@@ -759,7 +759,7 @@ class ShafiqahProcedureService
                 $user->email ?? null,
             ]);
 
-            $result = DB::connection('shafiqah')->select('SELECT @o_vaccination_id as vaccination_id, @o_status as status, @o_message as message')[0];
+            $result = DB::connection('animals')->select('SELECT @o_vaccination_id as vaccination_id, @o_status as status, @o_message as message')[0];
 
             return [
                 'success' => $result->status === 'success',
@@ -787,9 +787,9 @@ class ShafiqahProcedureService
      */
     public function readVaccinationByAnimal(int $animalId): array
     {
-        DB::connection('shafiqah')->statement('CALL sp_vaccination_read_by_animal(?)', [$animalId]);
+        DB::connection('animals')->statement('CALL sp_vaccination_read_by_animal(?)', [$animalId]);
 
-        return DB::connection('shafiqah')->select('
+        return DB::connection('animals')->select('
             SELECT
                 v.id, v.name, v.type, v.next_due_date, v.remarks, v.costs,
                 v.animalID, v.vetID, vt.name as vet_name, vt.specialization as vet_specialization,
@@ -819,7 +819,7 @@ class ShafiqahProcedureService
         $user = Auth::user();
 
         try {
-            DB::connection('shafiqah')->statement('CALL sp_animal_profile_upsert(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, @o_profile_id, @o_status, @o_message)', [
+            DB::connection('animals')->statement('CALL sp_animal_profile_upsert(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, @o_profile_id, @o_status, @o_message)', [
                 $animalId,
                 $data['age'] ?? null,
                 $data['size'] ?? null,
@@ -833,7 +833,7 @@ class ShafiqahProcedureService
                 $user->email ?? null,
             ]);
 
-            $result = DB::connection('shafiqah')->select('SELECT @o_profile_id as profile_id, @o_status as status, @o_message as message')[0];
+            $result = DB::connection('animals')->select('SELECT @o_profile_id as profile_id, @o_status as status, @o_message as message')[0];
 
             return [
                 'success' => $result->status === 'success',
@@ -861,9 +861,9 @@ class ShafiqahProcedureService
      */
     public function readAnimalProfile(int $animalId): ?object
     {
-        DB::connection('shafiqah')->statement('CALL sp_animal_profile_read(?)', [$animalId]);
+        DB::connection('animals')->statement('CALL sp_animal_profile_read(?)', [$animalId]);
 
-        $result = DB::connection('shafiqah')->select('SELECT * FROM animal_profile WHERE animalID = ?', [$animalId]);
+        $result = DB::connection('animals')->select('SELECT * FROM animal_profile WHERE animalID = ?', [$animalId]);
 
         return $result[0] ?? null;
     }

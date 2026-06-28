@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
@@ -16,7 +16,7 @@ return new class extends Migration
         // ==========================================
         // ADOPTER PROFILE UPSERT PROCEDURE (TRUE PROCEDURE)
         // ==========================================
-        DB::connection('taufiq')->unprepared("
+        DB::connection('users')->unprepared("
             CREATE OR REPLACE PROCEDURE sp_adopter_profile_upsert_proc(
                 p_adopter_id BIGINT,
                 p_housing_type VARCHAR,
@@ -94,7 +94,7 @@ return new class extends Migration
         // ==========================================
         // ADOPTER PROFILE DELETE PROCEDURE (TRUE PROCEDURE)
         // ==========================================
-        DB::connection('taufiq')->unprepared("
+        DB::connection('users')->unprepared("
             CREATE OR REPLACE PROCEDURE sp_adopter_profile_delete_proc(
                 p_adopter_id BIGINT,
                 p_audit_user_id BIGINT,
@@ -137,7 +137,7 @@ return new class extends Migration
      */
     public function down(): void
     {
-        DB::connection('taufiq')->unprepared('DROP PROCEDURE IF EXISTS sp_adopter_profile_upsert_proc');
-        DB::connection('taufiq')->unprepared('DROP PROCEDURE IF EXISTS sp_adopter_profile_delete_proc');
+        DB::connection('users')->unprepared('DROP PROCEDURE IF EXISTS sp_adopter_profile_upsert_proc');
+        DB::connection('users')->unprepared('DROP PROCEDURE IF EXISTS sp_adopter_profile_delete_proc');
     }
 };

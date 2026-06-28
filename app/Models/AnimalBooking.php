@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 namespace App\Models;
 
@@ -10,7 +10,7 @@ class AnimalBooking extends Pivot
     use HasFactory;
 
     // Specify the database connection for this pivot model (Danish's database)
-    protected $connection = 'danish';
+    protected $connection = 'booking';
 
     protected $table = 'animal_booking';
 
@@ -29,7 +29,7 @@ class AnimalBooking extends Pivot
      */
     public function animal()
     {
-        return $this->setConnection('shafiqah')
+        return $this->setConnection('animals')
             ->belongsTo(Animal::class, 'animalID', 'id');
     }
 

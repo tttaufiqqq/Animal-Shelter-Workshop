@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
@@ -16,7 +16,7 @@ return new class extends Migration
         // ==========================================
         // USER ASSIGN ROLE PROCEDURE (TRUE PROCEDURE)
         // ==========================================
-        DB::connection('taufiq')->unprepared("
+        DB::connection('users')->unprepared("
             CREATE OR REPLACE PROCEDURE sp_user_assign_role_proc(
                 p_user_id BIGINT,
                 p_role_id BIGINT,
@@ -81,7 +81,7 @@ return new class extends Migration
         // ==========================================
         // USER REVOKE ROLE PROCEDURE (TRUE PROCEDURE)
         // ==========================================
-        DB::connection('taufiq')->unprepared("
+        DB::connection('users')->unprepared("
             CREATE OR REPLACE PROCEDURE sp_user_revoke_role_proc(
                 p_user_id BIGINT,
                 p_role_id BIGINT,
@@ -145,7 +145,7 @@ return new class extends Migration
      */
     public function down(): void
     {
-        DB::connection('taufiq')->unprepared('DROP PROCEDURE IF EXISTS sp_user_assign_role_proc');
-        DB::connection('taufiq')->unprepared('DROP PROCEDURE IF EXISTS sp_user_revoke_role_proc');
+        DB::connection('users')->unprepared('DROP PROCEDURE IF EXISTS sp_user_assign_role_proc');
+        DB::connection('users')->unprepared('DROP PROCEDURE IF EXISTS sp_user_revoke_role_proc');
     }
 };

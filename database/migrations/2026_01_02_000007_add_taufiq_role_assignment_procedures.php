@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
@@ -13,7 +13,7 @@ return new class extends Migration
         // ==========================================
         // USER ASSIGN ROLE PROCEDURE
         // ==========================================
-        DB::connection('taufiq')->unprepared("
+        DB::connection('users')->unprepared("
             CREATE OR REPLACE FUNCTION sp_user_assign_role(
                 p_user_id BIGINT,
                 p_role_id BIGINT,
@@ -84,7 +84,7 @@ return new class extends Migration
         // ==========================================
         // USER REVOKE ROLE PROCEDURE
         // ==========================================
-        DB::connection('taufiq')->unprepared("
+        DB::connection('users')->unprepared("
             CREATE OR REPLACE FUNCTION sp_user_revoke_role(
                 p_user_id BIGINT,
                 p_role_id BIGINT,
@@ -149,7 +149,7 @@ return new class extends Migration
         // ==========================================
         // GET USER ROLES PROCEDURE
         // ==========================================
-        DB::connection('taufiq')->unprepared("
+        DB::connection('users')->unprepared("
             CREATE OR REPLACE FUNCTION sp_user_get_roles(p_user_id BIGINT)
             RETURNS TABLE(
                 role_id BIGINT,
@@ -177,8 +177,8 @@ return new class extends Migration
      */
     public function down(): void
     {
-        DB::connection('taufiq')->unprepared('DROP FUNCTION IF EXISTS sp_user_assign_role');
-        DB::connection('taufiq')->unprepared('DROP FUNCTION IF EXISTS sp_user_revoke_role');
-        DB::connection('taufiq')->unprepared('DROP FUNCTION IF EXISTS sp_user_get_roles');
+        DB::connection('users')->unprepared('DROP FUNCTION IF EXISTS sp_user_assign_role');
+        DB::connection('users')->unprepared('DROP FUNCTION IF EXISTS sp_user_revoke_role');
+        DB::connection('users')->unprepared('DROP FUNCTION IF EXISTS sp_user_get_roles');
     }
 };

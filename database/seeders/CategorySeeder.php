@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 namespace Database\Seeders;
 
@@ -56,15 +56,15 @@ class CategorySeeder extends Seeder
         }
 
         // Use transaction for Atiqah's database
-        DB::connection('atiqah')->beginTransaction();
+        DB::connection('shelter')->beginTransaction();
 
         try {
             $this->command->info('Inserting categories into Atiqah\'s database...');
 
             // Insert categories into Atiqah's database
-            DB::connection('atiqah')->table('category')->insert($categories);
+            DB::connection('shelter')->table('category')->insert($categories);
 
-            DB::connection('atiqah')->commit();
+            DB::connection('shelter')->commit();
 
             $this->command->info('');
             $this->command->info('=================================');
@@ -75,7 +75,7 @@ class CategorySeeder extends Seeder
             $this->command->info('=================================');
 
         } catch (\Exception $e) {
-            DB::connection('atiqah')->rollBack();
+            DB::connection('shelter')->rollBack();
 
             $this->command->error('');
             $this->command->error('Error seeding categories: ' . $e->getMessage());

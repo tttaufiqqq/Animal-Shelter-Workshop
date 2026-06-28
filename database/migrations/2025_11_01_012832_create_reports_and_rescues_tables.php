@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
@@ -13,7 +13,7 @@ return new class extends Migration {
     public function up(): void
     {
         // Create report table in Eilya's database
-        Schema::connection('eilya')->create('report', function (Blueprint $table) {
+        Schema::connection('reporting')->create('report', function (Blueprint $table) {
             $table->id();
             $table->decimal('latitude', 10, 8)->nullable();
             $table->decimal('longitude', 11, 8)->nullable();
@@ -32,7 +32,7 @@ return new class extends Migration {
         });
 
         // Create rescue table in Eilya's database
-        Schema::connection('eilya')->create('rescue', function (Blueprint $table) {
+        Schema::connection('reporting')->create('rescue', function (Blueprint $table) {
             $table->id();
             $table->string('status', 50)->nullable();
             $table->string('priority', 20)->default('normal'); // critical, high, normal
@@ -53,7 +53,7 @@ return new class extends Migration {
 
         // Add foreign key constraint for reportID only (same database)
         // Do NOT add foreign keys for userID or caretakerID (cross-database to Taufiq)
-        Schema::connection('eilya')->table('rescue', function (Blueprint $table) {
+        Schema::connection('reporting')->table('rescue', function (Blueprint $table) {
             $table->foreign('reportID')
                 ->references('id')
                 ->on('report')
@@ -67,12 +67,12 @@ return new class extends Migration {
     public function down(): void
     {
         // Drop foreign key first
-        Schema::connection('eilya')->table('rescue', function (Blueprint $table) {
+        Schema::connection('reporting')->table('rescue', function (Blueprint $table) {
             $table->dropForeign(['reportID']);
         });
 
         // Then drop the tables
-        Schema::connection('eilya')->dropIfExists('rescue');
-        Schema::connection('eilya')->dropIfExists('report');
+        Schema::connection('reporting')->dropIfExists('rescue');
+        Schema::connection('reporting')->dropIfExists('report');
     }
 };

@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
@@ -10,7 +10,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        $connection = DB::connection('shafiqah');
+        $connection = DB::connection('animals');
 
         // ===========================
         // sp_animal_profile_upsert
@@ -132,7 +132,7 @@ return new class extends Migration
      */
     public function down(): void
     {
-        $connection = DB::connection('shafiqah');
+        $connection = DB::connection('animals');
 
         $procedures = [
             'sp_animal_profile_read',

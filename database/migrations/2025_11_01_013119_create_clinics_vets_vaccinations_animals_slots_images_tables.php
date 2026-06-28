@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
@@ -18,7 +18,7 @@ return new class extends Migration {
          * ATIQAH'S DATABASE - Inventory Module
          */
         // Create section table
-        Schema::connection('atiqah')->create('section', function (Blueprint $table) {
+        Schema::connection('shelter')->create('section', function (Blueprint $table) {
             $table->id();
             $table->string('name')->nullable();
             $table->text('description')->nullable();
@@ -26,7 +26,7 @@ return new class extends Migration {
         });
 
         // Create slot table
-        Schema::connection('atiqah')->create('slot', function (Blueprint $table) {
+        Schema::connection('shelter')->create('slot', function (Blueprint $table) {
             $table->id();
             $table->string('name')->nullable();
             $table->integer('capacity')->nullable();
@@ -39,7 +39,7 @@ return new class extends Migration {
         });
 
         // Add FK for slot -> section (same database, OK to use FK)
-        Schema::connection('atiqah')->table('slot', function (Blueprint $table) {
+        Schema::connection('shelter')->table('slot', function (Blueprint $table) {
             $table->foreign('sectionID')
                 ->references('id')
                 ->on('section')
@@ -50,7 +50,7 @@ return new class extends Migration {
          * SHAFIQAH'S DATABASE - Animal & Medical Module
          */
         // Create clinic table
-        Schema::connection('shafiqah')->create('clinic', function (Blueprint $table) {
+        Schema::connection('animals')->create('clinic', function (Blueprint $table) {
             $table->id();
             $table->string('name');
             $table->string('address')->nullable();
@@ -61,7 +61,7 @@ return new class extends Migration {
         });
 
         // Create vet table
-        Schema::connection('shafiqah')->create('vet', function (Blueprint $table) {
+        Schema::connection('animals')->create('vet', function (Blueprint $table) {
             $table->id();
             $table->string('name');
             $table->string('email')->nullable();
@@ -76,7 +76,7 @@ return new class extends Migration {
         });
 
         // Add FK for vet -> clinic (same database, OK to use FK)
-        Schema::connection('shafiqah')->table('vet', function (Blueprint $table) {
+        Schema::connection('animals')->table('vet', function (Blueprint $table) {
             $table->foreign('clinicID')
                 ->references('id')
                 ->on('clinic')
@@ -84,7 +84,7 @@ return new class extends Migration {
         });
 
         // Create animal table
-        Schema::connection('shafiqah')->create('animal', function (Blueprint $table) {
+        Schema::connection('animals')->create('animal', function (Blueprint $table) {
             $table->id();
             $table->string('name');
             $table->string('species')->nullable();
@@ -108,7 +108,7 @@ return new class extends Migration {
         });
 
         // Create vaccination table
-        Schema::connection('shafiqah')->create('vaccination', function (Blueprint $table) {
+        Schema::connection('animals')->create('vaccination', function (Blueprint $table) {
             $table->id();
             $table->string('name');
             $table->string('type')->nullable();
@@ -126,7 +126,7 @@ return new class extends Migration {
         });
 
         // Add FKs for vaccination (same database, OK to use FK)
-        Schema::connection('shafiqah')->table('vaccination', function (Blueprint $table) {
+        Schema::connection('animals')->table('vaccination', function (Blueprint $table) {
             $table->foreign('animalID')
                 ->references('id')
                 ->on('animal')
@@ -142,7 +142,7 @@ return new class extends Migration {
          * EILYA'S DATABASE - Image table
          * Images can belong to animals, reports, or clinics (all in different databases)
          */
-        Schema::connection('eilya')->create('image', function (Blueprint $table) {
+        Schema::connection('reporting')->create('image', function (Blueprint $table) {
             $table->id();
             $table->string('image_path');
 
@@ -164,7 +164,7 @@ return new class extends Migration {
         });
 
         // Add FK for image -> report only (same database, OK to use FK)
-        Schema::connection('eilya')->table('image', function (Blueprint $table) {
+        Schema::connection('reporting')->table('image', function (Blueprint $table) {
             $table->foreign('reportID')
                 ->references('id')
                 ->on('report')
@@ -181,23 +181,23 @@ return new class extends Migration {
          * Drop FKs first
          */
         // Eilya's image table
-        Schema::connection('eilya')->table('image', function (Blueprint $table) {
+        Schema::connection('reporting')->table('image', function (Blueprint $table) {
             $table->dropForeign(['reportID']);
         });
 
         // Shafiqah's vaccination table
-        Schema::connection('shafiqah')->table('vaccination', function (Blueprint $table) {
+        Schema::connection('animals')->table('vaccination', function (Blueprint $table) {
             $table->dropForeign(['animalID']);
             $table->dropForeign(['vetID']);
         });
 
         // Shafiqah's vet table
-        Schema::connection('shafiqah')->table('vet', function (Blueprint $table) {
+        Schema::connection('animals')->table('vet', function (Blueprint $table) {
             $table->dropForeign(['clinicID']);
         });
 
         // Atiqah's slot table
-        Schema::connection('atiqah')->table('slot', function (Blueprint $table) {
+        Schema::connection('shelter')->table('slot', function (Blueprint $table) {
             $table->dropForeign(['sectionID']);
         });
 
@@ -205,16 +205,16 @@ return new class extends Migration {
          * Then drop the tables
          */
         // Eilya's tables
-        Schema::connection('eilya')->dropIfExists('image');
+        Schema::connection('reporting')->dropIfExists('image');
 
         // Shafiqah's tables
-        Schema::connection('shafiqah')->dropIfExists('vaccination');
-        Schema::connection('shafiqah')->dropIfExists('animal');
-        Schema::connection('shafiqah')->dropIfExists('vet');
-        Schema::connection('shafiqah')->dropIfExists('clinic');
+        Schema::connection('animals')->dropIfExists('vaccination');
+        Schema::connection('animals')->dropIfExists('animal');
+        Schema::connection('animals')->dropIfExists('vet');
+        Schema::connection('animals')->dropIfExists('clinic');
 
         // Atiqah's tables
-        Schema::connection('atiqah')->dropIfExists('slot');
-        Schema::connection('atiqah')->dropIfExists('section');
+        Schema::connection('shelter')->dropIfExists('slot');
+        Schema::connection('shelter')->dropIfExists('section');
     }
 };

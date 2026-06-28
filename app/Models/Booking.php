@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 namespace App\Models;
 
@@ -10,7 +10,7 @@ class Booking extends Model
     use HasFactory;
 
     // Specify the database connection for this model (Danish's database)
-    protected $connection = 'danish';
+    protected $connection = 'booking';
 
     protected $table = 'booking';
 
@@ -33,7 +33,7 @@ class Booking extends Model
      */
     public function user()
     {
-        return $this->setConnection('taufiq')
+        return $this->setConnection('users')
             ->belongsTo(User::class, 'userID', 'id');
     }
 
@@ -50,13 +50,13 @@ class Booking extends Model
      * Through animal_booking pivot table (on danish database)
      * Uses custom pivot model to specify the correct database connection
      *
-     * IMPORTANT: setConnection('danish') ensures the pivot table is queried
+     * IMPORTANT: setConnection('booking') ensures the pivot table is queried
      * from the correct database (Danish's SQL Server), not from the Animal model's
      * database (Shafiqah's MySQL)
      */
     public function animals()
     {
-        return $this->setConnection('danish')
+        return $this->setConnection('booking')
             ->belongsToMany(Animal::class, 'animal_booking', 'bookingID', 'animalID')
             ->using(AnimalBooking::class)
             ->withPivot('remarks')

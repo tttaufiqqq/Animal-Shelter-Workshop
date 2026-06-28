@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         // 1. Auto-Lock Account After Failed Login Attempts
-        DB::connection('taufiq')->unprepared("
+        DB::connection('users')->unprepared("
             CREATE OR REPLACE FUNCTION auto_lock_account_on_failed_login()
             RETURNS TRIGGER AS $$
             BEGIN
@@ -28,7 +28,7 @@ return new class extends Migration
             $$ LANGUAGE plpgsql;
         ");
 
-        DB::connection('taufiq')->unprepared("
+        DB::connection('users')->unprepared("
             CREATE TRIGGER trg_auto_lock_account
                 BEFORE UPDATE ON users
                 FOR EACH ROW
@@ -37,7 +37,7 @@ return new class extends Migration
         ");
 
         // 2. Stored Procedure: Batch Unlock Expired Accounts
-        DB::connection('taufiq')->unprepared("
+        DB::connection('users')->unprepared("
             CREATE OR REPLACE FUNCTION unlock_expired_accounts()
             RETURNS TABLE(unlocked_count INTEGER) AS $$
             DECLARE
@@ -61,7 +61,7 @@ return new class extends Migration
         ");
 
         // 3. Stored Procedure: Reset Failed Login Attempts
-        DB::connection('taufiq')->unprepared("
+        DB::connection('users')->unprepared("
             CREATE OR REPLACE FUNCTION reset_failed_login_attempts(p_user_id BIGINT)
             RETURNS VOID AS $$
             BEGIN
@@ -75,7 +75,7 @@ return new class extends Migration
         ");
 
         // 4. Stored Procedure: Increment Failed Login Attempts
-        DB::connection('taufiq')->unprepared("
+        DB::connection('users')->unprepared("
             CREATE OR REPLACE FUNCTION increment_failed_login_attempts(p_user_id BIGINT)
             RETURNS TABLE(
                 new_attempt_count INTEGER,
@@ -108,10 +108,10 @@ return new class extends Migration
      */
     public function down(): void
     {
-        DB::connection('taufiq')->unprepared('DROP TRIGGER IF EXISTS trg_auto_lock_account ON users');
-        DB::connection('taufiq')->unprepared('DROP FUNCTION IF EXISTS auto_lock_account_on_failed_login()');
-        DB::connection('taufiq')->unprepared('DROP FUNCTION IF EXISTS unlock_expired_accounts()');
-        DB::connection('taufiq')->unprepared('DROP FUNCTION IF EXISTS reset_failed_login_attempts(BIGINT)');
-        DB::connection('taufiq')->unprepared('DROP FUNCTION IF EXISTS increment_failed_login_attempts(BIGINT)');
+        DB::connection('users')->unprepared('DROP TRIGGER IF EXISTS trg_auto_lock_account ON users');
+        DB::connection('users')->unprepared('DROP FUNCTION IF EXISTS auto_lock_account_on_failed_login()');
+        DB::connection('users')->unprepared('DROP FUNCTION IF EXISTS unlock_expired_accounts()');
+        DB::connection('users')->unprepared('DROP FUNCTION IF EXISTS reset_failed_login_attempts(BIGINT)');
+        DB::connection('users')->unprepared('DROP FUNCTION IF EXISTS increment_failed_login_attempts(BIGINT)');
     }
 };

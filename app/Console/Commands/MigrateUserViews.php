@@ -1,11 +1,11 @@
-<?php
+﻿<?php
 
 namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 
-class MigrateTaufiqViews extends Command
+class MigrateUserViews extends Command
 {
     /**
      * The name and signature of the console command.
@@ -32,7 +32,7 @@ class MigrateTaufiqViews extends Command
         try {
             // Check if already migrated
             $migrationName = '2026_01_04_000001_add_taufiq_high_performance_views';
-            $exists = DB::connection('taufiq')->table('migrations')
+            $exists = DB::connection('users')->table('migrations')
                 ->where('migration', $migrationName)
                 ->exists();
 
@@ -63,9 +63,9 @@ class MigrateTaufiqViews extends Command
             $migration->up();
 
             // Record migration
-            DB::connection('taufiq')->table('migrations')->insert([
+            DB::connection('users')->table('migrations')->insert([
                 'migration' => $migrationName,
-                'batch' => DB::connection('taufiq')->table('migrations')->max('batch') + 1,
+                'batch' => DB::connection('users')->table('migrations')->max('batch') + 1,
             ]);
 
             $this->info('✅ All views created successfully!');
@@ -73,12 +73,12 @@ class MigrateTaufiqViews extends Command
 
             // Initial refresh of materialized views
             $this->info('🔄 Refreshing materialized views...');
-            DB::connection('taufiq')->select('SELECT refresh_all_taufiq_stats()');
+            DB::connection('users')->select('SELECT refresh_all_taufiq_stats()');
             $this->info('✅ Materialized views refreshed!');
             $this->newLine();
 
             $this->info('🎉 Done! Views are ready to use.');
-            $this->info('💡 Use TaufiqViewService to access the views in your code.');
+            $this->info('💡 Use UserViewService to access the views in your code.');
 
             return Command::SUCCESS;
         } catch (\Exception $e) {

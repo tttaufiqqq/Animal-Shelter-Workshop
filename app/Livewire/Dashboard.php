@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 namespace App\Livewire;
 
@@ -61,7 +61,7 @@ class Dashboard extends Component
     /**
      * Get database-specific MONTH extraction expression
      */
-    private function getMonthExpression($column, $connection = 'danish')
+    private function getMonthExpression($column, $connection = 'booking')
     {
         $driver = DB::connection($connection)->getDriverName();
 
@@ -77,7 +77,7 @@ class Dashboard extends Component
     /**
      * Get database-specific YEAR extraction expression
      */
-    private function getYearExpression($column, $connection = 'danish')
+    private function getYearExpression($column, $connection = 'booking')
     {
         $driver = DB::connection($connection)->getDriverName();
 
@@ -98,7 +98,7 @@ class Dashboard extends Component
         return $this->safeQuery(
             fn() => Booking::count(),
             0,
-            'danish'
+            'booking'
         );
     }
 
@@ -110,7 +110,7 @@ class Dashboard extends Component
         return $this->safeQuery(
             fn() => Booking::where('status', 'Completed')->count(),
             0,
-            'danish'
+            'booking'
         );
     }
 
@@ -122,7 +122,7 @@ class Dashboard extends Component
         return $this->safeQuery(
             fn() => Booking::where('status', 'Cancelled')->count(),
             0,
-            'danish'
+            'booking'
         );
     }
 
@@ -142,7 +142,7 @@ class Dashboard extends Component
 
             return $totalCustomers > 0 ?
                 round(($repeatCustomers / $totalCustomers) * 100, 2) : 0;
-        }, 0, 'danish');
+        }, 0, 'booking');
     }
 
     /**
@@ -152,14 +152,14 @@ class Dashboard extends Component
     private function getTopAnimalsByRevenue()
     {
         // Pre-check both databases before attempting query
-        if (!$this->isDatabaseAvailable('danish') || !$this->isDatabaseAvailable('shafiqah')) {
+        if (!$this->isDatabaseAvailable('booking') || !$this->isDatabaseAvailable('animals')) {
             Log::debug('Skipping getTopAnimalsByRevenue - required databases offline');
             return collect();
         }
 
         try {
             // Step 1: Get all adoptions with animal IDs from Danish's database
-            $adoptionData = Adoption::on('danish')
+            $adoptionData = Adoption::on('booking')
                 ->join('animal_booking', 'adoption.bookingID', '=', 'animal_booking.bookingID')
                 ->select('animal_booking.animalID', 'adoption.fee')
                 ->get();
@@ -176,7 +176,7 @@ class Dashboard extends Component
                 return collect();
             }
 
-            $animals = Animal::on('shafiqah')
+            $animals = Animal::on('animals')
                 ->whereIn('id', $animalIds)
                 ->get()
                 ->keyBy('id');
@@ -237,7 +237,7 @@ class Dashboard extends Component
                 });
 
             return $breakdown;
-        }, collect([]), 'danish');
+        }, collect([]), 'booking');
     }
 
     /**
@@ -246,8 +246,8 @@ class Dashboard extends Component
     private function getBookingsByMonth()
     {
         return $this->safeQuery(function() {
-            $monthExpression = $this->getMonthExpression('created_at', 'danish');
-            $yearExpression = $this->getYearExpression('created_at', 'danish');
+            $monthExpression = $this->getMonthExpression('created_at', 'booking');
+            $yearExpression = $this->getYearExpression('created_at', 'booking');
 
             // Get last 12 months of data
             $twelveMonthsAgo = Carbon::now()->subMonths(11)->startOfMonth();
@@ -264,7 +264,7 @@ class Dashboard extends Component
                     $item->month_name = Carbon::create($item->year, $item->month, 1)->format('M Y');
                     return $item;
                 });
-        }, collect([]), 'danish');
+        }, collect([]), 'booking');
     }
 
     /**
@@ -273,13 +273,13 @@ class Dashboard extends Component
     private function getVolumeVsAverageValue()
     {
         return $this->safeQuery(function() {
-            $monthExpression = $this->getMonthExpression('created_at', 'danish');
-            $yearExpression = $this->getYearExpression('created_at', 'danish');
+            $monthExpression = $this->getMonthExpression('created_at', 'booking');
+            $yearExpression = $this->getYearExpression('created_at', 'booking');
 
             // Get last 6 months of data
             $sixMonthsAgo = Carbon::now()->subMonths(5)->startOfMonth();
 
-            $results = Adoption::on('danish')
+            $results = Adoption::on('booking')
                 ->where('created_at', '>=', $sixMonthsAgo)
                 ->selectRaw("{$yearExpression} as year")
                 ->selectRaw("{$monthExpression} as month")
@@ -295,7 +295,7 @@ class Dashboard extends Component
                 $item->avg_value = round((float) $item->avg_value, 2);
                 return $item;
             });
-        }, collect([]), 'danish');
+        }, collect([]), 'booking');
     }
 
     /**
@@ -330,15 +330,15 @@ class Dashboard extends Component
     {
         return $this->safeQuery(function() {
             // Get user account statistics using stored procedure
-            $userStats = DB::connection('taufiq')->select('SELECT * FROM get_user_account_stats()');
+            $userStats = DB::connection('users')->select('SELECT * FROM get_user_account_stats()');
             $stats = $userStats[0] ?? null;
 
             // Get adopter profile statistics using stored procedure
-            $adopterStats = DB::connection('taufiq')->select('SELECT * FROM get_adopter_profile_stats()');
+            $adopterStats = DB::connection('users')->select('SELECT * FROM get_adopter_profile_stats()');
             $adopter = $adopterStats[0] ?? null;
 
             // Get high-risk users count
-            $highRiskUsers = DB::connection('taufiq')->select('SELECT COUNT(*) as count FROM get_high_risk_users(3)');
+            $highRiskUsers = DB::connection('users')->select('SELECT COUNT(*) as count FROM get_high_risk_users(3)');
             $highRiskCount = $highRiskUsers[0]->count ?? 0;
 
             return (object) [
@@ -360,7 +360,7 @@ class Dashboard extends Component
             'avg_failed_attempts' => 0,
             'total_adopter_profiles' => 0,
             'high_risk_users' => 0,
-        ], 'taufiq');
+        ], 'users');
     }
 
     /**
@@ -370,7 +370,7 @@ class Dashboard extends Component
     private function getAuditSummary()
     {
         return $this->safeQuery(function() {
-            $results = DB::connection('taufiq')->select('SELECT * FROM get_audit_summary_by_category(30)');
+            $results = DB::connection('users')->select('SELECT * FROM get_audit_summary_by_category(30)');
 
             return collect($results)->map(function($item) {
                 return (object) [
@@ -385,6 +385,6 @@ class Dashboard extends Component
                         : 0,
                 ];
             });
-        }, collect([]), 'taufiq');
+        }, collect([]), 'users');
     }
 }

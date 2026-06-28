@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 use Illuminate\Support\Str;
 
@@ -73,7 +73,7 @@ return [
     |
     */
 
-    'connection' => env('SESSION_CONNECTION', 'taufiq'),
+    'connection' => env('SESSION_CONNECTION', 'users'),
 
     /*
     |--------------------------------------------------------------------------

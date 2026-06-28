@@ -1,212 +1,161 @@
-<?php
+﻿<?php
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
-        $connection = DB::connection('danish');
+        $connection = DB::connection('booking');
 
         // ===========================
         // sp_booking_attach_animals
+        // Parses comma-separated 'animalId:remarks' pairs and inserts into pivot table
         // ===========================
-        $connection->unprepared('
-            IF OBJECT_ID(\'sp_booking_attach_animals\', \'P\') IS NOT NULL
-                DROP PROCEDURE sp_booking_attach_animals
-        ');
+        $connection->unprepared('DROP PROCEDURE IF EXISTS sp_booking_attach_animals');
 
         $connection->unprepared("
-            CREATE PROCEDURE sp_booking_attach_animals
-                @p_booking_id BIGINT,
-                @p_animal_ids NVARCHAR(MAX), -- Comma-separated list: 'id1:remarks1,id2:remarks2'
-                @o_attached_count INT OUTPUT,
-                @o_status NVARCHAR(20) OUTPUT,
-                @o_message NVARCHAR(MAX) OUTPUT
-            AS
-            BEGIN
-                SET NOCOUNT ON;
+            CREATE PROCEDURE sp_booking_attach_animals(
+                IN p_booking_id BIGINT,
+                IN p_animal_ids TEXT,
+                OUT o_attached_count INT,
+                OUT o_status VARCHAR(20),
+                OUT o_message TEXT
+            )
+            proc_exit: BEGIN
+                DECLARE v_booking_exists INT DEFAULT 0;
+                DECLARE v_total INT DEFAULT 0;
+                DECLARE v_i INT DEFAULT 1;
+                DECLARE v_pair TEXT;
+                DECLARE v_pos INT;
+                DECLARE v_animal_id BIGINT;
+                DECLARE v_remarks VARCHAR(500);
+                DECLARE v_pairs_list TEXT;
 
-                DECLARE @v_booking_exists BIT;
-                DECLARE @v_animal_id BIGINT;
-                DECLARE @v_remarks NVARCHAR(500);
-                DECLARE @v_pair NVARCHAR(MAX);
-                DECLARE @v_pos INT;
+                DECLARE EXIT HANDLER FOR SQLEXCEPTION
+                BEGIN
+                    ROLLBACK;
+                    SET o_status = 'error';
+                    SET o_message = 'Database error occurred';
+                    SET o_attached_count = 0;
+                END;
 
-                BEGIN TRY
-                    BEGIN TRANSACTION;
+                SELECT COUNT(*) INTO v_booking_exists FROM booking WHERE id = p_booking_id;
+                IF v_booking_exists = 0 THEN
+                    SET o_status = 'error';
+                    SET o_message = 'Booking not found';
+                    SET o_attached_count = 0;
+                    LEAVE proc_exit;
+                END IF;
 
-                    -- Check if booking exists
-                    SELECT @v_booking_exists = 1
-                    FROM booking
-                    WHERE id = @p_booking_id;
+                SET o_attached_count = 0;
+                -- Append trailing comma so every pair ends with ','
+                SET v_pairs_list = CONCAT(p_animal_ids, ',');
+                SET v_total = LENGTH(p_animal_ids) - LENGTH(REPLACE(p_animal_ids, ',', '')) + 1;
 
-                    IF @v_booking_exists IS NULL
-                    BEGIN
-                        SET @o_status = 'error';
-                        SET @o_message = 'Booking not found';
-                        SET @o_attached_count = 0;
-                        ROLLBACK TRANSACTION;
-                        RETURN;
-                    END
+                START TRANSACTION;
 
-                    SET @o_attached_count = 0;
+                WHILE v_i <= v_total DO
+                    -- Extract the i-th comma-delimited token
+                    SET v_pair = TRIM(SUBSTRING_INDEX(SUBSTRING_INDEX(v_pairs_list, ',', v_i), ',', -1));
 
-                    -- Parse and insert each animal
-                    DECLARE animal_cursor CURSOR FOR
-                        SELECT value FROM STRING_SPLIT(@p_animal_ids, ',');
+                    IF v_pair != '' THEN
+                        SET v_pos = LOCATE(':', v_pair);
 
-                    OPEN animal_cursor;
-                    FETCH NEXT FROM animal_cursor INTO @v_pair;
-
-                    WHILE @@FETCH_STATUS = 0
-                    BEGIN
-                        -- Parse 'animalId:remarks' format
-                        SET @v_pos = CHARINDEX(':', @v_pair);
-
-                        IF @v_pos > 0
-                        BEGIN
-                            SET @v_animal_id = CAST(LEFT(@v_pair, @v_pos - 1) AS BIGINT);
-                            SET @v_remarks = NULLIF(LTRIM(RTRIM(SUBSTRING(@v_pair, @v_pos + 1, LEN(@v_pair)))), '');
-                        END
+                        IF v_pos > 0 THEN
+                            SET v_animal_id = CAST(LEFT(v_pair, v_pos - 1) AS UNSIGNED);
+                            SET v_remarks = NULLIF(TRIM(SUBSTRING(v_pair, v_pos + 1)), '');
                         ELSE
-                        BEGIN
-                            SET @v_animal_id = CAST(@v_pair AS BIGINT);
-                            SET @v_remarks = NULL;
-                        END
+                            SET v_animal_id = CAST(v_pair AS UNSIGNED);
+                            SET v_remarks = NULL;
+                        END IF;
 
-                        -- Insert into pivot table (skip duplicates)
-                        IF NOT EXISTS (SELECT 1 FROM animal_booking WHERE bookingID = @p_booking_id AND animalID = @v_animal_id)
-                        BEGIN
+                        -- Skip if already exists in this booking
+                        IF NOT EXISTS (
+                            SELECT 1 FROM animal_booking
+                            WHERE bookingID = p_booking_id AND animalID = v_animal_id
+                        ) THEN
                             INSERT INTO animal_booking (bookingID, animalID, remarks, created_at, updated_at)
-                            VALUES (@p_booking_id, @v_animal_id, @v_remarks, GETDATE(), GETDATE());
+                            VALUES (p_booking_id, v_animal_id, v_remarks, NOW(), NOW());
 
-                            SET @o_attached_count = @o_attached_count + 1;
-                        END
+                            SET o_attached_count = o_attached_count + 1;
+                        END IF;
+                    END IF;
 
-                        FETCH NEXT FROM animal_cursor INTO @v_pair;
-                    END
+                    SET v_i = v_i + 1;
+                END WHILE;
 
-                    CLOSE animal_cursor;
-                    DEALLOCATE animal_cursor;
+                SET o_status = 'success';
+                SET o_message = CONCAT(o_attached_count, ' animal(s) attached to booking');
 
-                    SET @o_status = 'success';
-                    SET @o_message = CAST(@o_attached_count AS NVARCHAR(10)) + ' animal(s) attached to booking';
-
-                    COMMIT TRANSACTION;
-                END TRY
-                BEGIN CATCH
-                    IF @@TRANCOUNT > 0
-                        ROLLBACK TRANSACTION;
-
-                    IF CURSOR_STATUS('local', 'animal_cursor') >= 0
-                    BEGIN
-                        CLOSE animal_cursor;
-                        DEALLOCATE animal_cursor;
-                    END
-
-                    SET @o_status = 'error';
-                    SET @o_message = ERROR_MESSAGE();
-                    SET @o_attached_count = 0;
-                END CATCH
+                COMMIT;
             END
         ");
 
         // ===========================
         // sp_booking_detach_animals
         // ===========================
-        $connection->unprepared('
-            IF OBJECT_ID(\'sp_booking_detach_animals\', \'P\') IS NOT NULL
-                DROP PROCEDURE sp_booking_detach_animals
-        ');
+        $connection->unprepared('DROP PROCEDURE IF EXISTS sp_booking_detach_animals');
 
         $connection->unprepared("
-            CREATE PROCEDURE sp_booking_detach_animals
-                @p_booking_id BIGINT,
-                @p_animal_ids NVARCHAR(MAX) = NULL, -- Comma-separated animal IDs, or NULL to detach all
-                @o_detached_count INT OUTPUT,
-                @o_status NVARCHAR(20) OUTPUT,
-                @o_message NVARCHAR(MAX) OUTPUT
-            AS
-            BEGIN
-                SET NOCOUNT ON;
+            CREATE PROCEDURE sp_booking_detach_animals(
+                IN p_booking_id BIGINT,
+                IN p_animal_ids TEXT,
+                OUT o_detached_count INT,
+                OUT o_status VARCHAR(20),
+                OUT o_message TEXT
+            )
+            proc_exit: BEGIN
+                DECLARE v_booking_exists INT DEFAULT 0;
 
-                DECLARE @v_booking_exists BIT;
+                DECLARE EXIT HANDLER FOR SQLEXCEPTION
+                BEGIN
+                    ROLLBACK;
+                    SET o_status = 'error';
+                    SET o_message = 'Database error occurred';
+                    SET o_detached_count = 0;
+                END;
 
-                BEGIN TRY
-                    BEGIN TRANSACTION;
+                SELECT COUNT(*) INTO v_booking_exists FROM booking WHERE id = p_booking_id;
+                IF v_booking_exists = 0 THEN
+                    SET o_status = 'error';
+                    SET o_message = 'Booking not found';
+                    SET o_detached_count = 0;
+                    LEAVE proc_exit;
+                END IF;
 
-                    -- Check if booking exists
-                    SELECT @v_booking_exists = 1
-                    FROM booking
-                    WHERE id = @p_booking_id;
+                START TRANSACTION;
 
-                    IF @v_booking_exists IS NULL
-                    BEGIN
-                        SET @o_status = 'error';
-                        SET @o_message = 'Booking not found';
-                        SET @o_detached_count = 0;
-                        ROLLBACK TRANSACTION;
-                        RETURN;
-                    END
+                IF p_animal_ids IS NULL THEN
+                    DELETE FROM animal_booking WHERE bookingID = p_booking_id;
+                ELSE
+                    DELETE FROM animal_booking
+                    WHERE bookingID = p_booking_id
+                      AND FIND_IN_SET(animalID, p_animal_ids) > 0;
+                END IF;
 
-                    IF @p_animal_ids IS NULL
-                    BEGIN
-                        -- Detach all animals
-                        DELETE FROM animal_booking
-                        WHERE bookingID = @p_booking_id;
-                    END
-                    ELSE
-                    BEGIN
-                        -- Detach specific animals
-                        DELETE FROM animal_booking
-                        WHERE bookingID = @p_booking_id
-                          AND animalID IN (SELECT value FROM STRING_SPLIT(@p_animal_ids, ','));
-                    END
+                SET o_detached_count = ROW_COUNT();
+                SET o_status = 'success';
+                SET o_message = CONCAT(o_detached_count, ' animal(s) detached from booking');
 
-                    SET @o_detached_count = @@ROWCOUNT;
-                    SET @o_status = 'success';
-                    SET @o_message = CAST(@o_detached_count AS NVARCHAR(10)) + ' animal(s) detached from booking';
-
-                    COMMIT TRANSACTION;
-                END TRY
-                BEGIN CATCH
-                    IF @@TRANCOUNT > 0
-                        ROLLBACK TRANSACTION;
-
-                    SET @o_status = 'error';
-                    SET @o_message = ERROR_MESSAGE();
-                    SET @o_detached_count = 0;
-                END CATCH
+                COMMIT;
             END
         ");
 
         // ===========================
         // sp_booking_get_animals
         // ===========================
-        $connection->unprepared('
-            IF OBJECT_ID(\'sp_booking_get_animals\', \'P\') IS NOT NULL
-                DROP PROCEDURE sp_booking_get_animals
-        ');
+        $connection->unprepared('DROP PROCEDURE IF EXISTS sp_booking_get_animals');
 
         $connection->unprepared("
-            CREATE PROCEDURE sp_booking_get_animals
-                @p_booking_id BIGINT
-            AS
+            CREATE PROCEDURE sp_booking_get_animals(
+                IN p_booking_id BIGINT
+            )
             BEGIN
-                SET NOCOUNT ON;
-
-                SELECT
-                    animalID,
-                    remarks,
-                    created_at,
-                    updated_at
+                SELECT animalID, remarks, created_at, updated_at
                 FROM animal_booking
-                WHERE bookingID = @p_booking_id
+                WHERE bookingID = p_booking_id
                 ORDER BY created_at;
             END
         ");
@@ -214,90 +163,71 @@ return new class extends Migration
         // ===========================
         // sp_booking_update_animal_remarks
         // ===========================
-        $connection->unprepared('
-            IF OBJECT_ID(\'sp_booking_update_animal_remarks\', \'P\') IS NOT NULL
-                DROP PROCEDURE sp_booking_update_animal_remarks
-        ');
+        $connection->unprepared('DROP PROCEDURE IF EXISTS sp_booking_update_animal_remarks');
 
         $connection->unprepared("
-            CREATE PROCEDURE sp_booking_update_animal_remarks
-                @p_booking_id BIGINT,
-                @p_animal_id BIGINT,
-                @p_remarks NVARCHAR(500),
-                @o_status NVARCHAR(20) OUTPUT,
-                @o_message NVARCHAR(MAX) OUTPUT
-            AS
-            BEGIN
-                SET NOCOUNT ON;
+            CREATE PROCEDURE sp_booking_update_animal_remarks(
+                IN p_booking_id BIGINT,
+                IN p_animal_id BIGINT,
+                IN p_remarks VARCHAR(500),
+                OUT o_status VARCHAR(20),
+                OUT o_message TEXT
+            )
+            proc_exit: BEGIN
+                DECLARE v_exists INT DEFAULT 0;
 
-                DECLARE @v_exists BIT;
+                DECLARE EXIT HANDLER FOR SQLEXCEPTION
+                BEGIN
+                    ROLLBACK;
+                    SET o_status = 'error';
+                    SET o_message = 'Database error occurred';
+                END;
 
-                BEGIN TRY
-                    BEGIN TRANSACTION;
+                SELECT COUNT(*) INTO v_exists
+                FROM animal_booking
+                WHERE bookingID = p_booking_id AND animalID = p_animal_id;
 
-                    -- Check if the animal-booking relationship exists
-                    SELECT @v_exists = 1
-                    FROM animal_booking
-                    WHERE bookingID = @p_booking_id AND animalID = @p_animal_id;
+                IF v_exists = 0 THEN
+                    SET o_status = 'error';
+                    SET o_message = 'Animal not found in this booking';
+                    LEAVE proc_exit;
+                END IF;
 
-                    IF @v_exists IS NULL
-                    BEGIN
-                        SET @o_status = 'error';
-                        SET @o_message = 'Animal not found in this booking';
-                        ROLLBACK TRANSACTION;
-                        RETURN;
-                    END
+                START TRANSACTION;
 
-                    -- Update remarks
-                    UPDATE animal_booking
-                    SET remarks = @p_remarks,
-                        updated_at = GETDATE()
-                    WHERE bookingID = @p_booking_id AND animalID = @p_animal_id;
+                UPDATE animal_booking
+                SET remarks = p_remarks,
+                    updated_at = NOW()
+                WHERE bookingID = p_booking_id AND animalID = p_animal_id;
 
-                    SET @o_status = 'success';
-                    SET @o_message = 'Remarks updated successfully';
+                SET o_status = 'success';
+                SET o_message = 'Remarks updated successfully';
 
-                    COMMIT TRANSACTION;
-                END TRY
-                BEGIN CATCH
-                    IF @@TRANCOUNT > 0
-                        ROLLBACK TRANSACTION;
-
-                    SET @o_status = 'error';
-                    SET @o_message = ERROR_MESSAGE();
-                END CATCH
+                COMMIT;
             END
         ");
 
         // ===========================
         // sp_booking_get_animal_count
         // ===========================
-        $connection->unprepared('
-            IF OBJECT_ID(\'sp_booking_get_animal_count\', \'P\') IS NOT NULL
-                DROP PROCEDURE sp_booking_get_animal_count
-        ');
+        $connection->unprepared('DROP PROCEDURE IF EXISTS sp_booking_get_animal_count');
 
         $connection->unprepared("
-            CREATE PROCEDURE sp_booking_get_animal_count
-                @p_booking_id BIGINT,
-                @o_count INT OUTPUT
-            AS
+            CREATE PROCEDURE sp_booking_get_animal_count(
+                IN p_booking_id BIGINT,
+                OUT o_count INT
+            )
             BEGIN
-                SET NOCOUNT ON;
-
-                SELECT @o_count = COUNT(*)
+                SELECT COUNT(*) INTO o_count
                 FROM animal_booking
-                WHERE bookingID = @p_booking_id;
+                WHERE bookingID = p_booking_id;
             END
         ");
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
-        $connection = DB::connection('danish');
+        $connection = DB::connection('booking');
 
         $connection->unprepared('DROP PROCEDURE IF EXISTS sp_booking_attach_animals');
         $connection->unprepared('DROP PROCEDURE IF EXISTS sp_booking_detach_animals');

@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         // 1. Auto-Log User Changes
-        DB::connection('taufiq')->unprepared("
+        DB::connection('users')->unprepared("
             CREATE OR REPLACE FUNCTION log_user_changes()
             RETURNS TRIGGER AS $$
             DECLARE
@@ -46,7 +46,7 @@ return new class extends Migration
                     COALESCE(NEW.name, OLD.name),
                     COALESCE(NEW.email, OLD.email),
                     'user_management', v_action, 'User', COALESCE(NEW.id, OLD.id),
-                    'taufiq', NOW(),
+                    'users', NOW(),
                     v_old_values, v_new_values, 'success'
                 );
 
@@ -55,7 +55,7 @@ return new class extends Migration
             $$ LANGUAGE plpgsql;
         ");
 
-        DB::connection('taufiq')->unprepared("
+        DB::connection('users')->unprepared("
             CREATE TRIGGER trg_log_user_changes
                 AFTER INSERT OR UPDATE OR DELETE ON users
                 FOR EACH ROW
@@ -63,7 +63,7 @@ return new class extends Migration
         ");
 
         // 2. Auto-Log Role Assignment Changes
-        DB::connection('taufiq')->unprepared("
+        DB::connection('users')->unprepared("
             CREATE OR REPLACE FUNCTION log_role_assignment_changes()
             RETURNS TRIGGER AS $$
             DECLARE
@@ -91,7 +91,7 @@ return new class extends Migration
                 ) VALUES (
                     v_user_record.id, v_user_record.name, v_user_record.email,
                     'authorization', v_action, 'RoleAssignment', COALESCE(NEW.role_id, OLD.role_id),
-                    'taufiq', NOW(),
+                    'users', NOW(),
                     CASE WHEN TG_OP = 'INSERT' THEN to_jsonb(NEW) ELSE NULL END,
                     CASE WHEN TG_OP = 'DELETE' THEN to_jsonb(OLD) ELSE NULL END,
                     'success'
@@ -102,7 +102,7 @@ return new class extends Migration
             $$ LANGUAGE plpgsql;
         ");
 
-        DB::connection('taufiq')->unprepared("
+        DB::connection('users')->unprepared("
             CREATE TRIGGER trg_log_role_changes
                 AFTER INSERT OR DELETE ON model_has_roles
                 FOR EACH ROW
@@ -110,7 +110,7 @@ return new class extends Migration
         ");
 
         // 3. Stored Procedure: Clean Old Audit Logs
-        DB::connection('taufiq')->unprepared("
+        DB::connection('users')->unprepared("
             CREATE OR REPLACE FUNCTION cleanup_old_audit_logs(retention_days INTEGER DEFAULT 90)
             RETURNS TABLE(deleted_count INTEGER) AS $$
             DECLARE
@@ -127,7 +127,7 @@ return new class extends Migration
         ");
 
         // 4. Stored Procedure: Get Audit Summary by Category
-        DB::connection('taufiq')->unprepared("
+        DB::connection('users')->unprepared("
             CREATE OR REPLACE FUNCTION get_audit_summary_by_category(days_back INTEGER DEFAULT 30)
             RETURNS TABLE(
                 category VARCHAR,
@@ -160,11 +160,11 @@ return new class extends Migration
      */
     public function down(): void
     {
-        DB::connection('taufiq')->unprepared('DROP TRIGGER IF EXISTS trg_log_user_changes ON users');
-        DB::connection('taufiq')->unprepared('DROP TRIGGER IF EXISTS trg_log_role_changes ON model_has_roles');
-        DB::connection('taufiq')->unprepared('DROP FUNCTION IF EXISTS log_user_changes()');
-        DB::connection('taufiq')->unprepared('DROP FUNCTION IF EXISTS log_role_assignment_changes()');
-        DB::connection('taufiq')->unprepared('DROP FUNCTION IF EXISTS cleanup_old_audit_logs(INTEGER)');
-        DB::connection('taufiq')->unprepared('DROP FUNCTION IF EXISTS get_audit_summary_by_category(INTEGER)');
+        DB::connection('users')->unprepared('DROP TRIGGER IF EXISTS trg_log_user_changes ON users');
+        DB::connection('users')->unprepared('DROP TRIGGER IF EXISTS trg_log_role_changes ON model_has_roles');
+        DB::connection('users')->unprepared('DROP FUNCTION IF EXISTS log_user_changes()');
+        DB::connection('users')->unprepared('DROP FUNCTION IF EXISTS log_role_assignment_changes()');
+        DB::connection('users')->unprepared('DROP FUNCTION IF EXISTS cleanup_old_audit_logs(INTEGER)');
+        DB::connection('users')->unprepared('DROP FUNCTION IF EXISTS get_audit_summary_by_category(INTEGER)');
     }
 };

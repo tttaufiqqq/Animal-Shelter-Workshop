@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
@@ -18,7 +18,7 @@ return new class extends Migration {
         /**
          * SHAFIQAH'S DATABASE - Animal & Medical Module
          */
-        Schema::connection('shafiqah')->create('medical', function (Blueprint $table) {
+        Schema::connection('animals')->create('medical', function (Blueprint $table) {
             $table->id();
             $table->string('treatment_type', 100)->nullable();
             $table->text('diagnosis')->nullable();
@@ -35,7 +35,7 @@ return new class extends Migration {
         });
 
         // Add FKs for medical (same database, OK to use FK)
-        Schema::connection('shafiqah')->table('medical', function (Blueprint $table) {
+        Schema::connection('animals')->table('medical', function (Blueprint $table) {
             $table->foreign('vetID')
                 ->references('id')
                 ->on('vet')
@@ -50,14 +50,14 @@ return new class extends Migration {
         /**
          * ATIQAH'S DATABASE - Inventory Module
          */
-        Schema::connection('atiqah')->create('category', function (Blueprint $table) {
+        Schema::connection('shelter')->create('category', function (Blueprint $table) {
             $table->id();
             $table->string('main', 255)->nullable();
             $table->string('sub', 255)->nullable();
             $table->timestamps();
         });
 
-        Schema::connection('atiqah')->create('inventory', function (Blueprint $table) {
+        Schema::connection('shelter')->create('inventory', function (Blueprint $table) {
             $table->id();
             $table->string('item_name', 255);
             $table->integer('quantity')->default(0);
@@ -74,7 +74,7 @@ return new class extends Migration {
         });
 
         // Add FKs for inventory (same database, OK to use FK)
-        Schema::connection('atiqah')->table('inventory', function (Blueprint $table) {
+        Schema::connection('shelter')->table('inventory', function (Blueprint $table) {
             $table->foreign('slotID')
                 ->references('id')
                 ->on('slot')
@@ -89,7 +89,7 @@ return new class extends Migration {
         /**
          * DANISH'S DATABASE - Booking & Adoption Module
          */
-        Schema::connection('danish')->create('booking', function (Blueprint $table) {
+        Schema::connection('booking')->create('booking', function (Blueprint $table) {
             $table->id();
             $table->date('appointment_date')->nullable();
             $table->time('appointment_time');
@@ -104,7 +104,7 @@ return new class extends Migration {
             $table->index('userID');
         });
 
-        Schema::connection('danish')->create('transaction', function (Blueprint $table) {
+        Schema::connection('booking')->create('transaction', function (Blueprint $table) {
             $table->id();
             $table->decimal('amount', 10, 2)->nullable();
             $table->string('status', 50)->nullable();
@@ -121,7 +121,7 @@ return new class extends Migration {
             $table->index('userID');
         });
 
-        Schema::connection('danish')->create('adoption', function (Blueprint $table) {
+        Schema::connection('booking')->create('adoption', function (Blueprint $table) {
             $table->id();
             $table->decimal('fee', 10, 2)->nullable();
             $table->text('remarks')->nullable();
@@ -139,27 +139,16 @@ return new class extends Migration {
         });
 
         // Add FKs for adoption (same database, OK to use FK)
-        // Detect database driver for Danish's SQL Server
-        $driver = DB::connection('danish')->getDriverName();
-
-        Schema::connection('danish')->table('adoption', function (Blueprint $table) use ($driver) {
+        Schema::connection('booking')->table('adoption', function (Blueprint $table) {
             $table->foreign('bookingID')
                 ->references('id')
                 ->on('booking')
                 ->onDelete('cascade');
 
-            // Use NO ACTION for SQL Server to avoid multiple cascade paths
-            if ($driver === 'sqlsrv') {
-                $table->foreign('transactionID')
-                    ->references('id')
-                    ->on('transaction')
-                    ->onDelete('no action');
-            } else {
-                $table->foreign('transactionID')
-                    ->references('id')
-                    ->on('transaction')
-                    ->onDelete('set null');
-            }
+            $table->foreign('transactionID')
+                ->references('id')
+                ->on('transaction')
+                ->onDelete('set null');
         });
     }
 
@@ -172,19 +161,19 @@ return new class extends Migration {
          * Drop FKs first
          */
         // Danish's adoption table
-        Schema::connection('danish')->table('adoption', function (Blueprint $table) {
+        Schema::connection('booking')->table('adoption', function (Blueprint $table) {
             $table->dropForeign(['bookingID']);
             $table->dropForeign(['transactionID']);
         });
 
         // Atiqah's inventory table
-        Schema::connection('atiqah')->table('inventory', function (Blueprint $table) {
+        Schema::connection('shelter')->table('inventory', function (Blueprint $table) {
             $table->dropForeign(['slotID']);
             $table->dropForeign(['categoryID']);
         });
 
         // Shafiqah's medical table
-        Schema::connection('shafiqah')->table('medical', function (Blueprint $table) {
+        Schema::connection('animals')->table('medical', function (Blueprint $table) {
             $table->dropForeign(['vetID']);
             $table->dropForeign(['animalID']);
         });
@@ -193,15 +182,15 @@ return new class extends Migration {
          * Drop tables
          */
         // Danish's tables
-        Schema::connection('danish')->dropIfExists('adoption');
-        Schema::connection('danish')->dropIfExists('transaction');
-        Schema::connection('danish')->dropIfExists('booking');
+        Schema::connection('booking')->dropIfExists('adoption');
+        Schema::connection('booking')->dropIfExists('transaction');
+        Schema::connection('booking')->dropIfExists('booking');
 
         // Atiqah's tables
-        Schema::connection('atiqah')->dropIfExists('inventory');
-        Schema::connection('atiqah')->dropIfExists('category');
+        Schema::connection('shelter')->dropIfExists('inventory');
+        Schema::connection('shelter')->dropIfExists('category');
 
         // Shafiqah's table
-        Schema::connection('shafiqah')->dropIfExists('medical');
+        Schema::connection('animals')->dropIfExists('medical');
     }
 };

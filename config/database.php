@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 use Illuminate\Support\Str;
 
@@ -30,88 +30,88 @@ return [
     */
 
     'connections' => [
-        //workshop2
-        'eilya' => [
-            'driver' => 'mysql',
-            'host' => env('DB1_HOST'),
+        // eilya — workshop-2 server (MariaDB, 100.78.124.25)
+        'reporting' => [
+            'driver' => 'mariadb',
+            'host' => env('DB1_HOST', '100.78.124.25'),
             'port' => env('DB1_PORT', 3306),
-            'database' => env('DB1_DATABASE'),
-            'username' => env('DB1_USERNAME'),
-            'password' => env('DB1_PASSWORD'),
+            'database' => env('DB1_DATABASE', 'workshop_2'),
+            'username' => env('DB1_USERNAME', 'root'),
+            'password' => env('DB1_PASSWORD', ''),
             'charset' => 'utf8mb4',
             'collation' => 'utf8mb4_unicode_ci',
             'options' => [
-                PDO::ATTR_TIMEOUT => 0.5, // Reduced to 0.5 seconds for faster failure
+                PDO::ATTR_TIMEOUT => 5,
                 PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
             ],
         ],
 
-        'atiqah' => [
+        // atiqah — msi/local machine (MySQL, 100.68.235.121)
+        'shelter' => [
             'driver' => 'mysql',
-            'host' => env('DB2_HOST'),
+            'host' => env('DB2_HOST', '100.68.235.121'),
             'port' => env('DB2_PORT', 3306),
-            'database' => env('DB2_DATABASE'),
-            'username' => env('DB2_USERNAME'),
-            'password' => env('DB2_PASSWORD'),
+            'database' => env('DB2_DATABASE', 'workshop_2'),
+            'username' => env('DB2_USERNAME', 'root'),
+            'password' => env('DB2_PASSWORD', 'password'),
             'charset' => 'utf8mb4',
             'collation' => 'utf8mb4_unicode_ci',
             'options' => [
-                PDO::ATTR_TIMEOUT => 0.5, // Reduced to 0.5 seconds for faster failure
+                PDO::ATTR_TIMEOUT => 5,
                 PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
             ],
         ],
 
-        'shafiqah' => [
+        // shafiqah — msi/local machine (MySQL, 100.68.235.121)
+        'animals' => [
             'driver' => 'mysql',
-            'host' => env('DB3_HOST'),
+            'host' => env('DB3_HOST', '100.68.235.121'),
             'port' => env('DB3_PORT', 3306),
-            'database' => env('DB3_DATABASE'),
-            'username' => env('DB3_USERNAME'),
-            'password' => env('DB3_PASSWORD'),
+            'database' => env('DB3_DATABASE', 'workshop_2'),
+            'username' => env('DB3_USERNAME', 'root'),
+            'password' => env('DB3_PASSWORD', 'password'),
             'charset' => 'utf8mb4',
             'collation' => 'utf8mb4_unicode_ci',
             'options' => [
-                // CRITICAL FIX: Increased timeout for stored procedures
-                // Medical/Vaccination/Animal Profile procedures can take 5-10 seconds with triggers
-                // Previous 0.5s timeout caused 419 Session Expired errors
-                PDO::ATTR_TIMEOUT => 60, // 60 seconds for stored procedure execution
+                PDO::ATTR_TIMEOUT => 60, // Allow longer for stored procedures
                 PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
             ],
         ],
 
-        'danish' => [
-            'driver' => 'sqlsrv',
-            'host' => env('DB4_HOST'),
-            'port' => env('DB4_PORT', 1433),
-            'database' => env('DB4_DATABASE'),
-            'username' => env('DB4_USERNAME'),
-            'password' => env('DB4_PASSWORD'),
-            'encrypt' => 'no',
-            'trust_server_certificate' => true,
+        // danish — workshop-2 server (MariaDB, 100.78.124.25) — replaced SQL Server
+        'booking' => [
+            'driver' => 'mariadb',
+            'host' => env('DB4_HOST', '100.78.124.25'),
+            'port' => env('DB4_PORT', 3306),
+            'database' => env('DB4_DATABASE', 'workshop_2'),
+            'username' => env('DB4_USERNAME', 'root'),
+            'password' => env('DB4_PASSWORD', ''),
+            'charset' => 'utf8mb4',
+            'collation' => 'utf8mb4_unicode_ci',
             'options' => [
-                'TrustServerCertificate' => true,
-                'ConnectTimeout' => 2, // Reduced from 5 to 2 seconds for faster failure
-                'LoginTimeout' => 2,   // Reduced from 5 to 2 seconds for faster failure
+                PDO::ATTR_TIMEOUT => 60, // Allow longer for stored procedures
+                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
             ],
         ],
 
-        'taufiq' => [
+        // taufiq — workshop-postgres server (PostgreSQL, 100.113.234.24)
+        'users' => [
             'driver'   => 'pgsql',
-            'host'     => env('DB5_HOST'),
+            'host'     => env('DB5_HOST', '100.113.234.24'),
             'port'     => env('DB5_PORT', 5432),
-            'database' => env('DB5_DATABASE'),
-            'username' => env('DB5_USERNAME'),
-            'password' => env('DB5_PASSWORD'),
+            'database' => env('DB5_DATABASE', 'workshop_2'),
+            'username' => env('DB5_USERNAME', 'postgres'),
+            'password' => env('DB5_PASSWORD', ''),
             'charset'  => 'utf8',
             'schema'   => 'public',
             'options'  => [
-                PDO::ATTR_TIMEOUT => 0.5, // Reduced to 0.5 seconds for faster failure
+                PDO::ATTR_TIMEOUT => 5,
                 PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
             ],
-            'connect_timeout' => 0.5, // PostgreSQL specific timeout (reduced to 0.5 seconds)
+            'connect_timeout' => 5,
         ],
 
-        //workshop2
+
 
         'sqlite' => [
             'driver' => 'sqlite',

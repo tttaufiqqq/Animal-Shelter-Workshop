@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
@@ -12,7 +12,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::connection('danish')->create('visit_list', function (Blueprint $table) {
+        Schema::connection('booking')->create('visit_list', function (Blueprint $table) {
             $table->id();
 
             // Logical FK - references Taufiq's users table (cross-database, NO FK constraint)
@@ -23,7 +23,7 @@ return new class extends Migration
             $table->index('userID');
         });
 
-        Schema::connection('danish')->create('visit_list_animal', function (Blueprint $table) {
+        Schema::connection('booking')->create('visit_list_animal', function (Blueprint $table) {
             $table->id();
 
             // FK to visit_list table (same database, OK to use FK)
@@ -45,7 +45,7 @@ return new class extends Migration
 
         // Add FK for listID only (same database, OK to use FK)
         // Do NOT add FK for userID or animalID (cross-database)
-        Schema::connection('danish')->table('visit_list_animal', function (Blueprint $table) {
+        Schema::connection('booking')->table('visit_list_animal', function (Blueprint $table) {
             $table->foreign('listID')
                 ->references('id')
                 ->on('visit_list')
@@ -59,13 +59,13 @@ return new class extends Migration
     public function down(): void
     {
         // Drop FK first
-        Schema::connection('danish')->table('visit_list_animal', function (Blueprint $table) {
+        Schema::connection('booking')->table('visit_list_animal', function (Blueprint $table) {
             $table->dropForeign(['listID']);
         });
 
         // Drop dependent table FIRST
-        Schema::connection('danish')->dropIfExists('visit_list_animal');
+        Schema::connection('booking')->dropIfExists('visit_list_animal');
         // Then drop the parent table
-        Schema::connection('danish')->dropIfExists('visit_list');
+        Schema::connection('booking')->dropIfExists('visit_list');
     }
 };

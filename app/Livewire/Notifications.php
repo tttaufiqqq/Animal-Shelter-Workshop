@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 namespace App\Livewire;
 
@@ -54,10 +54,10 @@ class Notifications extends Component
 
         // Check Danish database connection first (required for all notification types)
         try {
-            DB::connection('danish')->getPdo();
+            DB::connection('booking')->getPdo();
         } catch (\Exception $e) {
             $this->danishDbOnline = false;
-            $this->databaseErrors['danish'] = 'Notifications unavailable - Danish database is offline';
+            $this->databaseErrors['booking'] = 'Notifications unavailable - Danish database is offline';
             Log::warning('Danish database offline in Notifications component: ' . $e->getMessage());
 
             // Add system notification about offline database

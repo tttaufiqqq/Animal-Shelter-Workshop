@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         // 1. Validate Adopter Profile Data
-        DB::connection('taufiq')->unprepared("
+        DB::connection('users')->unprepared("
             CREATE OR REPLACE FUNCTION validate_adopter_profile()
             RETURNS TRIGGER AS $$
             BEGIN
@@ -51,7 +51,7 @@ return new class extends Migration
             $$ LANGUAGE plpgsql;
         ");
 
-        DB::connection('taufiq')->unprepared("
+        DB::connection('users')->unprepared("
             CREATE TRIGGER trg_validate_adopter_profile
                 BEFORE INSERT OR UPDATE ON adopter_profile
                 FOR EACH ROW
@@ -59,7 +59,7 @@ return new class extends Migration
         ");
 
         // 2. Auto-Log Adopter Profile Changes
-        DB::connection('taufiq')->unprepared("
+        DB::connection('users')->unprepared("
             CREATE OR REPLACE FUNCTION log_adopter_profile_changes()
             RETURNS TRIGGER AS $$
             DECLARE
@@ -89,7 +89,7 @@ return new class extends Migration
                 ) VALUES (
                     v_user_record.id, v_user_record.name, v_user_record.email,
                     'adopter_management', v_action, 'AdopterProfile', COALESCE(NEW.id, OLD.id),
-                    'taufiq', NOW(),
+                    'users', NOW(),
                     CASE WHEN TG_OP IN ('UPDATE', 'DELETE') THEN to_jsonb(OLD) ELSE NULL END,
                     CASE WHEN TG_OP IN ('INSERT', 'UPDATE') THEN to_jsonb(NEW) ELSE NULL END,
                     'success'
@@ -100,7 +100,7 @@ return new class extends Migration
             $$ LANGUAGE plpgsql;
         ");
 
-        DB::connection('taufiq')->unprepared("
+        DB::connection('users')->unprepared("
             CREATE TRIGGER trg_log_adopter_profile_changes
                 AFTER INSERT OR UPDATE OR DELETE ON adopter_profile
                 FOR EACH ROW
@@ -113,9 +113,9 @@ return new class extends Migration
      */
     public function down(): void
     {
-        DB::connection('taufiq')->unprepared('DROP TRIGGER IF EXISTS trg_validate_adopter_profile ON adopter_profile');
-        DB::connection('taufiq')->unprepared('DROP TRIGGER IF EXISTS trg_log_adopter_profile_changes ON adopter_profile');
-        DB::connection('taufiq')->unprepared('DROP FUNCTION IF EXISTS validate_adopter_profile()');
-        DB::connection('taufiq')->unprepared('DROP FUNCTION IF EXISTS log_adopter_profile_changes()');
+        DB::connection('users')->unprepared('DROP TRIGGER IF EXISTS trg_validate_adopter_profile ON adopter_profile');
+        DB::connection('users')->unprepared('DROP TRIGGER IF EXISTS trg_log_adopter_profile_changes ON adopter_profile');
+        DB::connection('users')->unprepared('DROP FUNCTION IF EXISTS validate_adopter_profile()');
+        DB::connection('users')->unprepared('DROP FUNCTION IF EXISTS log_adopter_profile_changes()');
     }
 };

@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 namespace Database\Seeders;
 
@@ -99,7 +99,7 @@ class AnimalSeeder extends Seeder
 
         // Get all successful rescues from Eilya's database (cross-database)
         $this->command->info('Fetching successful rescues from Eilya\'s database...');
-        $successfulRescues = DB::connection('eilya')
+        $successfulRescues = DB::connection('reporting')
             ->table('rescue')
             ->where('status', 'Success')
             ->get();
@@ -113,7 +113,7 @@ class AnimalSeeder extends Seeder
 
         // Get all available slots from Atiqah's database (cross-database)
         $this->command->info('Fetching available slots from Atiqah\'s database...');
-        $availableSlots = DB::connection('atiqah')
+        $availableSlots = DB::connection('shelter')
             ->table('slot')
             ->where('status', 'available')
             ->get();
@@ -127,7 +127,7 @@ class AnimalSeeder extends Seeder
 
         // Get all vets from Shafiqah's database for vaccination records
         $this->command->info('Fetching vets from Shafiqah\'s database...');
-        $vets = DB::connection('shafiqah')->table('vet')->get();
+        $vets = DB::connection('animals')->table('vet')->get();
         if ($vets->isEmpty()) {
             $this->command->warn('No vets found. Vaccination records will not be created. Please run ClinicVetSeeder first.');
         } else {
@@ -272,7 +272,7 @@ class AnimalSeeder extends Seeder
         }
 
         // Use transaction for Shafiqah's database (animals, medical, vaccinations)
-        DB::connection('shafiqah')->beginTransaction();
+        DB::connection('animals')->beginTransaction();
 
         try {
             $this->command->info('');
@@ -281,7 +281,7 @@ class AnimalSeeder extends Seeder
             // Insert all animals into Shafiqah's database
             $createdAnimals = [];
             foreach ($animals as $animalData) {
-                $animalId = DB::connection('shafiqah')->table('animal')->insertGetId($animalData);
+                $animalId = DB::connection('animals')->table('animal')->insertGetId($animalData);
 
                 // Create stdClass object to mimic Animal model for helper methods
                 $animal = (object) $animalData;
@@ -290,7 +290,7 @@ class AnimalSeeder extends Seeder
             }
 
             // Verify what was actually inserted into database
-            $dbNotAdopted = DB::connection('shafiqah')
+            $dbNotAdopted = DB::connection('animals')
                 ->table('animal')
                 ->where('adoption_status', 'Not Adopted')
                 ->count();
@@ -303,11 +303,11 @@ class AnimalSeeder extends Seeder
             }
 
             // Commit Shafiqah transaction BEFORE touching other databases
-            DB::connection('shafiqah')->commit();
+            DB::connection('animals')->commit();
             $this->command->info("✓ Shafiqah transaction committed successfully");
 
         } catch (\Exception $e) {
-            DB::connection('shafiqah')->rollBack();
+            DB::connection('animals')->rollBack();
             $this->command->error("Failed to create animals in Shafiqah: " . $e->getMessage());
             throw $e;
         }
@@ -320,7 +320,7 @@ class AnimalSeeder extends Seeder
                 $slotCounts = array_count_values($assignedSlotIds);
 
                 // Get slot capacities
-                $slots = DB::connection('atiqah')
+                $slots = DB::connection('shelter')
                     ->table('slot')
                     ->whereIn('id', array_keys($slotCounts))
                     ->get(['id', 'capacity', 'name']);
@@ -340,7 +340,7 @@ class AnimalSeeder extends Seeder
                         $availableCount++;
                     }
 
-                    DB::connection('atiqah')
+                    DB::connection('shelter')
                         ->table('slot')
                         ->where('id', $slot->id)
                         ->update([
@@ -456,7 +456,7 @@ class AnimalSeeder extends Seeder
         // Insert all images into Eilya's database
         $this->command->info('Inserting animal images into Eilya\'s database...');
         foreach (array_chunk($images, 300) as $chunk) {
-            DB::connection('eilya')->table('image')->insert($chunk);
+            DB::connection('reporting')->table('image')->insert($chunk);
         }
 
         $this->command->info("Total images assigned to animals: {$totalImages}");
@@ -621,7 +621,7 @@ class AnimalSeeder extends Seeder
                 ];
 
                 // Insert medical record into Shafiqah's database
-                DB::connection('shafiqah')->table('medical')->insert([
+                DB::connection('animals')->table('medical')->insert([
                     'treatment_type' => $treatmentType,
                     'diagnosis' => $diagnosis,
                     'action' => $action,
@@ -715,7 +715,7 @@ class AnimalSeeder extends Seeder
                 ];
 
                 // Insert vaccination record into Shafiqah's database
-                DB::connection('shafiqah')->table('vaccination')->insert([
+                DB::connection('animals')->table('vaccination')->insert([
                     'name' => $vaccine['name'],
                     'type' => $vaccine['type'],
                     'next_due_date' => $nextDueDate,

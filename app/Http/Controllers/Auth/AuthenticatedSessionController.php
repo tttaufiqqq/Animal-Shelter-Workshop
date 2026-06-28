@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 namespace App\Http\Controllers\Auth;
 
@@ -64,7 +64,7 @@ class AuthenticatedSessionController extends Controller
             }
 
             // Reset failed login attempts on successful login using stored procedure
-            DB::connection('taufiq')->select('SELECT reset_failed_login_attempts(?)', [$user->id]);
+            DB::connection('users')->select('SELECT reset_failed_login_attempts(?)', [$user->id]);
 
             $request->session()->regenerate();
 
@@ -93,7 +93,7 @@ class AuthenticatedSessionController extends Controller
                 // Increment failed login attempts for the user using stored procedure
                 $user = \App\Models\User::where('email', $request->email)->first();
                 if ($user) {
-                    $result = DB::connection('taufiq')->select(
+                    $result = DB::connection('users')->select(
                         'SELECT * FROM increment_failed_login_attempts(?)',
                         [$user->id]
                     );

@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 namespace App\Livewire;
 
@@ -39,7 +39,7 @@ class ReportsTable extends Component
         $this->latestReportId = $this->safeQuery(
             fn() => Report::max('id') ?? 0,
             0,
-            'eilya'
+            'reporting'
         );
     }
 
@@ -68,7 +68,7 @@ class ReportsTable extends Component
         $currentLatestId = $this->safeQuery(
             fn() => Report::max('id') ?? 0,
             0,
-            'eilya'
+            'reporting'
         );
 
         if ($currentLatestId > $this->latestReportId) {
@@ -78,7 +78,7 @@ class ReportsTable extends Component
                     ->pluck('id')
                     ->toArray(),
                 [],
-                'eilya'
+                'reporting'
             );
 
             if ($this->autoRefresh) {
@@ -122,7 +122,7 @@ class ReportsTable extends Component
         $this->latestReportId = $this->safeQuery(
             fn() => Report::max('id') ?? 0,
             0,
-            'eilya'
+            'reporting'
         );
         $this->hasNewReports = false;
         $this->newReportIds = [];
@@ -146,14 +146,14 @@ class ReportsTable extends Component
             $query = Report::with('images');
 
             // Check if taufiq database is online for user filtering
-            $taufiqOnline = $this->isDatabaseAvailable('taufiq');
+            $taufiqOnline = $this->isDatabaseAvailable('users');
 
             // Search by user name or email (cross-database search)
             if (!empty($this->userSearch) && $taufiqOnline) {
                 $userSearch = $this->userSearch;
 
                 // Get user IDs from taufiq database that match search
-                $userIds = DB::connection('taufiq')
+                $userIds = DB::connection('users')
                     ->table('users')
                     ->where(function($q) use ($userSearch) {
                         $q->where('name', 'LIKE', "%{$userSearch}%")
@@ -177,15 +177,15 @@ class ReportsTable extends Component
 
             return $query->orderBy('created_at', 'desc')
                 ->paginate(50);
-        }, new \Illuminate\Pagination\LengthAwarePaginator([], 0, 50), 'eilya');
+        }, new \Illuminate\Pagination\LengthAwarePaginator([], 0, 50), 'reporting');
 
         // Get status counts for filter badges
         $statusCounts = $this->safeQuery(
-            fn() => Report::select('report_status', DB::connection('eilya')->raw('COUNT(*) as total'))
+            fn() => Report::select('report_status', DB::connection('reporting')->raw('COUNT(*) as total'))
                 ->groupBy('report_status')
                 ->pluck('total', 'report_status'),
             collect([]),
-            'eilya'
+            'reporting'
         );
 
         $totalReports = $statusCounts->sum();

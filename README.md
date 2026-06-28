@@ -1,4 +1,4 @@
-<p align="center">
+﻿<p align="center">
   <img src="public/utem.png" alt="University Logo" width="150"/>
 </p>
 
@@ -118,7 +118,7 @@ Since foreign key constraints cannot exist across databases, the project uses a 
 // Example: Animal model (shafiqah) accessing Rescue (eilya)
 public function rescue()
 {
-    return $this->setConnection('eilya')
+    return $this->setConnection('reporting')
         ->belongsTo(Rescue::class, 'rescueID', 'id');
 }
 
@@ -143,7 +143,7 @@ Each Eloquent model explicitly declares its connection:
 ```php
 class Animal extends Model
 {
-    protected $connection = 'shafiqah';
+    protected $connection = 'animals';
 }
 ```
 
@@ -164,18 +164,18 @@ if (!$rescue) {
 When modifying multiple databases, use separate transactions:
 
 ```php
-DB::connection('shafiqah')->beginTransaction();
-DB::connection('eilya')->beginTransaction();
+DB::connection('animals')->beginTransaction();
+DB::connection('reporting')->beginTransaction();
 
 try {
     Animal::create([...]); // shafiqah
     Image::create([...]);  // eilya
 
-    DB::connection('shafiqah')->commit();
-    DB::connection('eilya')->commit();
+    DB::connection('animals')->commit();
+    DB::connection('reporting')->commit();
 } catch (\Exception $e) {
-    DB::connection('shafiqah')->rollBack();
-    DB::connection('eilya')->rollBack();
+    DB::connection('animals')->rollBack();
+    DB::connection('reporting')->rollBack();
 }
 ```
 

@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 namespace App\Models;
 
@@ -11,7 +11,7 @@ class Image extends Model
     use HasFactory;
 
     // Specify the database connection for this model (Eilya's database)
-    protected $connection = 'eilya';
+    protected $connection = 'reporting';
 
     protected $table = 'image';
 
@@ -49,7 +49,7 @@ class Image extends Model
      */
     public function animal()
     {
-        return $this->setConnection('shafiqah')
+        return $this->setConnection('animals')
             ->belongsTo(Animal::class, 'animalID', 'id');
     }
 

@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 namespace App\Console\Commands;
 
@@ -24,7 +24,7 @@ class MigrateDatabase extends Command
     /**
      * Valid database connections
      */
-    protected array $validConnections = ['taufiq', 'eilya', 'shafiqah', 'atiqah', 'danish'];
+    protected array $validConnections = ['users', 'reporting', 'animals', 'shelter', 'booking'];
 
     /**
      * Execute the console command.

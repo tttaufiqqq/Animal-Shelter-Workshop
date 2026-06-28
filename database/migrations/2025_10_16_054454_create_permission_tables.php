@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
@@ -21,7 +21,7 @@ return new class extends Migration
         throw_if($teams && empty($columnNames['team_foreign_key'] ?? null), new Exception('Error: team_foreign_key on config/permission.php not loaded. Run [php artisan config:clear] and try again.'));
 
         // Create roles table in Taufiq's database
-        Schema::connection('taufiq')->create($tableNames['roles'], static function (Blueprint $table) use ($teams, $columnNames) {
+        Schema::connection('users')->create($tableNames['roles'], static function (Blueprint $table) use ($teams, $columnNames) {
             $table->bigIncrements('id');
             if ($teams || config('permission.testing')) {
                 $table->unsignedBigInteger($columnNames['team_foreign_key'])->nullable();
@@ -39,7 +39,7 @@ return new class extends Migration
         });
 
         // Create model_has_roles table in Taufiq's database
-        Schema::connection('taufiq')->create($tableNames['model_has_roles'], static function (Blueprint $table) use ($tableNames, $columnNames, $pivotRole, $teams) {
+        Schema::connection('users')->create($tableNames['model_has_roles'], static function (Blueprint $table) use ($tableNames, $columnNames, $pivotRole, $teams) {
             $table->unsignedBigInteger($pivotRole);
             $table->string('model_type');
             $table->unsignedBigInteger($columnNames['model_morph_key']);
@@ -78,7 +78,7 @@ return new class extends Migration
             throw new \Exception('Error: config/permission.php not found and defaults could not be merged. Please publish the package configuration before proceeding, or drop the tables manually.');
         }
 
-        Schema::connection('taufiq')->drop($tableNames['model_has_roles']);
-        Schema::connection('taufiq')->drop($tableNames['roles']);
+        Schema::connection('users')->drop($tableNames['model_has_roles']);
+        Schema::connection('users')->drop($tableNames['roles']);
     }
 };

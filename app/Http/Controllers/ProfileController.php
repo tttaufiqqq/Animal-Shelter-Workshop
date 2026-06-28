@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 namespace App\Http\Controllers;
 
@@ -14,15 +14,15 @@ use App\Models\AdopterProfile;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
 use App\DatabaseErrorHandler;
-use App\Services\TaufiqProcedureService;
+use App\Services\UserProcedureService;
 
 class ProfileController extends Controller
 {
     use DatabaseErrorHandler;
 
-    protected TaufiqProcedureService $taufiqService;
+    protected UserProcedureService $taufiqService;
 
-    public function __construct(TaufiqProcedureService $taufiqService)
+    public function __construct(UserProcedureService $taufiqService)
     {
         $this->taufiqService = $taufiqService;
     }
@@ -123,18 +123,18 @@ class ProfileController extends Controller
     {
         try {
             // Get user account statistics using stored procedure
-            $userStats = DB::connection('taufiq')->select('SELECT * FROM get_user_account_stats()');
+            $userStats = DB::connection('users')->select('SELECT * FROM get_user_account_stats()');
             $userStats = $userStats[0] ?? null;
 
             // Get adopter profile statistics using stored procedure
-            $adopterStats = DB::connection('taufiq')->select('SELECT * FROM get_adopter_profile_stats()');
+            $adopterStats = DB::connection('users')->select('SELECT * FROM get_adopter_profile_stats()');
             $adopterStats = $adopterStats[0] ?? null;
 
             // Get recent registrations (last 7 days)
-            $recentRegistrations = DB::connection('taufiq')->select('SELECT * FROM get_recent_registrations(7)');
+            $recentRegistrations = DB::connection('users')->select('SELECT * FROM get_recent_registrations(7)');
 
             // Get high-risk users
-            $highRiskUsers = DB::connection('taufiq')->select('SELECT * FROM get_high_risk_users(3)');
+            $highRiskUsers = DB::connection('users')->select('SELECT * FROM get_high_risk_users(3)');
 
             // Cross-database statistics (for other modules)
             $totalReports = \App\Models\Report::count();

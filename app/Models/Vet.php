@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 namespace App\Models;
 
@@ -10,7 +10,7 @@ class Vet extends Model
     use HasFactory;
 
     // Specify the database connection for this model (Shafiqah's database)
-    protected $connection = 'shafiqah';
+    protected $connection = 'animals';
 
     protected $table = 'vet';
 

@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
@@ -12,12 +12,12 @@ return new class extends Migration
      */
     public function up(): void
     {
-        $connection = DB::connection('atiqah');
+        $connection = DB::connection('shelter');
 
         // ===========================
         // Create audit_log table
         // ===========================
-        Schema::connection('atiqah')->create('audit_log', function (Blueprint $table) {
+        Schema::connection('shelter')->create('audit_log', function (Blueprint $table) {
             $table->id();
             $table->string('table_name', 50);
             $table->string('operation', 10); // INSERT, UPDATE, DELETE
@@ -397,7 +397,7 @@ return new class extends Migration
      */
     public function down(): void
     {
-        $connection = DB::connection('atiqah');
+        $connection = DB::connection('shelter');
 
         // Drop all triggers
         $connection->unprepared('DROP TRIGGER IF EXISTS section_after_insert');
@@ -421,6 +421,6 @@ return new class extends Migration
         $connection->unprepared('DROP TRIGGER IF EXISTS inventory_before_update_validate');
 
         // Drop audit_log table
-        Schema::connection('atiqah')->dropIfExists('audit_log');
+        Schema::connection('shelter')->dropIfExists('audit_log');
     }
 };

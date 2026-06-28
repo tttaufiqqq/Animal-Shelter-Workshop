@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 namespace App\Http\Controllers;
 
@@ -9,7 +9,7 @@ use App\Models\Animal;
 use App\Models\Section;
 use App\Models\Category;
 use App\DatabaseErrorHandler;
-use App\Services\AtiqahProcedureService;
+use App\Services\ShelterProcedureService;
 
 class ShelterManagementController extends Controller
 {
@@ -17,7 +17,7 @@ class ShelterManagementController extends Controller
 
     protected $atiqahService;
 
-    public function __construct(AtiqahProcedureService $atiqahService)
+    public function __construct(ShelterProcedureService $atiqahService)
     {
         $this->atiqahService = $atiqahService;
     }
@@ -45,7 +45,7 @@ class ShelterManagementController extends Controller
                 ->paginate(100);
 
             // Manually load animals for each slot to avoid cross-database JOIN
-            if ($this->isDatabaseAvailable('shafiqah')) {
+            if ($this->isDatabaseAvailable('animals')) {
                 $slotIds = $slots->pluck('id')->toArray();
                 $animals = Animal::whereIn('slotID', $slotIds)->get()->groupBy('slotID');
 
@@ -79,7 +79,7 @@ class ShelterManagementController extends Controller
             'availableSlots' => 0,
             'occupiedSlots' => 0,
             'maintenanceSlots' => 0,
-        ], 'atiqah'); // Pre-check atiqah database for faster loading
+        ], 'shelter'); // Pre-check atiqah database for faster loading
 
         return view('shelter-management.index', $result);
     }
@@ -130,12 +130,12 @@ class ShelterManagementController extends Controller
                     'name' => $section->name,
                     'description' => $section->description,
                 ];
-            }, null, 'atiqah');
+            }, null, 'shelter');
 
             if ($data === null) {
                 \Log::error('Failed to load section for editing', [
                     'section_id' => $id,
-                    'database' => 'atiqah'
+                    'database' => 'shelter'
                 ]);
 
                 return response()->json([
@@ -259,12 +259,12 @@ class ShelterManagementController extends Controller
                     'capacity' => $slot->capacity,
                     'status' => $slot->status,
                 ];
-            }, null, 'atiqah');
+            }, null, 'shelter');
 
             if ($data === null) {
                 \Log::error('Failed to load slot for editing', [
                     'slot_id' => $id,
-                    'database' => 'atiqah'
+                    'database' => 'shelter'
                 ]);
 
                 return response()->json([
@@ -302,7 +302,7 @@ class ShelterManagementController extends Controller
                 // Auto-calculate status based on animal count
                 // Count animals in this slot (cross-database query to shafiqah)
                 $animalCount = 0;
-                if ($this->isDatabaseAvailable('shafiqah')) {
+                if ($this->isDatabaseAvailable('animals')) {
                     $animalCount = Animal::where('slotID', $id)->count();
                 }
 
@@ -365,7 +365,7 @@ class ShelterManagementController extends Controller
 
             // Check if slot has animals (cross-database check - must be done at application layer)
             $animalCount = 0;
-            if ($this->isDatabaseAvailable('shafiqah')) {
+            if ($this->isDatabaseAvailable('animals')) {
                 try {
                     // Count animals in slot directly from shafiqah database (avoid cross-database JOIN)
                     $animalCount = Animal::where('slotID', $id)->count();
@@ -459,12 +459,12 @@ class ShelterManagementController extends Controller
                     'main' => $category->main,
                     'sub' => $category->sub,
                 ];
-            }, null, 'atiqah');
+            }, null, 'shelter');
 
             if ($data === null) {
                 \Log::error('Failed to load category for editing', [
                     'category_id' => $id,
-                    'database' => 'atiqah'
+                    'database' => 'shelter'
                 ]);
 
                 return response()->json([
@@ -547,7 +547,7 @@ class ShelterManagementController extends Controller
 
             // Only load images if eilya database is online (cross-database relationship)
             $images = collect([]);
-            if ($this->isDatabaseAvailable('eilya')) {
+            if ($this->isDatabaseAvailable('reporting')) {
                 try {
                     $images = $animal->images()->get();
                 } catch (\Exception $e) {
@@ -592,7 +592,7 @@ class ShelterManagementController extends Controller
                     ];
                 }),
             ];
-        }, null, 'shafiqah'); // Properly close safeQuery with connection parameter
+        }, null, 'animals'); // Properly close safeQuery with connection parameter
 
         if ($data === null) {
             return response()->json([
@@ -614,7 +614,7 @@ class ShelterManagementController extends Controller
             $slot = Slot::with($with)->findOrFail($id);
 
             // Manually load animals to avoid cross-database JOIN
-            if ($this->isDatabaseAvailable('shafiqah')) {
+            if ($this->isDatabaseAvailable('animals')) {
                 $animals = Animal::where('slotID', $slot->id)
                     ->with(['vaccinations', 'medicals'])
                     ->get();
@@ -625,7 +625,7 @@ class ShelterManagementController extends Controller
 
             // Prepare animals data (empty if shafiqah is offline)
             $animalsData = [];
-            if ($this->isDatabaseAvailable('shafiqah') && $slot->relationLoaded('animals')) {
+            if ($this->isDatabaseAvailable('animals') && $slot->relationLoaded('animals')) {
                 $animalsData = $slot->animals->map(function($animal) {
                     return [
                         'id' => $animal->id,
@@ -668,7 +668,7 @@ class ShelterManagementController extends Controller
                     ];
                 }),
             ];
-        }, null, 'atiqah');
+        }, null, 'shelter');
 
         if ($data === null) {
             \Log::error('Slot details fetch failed - database unavailable', ['slot_id' => $id]);

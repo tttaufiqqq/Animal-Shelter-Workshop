@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 namespace App\Services;
 
@@ -28,7 +28,7 @@ class ForeignKeyValidator
         }
 
         return Cache::remember("user_exists_{$userId}", self::CACHE_DURATION, function () use ($userId) {
-            return DB::connection('taufiq')
+            return DB::connection('users')
                 ->table('users')
                 ->where('id', $userId)
                 ->exists();
@@ -45,7 +45,7 @@ class ForeignKeyValidator
         }
 
         return Cache::remember("adopter_profile_exists_{$adopterProfileId}", self::CACHE_DURATION, function () use ($adopterProfileId) {
-            return DB::connection('taufiq')
+            return DB::connection('users')
                 ->table('adopter_profile')
                 ->where('id', $adopterProfileId)
                 ->exists();
@@ -62,7 +62,7 @@ class ForeignKeyValidator
         }
 
         return Cache::remember("role_exists_{$roleId}", self::CACHE_DURATION, function () use ($roleId) {
-            return DB::connection('taufiq')
+            return DB::connection('users')
                 ->table('roles')
                 ->where('id', $roleId)
                 ->exists();
@@ -85,7 +85,7 @@ class ForeignKeyValidator
         }
 
         return Cache::remember("report_exists_{$reportId}", self::CACHE_DURATION, function () use ($reportId) {
-            return DB::connection('eilya')
+            return DB::connection('reporting')
                 ->table('report')
                 ->where('id', $reportId)
                 ->exists();
@@ -102,7 +102,7 @@ class ForeignKeyValidator
         }
 
         return Cache::remember("rescue_exists_{$rescueId}", self::CACHE_DURATION, function () use ($rescueId) {
-            return DB::connection('eilya')
+            return DB::connection('reporting')
                 ->table('rescue')
                 ->where('id', $rescueId)
                 ->exists();
@@ -119,7 +119,7 @@ class ForeignKeyValidator
         }
 
         return Cache::remember("image_exists_{$imageId}", self::CACHE_DURATION, function () use ($imageId) {
-            return DB::connection('eilya')
+            return DB::connection('reporting')
                 ->table('image')
                 ->where('id', $imageId)
                 ->exists();
@@ -142,7 +142,7 @@ class ForeignKeyValidator
         }
 
         return Cache::remember("slot_exists_{$slotId}", self::CACHE_DURATION, function () use ($slotId) {
-            return DB::connection('atiqah')
+            return DB::connection('shelter')
                 ->table('slot')
                 ->where('id', $slotId)
                 ->exists();
@@ -159,7 +159,7 @@ class ForeignKeyValidator
         }
 
         return Cache::remember("section_exists_{$sectionId}", self::CACHE_DURATION, function () use ($sectionId) {
-            return DB::connection('atiqah')
+            return DB::connection('shelter')
                 ->table('section')
                 ->where('id', $sectionId)
                 ->exists();
@@ -176,7 +176,7 @@ class ForeignKeyValidator
         }
 
         return Cache::remember("category_exists_{$categoryId}", self::CACHE_DURATION, function () use ($categoryId) {
-            return DB::connection('atiqah')
+            return DB::connection('shelter')
                 ->table('category')
                 ->where('id', $categoryId)
                 ->exists();
@@ -193,7 +193,7 @@ class ForeignKeyValidator
         }
 
         return Cache::remember("inventory_exists_{$inventoryId}", self::CACHE_DURATION, function () use ($inventoryId) {
-            return DB::connection('atiqah')
+            return DB::connection('shelter')
                 ->table('inventory')
                 ->where('id', $inventoryId)
                 ->exists();
@@ -210,7 +210,7 @@ class ForeignKeyValidator
         }
 
         // Get slot capacity
-        $slot = DB::connection('atiqah')
+        $slot = DB::connection('shelter')
             ->table('slot')
             ->where('id', $slotId)
             ->first(['capacity']);
@@ -220,7 +220,7 @@ class ForeignKeyValidator
         }
 
         // Count animals in this slot (cross-database query to Shafiqah)
-        $animalCount = DB::connection('shafiqah')
+        $animalCount = DB::connection('animals')
             ->table('animal')
             ->where('slotID', $slotId)
             ->count();
@@ -244,7 +244,7 @@ class ForeignKeyValidator
         }
 
         return Cache::remember("animal_exists_{$animalId}", self::CACHE_DURATION, function () use ($animalId) {
-            return DB::connection('shafiqah')
+            return DB::connection('animals')
                 ->table('animal')
                 ->where('id', $animalId)
                 ->exists();
@@ -261,7 +261,7 @@ class ForeignKeyValidator
         }
 
         return Cache::remember("animal_profile_exists_{$animalProfileId}", self::CACHE_DURATION, function () use ($animalProfileId) {
-            return DB::connection('shafiqah')
+            return DB::connection('animals')
                 ->table('animal_profile')
                 ->where('id', $animalProfileId)
                 ->exists();
@@ -278,7 +278,7 @@ class ForeignKeyValidator
         }
 
         return Cache::remember("clinic_exists_{$clinicId}", self::CACHE_DURATION, function () use ($clinicId) {
-            return DB::connection('shafiqah')
+            return DB::connection('animals')
                 ->table('clinic')
                 ->where('id', $clinicId)
                 ->exists();
@@ -295,7 +295,7 @@ class ForeignKeyValidator
         }
 
         return Cache::remember("vet_exists_{$vetId}", self::CACHE_DURATION, function () use ($vetId) {
-            return DB::connection('shafiqah')
+            return DB::connection('animals')
                 ->table('vet')
                 ->where('id', $vetId)
                 ->exists();
@@ -312,7 +312,7 @@ class ForeignKeyValidator
         }
 
         return Cache::remember("medical_exists_{$medicalId}", self::CACHE_DURATION, function () use ($medicalId) {
-            return DB::connection('shafiqah')
+            return DB::connection('animals')
                 ->table('medical')
                 ->where('id', $medicalId)
                 ->exists();
@@ -329,7 +329,7 @@ class ForeignKeyValidator
         }
 
         return Cache::remember("vaccination_exists_{$vaccinationId}", self::CACHE_DURATION, function () use ($vaccinationId) {
-            return DB::connection('shafiqah')
+            return DB::connection('animals')
                 ->table('vaccination')
                 ->where('id', $vaccinationId)
                 ->exists();
@@ -345,7 +345,7 @@ class ForeignKeyValidator
             return false;
         }
 
-        $animal = DB::connection('shafiqah')
+        $animal = DB::connection('animals')
             ->table('animal')
             ->where('id', $animalId)
             ->first(['adoption_status']);
@@ -369,7 +369,7 @@ class ForeignKeyValidator
         }
 
         return Cache::remember("booking_exists_{$bookingId}", self::CACHE_DURATION, function () use ($bookingId) {
-            return DB::connection('danish')
+            return DB::connection('booking')
                 ->table('booking')
                 ->where('id', $bookingId)
                 ->exists();
@@ -386,7 +386,7 @@ class ForeignKeyValidator
         }
 
         return Cache::remember("transaction_exists_{$transactionId}", self::CACHE_DURATION, function () use ($transactionId) {
-            return DB::connection('danish')
+            return DB::connection('booking')
                 ->table('transaction')
                 ->where('id', $transactionId)
                 ->exists();
@@ -403,7 +403,7 @@ class ForeignKeyValidator
         }
 
         return Cache::remember("adoption_exists_{$adoptionId}", self::CACHE_DURATION, function () use ($adoptionId) {
-            return DB::connection('danish')
+            return DB::connection('booking')
                 ->table('adoption')
                 ->where('id', $adoptionId)
                 ->exists();
@@ -420,7 +420,7 @@ class ForeignKeyValidator
         }
 
         return Cache::remember("visit_list_exists_{$visitListId}", self::CACHE_DURATION, function () use ($visitListId) {
-            return DB::connection('danish')
+            return DB::connection('booking')
                 ->table('visit_list')
                 ->where('id', $visitListId)
                 ->exists();
@@ -436,7 +436,7 @@ class ForeignKeyValidator
             return false;
         }
 
-        return DB::connection('danish')
+        return DB::connection('booking')
             ->table('visit_list')
             ->where('userID', $userId)
             ->exists();
@@ -451,7 +451,7 @@ class ForeignKeyValidator
             return false;
         }
 
-        $visitList = DB::connection('danish')
+        $visitList = DB::connection('booking')
             ->table('visit_list')
             ->where('userID', $userId)
             ->first(['id']);
@@ -460,7 +460,7 @@ class ForeignKeyValidator
             return false;
         }
 
-        return DB::connection('danish')
+        return DB::connection('booking')
             ->table('visit_list_animal')
             ->where('listID', $visitList->id)
             ->where('animalID', $animalId)
@@ -484,7 +484,7 @@ class ForeignKeyValidator
             return [];
         }
 
-        $existingIds = DB::connection('taufiq')
+        $existingIds = DB::connection('users')
             ->table('users')
             ->whereIn('id', $userIds)
             ->pluck('id')
@@ -507,7 +507,7 @@ class ForeignKeyValidator
             return [];
         }
 
-        $existingIds = DB::connection('shafiqah')
+        $existingIds = DB::connection('animals')
             ->table('animal')
             ->whereIn('id', $animalIds)
             ->pluck('id')

@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
@@ -10,7 +10,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        $connection = DB::connection('eilya');
+        $connection = DB::connection('reporting');
 
         // ===========================
         // RESCUE BEFORE INSERT TRIGGER
@@ -138,7 +138,7 @@ return new class extends Migration
      */
     public function down(): void
     {
-        $connection = DB::connection('eilya');
+        $connection = DB::connection('reporting');
 
         $connection->unprepared('DROP TRIGGER IF EXISTS trg_rescue_before_insert');
         $connection->unprepared('DROP TRIGGER IF EXISTS trg_rescue_after_insert');

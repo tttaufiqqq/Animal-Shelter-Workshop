@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 namespace App\Models;
 
@@ -10,7 +10,7 @@ class Slot extends Model
     use HasFactory;
 
     // Specify the database connection for this model (Atiqah's database)
-    protected $connection = 'atiqah';
+    protected $connection = 'shelter';
 
     protected $table = 'slot';
 
@@ -31,7 +31,7 @@ class Slot extends Model
      *
      * IMPORTANT: Do NOT use $this->setConnection() as it changes the model's
      * connection permanently! The Animal model already specifies its connection
-     * as 'shafiqah', so Laravel will query from the correct database.
+     * as 'animals', so Laravel will query from the correct database.
      */
     public function animals()
     {

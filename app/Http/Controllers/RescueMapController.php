@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 namespace App\Http\Controllers;
 
@@ -15,7 +15,7 @@ class RescueMapController extends Controller
     public function index()
     {
         // Get all reports with their rescue information
-        // Pre-check 'eilya' database to avoid timeout if offline
+        // Pre-check 'reporting' database to avoid timeout if offline
         $reports = $this->safeQuery(
             fn() => Report::with(['rescue'])
                 ->whereNotNull('latitude')
@@ -35,7 +35,7 @@ class RescueMapController extends Controller
                     ];
                 }),
             collect([]),
-            'eilya' // Pre-check eilya database
+            'reporting' // Pre-check eilya database
         );
 
         // Calculate overall statistics with fallback
@@ -56,14 +56,14 @@ class RescueMapController extends Controller
                 'in_progress' => 0,
                 'pending' => 0
             ],
-            'eilya' // Pre-check eilya database
+            'reporting' // Pre-check eilya database
         );
 
         // Calculate success rate
         $totalWithRescue = $this->safeQuery(
             fn() => Rescue::count(),
             0,
-            'eilya' // Pre-check eilya database
+            'reporting' // Pre-check eilya database
         );
 
         $statistics['success_rate'] = $totalWithRescue > 0

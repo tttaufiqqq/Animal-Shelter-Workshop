@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
@@ -10,7 +10,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        $connection = DB::connection('atiqah');
+        $connection = DB::connection('shelter');
 
         // ===========================
         // sp_category_create
@@ -222,7 +222,7 @@ return new class extends Migration
      */
     public function down(): void
     {
-        $connection = DB::connection('atiqah');
+        $connection = DB::connection('shelter');
 
         $connection->unprepared('DROP PROCEDURE IF EXISTS sp_category_create');
         $connection->unprepared('DROP PROCEDURE IF EXISTS sp_category_read');

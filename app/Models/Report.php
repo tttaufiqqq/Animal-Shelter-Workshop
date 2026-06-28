@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 namespace App\Models;
 
@@ -10,7 +10,7 @@ class Report extends Model
     use HasFactory;
 
     // Specify the database connection for this model (Eilya's database)
-    protected $connection = 'eilya';
+    protected $connection = 'reporting';
 
     protected $table = 'report';
 
@@ -43,7 +43,7 @@ class Report extends Model
      */
     public function user()
     {
-        return $this->setConnection('taufiq')
+        return $this->setConnection('users')
             ->belongsTo(User::class, 'userID', 'id');
     }
 

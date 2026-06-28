@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
@@ -16,7 +16,7 @@ return new class extends Migration
         // ==========================================
         // USER CREATE PROCEDURE (TRUE PROCEDURE)
         // ==========================================
-        DB::connection('taufiq')->unprepared("
+        DB::connection('users')->unprepared("
             CREATE OR REPLACE PROCEDURE sp_user_create_proc(
                 p_name VARCHAR,
                 p_email VARCHAR,
@@ -62,7 +62,7 @@ return new class extends Migration
                 ) VALUES (
                     p_audit_user_id, p_audit_user_name, p_audit_user_email, p_audit_user_role,
                     'user_management', 'user_created', 'User', o_user_id,
-                    'taufiq', NOW(), 'success',
+                    'users', NOW(), 'success',
                     jsonb_build_object(
                         'name', p_name,
                         'email', p_email,
@@ -81,7 +81,7 @@ return new class extends Migration
         // ==========================================
         // USER UPDATE PROCEDURE (TRUE PROCEDURE)
         // ==========================================
-        DB::connection('taufiq')->unprepared("
+        DB::connection('users')->unprepared("
             CREATE OR REPLACE PROCEDURE sp_user_update_proc(
                 p_user_id BIGINT,
                 p_name VARCHAR,
@@ -147,7 +147,7 @@ return new class extends Migration
         // ==========================================
         // USER UPDATE PASSWORD PROCEDURE (TRUE PROCEDURE)
         // ==========================================
-        DB::connection('taufiq')->unprepared("
+        DB::connection('users')->unprepared("
             CREATE OR REPLACE PROCEDURE sp_user_update_password_proc(
                 p_user_id BIGINT,
                 p_new_password VARCHAR,
@@ -191,7 +191,7 @@ return new class extends Migration
         // ==========================================
         // USER DELETE PROCEDURE (TRUE PROCEDURE)
         // ==========================================
-        DB::connection('taufiq')->unprepared("
+        DB::connection('users')->unprepared("
             CREATE OR REPLACE PROCEDURE sp_user_delete_proc(
                 p_user_id BIGINT,
                 p_audit_user_id BIGINT,
@@ -228,7 +228,7 @@ return new class extends Migration
         // ==========================================
         // USER SUSPEND PROCEDURE (TRUE PROCEDURE)
         // ==========================================
-        DB::connection('taufiq')->unprepared("
+        DB::connection('users')->unprepared("
             CREATE OR REPLACE PROCEDURE sp_user_suspend_proc(
                 p_user_id BIGINT,
                 p_reason TEXT,
@@ -274,7 +274,7 @@ return new class extends Migration
         // ==========================================
         // USER LOCK PROCEDURE (TRUE PROCEDURE)
         // ==========================================
-        DB::connection('taufiq')->unprepared("
+        DB::connection('users')->unprepared("
             CREATE OR REPLACE PROCEDURE sp_user_lock_proc(
                 p_user_id BIGINT,
                 p_duration_minutes INTEGER,
@@ -325,7 +325,7 @@ return new class extends Migration
         // ==========================================
         // USER UNLOCK PROCEDURE (TRUE PROCEDURE)
         // ==========================================
-        DB::connection('taufiq')->unprepared("
+        DB::connection('users')->unprepared("
             CREATE OR REPLACE PROCEDURE sp_user_unlock_proc(
                 p_user_id BIGINT,
                 p_audit_user_id BIGINT,
@@ -371,7 +371,7 @@ return new class extends Migration
         // ==========================================
         // USER FORCE PASSWORD RESET PROCEDURE (TRUE PROCEDURE)
         // ==========================================
-        DB::connection('taufiq')->unprepared("
+        DB::connection('users')->unprepared("
             CREATE OR REPLACE PROCEDURE sp_user_force_password_reset_proc(
                 p_user_id BIGINT,
                 p_audit_user_id BIGINT,
@@ -416,13 +416,13 @@ return new class extends Migration
      */
     public function down(): void
     {
-        DB::connection('taufiq')->unprepared('DROP PROCEDURE IF EXISTS sp_user_create_proc');
-        DB::connection('taufiq')->unprepared('DROP PROCEDURE IF EXISTS sp_user_update_proc');
-        DB::connection('taufiq')->unprepared('DROP PROCEDURE IF EXISTS sp_user_update_password_proc');
-        DB::connection('taufiq')->unprepared('DROP PROCEDURE IF EXISTS sp_user_delete_proc');
-        DB::connection('taufiq')->unprepared('DROP PROCEDURE IF EXISTS sp_user_suspend_proc');
-        DB::connection('taufiq')->unprepared('DROP PROCEDURE IF EXISTS sp_user_lock_proc');
-        DB::connection('taufiq')->unprepared('DROP PROCEDURE IF EXISTS sp_user_unlock_proc');
-        DB::connection('taufiq')->unprepared('DROP PROCEDURE IF EXISTS sp_user_force_password_reset_proc');
+        DB::connection('users')->unprepared('DROP PROCEDURE IF EXISTS sp_user_create_proc');
+        DB::connection('users')->unprepared('DROP PROCEDURE IF EXISTS sp_user_update_proc');
+        DB::connection('users')->unprepared('DROP PROCEDURE IF EXISTS sp_user_update_password_proc');
+        DB::connection('users')->unprepared('DROP PROCEDURE IF EXISTS sp_user_delete_proc');
+        DB::connection('users')->unprepared('DROP PROCEDURE IF EXISTS sp_user_suspend_proc');
+        DB::connection('users')->unprepared('DROP PROCEDURE IF EXISTS sp_user_lock_proc');
+        DB::connection('users')->unprepared('DROP PROCEDURE IF EXISTS sp_user_unlock_proc');
+        DB::connection('users')->unprepared('DROP PROCEDURE IF EXISTS sp_user_force_password_reset_proc');
     }
 };

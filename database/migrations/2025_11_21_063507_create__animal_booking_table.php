@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
@@ -12,7 +12,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::connection('danish')->create('animal_booking', function (Blueprint $table) {
+        Schema::connection('booking')->create('animal_booking', function (Blueprint $table) {
             $table->id();
 
             // FK to booking table (same database, OK to use FK)
@@ -31,7 +31,7 @@ return new class extends Migration
 
         // Add FK for bookingID only (same database, OK to use FK)
         // Do NOT add FK for animalID (cross-database to Shafiqah)
-        Schema::connection('danish')->table('animal_booking', function (Blueprint $table) {
+        Schema::connection('booking')->table('animal_booking', function (Blueprint $table) {
             $table->foreign('bookingID')
                 ->references('id')
                 ->on('booking')
@@ -45,10 +45,10 @@ return new class extends Migration
     public function down(): void
     {
         // Drop FK first
-        Schema::connection('danish')->table('animal_booking', function (Blueprint $table) {
+        Schema::connection('booking')->table('animal_booking', function (Blueprint $table) {
             $table->dropForeign(['bookingID']);
         });
 
-        Schema::connection('danish')->dropIfExists('animal_booking');
+        Schema::connection('booking')->dropIfExists('animal_booking');
     }
 };

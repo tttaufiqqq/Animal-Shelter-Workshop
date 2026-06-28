@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 return [
 
@@ -13,7 +13,7 @@ return [
    |
    */
 
-    'database_connection' => 'taufiq', // Set to taufiq connection
+    'database_connection' => 'users', // Set to taufiq connection
 
     'models' => [
 

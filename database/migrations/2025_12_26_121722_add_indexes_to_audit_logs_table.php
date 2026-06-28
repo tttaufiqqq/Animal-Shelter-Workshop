@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
@@ -12,7 +12,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::connection('taufiq')->table('audit_logs', function (Blueprint $table) {
+        Schema::connection('users')->table('audit_logs', function (Blueprint $table) {
             // Individual indexes for specific queries
             $table->index('user_email', 'idx_audit_user_email');
             $table->index('category', 'idx_audit_category');
@@ -31,7 +31,7 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::connection('taufiq')->table('audit_logs', function (Blueprint $table) {
+        Schema::connection('users')->table('audit_logs', function (Blueprint $table) {
             $table->dropIndex('idx_audit_user_email');
             $table->dropIndex('idx_audit_category');
             $table->dropIndex('idx_audit_action');

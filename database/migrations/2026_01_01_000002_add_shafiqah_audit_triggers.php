@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
@@ -15,11 +15,11 @@ return new class extends Migration
     public function up(): void
     {
         // DISABLED: Cross-database auditing not possible with MySQL triggers
-        // Auditing is now handled in ShafiqahProcedureService.php via application-level logging
+        // Auditing is now handled in AnimalProcedureService.php via application-level logging
         // to the taufiq database's audit_logs table.
         return;
 
-        $connection = DB::connection('shafiqah');
+        $connection = DB::connection('animals');
 
         // ===========================
         // CLINIC AUDIT TRIGGERS
@@ -525,7 +525,7 @@ return new class extends Migration
      */
     public function down(): void
     {
-        $connection = DB::connection('shafiqah');
+        $connection = DB::connection('animals');
 
         // Drop triggers in reverse order
         $triggers = [

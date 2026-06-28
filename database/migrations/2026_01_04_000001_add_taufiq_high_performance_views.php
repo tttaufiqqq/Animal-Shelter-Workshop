@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
@@ -29,7 +29,7 @@ return new class extends Migration
         // WHY: Most common read pattern - user + adopter profile + roles
         // SAVES: 2-3 JOINs on EVERY user profile page load
         // ==========================================
-        DB::connection('taufiq')->unprepared("
+        DB::connection('users')->unprepared("
             CREATE OR REPLACE VIEW v_user_full_profile AS
             SELECT
                 u.id,
@@ -105,7 +105,7 @@ return new class extends Migration
         // SAVES: Full table scans on every dashboard load
         // REFRESH: Every 5 minutes via scheduled task
         // ==========================================
-        DB::connection('taufiq')->unprepared("
+        DB::connection('users')->unprepared("
             CREATE MATERIALIZED VIEW v_user_account_stats AS
             SELECT
                 -- Total Users
@@ -158,7 +158,7 @@ return new class extends Migration
         ");
 
         // Create index on materialized view for instant access
-        DB::connection('taufiq')->unprepared("
+        DB::connection('users')->unprepared("
             CREATE UNIQUE INDEX idx_user_account_stats_singleton
             ON v_user_account_stats ((1));
         ");
@@ -170,7 +170,7 @@ return new class extends Migration
         // SAVES: Full table scans on every dashboard load
         // REFRESH: Every 5 minutes via scheduled task
         // ==========================================
-        DB::connection('taufiq')->unprepared("
+        DB::connection('users')->unprepared("
             CREATE MATERIALIZED VIEW v_adopter_profile_stats AS
             SELECT
                 -- Total Adopter Profiles
@@ -231,7 +231,7 @@ return new class extends Migration
         ");
 
         // Create index on materialized view for instant access
-        DB::connection('taufiq')->unprepared("
+        DB::connection('users')->unprepared("
             CREATE UNIQUE INDEX idx_adopter_profile_stats_singleton
             ON v_adopter_profile_stats ((1));
         ");
@@ -242,7 +242,7 @@ return new class extends Migration
         // WHY: Security monitoring - complex calculations
         // SAVES: Complex filtering + aggregations for security dashboard
         // ==========================================
-        DB::connection('taufiq')->unprepared("
+        DB::connection('users')->unprepared("
             CREATE OR REPLACE VIEW v_high_risk_users AS
             SELECT
                 u.id,
@@ -307,7 +307,7 @@ return new class extends Migration
         // WHY: Common query pattern - active users for adoption matching
         // SAVES: Complex JOINs + filtering for matching algorithm
         // ==========================================
-        DB::connection('taufiq')->unprepared("
+        DB::connection('users')->unprepared("
             CREATE OR REPLACE VIEW v_active_users_with_profiles AS
             SELECT
                 u.id,
@@ -358,7 +358,7 @@ return new class extends Migration
         // WHY: Analytics/reporting - aggregating audit logs
         // SAVES: Complex audit log aggregations
         // ==========================================
-        DB::connection('taufiq')->unprepared("
+        DB::connection('users')->unprepared("
             CREATE OR REPLACE VIEW v_user_activity_last_30_days AS
             SELECT
                 u.id AS user_id,
@@ -420,7 +420,7 @@ return new class extends Migration
         // HELPER FUNCTION: Refresh All Materialized Views
         // USAGE: SELECT refresh_all_taufiq_stats();
         // ==========================================
-        DB::connection('taufiq')->unprepared("
+        DB::connection('users')->unprepared("
             CREATE OR REPLACE FUNCTION refresh_all_taufiq_stats()
             RETURNS TEXT
             AS \$\$
@@ -439,16 +439,16 @@ return new class extends Migration
     public function down(): void
     {
         // Drop helper function
-        DB::connection('taufiq')->unprepared('DROP FUNCTION IF EXISTS refresh_all_taufiq_stats');
+        DB::connection('users')->unprepared('DROP FUNCTION IF EXISTS refresh_all_taufiq_stats');
 
         // Drop regular views
-        DB::connection('taufiq')->unprepared('DROP VIEW IF EXISTS v_user_full_profile CASCADE');
-        DB::connection('taufiq')->unprepared('DROP VIEW IF EXISTS v_high_risk_users CASCADE');
-        DB::connection('taufiq')->unprepared('DROP VIEW IF EXISTS v_active_users_with_profiles CASCADE');
-        DB::connection('taufiq')->unprepared('DROP VIEW IF EXISTS v_user_activity_last_30_days CASCADE');
+        DB::connection('users')->unprepared('DROP VIEW IF EXISTS v_user_full_profile CASCADE');
+        DB::connection('users')->unprepared('DROP VIEW IF EXISTS v_high_risk_users CASCADE');
+        DB::connection('users')->unprepared('DROP VIEW IF EXISTS v_active_users_with_profiles CASCADE');
+        DB::connection('users')->unprepared('DROP VIEW IF EXISTS v_user_activity_last_30_days CASCADE');
 
         // Drop materialized views
-        DB::connection('taufiq')->unprepared('DROP MATERIALIZED VIEW IF EXISTS v_user_account_stats CASCADE');
-        DB::connection('taufiq')->unprepared('DROP MATERIALIZED VIEW IF EXISTS v_adopter_profile_stats CASCADE');
+        DB::connection('users')->unprepared('DROP MATERIALIZED VIEW IF EXISTS v_user_account_stats CASCADE');
+        DB::connection('users')->unprepared('DROP MATERIALIZED VIEW IF EXISTS v_adopter_profile_stats CASCADE');
     }
 };

@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 namespace App\Http\Controllers\Admin;
 
@@ -34,7 +34,7 @@ class ShelterManagementController extends BaseShelterManagementController
                 ->paginate(100);
 
             // Manually load animals for each slot to avoid cross-database JOIN
-            if ($this->isDatabaseAvailable('shafiqah')) {
+            if ($this->isDatabaseAvailable('animals')) {
                 $slotIds = $slots->pluck('id')->toArray();
                 $animals = \App\Models\Animal::whereIn('slotID', $slotIds)->get()->groupBy('slotID');
 
@@ -68,7 +68,7 @@ class ShelterManagementController extends BaseShelterManagementController
             'availableSlots' => 0,
             'occupiedSlots' => 0,
             'maintenanceSlots' => 0,
-        ], 'atiqah'); // Pre-check atiqah database for faster loading
+        ], 'shelter'); // Pre-check atiqah database for faster loading
 
         // Return admin view instead of regular view
         return view('admin.shelter-management.index', $result);

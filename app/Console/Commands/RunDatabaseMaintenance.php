@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 namespace App\Console\Commands;
 
@@ -83,7 +83,7 @@ class RunDatabaseMaintenance extends Command
     {
         $this->info('📋 Running all maintenance tasks...');
 
-        $results = DB::connection('taufiq')->select('SELECT * FROM run_scheduled_maintenance()');
+        $results = DB::connection('users')->select('SELECT * FROM run_scheduled_maintenance()');
 
         $this->table(
             ['Task', 'Records Affected', 'Execution Time'],
@@ -104,7 +104,7 @@ class RunDatabaseMaintenance extends Command
     {
         $this->info('🔓 Unlocking expired locked accounts...');
 
-        $result = DB::connection('taufiq')->select('SELECT * FROM unlock_expired_accounts()');
+        $result = DB::connection('users')->select('SELECT * FROM unlock_expired_accounts()');
         $count = $result[0]->unlocked_count ?? 0;
 
         if ($count > 0) {
@@ -121,7 +121,7 @@ class RunDatabaseMaintenance extends Command
     {
         $this->info('🗑️  Cleaning up expired sessions...');
 
-        $result = DB::connection('taufiq')->select('SELECT * FROM cleanup_expired_sessions()');
+        $result = DB::connection('users')->select('SELECT * FROM cleanup_expired_sessions()');
         $count = $result[0]->deleted_count ?? 0;
 
         if ($count > 0) {
@@ -138,7 +138,7 @@ class RunDatabaseMaintenance extends Command
     {
         $this->info('🗑️  Cleaning up expired cache...');
 
-        $result = DB::connection('taufiq')->select('SELECT * FROM cleanup_expired_cache()');
+        $result = DB::connection('users')->select('SELECT * FROM cleanup_expired_cache()');
         $count = $result[0]->deleted_count ?? 0;
 
         if ($count > 0) {
@@ -155,7 +155,7 @@ class RunDatabaseMaintenance extends Command
     {
         $this->info('🗑️  Cleaning up old audit logs (90+ days)...');
 
-        $result = DB::connection('taufiq')->select('SELECT * FROM cleanup_old_audit_logs(90)');
+        $result = DB::connection('users')->select('SELECT * FROM cleanup_old_audit_logs(90)');
         $count = $result[0]->deleted_count ?? 0;
 
         if ($count > 0) {
@@ -172,7 +172,7 @@ class RunDatabaseMaintenance extends Command
     {
         $this->info('⚡ Optimizing database tables...');
 
-        $results = DB::connection('taufiq')->select('SELECT * FROM optimize_database_tables()');
+        $results = DB::connection('users')->select('SELECT * FROM optimize_database_tables()');
 
         foreach ($results as $result) {
             $this->info("   ✓ {$result->table_name}: {$result->operation} - {$result->status}");

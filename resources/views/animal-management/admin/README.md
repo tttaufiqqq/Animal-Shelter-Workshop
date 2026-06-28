@@ -1,4 +1,4 @@
-# Animal Management Admin Components
+﻿# Animal Management Admin Components
 
 This folder contains modular components specifically designed for the admin view of the Animal Management page.
 
@@ -275,7 +275,7 @@ calculate-stats.blade.php (generates $stats, $speciesBreakdown)
 
 ### Stats not showing
 - Ensure `calculate-stats.blade.php` is included before dashboard components
-- Check database connection to 'shafiqah' (Animal model connection)
+- Check database connection to 'animals' (Animal model connection)
 - Verify `$animals` is passed to the view
 
 ### Styles not applying
@@ -293,7 +293,7 @@ calculate-stats.blade.php (generates $stats, $speciesBreakdown)
 - All components require the `$animals` paginator object to be passed from the controller
 - Statistics are calculated fresh on each page load (consider caching for high-traffic sites)
 - Components are admin-only; non-admin users see a different layout
-- Database queries use the 'shafiqah' connection (Animal model's database)
+- Database queries use the 'animals' connection (Animal model's database)
 
 ## 🔗 Related Files
 

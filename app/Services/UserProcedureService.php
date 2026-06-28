@@ -1,11 +1,11 @@
-<?php
+﻿<?php
 
 namespace App\Services;
 
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
-class TaufiqProcedureService
+class UserProcedureService
 {
     /**
      * Get audit context for passing to PostgreSQL procedures
@@ -42,7 +42,7 @@ class TaufiqProcedureService
         $audit = $this->getAuditContext();
 
         // Call wrapper function (which internally calls the TRUE PROCEDURE)
-        $result = DB::connection('taufiq')->select('SELECT * FROM fn_user_create(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [
+        $result = DB::connection('users')->select('SELECT * FROM fn_user_create(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [
             $data['name'],
             $data['email'],
             $data['password'],
@@ -73,7 +73,7 @@ class TaufiqProcedureService
      */
     public function readUser(int $userId): ?object
     {
-        $result = DB::connection('taufiq')->select('SELECT * FROM sp_user_read(?)', [$userId]);
+        $result = DB::connection('users')->select('SELECT * FROM sp_user_read(?)', [$userId]);
 
         return $result[0] ?? null;
     }
@@ -91,7 +91,7 @@ class TaufiqProcedureService
         $audit = $this->getAuditContext();
 
         // Call wrapper function (which internally calls the TRUE PROCEDURE)
-        $result = DB::connection('taufiq')->select('SELECT * FROM fn_user_update(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [
+        $result = DB::connection('users')->select('SELECT * FROM fn_user_update(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [
             $userId,
             $data['name'],
             $data['email'],
@@ -126,7 +126,7 @@ class TaufiqProcedureService
         $audit = $this->getAuditContext();
 
         // Call wrapper function (which internally calls the TRUE PROCEDURE)
-        $result = DB::connection('taufiq')->select('SELECT * FROM fn_user_update_password(?, ?, ?, ?, ?, ?)', [
+        $result = DB::connection('users')->select('SELECT * FROM fn_user_update_password(?, ?, ?, ?, ?, ?)', [
             $userId,
             $newPassword,
             $audit['user_id'],
@@ -155,7 +155,7 @@ class TaufiqProcedureService
         $audit = $this->getAuditContext();
 
         // Call wrapper function (which internally calls the TRUE PROCEDURE)
-        $result = DB::connection('taufiq')->select('SELECT * FROM fn_user_delete(?, ?, ?, ?, ?)', [
+        $result = DB::connection('users')->select('SELECT * FROM fn_user_delete(?, ?, ?, ?, ?)', [
             $userId,
             $audit['user_id'],
             $audit['user_name'],
@@ -185,7 +185,7 @@ class TaufiqProcedureService
         $audit = $this->getAuditContext();
 
         // Call wrapper function (which internally calls the TRUE PROCEDURE)
-        $result = DB::connection('taufiq')->select('SELECT * FROM fn_user_suspend(?, ?, ?, ?, ?, ?)', [
+        $result = DB::connection('users')->select('SELECT * FROM fn_user_suspend(?, ?, ?, ?, ?, ?)', [
             $userId,
             $reason,
             $audit['user_id'],
@@ -216,7 +216,7 @@ class TaufiqProcedureService
         $audit = $this->getAuditContext();
 
         // Call wrapper function (which internally calls the TRUE PROCEDURE)
-        $result = DB::connection('taufiq')->select('SELECT * FROM fn_user_lock(?, ?, ?, ?, ?, ?, ?)', [
+        $result = DB::connection('users')->select('SELECT * FROM fn_user_lock(?, ?, ?, ?, ?, ?, ?)', [
             $userId,
             $durationMinutes,
             $reason,
@@ -247,7 +247,7 @@ class TaufiqProcedureService
         $audit = $this->getAuditContext();
 
         // Call wrapper function (which internally calls the TRUE PROCEDURE)
-        $result = DB::connection('taufiq')->select('SELECT * FROM fn_user_unlock(?, ?, ?, ?, ?)', [
+        $result = DB::connection('users')->select('SELECT * FROM fn_user_unlock(?, ?, ?, ?, ?)', [
             $userId,
             $audit['user_id'],
             $audit['user_name'],
@@ -275,7 +275,7 @@ class TaufiqProcedureService
         $audit = $this->getAuditContext();
 
         // Call wrapper function (which internally calls the TRUE PROCEDURE)
-        $result = DB::connection('taufiq')->select('SELECT * FROM fn_user_force_password_reset(?, ?, ?, ?, ?)', [
+        $result = DB::connection('users')->select('SELECT * FROM fn_user_force_password_reset(?, ?, ?, ?, ?)', [
             $userId,
             $audit['user_id'],
             $audit['user_name'],
@@ -308,7 +308,7 @@ class TaufiqProcedureService
         $audit = $this->getAuditContext();
 
         // Call wrapper function (which internally calls the TRUE PROCEDURE)
-        $result = DB::connection('taufiq')->select('SELECT * FROM fn_adopter_profile_upsert(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [
+        $result = DB::connection('users')->select('SELECT * FROM fn_adopter_profile_upsert(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [
             $adopterId,
             $data['housing_type'] ?? null,
             $data['has_children'] ?? false,
@@ -340,7 +340,7 @@ class TaufiqProcedureService
      */
     public function readAdopterProfile(int $adopterId): ?object
     {
-        $result = DB::connection('taufiq')->select('SELECT * FROM sp_adopter_profile_read(?)', [$adopterId]);
+        $result = DB::connection('users')->select('SELECT * FROM sp_adopter_profile_read(?)', [$adopterId]);
 
         return $result[0] ?? null;
     }
@@ -357,7 +357,7 @@ class TaufiqProcedureService
         $audit = $this->getAuditContext();
 
         // Call wrapper function (which internally calls the TRUE PROCEDURE)
-        $result = DB::connection('taufiq')->select('SELECT * FROM fn_adopter_profile_delete(?, ?, ?, ?, ?)', [
+        $result = DB::connection('users')->select('SELECT * FROM fn_adopter_profile_delete(?, ?, ?, ?, ?)', [
             $adopterId,
             $audit['user_id'],
             $audit['user_name'],
@@ -390,7 +390,7 @@ class TaufiqProcedureService
         $audit = $this->getAuditContext();
 
         // Call wrapper function (which internally calls the TRUE PROCEDURE)
-        $result = DB::connection('taufiq')->select('SELECT * FROM fn_user_assign_role(?, ?, ?, ?, ?, ?)', [
+        $result = DB::connection('users')->select('SELECT * FROM fn_user_assign_role(?, ?, ?, ?, ?, ?)', [
             $userId,
             $roleId,
             $audit['user_id'],
@@ -420,7 +420,7 @@ class TaufiqProcedureService
         $audit = $this->getAuditContext();
 
         // Call wrapper function (which internally calls the TRUE PROCEDURE)
-        $result = DB::connection('taufiq')->select('SELECT * FROM fn_user_revoke_role(?, ?, ?, ?, ?, ?)', [
+        $result = DB::connection('users')->select('SELECT * FROM fn_user_revoke_role(?, ?, ?, ?, ?, ?)', [
             $userId,
             $roleId,
             $audit['user_id'],
@@ -448,7 +448,7 @@ class TaufiqProcedureService
      */
     public function getUserAccountStats(): ?object
     {
-        $result = DB::connection('taufiq')->select('SELECT * FROM get_user_account_stats()');
+        $result = DB::connection('users')->select('SELECT * FROM get_user_account_stats()');
 
         return $result[0] ?? null;
     }
@@ -460,7 +460,7 @@ class TaufiqProcedureService
      */
     public function getAdopterProfileStats(): ?object
     {
-        $result = DB::connection('taufiq')->select('SELECT * FROM get_adopter_profile_stats()');
+        $result = DB::connection('users')->select('SELECT * FROM get_adopter_profile_stats()');
 
         return $result[0] ?? null;
     }
@@ -473,7 +473,7 @@ class TaufiqProcedureService
      */
     public function getRecentRegistrations(int $daysBack = 7): array
     {
-        return DB::connection('taufiq')->select('SELECT * FROM get_recent_registrations(?)', [$daysBack]);
+        return DB::connection('users')->select('SELECT * FROM get_recent_registrations(?)', [$daysBack]);
     }
 
     /**
@@ -484,7 +484,7 @@ class TaufiqProcedureService
      */
     public function getHighRiskUsers(int $threshold = 3): array
     {
-        return DB::connection('taufiq')->select('SELECT * FROM get_high_risk_users(?)', [$threshold]);
+        return DB::connection('users')->select('SELECT * FROM get_high_risk_users(?)', [$threshold]);
     }
 
     /**
@@ -496,7 +496,7 @@ class TaufiqProcedureService
      */
     public function getUserActivitySummary(int $userId, int $daysBack = 30): ?object
     {
-        $result = DB::connection('taufiq')->select('SELECT * FROM get_user_activity_summary(?, ?)', [$userId, $daysBack]);
+        $result = DB::connection('users')->select('SELECT * FROM get_user_activity_summary(?, ?)', [$userId, $daysBack]);
 
         return $result[0] ?? null;
     }
@@ -513,7 +513,7 @@ class TaufiqProcedureService
      */
     public function resetFailedLoginAttempts(int $userId): void
     {
-        DB::connection('taufiq')->select('SELECT reset_failed_login_attempts(?)', [$userId]);
+        DB::connection('users')->select('SELECT reset_failed_login_attempts(?)', [$userId]);
     }
 
     /**
@@ -524,7 +524,7 @@ class TaufiqProcedureService
      */
     public function incrementFailedLoginAttempts(int $userId): ?object
     {
-        $result = DB::connection('taufiq')->select('SELECT * FROM increment_failed_login_attempts(?)', [$userId]);
+        $result = DB::connection('users')->select('SELECT * FROM increment_failed_login_attempts(?)', [$userId]);
 
         return $result[0] ?? null;
     }
@@ -536,7 +536,7 @@ class TaufiqProcedureService
      */
     public function unlockExpiredAccounts(): int
     {
-        $result = DB::connection('taufiq')->select('SELECT * FROM unlock_expired_accounts()');
+        $result = DB::connection('users')->select('SELECT * FROM unlock_expired_accounts()');
 
         return $result[0]->unlocked_count ?? 0;
     }
@@ -552,7 +552,7 @@ class TaufiqProcedureService
      */
     public function runScheduledMaintenance(): array
     {
-        return DB::connection('taufiq')->select('SELECT * FROM run_scheduled_maintenance()');
+        return DB::connection('users')->select('SELECT * FROM run_scheduled_maintenance()');
     }
 
     /**
@@ -563,7 +563,7 @@ class TaufiqProcedureService
      */
     public function cleanupOldAuditLogs(int $retentionDays = 90): int
     {
-        $result = DB::connection('taufiq')->select('SELECT * FROM cleanup_old_audit_logs(?)', [$retentionDays]);
+        $result = DB::connection('users')->select('SELECT * FROM cleanup_old_audit_logs(?)', [$retentionDays]);
 
         return $result[0]->deleted_count ?? 0;
     }

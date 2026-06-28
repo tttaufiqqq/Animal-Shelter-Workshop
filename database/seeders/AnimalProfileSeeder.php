@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 namespace Database\Seeders;
 
@@ -19,11 +19,11 @@ class AnimalProfileSeeder extends Seeder
 
         // Get adopter profiles from Taufiq's database
         $this->command->info('Fetching adopter profiles from Taufiq\'s database...');
-        $adopters = DB::connection('taufiq')->table('adopter_profile')->get();
+        $adopters = DB::connection('users')->table('adopter_profile')->get();
 
         // Get animals with 'Not Adopted' OR 'Adopted' status from Shafiqah's database
         $this->command->info('Fetching animals from Shafiqah\'s database...');
-        $animals = DB::connection('shafiqah')
+        $animals = DB::connection('animals')
             ->table('animal')
             ->whereIn('adoption_status', ['Not Adopted', 'Adopted'])
             ->get();
@@ -36,7 +36,7 @@ class AnimalProfileSeeder extends Seeder
         $this->command->info("Found " . $animals->count() . " animals");
 
         // Use transaction for Shafiqah's database
-        DB::connection('shafiqah')->beginTransaction();
+        DB::connection('animals')->beginTransaction();
 
         try {
             $this->command->info('');
@@ -46,7 +46,7 @@ class AnimalProfileSeeder extends Seeder
 
             foreach ($animals as $animal) {
                 // Check if profile already exists in Shafiqah's database
-                $existingProfile = DB::connection('shafiqah')
+                $existingProfile = DB::connection('animals')
                     ->table('animal_profile')
                     ->where('animalID', $animal->id)
                     ->exists();
@@ -69,11 +69,11 @@ class AnimalProfileSeeder extends Seeder
                 $profileData['updated_at'] = now();
 
                 // Insert into Shafiqah's database
-                DB::connection('shafiqah')->table('animal_profile')->insert($profileData);
+                DB::connection('animals')->table('animal_profile')->insert($profileData);
                 $profileCount++;
             }
 
-            DB::connection('shafiqah')->commit();
+            DB::connection('animals')->commit();
 
             $this->command->info('');
             $this->command->info('=================================');
@@ -85,7 +85,7 @@ class AnimalProfileSeeder extends Seeder
             $this->command->info('=================================');
 
         } catch (\Exception $e) {
-            DB::connection('shafiqah')->rollBack();
+            DB::connection('animals')->rollBack();
 
             $this->command->error('');
             $this->command->error('Error seeding animal profiles: ' . $e->getMessage());

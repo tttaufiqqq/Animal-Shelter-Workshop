@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 namespace Database\Seeders;
 
@@ -241,7 +241,7 @@ class ReportSeeder extends Seeder
         }
 
         // Use transaction for Eilya's database
-        DB::connection('eilya')->beginTransaction();
+        DB::connection('reporting')->beginTransaction();
 
         try {
             $this->command->info('Inserting reports into Eilya\'s database...');
@@ -252,13 +252,13 @@ class ReportSeeder extends Seeder
             $totalInserted = 0;
 
             foreach (array_chunk($reports, $chunkSize) as $chunk) {
-                DB::connection('eilya')->table('report')->insert($chunk);
+                DB::connection('reporting')->table('report')->insert($chunk);
                 $totalInserted += count($chunk);
                 $this->command->info("  Inserted {$totalInserted} / " . count($reports) . " reports...");
             }
 
             // Get the IDs of the inserted reports from Eilya's database
-            $insertedReportIDs = DB::connection('eilya')
+            $insertedReportIDs = DB::connection('reporting')
                 ->table('report')
                 ->orderBy('id', 'desc')
                 ->limit(600)
@@ -272,7 +272,7 @@ class ReportSeeder extends Seeder
             // Assign images to reports (both in Eilya's database)
             $this->assignImagesToReports($insertedReportIDs, $imageCategories);
 
-            DB::connection('eilya')->commit();
+            DB::connection('reporting')->commit();
 
             // Calculate coordinate bounds for verification
             $latitudes = array_column($reports, 'latitude');
@@ -302,7 +302,7 @@ class ReportSeeder extends Seeder
             $this->command->info('=================================');
 
         } catch (\Exception $e) {
-            DB::connection('eilya')->rollBack();
+            DB::connection('reporting')->rollBack();
 
             $this->command->error('');
             $this->command->error('Error seeding reports: ' . $e->getMessage());
@@ -372,7 +372,7 @@ class ReportSeeder extends Seeder
         $totalInsertedImages = 0;
 
         foreach (array_chunk($images, $chunkSize) as $chunk) {
-            DB::connection('eilya')->table('image')->insert($chunk);
+            DB::connection('reporting')->table('image')->insert($chunk);
             $totalInsertedImages += count($chunk);
             $this->command->info("  Inserted {$totalInsertedImages} / {$totalImages} images...");
         }

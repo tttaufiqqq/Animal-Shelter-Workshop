@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 namespace App\Http\Controllers\Admin;
 
@@ -6,16 +6,16 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Models\AuditLog;
 use App\Services\AuditService;
-use App\Services\TaufiqProcedureService;
+use App\Services\UserProcedureService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 
 class UserManagementController extends Controller
 {
-    protected TaufiqProcedureService $taufiqService;
+    protected UserProcedureService $taufiqService;
 
-    public function __construct(TaufiqProcedureService $taufiqService)
+    public function __construct(UserProcedureService $taufiqService)
     {
         $this->taufiqService = $taufiqService;
     }

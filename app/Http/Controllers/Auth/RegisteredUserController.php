@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 namespace App\Http\Controllers\Auth;
 
@@ -12,13 +12,13 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules;
 use Illuminate\View\View;
 use Spatie\Permission\Models\Role;
-use App\Services\TaufiqProcedureService;
+use App\Services\UserProcedureService;
 
 class RegisteredUserController extends Controller
 {
-    protected TaufiqProcedureService $taufiqService;
+    protected UserProcedureService $taufiqService;
 
-    public function __construct(TaufiqProcedureService $taufiqService)
+    public function __construct(UserProcedureService $taufiqService)
     {
         $this->taufiqService = $taufiqService;
     }

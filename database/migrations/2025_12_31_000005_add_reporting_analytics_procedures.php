@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         // 1. Get User Account Statistics
-        DB::connection('taufiq')->unprepared("
+        DB::connection('users')->unprepared("
             CREATE OR REPLACE FUNCTION get_user_account_stats()
             RETURNS TABLE(
                 total_users BIGINT,
@@ -37,7 +37,7 @@ return new class extends Migration
         ");
 
         // 2. Get High-Risk User Activity
-        DB::connection('taufiq')->unprepared("
+        DB::connection('users')->unprepared("
             CREATE OR REPLACE FUNCTION get_high_risk_users(threshold INTEGER DEFAULT 3)
             RETURNS TABLE(
                 user_id BIGINT,
@@ -72,7 +72,7 @@ return new class extends Migration
         ");
 
         // 3. Get User Activity Summary
-        DB::connection('taufiq')->unprepared("
+        DB::connection('users')->unprepared("
             CREATE OR REPLACE FUNCTION get_user_activity_summary(p_user_id BIGINT, days_back INTEGER DEFAULT 30)
             RETURNS TABLE(
                 total_actions BIGINT,
@@ -99,7 +99,7 @@ return new class extends Migration
         ");
 
         // 4. Get Adopter Profile Statistics
-        DB::connection('taufiq')->unprepared("
+        DB::connection('users')->unprepared("
             CREATE OR REPLACE FUNCTION get_adopter_profile_stats()
             RETURNS TABLE(
                 total_profiles BIGINT,
@@ -130,7 +130,7 @@ return new class extends Migration
         ");
 
         // 5. Get Recent User Registrations
-        DB::connection('taufiq')->unprepared("
+        DB::connection('users')->unprepared("
             CREATE OR REPLACE FUNCTION get_recent_registrations(days_back INTEGER DEFAULT 7)
             RETURNS TABLE(
                 user_id BIGINT,
@@ -162,10 +162,10 @@ return new class extends Migration
      */
     public function down(): void
     {
-        DB::connection('taufiq')->unprepared('DROP FUNCTION IF EXISTS get_user_account_stats()');
-        DB::connection('taufiq')->unprepared('DROP FUNCTION IF EXISTS get_high_risk_users(INTEGER)');
-        DB::connection('taufiq')->unprepared('DROP FUNCTION IF EXISTS get_user_activity_summary(BIGINT, INTEGER)');
-        DB::connection('taufiq')->unprepared('DROP FUNCTION IF EXISTS get_adopter_profile_stats()');
-        DB::connection('taufiq')->unprepared('DROP FUNCTION IF EXISTS get_recent_registrations(INTEGER)');
+        DB::connection('users')->unprepared('DROP FUNCTION IF EXISTS get_user_account_stats()');
+        DB::connection('users')->unprepared('DROP FUNCTION IF EXISTS get_high_risk_users(INTEGER)');
+        DB::connection('users')->unprepared('DROP FUNCTION IF EXISTS get_user_activity_summary(BIGINT, INTEGER)');
+        DB::connection('users')->unprepared('DROP FUNCTION IF EXISTS get_adopter_profile_stats()');
+        DB::connection('users')->unprepared('DROP FUNCTION IF EXISTS get_recent_registrations(INTEGER)');
     }
 };

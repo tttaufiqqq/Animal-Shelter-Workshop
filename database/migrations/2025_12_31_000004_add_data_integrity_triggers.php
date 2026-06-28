@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         // 1. Prevent User Deletion with Active Relationships
-        DB::connection('taufiq')->unprepared("
+        DB::connection('users')->unprepared("
             CREATE OR REPLACE FUNCTION prevent_user_deletion_with_active_data()
             RETURNS TRIGGER AS $$
             DECLARE
@@ -45,7 +45,7 @@ return new class extends Migration
                 ) VALUES (
                     OLD.id, OLD.name, OLD.email,
                     'user_management', 'user_deletion_attempted', 'User', OLD.id,
-                    'taufiq', NOW(),
+                    'users', NOW(),
                     to_jsonb(OLD),
                     jsonb_build_object(
                         'profile_count', profile_count,
@@ -59,7 +59,7 @@ return new class extends Migration
             $$ LANGUAGE plpgsql;
         ");
 
-        DB::connection('taufiq')->unprepared("
+        DB::connection('users')->unprepared("
             CREATE TRIGGER trg_prevent_user_deletion
                 BEFORE DELETE ON users
                 FOR EACH ROW
@@ -67,7 +67,7 @@ return new class extends Migration
         ");
 
         // 2. Ensure Email Uniqueness (Case-Insensitive)
-        DB::connection('taufiq')->unprepared("
+        DB::connection('users')->unprepared("
             CREATE OR REPLACE FUNCTION enforce_unique_email()
             RETURNS TRIGGER AS $$
             DECLARE
@@ -87,7 +87,7 @@ return new class extends Migration
             $$ LANGUAGE plpgsql;
         ");
 
-        DB::connection('taufiq')->unprepared("
+        DB::connection('users')->unprepared("
             CREATE TRIGGER trg_enforce_unique_email
                 BEFORE INSERT OR UPDATE ON users
                 FOR EACH ROW
@@ -95,7 +95,7 @@ return new class extends Migration
         ");
 
         // 3. Normalize Email to Lowercase
-        DB::connection('taufiq')->unprepared("
+        DB::connection('users')->unprepared("
             CREATE OR REPLACE FUNCTION normalize_email()
             RETURNS TRIGGER AS $$
             BEGIN
@@ -106,7 +106,7 @@ return new class extends Migration
             $$ LANGUAGE plpgsql;
         ");
 
-        DB::connection('taufiq')->unprepared("
+        DB::connection('users')->unprepared("
             CREATE TRIGGER trg_normalize_email
                 BEFORE INSERT OR UPDATE ON users
                 FOR EACH ROW
@@ -120,11 +120,11 @@ return new class extends Migration
      */
     public function down(): void
     {
-        DB::connection('taufiq')->unprepared('DROP TRIGGER IF EXISTS trg_prevent_user_deletion ON users');
-        DB::connection('taufiq')->unprepared('DROP TRIGGER IF EXISTS trg_enforce_unique_email ON users');
-        DB::connection('taufiq')->unprepared('DROP TRIGGER IF EXISTS trg_normalize_email ON users');
-        DB::connection('taufiq')->unprepared('DROP FUNCTION IF EXISTS prevent_user_deletion_with_active_data()');
-        DB::connection('taufiq')->unprepared('DROP FUNCTION IF EXISTS enforce_unique_email()');
-        DB::connection('taufiq')->unprepared('DROP FUNCTION IF EXISTS normalize_email()');
+        DB::connection('users')->unprepared('DROP TRIGGER IF EXISTS trg_prevent_user_deletion ON users');
+        DB::connection('users')->unprepared('DROP TRIGGER IF EXISTS trg_enforce_unique_email ON users');
+        DB::connection('users')->unprepared('DROP TRIGGER IF EXISTS trg_normalize_email ON users');
+        DB::connection('users')->unprepared('DROP FUNCTION IF EXISTS prevent_user_deletion_with_active_data()');
+        DB::connection('users')->unprepared('DROP FUNCTION IF EXISTS enforce_unique_email()');
+        DB::connection('users')->unprepared('DROP FUNCTION IF EXISTS normalize_email()');
     }
 };

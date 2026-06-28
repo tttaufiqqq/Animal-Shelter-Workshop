@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
@@ -17,7 +17,7 @@ return new class extends Migration
         /**
          * TAUFIQ'S DATABASE - User Management Module
          */
-        Schema::connection('taufiq')->create('adopter_profile', function (Blueprint $table) {
+        Schema::connection('users')->create('adopter_profile', function (Blueprint $table) {
             $table->id();
             // Adopter matching attributes
             $table->string('housing_type')->nullable(); // condo, landed
@@ -37,7 +37,7 @@ return new class extends Migration
         });
 
         // Add FK for adopter_profile -> users (same database, OK to use FK)
-        Schema::connection('taufiq')->table('adopter_profile', function (Blueprint $table) {
+        Schema::connection('users')->table('adopter_profile', function (Blueprint $table) {
             $table->foreign('adopterID')
                 ->references('id')
                 ->on('users')
@@ -47,7 +47,7 @@ return new class extends Migration
         /**
          * SHAFIQAH'S DATABASE - Animal & Medical Module
          */
-        Schema::connection('shafiqah')->create('animal_profile', function (Blueprint $table) {
+        Schema::connection('animals')->create('animal_profile', function (Blueprint $table) {
             $table->id();
             // Animal matching attributes
             $table->string('age')->nullable(); // kitten/puppy/adult/senior
@@ -67,7 +67,7 @@ return new class extends Migration
         });
 
         // Add FK for animal_profile -> animal (same database, OK to use FK)
-        Schema::connection('shafiqah')->table('animal_profile', function (Blueprint $table) {
+        Schema::connection('animals')->table('animal_profile', function (Blueprint $table) {
             $table->foreign('animalID')
                 ->references('id')
                 ->on('animal')
@@ -81,16 +81,16 @@ return new class extends Migration
     public function down(): void
     {
         // Drop FK first
-        Schema::connection('shafiqah')->table('animal_profile', function (Blueprint $table) {
+        Schema::connection('animals')->table('animal_profile', function (Blueprint $table) {
             $table->dropForeign(['animalID']);
         });
 
-        Schema::connection('taufiq')->table('adopter_profile', function (Blueprint $table) {
+        Schema::connection('users')->table('adopter_profile', function (Blueprint $table) {
             $table->dropForeign(['adopterID']);
         });
 
         // Drop tables
-        Schema::connection('shafiqah')->dropIfExists('animal_profile');
-        Schema::connection('taufiq')->dropIfExists('adopter_profile');
+        Schema::connection('animals')->dropIfExists('animal_profile');
+        Schema::connection('users')->dropIfExists('adopter_profile');
     }
 };

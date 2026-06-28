@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
@@ -16,7 +16,7 @@ return new class extends Migration
         // ==========================================
         // USER CREATE WRAPPER
         // ==========================================
-        DB::connection('taufiq')->unprepared("
+        DB::connection('users')->unprepared("
             CREATE OR REPLACE FUNCTION fn_user_create(
                 p_name VARCHAR,
                 p_email VARCHAR,
@@ -57,7 +57,7 @@ return new class extends Migration
         // ==========================================
         // USER UPDATE WRAPPER
         // ==========================================
-        DB::connection('taufiq')->unprepared("
+        DB::connection('users')->unprepared("
             CREATE OR REPLACE FUNCTION fn_user_update(
                 p_user_id BIGINT,
                 p_name VARCHAR,
@@ -93,7 +93,7 @@ return new class extends Migration
         // ==========================================
         // USER UPDATE PASSWORD WRAPPER
         // ==========================================
-        DB::connection('taufiq')->unprepared("
+        DB::connection('users')->unprepared("
             CREATE OR REPLACE FUNCTION fn_user_update_password(
                 p_user_id BIGINT,
                 p_new_password VARCHAR,
@@ -124,7 +124,7 @@ return new class extends Migration
         // ==========================================
         // USER DELETE WRAPPER
         // ==========================================
-        DB::connection('taufiq')->unprepared("
+        DB::connection('users')->unprepared("
             CREATE OR REPLACE FUNCTION fn_user_delete(
                 p_user_id BIGINT,
                 p_audit_user_id BIGINT,
@@ -156,7 +156,7 @@ return new class extends Migration
         // ==========================================
         // USER SUSPEND WRAPPER
         // ==========================================
-        DB::connection('taufiq')->unprepared("
+        DB::connection('users')->unprepared("
             CREATE OR REPLACE FUNCTION fn_user_suspend(
                 p_user_id BIGINT,
                 p_reason TEXT,
@@ -187,7 +187,7 @@ return new class extends Migration
         // ==========================================
         // USER LOCK WRAPPER
         // ==========================================
-        DB::connection('taufiq')->unprepared("
+        DB::connection('users')->unprepared("
             CREATE OR REPLACE FUNCTION fn_user_lock(
                 p_user_id BIGINT,
                 p_duration_minutes INTEGER,
@@ -221,7 +221,7 @@ return new class extends Migration
         // ==========================================
         // USER UNLOCK WRAPPER
         // ==========================================
-        DB::connection('taufiq')->unprepared("
+        DB::connection('users')->unprepared("
             CREATE OR REPLACE FUNCTION fn_user_unlock(
                 p_user_id BIGINT,
                 p_audit_user_id BIGINT,
@@ -251,7 +251,7 @@ return new class extends Migration
         // ==========================================
         // USER FORCE PASSWORD RESET WRAPPER
         // ==========================================
-        DB::connection('taufiq')->unprepared("
+        DB::connection('users')->unprepared("
             CREATE OR REPLACE FUNCTION fn_user_force_password_reset(
                 p_user_id BIGINT,
                 p_audit_user_id BIGINT,
@@ -281,7 +281,7 @@ return new class extends Migration
         // ==========================================
         // ADOPTER PROFILE UPSERT WRAPPER
         // ==========================================
-        DB::connection('taufiq')->unprepared("
+        DB::connection('users')->unprepared("
             CREATE OR REPLACE FUNCTION fn_adopter_profile_upsert(
                 p_adopter_id BIGINT,
                 p_housing_type VARCHAR,
@@ -321,7 +321,7 @@ return new class extends Migration
         // ==========================================
         // ADOPTER PROFILE DELETE WRAPPER
         // ==========================================
-        DB::connection('taufiq')->unprepared("
+        DB::connection('users')->unprepared("
             CREATE OR REPLACE FUNCTION fn_adopter_profile_delete(
                 p_adopter_id BIGINT,
                 p_audit_user_id BIGINT,
@@ -351,7 +351,7 @@ return new class extends Migration
         // ==========================================
         // ROLE ASSIGN WRAPPER
         // ==========================================
-        DB::connection('taufiq')->unprepared("
+        DB::connection('users')->unprepared("
             CREATE OR REPLACE FUNCTION fn_user_assign_role(
                 p_user_id BIGINT,
                 p_role_id BIGINT,
@@ -382,7 +382,7 @@ return new class extends Migration
         // ==========================================
         // ROLE REVOKE WRAPPER
         // ==========================================
-        DB::connection('taufiq')->unprepared("
+        DB::connection('users')->unprepared("
             CREATE OR REPLACE FUNCTION fn_user_revoke_role(
                 p_user_id BIGINT,
                 p_role_id BIGINT,
@@ -417,17 +417,17 @@ return new class extends Migration
     public function down(): void
     {
         // Drop wrapper functions
-        DB::connection('taufiq')->unprepared('DROP FUNCTION IF EXISTS fn_user_create');
-        DB::connection('taufiq')->unprepared('DROP FUNCTION IF EXISTS fn_user_update');
-        DB::connection('taufiq')->unprepared('DROP FUNCTION IF EXISTS fn_user_update_password');
-        DB::connection('taufiq')->unprepared('DROP FUNCTION IF EXISTS fn_user_delete');
-        DB::connection('taufiq')->unprepared('DROP FUNCTION IF EXISTS fn_user_suspend');
-        DB::connection('taufiq')->unprepared('DROP FUNCTION IF EXISTS fn_user_lock');
-        DB::connection('taufiq')->unprepared('DROP FUNCTION IF EXISTS fn_user_unlock');
-        DB::connection('taufiq')->unprepared('DROP FUNCTION IF EXISTS fn_user_force_password_reset');
-        DB::connection('taufiq')->unprepared('DROP FUNCTION IF EXISTS fn_adopter_profile_upsert');
-        DB::connection('taufiq')->unprepared('DROP FUNCTION IF EXISTS fn_adopter_profile_delete');
-        DB::connection('taufiq')->unprepared('DROP FUNCTION IF EXISTS fn_user_assign_role');
-        DB::connection('taufiq')->unprepared('DROP FUNCTION IF EXISTS fn_user_revoke_role');
+        DB::connection('users')->unprepared('DROP FUNCTION IF EXISTS fn_user_create');
+        DB::connection('users')->unprepared('DROP FUNCTION IF EXISTS fn_user_update');
+        DB::connection('users')->unprepared('DROP FUNCTION IF EXISTS fn_user_update_password');
+        DB::connection('users')->unprepared('DROP FUNCTION IF EXISTS fn_user_delete');
+        DB::connection('users')->unprepared('DROP FUNCTION IF EXISTS fn_user_suspend');
+        DB::connection('users')->unprepared('DROP FUNCTION IF EXISTS fn_user_lock');
+        DB::connection('users')->unprepared('DROP FUNCTION IF EXISTS fn_user_unlock');
+        DB::connection('users')->unprepared('DROP FUNCTION IF EXISTS fn_user_force_password_reset');
+        DB::connection('users')->unprepared('DROP FUNCTION IF EXISTS fn_adopter_profile_upsert');
+        DB::connection('users')->unprepared('DROP FUNCTION IF EXISTS fn_adopter_profile_delete');
+        DB::connection('users')->unprepared('DROP FUNCTION IF EXISTS fn_user_assign_role');
+        DB::connection('users')->unprepared('DROP FUNCTION IF EXISTS fn_user_revoke_role');
     }
 };

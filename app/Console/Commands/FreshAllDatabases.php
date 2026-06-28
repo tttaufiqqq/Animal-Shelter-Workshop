@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 namespace App\Console\Commands;
 
@@ -25,7 +25,7 @@ class FreshAllDatabases extends Command
     /**
      * All database connections used in the distributed architecture
      */
-    protected array $connections = ['taufiq', 'eilya', 'shafiqah', 'atiqah', 'danish'];
+    protected array $connections = ['users', 'reporting', 'animals', 'shelter', 'booking'];
 
     /**
      * Execute the console command.
@@ -104,13 +104,11 @@ class FreshAllDatabases extends Command
 
             switch ($driver) {
                 case 'mysql':
+                case 'mariadb':
                     $this->dropMySQLTables($connection);
                     break;
                 case 'pgsql':
                     $this->dropPostgreSQLTables($connection);
-                    break;
-                case 'sqlsrv':
-                    $this->dropSQLServerTables($connection);
                     break;
                 default:
                     $this->warn("  Unknown driver '{$driver}' for connection '{$connection}'");
@@ -190,39 +188,5 @@ class FreshAllDatabases extends Command
         $this->info("    ✓ Dropped {$count} tables");
     }
 
-    /**
-     * Drop all tables from a SQL Server database
-     */
-    protected function dropSQLServerTables(string $connection): void
-    {
-        // First, drop all foreign key constraints
-        $foreignKeys = DB::connection($connection)
-            ->select("
-                SELECT
-                    OBJECT_NAME(parent_object_id) AS TableName,
-                    name AS ConstraintName
-                FROM sys.foreign_keys
-            ");
-
-        foreach ($foreignKeys as $fk) {
-            DB::connection($connection)->statement(
-                "ALTER TABLE [{$fk->TableName}] DROP CONSTRAINT [{$fk->ConstraintName}]"
-            );
-        }
-
-        // Then drop all tables
-        $tables = DB::connection($connection)
-            ->select("
-                SELECT TABLE_NAME
-                FROM INFORMATION_SCHEMA.TABLES
-                WHERE TABLE_TYPE = 'BASE TABLE'
-            ");
-
-        foreach ($tables as $table) {
-            DB::connection($connection)->statement("DROP TABLE IF EXISTS [{$table->TABLE_NAME}]");
-        }
-
-        $count = count($tables);
-        $this->info("    ✓ Dropped {$count} tables");
-    }
 }
+

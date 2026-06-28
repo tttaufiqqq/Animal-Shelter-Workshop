@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
@@ -14,14 +14,14 @@ return new class extends Migration
     public function up(): void
     {
         // Add composite unique index to animal_booking table
-        Schema::connection('danish')->table('animal_booking', function (Blueprint $table) {
+        Schema::connection('booking')->table('animal_booking', function (Blueprint $table) {
             // Add composite unique index to prevent duplicate bookings
             // This ensures an animal can't have multiple bookings at same date/time
             $table->unique(['animalID', 'bookingID'], 'unique_animal_booking');
         });
 
         // Add index on booking date and time for better query performance
-        Schema::connection('danish')->table('booking', function (Blueprint $table) {
+        Schema::connection('booking')->table('booking', function (Blueprint $table) {
             $table->index(['appointment_date', 'appointment_time', 'status'], 'idx_booking_schedule');
         });
     }
@@ -31,11 +31,11 @@ return new class extends Migration
      */
     public function down(): void
     {
-        $driver = DB::connection('danish')->getDriverName();
+        $driver = DB::connection('booking')->getDriverName();
 
         // Check if unique index exists before dropping
         if ($this->indexExists('animal_booking', 'unique_animal_booking')) {
-            Schema::connection('danish')->table('animal_booking', function (Blueprint $table) use ($driver) {
+            Schema::connection('booking')->table('animal_booking', function (Blueprint $table) use ($driver) {
                 // For distributed architecture, we only have bookingID FK (not animalID)
                 if ($driver === 'mysql') {
                     // Drop foreign key first
@@ -70,7 +70,7 @@ return new class extends Migration
 
         // Check if index exists before dropping
         if ($this->indexExists('booking', 'idx_booking_schedule')) {
-            Schema::connection('danish')->table('booking', function (Blueprint $table) {
+            Schema::connection('booking')->table('booking', function (Blueprint $table) {
                 $table->dropIndex('idx_booking_schedule');
             });
         }
@@ -81,25 +81,25 @@ return new class extends Migration
      */
     private function indexExists(string $table, string $index): bool
     {
-        $driver = DB::connection('danish')->getDriverName();
+        $driver = DB::connection('booking')->getDriverName();
 
         switch ($driver) {
             case 'mysql':
-                $result = DB::connection('danish')->select(
+                $result = DB::connection('booking')->select(
                     "SHOW INDEX FROM `{$table}` WHERE Key_name = ?",
                     [$index]
                 );
                 return !empty($result);
 
             case 'pgsql':
-                $result = DB::connection('danish')->select(
+                $result = DB::connection('booking')->select(
                     "SELECT indexname FROM pg_indexes WHERE tablename = ? AND indexname = ?",
                     [$table, $index]
                 );
                 return !empty($result);
 
             case 'sqlsrv':
-                $result = DB::connection('danish')->select(
+                $result = DB::connection('booking')->select(
                     "SELECT name FROM sys.indexes WHERE object_id = OBJECT_ID(?) AND name = ?",
                     [$table, $index]
                 );

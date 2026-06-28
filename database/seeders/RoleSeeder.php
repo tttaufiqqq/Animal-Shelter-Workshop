@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 namespace Database\Seeders;
 
@@ -15,11 +15,11 @@ class RoleSeeder extends Seeder
     public function run()
     {
         // Use transaction for Taufiq's database
-        DB::connection('taufiq')->beginTransaction();
+        DB::connection('users')->beginTransaction();
 
         try {
             // Create roles in Taufiq's database
-            // Spatie's Role model already uses the 'taufiq' connection from your config
+            // Spatie's Role model already uses the 'users' connection from your config
 
             $roles = [
                 'public user',
@@ -38,13 +38,13 @@ class RoleSeeder extends Seeder
                 }
             }
 
-            DB::connection('taufiq')->commit();
+            DB::connection('users')->commit();
 
             $this->command->info('');
             $this->command->info('Roles seeded successfully in Taufiq\'s database!');
 
         } catch (\Exception $e) {
-            DB::connection('taufiq')->rollBack();
+            DB::connection('users')->rollBack();
 
             $this->command->error('Error seeding roles: ' . $e->getMessage());
             throw $e;

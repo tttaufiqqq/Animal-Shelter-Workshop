@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 namespace Database\Seeders;
 
@@ -21,7 +21,7 @@ class RescueSeeder extends Seeder
 
         // Get reports from Eilya's database
         $this->command->info('Fetching reports from Eilya\'s database...');
-        $reports = DB::connection('eilya')->table('report')->get();
+        $reports = DB::connection('reporting')->table('report')->get();
 
         if ($reports->isEmpty()) {
             $this->command->error("No reports found. Seed Reports first.");
@@ -33,7 +33,7 @@ class RescueSeeder extends Seeder
         // Get all caretakers from Taufiq's database (cross-database query)
         $this->command->info('Fetching caretakers from Taufiq\'s database...');
 
-        $caretakers = DB::connection('taufiq')->table('users')
+        $caretakers = DB::connection('users')->table('users')
             ->join('model_has_roles', 'users.id', '=', 'model_has_roles.model_id')
             ->join('roles', 'model_has_roles.role_id', '=', 'roles.id')
             ->where('roles.name', 'caretaker')
@@ -173,7 +173,7 @@ class RescueSeeder extends Seeder
         }
 
         // Use transaction for Eilya's database
-        DB::connection('eilya')->beginTransaction();
+        DB::connection('reporting')->beginTransaction();
 
         try {
             if (!empty($rescues)) {
@@ -184,7 +184,7 @@ class RescueSeeder extends Seeder
                 $totalInserted = 0;
 
                 foreach (array_chunk($rescues, $chunkSize) as $chunk) {
-                    DB::connection('eilya')->table('rescue')->insert($chunk);
+                    DB::connection('reporting')->table('rescue')->insert($chunk);
                     $totalInserted += count($chunk);
                     $this->command->info("  Inserted {$totalInserted} / " . count($rescues) . " rescues...");
                 }
@@ -194,14 +194,14 @@ class RescueSeeder extends Seeder
                 $this->command->info('Syncing report statuses with rescue statuses...');
 
                 // 1. Update reports with "Scheduled" rescues → "Assigned"
-                $scheduledRescueReportIDs = DB::connection('eilya')
+                $scheduledRescueReportIDs = DB::connection('reporting')
                     ->table('rescue')
                     ->where('status', 'Scheduled')
                     ->pluck('reportID')
                     ->toArray();
 
                 if (!empty($scheduledRescueReportIDs)) {
-                    DB::connection('eilya')
+                    DB::connection('reporting')
                         ->table('report')
                         ->whereIn('id', $scheduledRescueReportIDs)
                         ->update([
@@ -213,14 +213,14 @@ class RescueSeeder extends Seeder
                 }
 
                 // 2. Update reports with "In Progress" rescues → "In Progress"
-                $inProgressRescueReportIDs = DB::connection('eilya')
+                $inProgressRescueReportIDs = DB::connection('reporting')
                     ->table('rescue')
                     ->where('status', 'In Progress')
                     ->pluck('reportID')
                     ->toArray();
 
                 if (!empty($inProgressRescueReportIDs)) {
-                    DB::connection('eilya')
+                    DB::connection('reporting')
                         ->table('report')
                         ->whereIn('id', $inProgressRescueReportIDs)
                         ->update([
@@ -232,14 +232,14 @@ class RescueSeeder extends Seeder
                 }
 
                 // 3. Update reports with "Success" or "Failed" rescues → "Completed"
-                $completedRescueReportIDs = DB::connection('eilya')
+                $completedRescueReportIDs = DB::connection('reporting')
                     ->table('rescue')
                     ->whereIn('status', ['Success', 'Failed'])
                     ->pluck('reportID')
                     ->toArray();
 
                 if (!empty($completedRescueReportIDs)) {
-                    DB::connection('eilya')
+                    DB::connection('reporting')
                         ->table('report')
                         ->whereIn('id', $completedRescueReportIDs)
                         ->update([
@@ -251,7 +251,7 @@ class RescueSeeder extends Seeder
                 }
             }
 
-            DB::connection('eilya')->commit();
+            DB::connection('reporting')->commit();
 
             $this->command->info('');
             $this->command->info('=================================');
@@ -272,7 +272,7 @@ class RescueSeeder extends Seeder
             $this->command->info('=================================');
 
         } catch (\Exception $e) {
-            DB::connection('eilya')->rollBack();
+            DB::connection('reporting')->rollBack();
 
             $this->command->error('');
             $this->command->error('Error seeding rescues: ' . $e->getMessage());
