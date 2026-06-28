@@ -33,31 +33,33 @@ Example: `ssh taufiq@100.78.124.25`
 
 ### Pre-Migration Checklist
 
-Before running any migration, create the `workshop_2` database on all 3 DB servers:
+Create the `workshop_2` database and user on all 3 DB servers before running migrations.
 
 ```bash
-# workshop-2 (MariaDB)
-ssh taufiq@100.78.124.25
-mysql -u root -p -e "CREATE DATABASE IF NOT EXISTS workshop_2 CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+# --- workshop-2 (MariaDB, 100.78.124.25) ---
+mysql -u root -p -e "
+  CREATE DATABASE IF NOT EXISTS workshop_2 CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+  CREATE USER IF NOT EXISTS 'workshop_2'@'%' IDENTIFIED BY 'workshop_2';
+  GRANT ALL PRIVILEGES ON workshop_2.* TO 'workshop_2'@'%';
+  FLUSH PRIVILEGES;
+"
 
-# msi/local (MySQL) — password is 'password'
-ssh taufiq@100.68.235.121
-mysql -u root -ppassword -e "CREATE DATABASE IF NOT EXISTS workshop_2 CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+# --- msi/local (MySQL, 100.68.235.121) — local root, password: 'password' ---
+mysql -u root -ppassword -e "
+  CREATE DATABASE IF NOT EXISTS workshop_2 CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+  CREATE USER IF NOT EXISTS 'workshop_2'@'%' IDENTIFIED BY 'workshop_2';
+  GRANT ALL PRIVILEGES ON workshop_2.* TO 'workshop_2'@'%';
+  FLUSH PRIVILEGES;
+"
+# Binary logging is ON on msi — required for trigger creation by non-SUPER user:
+mysql -u root -ppassword -e "SET PERSIST log_bin_trust_function_creators = 1;"
 
-# workshop-postgres (PostgreSQL)
-ssh taufiq@100.113.234.24
+# --- workshop-postgres (PostgreSQL, 100.113.234.24) ---
 psql -U postgres -c "CREATE DATABASE workshop_2;"
-```
-
-Also ensure remote connections are allowed on each DB server from app-server (100.100.123.90):
-
-```bash
-# On workshop-2 and msi — grant remote access to app-server
-mysql -u root -p -e "CREATE USER IF NOT EXISTS 'root'@'100.100.123.90' IDENTIFIED BY 'password'; GRANT ALL PRIVILEGES ON workshop_2.* TO 'root'@'100.100.123.90'; FLUSH PRIVILEGES;"
-
-# On workshop-postgres
-psql -U postgres -c "CREATE USER workshop_user WITH PASSWORD 'password'; GRANT ALL PRIVILEGES ON DATABASE workshop_2 TO workshop_user;"
-# Also edit pg_hba.conf to allow connections from 100.100.123.90
+psql -U postgres -c "CREATE USER workshop_2 WITH PASSWORD 'workshop_2';"
+psql -U postgres -c "GRANT ALL PRIVILEGES ON DATABASE workshop_2 TO workshop_2;"
+psql -U postgres -d workshop_2 -c "GRANT ALL PRIVILEGES ON SCHEMA public TO workshop_2;"
+# Note: PostgreSQL 15+ no longer grants CREATE on public schema by default
 ```
 
 ### Running Migrations

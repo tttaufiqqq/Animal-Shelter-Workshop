@@ -180,50 +180,124 @@ all service class files were renamed to match:
 
 ---
 
+## Database User Setup (All Three DB Servers)
+
+Each database server requires a dedicated `workshop_2` user with appropriate
+privileges. Do this **before** running migrations.
+
+### MariaDB — workshop-2 (100.78.124.25)
+
+Access via direct console or from a machine with local root access:
+
+```sql
+CREATE USER IF NOT EXISTS 'workshop_2'@'%' IDENTIFIED BY 'workshop_2';
+GRANT ALL PRIVILEGES ON workshop_2.* TO 'workshop_2'@'%';
+FLUSH PRIVILEGES;
+```
+
+### MySQL — msi (100.68.235.121)
+
+```sql
+CREATE USER IF NOT EXISTS 'workshop_2'@'%' IDENTIFIED BY 'workshop_2';
+GRANT ALL PRIVILEGES ON workshop_2.* TO 'workshop_2'@'%';
+FLUSH PRIVILEGES;
+```
+
+Also enable trigger/procedure creation for non-SUPER users (binary logging is on):
+
+```sql
+-- Run as root (local connection) — this persists across restarts in MySQL 8+
+SET PERSIST log_bin_trust_function_creators = 1;
+```
+
+### PostgreSQL — workshop-postgres (100.113.234.24)
+
+```sql
+-- Run as postgres superuser
+CREATE DATABASE workshop_2;
+CREATE USER workshop_2 WITH PASSWORD 'workshop_2';
+GRANT ALL PRIVILEGES ON DATABASE workshop_2 TO workshop_2;
+
+-- Required in PostgreSQL 15+ (public schema no longer open by default)
+\c workshop_2
+GRANT ALL PRIVILEGES ON SCHEMA public TO workshop_2;
+GRANT CREATE ON DATABASE workshop_2 TO workshop_2;
+```
+
+---
+
 ## Deployment Steps (app-server)
 
-These steps deploy the Laravel app to app-server after the migration:
+These steps deploy the Laravel app to app-server. All commands run on
+app-server (100.100.123.90) unless noted.
 
 ```bash
 # 1. SSH into app-server
 ssh taufiq@100.100.123.90
 
-# 2. Install PHP, Nginx, Composer and required extensions
+# 2. Install PHP 8.3, Nginx, Composer, MariaDB client, and required extensions
 sudo apt-get update
 sudo apt-get install -y php8.3 php8.3-fpm php8.3-cli php8.3-mbstring php8.3-xml \
   php8.3-curl php8.3-pgsql php8.3-mysql php8.3-gd php8.3-zip php8.3-bcmath \
-  nginx postgresql-client
+  php8.3-intl nginx mariadb-client postgresql-client
 
 # 3. Install Composer
 curl -sS https://getcomposer.org/installer | php
 sudo mv composer.phar /usr/local/bin/composer
 
-# 4. Clone repo (already done)
+# 4. Clone repo
+git clone https://github.com/tttaufiqqq/Animal-Shelter-Workshop.git ~/Animal-Shelter-Workshop
 cd ~/Animal-Shelter-Workshop
 
 # 5. Install PHP dependencies
 composer install --no-dev --optimize-autoloader
 
-# 6. Create .env
+# 6. Create .env and generate app key
 cp .env.example .env
+# Edit .env: set all DB_USERNAME=workshop_2 and DB_PASSWORD=workshop_2
+# Set DB_CONNECTION=reporting (needed for the migrations tracking table)
 php artisan key:generate
-# Edit .env to set correct DB passwords and keys
 
-# 7. Configure Nginx
-sudo nano /etc/nginx/sites-available/animal-shelter
-# Point root to /home/taufiq/Animal-Shelter-Workshop/public
-sudo ln -s /etc/nginx/sites-available/animal-shelter /etc/nginx/sites-enabled/
-sudo nginx -t && sudo systemctl reload nginx
+# 7. Set storage permissions (taufiq owns, www-data can write)
+sudo chown -R taufiq:www-data storage bootstrap/cache
+chmod -R 775 storage bootstrap/cache
 
-# 8. Create workshop_2 on PostgreSQL (from workshop-postgres server)
-ssh taufiq@100.113.234.24
-psql -U postgres -c "CREATE DATABASE workshop_2;"
-psql -U postgres -c "CREATE USER workshop_user WITH PASSWORD 'password';"
-psql -U postgres -c "GRANT ALL PRIVILEGES ON DATABASE workshop_2 TO workshop_user;"
+# 8. Allow Nginx to traverse the home directory
+chmod o+x /home/taufiq
 
-# 9. Run migrations
-cd ~/Animal-Shelter-Workshop
-php artisan migrate
+# 9. Link public storage
+php artisan storage:link
+
+# 10. Configure Nginx
+# Write config to /tmp first, then sudo-copy it:
+cat > /tmp/nginx-animal-shelter.conf << 'EOF'
+server {
+    listen 80;
+    server_name _;
+    root /home/taufiq/Animal-Shelter-Workshop/public;
+    index index.php index.html;
+    charset utf-8;
+    location / { try_files $uri $uri/ /index.php?$query_string; }
+    location = /favicon.ico { access_log off; log_not_found off; }
+    location = /robots.txt  { access_log off; log_not_found off; }
+    error_page 404 /index.php;
+    location ~ \.php$ {
+        fastcgi_pass unix:/var/run/php/php8.3-fpm.sock;
+        fastcgi_index index.php;
+        fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
+        include fastcgi_params;
+    }
+    location ~ /\.(?!well-known).* { deny all; }
+}
+EOF
+sudo cp /tmp/nginx-animal-shelter.conf /etc/nginx/sites-available/animal-shelter
+sudo ln -sf /etc/nginx/sites-available/animal-shelter /etc/nginx/sites-enabled/animal-shelter
+sudo rm -f /etc/nginx/sites-enabled/default
+sudo nginx -t && sudo systemctl restart nginx
+sudo systemctl restart php8.3-fpm
+
+# 11. Run migrations
+php artisan migrate --force
 ```
 
 ---
