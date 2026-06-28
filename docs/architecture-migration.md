@@ -133,6 +133,83 @@ forwarding, no wrapper scripts:
 | Deployability | Manual per-server setup | Install Tailscale, done |
 | Firewall requirement | Open SSH port only | Tailscale handles NAT traversal |
 
+### Verifying Tailscale Connectivity with Ping
+
+Before running migrations or starting the app, confirm that every DB server is
+reachable from app-server over Tailscale. The tool for this is `ping`.
+
+#### Why ping, not a direct DB connection test?
+
+A database connection failure can fail for several independent reasons:
+
+1. The Tailscale tunnel itself is down (network layer)
+2. The DB port is firewalled or the service is not running (transport layer)
+3. Wrong credentials or missing database (application layer)
+
+`ping` isolates **reason 1** from reasons 2 and 3. If ping fails, there is no
+point troubleshooting credentials or port bindings — the machines cannot see each
+other at all. Fix the network first, then move down the stack.
+
+If ping succeeds but the DB connection still fails, you know the Tailscale mesh is
+healthy and the problem is at the DB level (firewall, service not started, wrong
+password, missing `workshop_2` database). This narrows the diagnosis significantly.
+
+#### Commands
+
+Run these from app-server (`ssh taufiq@100.100.123.90`) before any migration:
+
+```bash
+# Ping each DB server — expect <10ms round-trip inside Tailscale mesh
+ping -c 4 100.78.124.25    # workshop-2  (MariaDB — reporting + booking)
+ping -c 4 100.68.235.121   # msi         (MySQL   — shelter + animals)
+ping -c 4 100.113.234.24   # workshop-postgres (PostgreSQL — users)
+```
+
+Expected output (all three must succeed):
+
+```
+PING 100.78.124.25 (100.78.124.25) 56(84) bytes of data.
+64 bytes from 100.78.124.25: icmp_seq=1 ttl=64 time=3.21 ms
+64 bytes from 100.78.124.25: icmp_seq=2 ttl=64 time=2.87 ms
+...
+--- 100.78.124.25 ping statistics ---
+4 packets transmitted, 4 received, 0% packet loss
+```
+
+**0% packet loss and sub-10ms latency** = Tailscale mesh is healthy, proceed.
+
+If a host does not respond:
+
+```bash
+# Check Tailscale status on app-server
+tailscale status
+
+# If the target machine shows "offline", the Tailscale daemon on that VM
+# may not be running. Log into that VM and run:
+sudo systemctl start tailscaled
+sudo tailscale up
+```
+
+#### After ping passes — verify the DB port is open
+
+Once the network layer is confirmed, check that the DB process is actually
+listening on its port:
+
+```bash
+# MariaDB on workshop-2 (port 3306)
+nc -zv 100.78.124.25 3306
+
+# MySQL on msi (port 3306)
+nc -zv 100.68.235.121 3306
+
+# PostgreSQL on workshop-postgres (port 5432)
+nc -zv 100.113.234.24 5432
+```
+
+`nc -zv` (netcat zero-I/O verbose) attempts a TCP connection without sending data.
+A `Connection succeeded` response means the DB service is up and the port is
+reachable — safe to run `php artisan migrate`.
+
 ---
 
 ## MariaDB Migration (booking connection)
