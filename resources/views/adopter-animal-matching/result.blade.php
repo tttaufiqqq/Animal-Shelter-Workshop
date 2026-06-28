@@ -397,7 +397,7 @@ function showError(message) {
     const actionDiv = document.getElementById('errorAction');
 
     if (isProfileError) {
-        actionDiv.innerHTML = `<a href="{{ route('profile.edit') }}" class="inline-block px-6 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg font-semibold hover:from-purple-700 hover:to-indigo-700 transition shadow-lg">Complete Your Profile</a>`;
+        actionDiv.innerHTML = `<button onclick="closeResultModal(); openAdopterModal();" class="px-6 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg font-semibold hover:from-purple-700 hover:to-indigo-700 transition shadow-lg">Complete Your Profile</button>`;
     } else {
         actionDiv.innerHTML = `<button onclick="loadMatches()" class="px-6 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg font-semibold hover:from-purple-700 hover:to-indigo-700 transition shadow-lg">Try Again</button>`;
     }
