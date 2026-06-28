@@ -1,5 +1,5 @@
 ﻿<p align="center">
-  <img src="public/utem.png" alt="University Logo" width="150"/>
+  <img src="docs/images/utem-logo.png" alt="University Logo" width="200"/>
 </p>
 
 <h1 align="center">🐾 Animal Rescue & Adoption Management System</h1>
@@ -88,7 +88,7 @@ The system provides role-based access control for administrators, caretakers, an
 
 ### ERD
 
-<p align="center"> <img src="public/ERDV2.png" alt="ERD Diagram" width="700"/> </p>
+<p align="center"> <img src="docs/images/erd.png" alt="ERD Diagram" width="700"/> </p>
 
 ---
 
