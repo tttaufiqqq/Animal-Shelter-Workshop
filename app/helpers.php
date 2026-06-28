@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 
 /**
  * Global helper functions for the Animal Shelter application

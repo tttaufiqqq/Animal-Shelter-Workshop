@@ -5,9 +5,9 @@
 | Machine | Tailscale IP | Role | DB Engine |
 |---|---|---|---|
 | app-server | 100.100.123.90 | Laravel application host | — |
-| workshop-2 | 100.78.124.25 | eilya + danish connections | MariaDB |
-| msi (local) | 100.68.235.121 | atiqah + shafiqah connections | MySQL |
-| workshop-postgres | 100.113.234.24 | taufiq connection | PostgreSQL |
+| workshop-2 | 100.78.124.25 | reporting + booking connections | MariaDB |
+| msi (local) | 100.68.235.121 | shelter + animals connections | MySQL |
+| workshop-postgres | 100.113.234.24 | users connection | PostgreSQL |
 
 SSH access is via Tailscale IP directly — SSH keys are pre-configured, no password needed.
 
@@ -15,21 +15,21 @@ Example: `ssh taufiq@100.78.124.25`
 
 ### Database Connection Mapping
 
-| Connection name | Server | Driver | Database | Username | Password |
-|---|---|---|---|---|---|
-| eilya | workshop-2 (100.78.124.25) | mariadb | workshop_2 | root | — |
-| danish | workshop-2 (100.78.124.25) | mariadb | workshop_2 | root | — |
-| atiqah | msi (100.68.235.121) | mysql | workshop_2 | root | password |
-| shafiqah | msi (100.68.235.121) | mysql | workshop_2 | root | password |
-| taufiq | workshop-postgres (100.113.234.24) | pgsql | workshop_2 | postgres | — |
+| Connection name | Module | Server | Driver | Database | Username | Password |
+|---|---|---|---|---|---|---|
+| reporting | Stray Reporting | workshop-2 (100.78.124.25) | mariadb | workshop_2 | root | — |
+| booking | Booking Adoption | workshop-2 (100.78.124.25) | mariadb | workshop_2 | root | — |
+| shelter | Shelter Management | msi (100.68.235.121) | mysql | workshop_2 | root | password |
+| animals | Stray Animal | msi (100.68.235.121) | mysql | workshop_2 | root | password |
+| users | Users Management | workshop-postgres (100.113.234.24) | pgsql | workshop_2 | postgres | — |
 
 ### Database Ownership by Connection
 
-- **eilya** — reports, rescues, images tables
-- **danish** — booking, transaction, adoption, visit_list, animal_booking tables (MariaDB, was SQL Server)
-- **atiqah** — category, inventory, slot, section tables
-- **shafiqah** — medical, clinic, vet, vaccination, animal, animal_profile tables
-- **taufiq** — users, roles, permissions, adopter_profile, audit_log tables (PostgreSQL)
+- **reporting** — reports, rescues, images tables
+- **booking** — booking, transaction, adoption, visit_list, animal_booking tables (MariaDB stored procedures + triggers)
+- **shelter** — category, inventory, slot, section tables
+- **animals** — medical, clinic, vet, vaccination, animal, animal_profile tables
+- **users** — users, roles, permissions, adopter_profile, audit_log tables (PostgreSQL)
 
 ### Pre-Migration Checklist
 
@@ -52,7 +52,7 @@ psql -U postgres -c "CREATE DATABASE workshop_2;"
 Also ensure remote connections are allowed on each DB server from app-server (100.100.123.90):
 
 ```bash
-# On workshop-2 and msi — grant remote access
+# On workshop-2 and msi — grant remote access to app-server
 mysql -u root -p -e "CREATE USER IF NOT EXISTS 'root'@'100.100.123.90' IDENTIFIED BY 'password'; GRANT ALL PRIVILEGES ON workshop_2.* TO 'root'@'100.100.123.90'; FLUSH PRIVILEGES;"
 
 # On workshop-postgres
@@ -66,20 +66,13 @@ psql -U postgres -c "CREATE USER workshop_user WITH PASSWORD 'password'; GRANT A
 # On app-server — run all migrations
 php artisan migrate
 
-# Or per-connection
-php artisan db:migrate-one eilya
-php artisan db:migrate-one danish
-php artisan db:migrate-one atiqah
-php artisan db:migrate-one shafiqah
-php artisan db:migrate-one taufiq
-
 # Fresh all databases
 php artisan db:fresh-all --seed
 ```
 
 ### Stored Procedure Calling Convention (MariaDB)
 
-Danish connection uses MariaDB stored procedures. Calling convention via PHP:
+The `booking` connection uses MariaDB stored procedures. Calling convention via PHP:
 
 ```php
 // Procedures with OUT parameters — use session variables
