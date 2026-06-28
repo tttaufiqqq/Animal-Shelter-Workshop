@@ -13,7 +13,7 @@
 
 ## 📖 Overview
 
-The **Animal Rescue & Adoption Management System** is a comprehensive web-based platform designed to streamline animal rescue operations, medical records management, shelter inventory tracking, and adoption processes. This project showcases a **distributed database architecture** with 5 separate databases across different database engines (PostgreSQL, MySQL, and SQL Server), demonstrating advanced database integration and cross-database relationship management.
+The **Animal Rescue & Adoption Management System** is a comprehensive web-based platform designed to streamline animal rescue operations, medical records management, shelter inventory tracking, and adoption processes. This project showcases a **distributed database architecture** with 5 separate databases across different database engines (PostgreSQL, MySQL, and MariaDB), demonstrating advanced database integration and cross-database relationship management.
 
 The system provides role-based access control for administrators, caretakers, and general users, ensuring efficient animal welfare tracking, rescue coordination, and adoption services. Built as an academic project for BITU3923 Workshop II at Universiti Teknikal Malaysia Melaka (UTeM), it demonstrates enterprise-level software architecture and distributed systems design.
 
@@ -57,7 +57,7 @@ The system provides role-based access control for administrators, caretakers, an
 - Slot capacity and occupancy monitoring
 - Automatic slot assignment to rescued animals
 
-### 📅 Booking & Adoption Management (SQL Server)
+### 📅 Booking & Adoption Management (MariaDB)
 
 - Appointment booking system for shelter visits
 - Visit list feature allowing users to save animals they want to visit
@@ -100,15 +100,25 @@ This project implements a **distributed database architecture** with 5 separate 
 
 **Key Challenge**: Cross-database relationships cannot use traditional foreign key constraints. All referential integrity is enforced at the **application layer** using Laravel's Eloquent ORM.
 
+### Why MariaDB Instead of SQL Server
+
+The booking module was originally designed for SQL Server. It was migrated to **MariaDB 10.11** for the following reason:
+
+The project runs on a homelab Proxmox cluster with limited RAM. SQL Server's minimum footprint (~1 GB idle) is prohibitive when sharing hardware with three other virtual machines and a physical host. MariaDB idles at under 100 MB and provides the same procedural SQL features (stored procedures, triggers, transactions) that the booking module relies on — making it a practical drop-in replacement without changing the application layer design.
+
+The **heterogeneous distributed database** concept is preserved: the system still integrates three different database engines (MariaDB, MySQL, PostgreSQL) across four separate physical/virtual machines, each accessed through a named Laravel connection. MariaDB and MySQL are distinct products with different versioning, licensing, and default behaviour, so the architecture remains genuinely heterogeneous.
+
 ## Database Connections
 
-| Connection Name | Database Engine | Port | Module/Domain | Key Tables |
-|----------------|-----------------|------|---------------|------------|
-| **taufiq** | PostgreSQL | 5434 | User Management | users, roles, permissions, adopter_profiles |
-| **eilya** | MySQL | 3307 | Stray Reporting Management | reports, rescues, images |
-| **shafiqah** | MySQL | 3309 | Animal Management | animals, medical_records, vaccinations, clinics, vets, animal_profiles |
-| **atiqah** | MySQL | 3308 | Shelter Management | slots, sections, inventory, categories |
-| **danish** | SQL Server | 1434 | Booking & Adoption Management | bookings, adoptions, transactions, visit_lists, animal_booking (pivot) |
+All servers communicate over a **Tailscale VPN mesh** — no database port is exposed on the public network or local LAN.
+
+| Connection Name | Database Engine | Server (Tailscale IP) | Module/Domain | Key Tables |
+|----------------|-----------------|----------------------|---------------|------------|
+| **reporting** | MariaDB 10.11 | workshop-2 (100.78.124.25) | Stray Reporting | reports, rescues, images |
+| **booking** | MariaDB 10.11 | workshop-2 (100.78.124.25) | Booking & Adoption | bookings, adoptions, transactions, visit_lists, animal_booking |
+| **shelter** | MySQL 9.5 | msi (100.68.235.121) | Shelter Management | slots, sections, inventory, categories |
+| **animals** | MySQL 9.5 | msi (100.68.235.121) | Animal Management | animals, medical_records, vaccinations, clinics, vets, animal_profiles |
+| **users** | PostgreSQL 16 | workshop-postgres (100.113.234.24) | User Management | users, roles, permissions, adopter_profiles, audit_log |
 
 ## Cross-Database Relationship Pattern
 
@@ -192,7 +202,8 @@ Always test queries that span multiple databases with proper error handling.
 | **Backend Framework**   | Laravel 11 (PHP 8.2+)                     |
 | **Frontend**            | Blade Templates + Tailwind CSS + Alpine.js|
 | **Interactive Components** | Livewire 3.6                           |
-| **Databases**           | PostgreSQL 14+ + MySQL 8.0+ + SQL Server 2019+ |
+| **Databases**           | PostgreSQL 16 + MySQL 9.5 + MariaDB 10.11      |
+| **VPN / Networking**    | Tailscale (WireGuard mesh)                     |
 | **Authentication**      | Laravel Breeze                            |
 | **Authorization**       | Spatie Laravel Permission                 |
 | **Payment Gateway**     | ToyyibPay Integration                     |
@@ -208,13 +219,13 @@ Always test queries that span multiple databases with proper error handling.
 
 ### Prerequisites
 
-- PHP 8.2 or higher
+- PHP 8.3+
 - Composer
 - Node.js & npm
-- PostgreSQL 14+
-- MySQL 8.0+
-- SQL Server 2019+
+- Tailscale (connected to the project's tailnet)
 - Git
+
+The three database servers (MariaDB on workshop-2, MySQL on msi, PostgreSQL on workshop-postgres) are already provisioned and running. You do not need to install any database engine locally.
 
 ### Initial Setup
 
@@ -232,44 +243,52 @@ Always test queries that span multiple databases with proper error handling.
 
 3. **Configure database connections**
 
-   Edit `.env` file and configure all 5 database connections:
+   Copy `.env.example` to `.env` and fill in the 5 database connections.
+   All hosts are Tailscale IPs — connect to the tailnet before running the app.
+
    ```env
-   # Eilya (MySQL) - Stray Reporting
-   DB1_HOST=127.0.0.1
-   DB1_PORT=3307
-   DB1_DATABASE=workshop
-   DB1_USERNAME=root
-   DB1_PASSWORD=your_password
+   DB_CONNECTION=reporting
 
-   # Atiqah (MySQL) - Shelter Management
-   DB2_HOST=127.0.0.1
-   DB2_PORT=3308
-   DB2_DATABASE=workshop2
-   DB2_USERNAME=root
-   DB2_PASSWORD=your_password
+   # DB1 — reporting (MariaDB, workshop-2)
+   DB1_HOST=100.78.124.25
+   DB1_PORT=3306
+   DB1_DATABASE=workshop_2
+   DB1_USERNAME=workshop_2
+   DB1_PASSWORD=workshop_2
 
-   # Shafiqah (MySQL) - Animal Management
-   DB3_HOST=127.0.0.1
-   DB3_PORT=3309
-   DB3_DATABASE=workshop
-   DB3_USERNAME=root
-   DB3_PASSWORD=your_password
+   # DB2 — shelter (MySQL, msi)
+   DB2_HOST=100.68.235.121
+   DB2_PORT=3306
+   DB2_DATABASE=workshop_2
+   DB2_USERNAME=workshop_2
+   DB2_PASSWORD=workshop_2
 
-   # Danish (SQL Server) - Booking & Adoption
-   DB4_HOST=127.0.0.1
-   DB4_PORT=1434
-   DB4_DATABASE=workshop
-   DB4_USERNAME=sa
-   DB4_PASSWORD=your_password
+   # DB3 — animals (MySQL, msi)
+   DB3_HOST=100.68.235.121
+   DB3_PORT=3306
+   DB3_DATABASE=workshop_2
+   DB3_USERNAME=workshop_2
+   DB3_PASSWORD=workshop_2
 
-   # Taufiq (PostgreSQL) - User Management
-   DB5_HOST=127.0.0.1
-   DB5_PORT=5434
-   DB5_DATABASE=workshop
-   DB5_USERNAME=postgres
-   DB5_PASSWORD=your_password
+   # DB4 — booking (MariaDB, workshop-2)
+   DB4_HOST=100.78.124.25
+   DB4_PORT=3306
+   DB4_DATABASE=workshop_2
+   DB4_USERNAME=workshop_2
+   DB4_PASSWORD=workshop_2
 
-   # Session driver (use file for distributed databases)
+   # DB5 — users (PostgreSQL, workshop-postgres)
+   DB5_HOST=100.113.234.24
+   DB5_PORT=5432
+   DB5_DATABASE=workshop_2
+   DB5_USERNAME=workshop_2
+   DB5_PASSWORD=workshop_2
+
+   # Cloudinary — animal and rescue image storage
+   CLOUDINARY_CLOUD_NAME=your_cloud_name
+   CLOUDINARY_API_KEY=your_api_key
+   CLOUDINARY_API_SECRET=your_api_secret
+
    SESSION_DRIVER=file
    ```
 
@@ -293,13 +312,15 @@ Always test queries that span multiple databases with proper error handling.
 
 ### Default Login Credentials
 
-After seeding, you can login with:
+After seeding, you can login with any of the following (password: `password`):
 
-- **Admin**: admin@example.com
-- **Caretaker**: caretaker@example.com
-- **User**: user@example.com
-
-(Check `database/seeders/UserSeeder.php` for passwords)
+| Role | Email |
+|------|-------|
+| Admin | admin1@gmail.com |
+| Admin | admin2@gmail.com |
+| Caretaker | caretaker1@gmail.com |
+| Caretaker | caretaker2@gmail.com |
+| Public user | taufiq@gmail.com |
 
 ---
 
@@ -378,12 +399,12 @@ Animal-Shelter-Workshop/
 │   │   ├── RescueMapController.php
 │   │   └── ProfileController.php
 │   ├── Models/
-│   │   ├── Animal.php (shafiqah)
-│   │   ├── Booking.php (danish)
-│   │   ├── Rescue.php (eilya)
-│   │   ├── Slot.php (atiqah)
-│   │   ├── User.php (taufiq)
-│   │   └── ... (other models with explicit connections)
+│   │   ├── Animal.php          # connection: animals (MySQL, msi)
+│   │   ├── Booking.php         # connection: booking (MariaDB, workshop-2)
+│   │   ├── Rescue.php          # connection: reporting (MariaDB, workshop-2)
+│   │   ├── Slot.php            # connection: shelter (MySQL, msi)
+│   │   ├── User.php            # connection: users (PostgreSQL, workshop-postgres)
+│   │   └── ... (all models declare explicit $connection)
 │   ├── Services/
 │   │   └── DatabaseConnectionChecker.php
 │   └── Livewire/
@@ -424,7 +445,7 @@ Animal-Shelter-Workshop/
 
 ## 🌟 Key Technical Highlights
 
-1. **Distributed Database Management**: Successfully integrates 5 databases across 3 different database engines
+1. **Distributed Database Management**: Successfully integrates 5 databases across 3 different database engines (PostgreSQL, MySQL, MariaDB)
 2. **Cross-Database Relationships**: Implements complex relationships without foreign key constraints
 3. **Smart Connection Caching**: Adaptive cache duration based on database health (30 min healthy, 60 sec degraded)
 4. **Graceful Degradation**: Application remains partially functional when individual databases are offline
@@ -444,11 +465,13 @@ This project is developed for academic purposes as part of BITU3923 Workshop II 
 
 ## 👥 Development Team
 
-- **Taufiq** - User Management Module (PostgreSQL)
-- **Eilya** - Stray Reporting Module (MySQL)
-- **Shafiqah** - Animal Management Module (MySQL)
-- **Atiqah** - Shelter Management Module (MySQL)
-- **Danish** - Booking & Adoption Module (SQL Server)
+| Member | Module | Database Engine |
+|--------|--------|----------------|
+| **Taufiq** | User Management | PostgreSQL 16 |
+| **Eilya** | Stray Reporting | MariaDB 10.11 |
+| **Shafiqah** | Animal Management | MySQL 9.5 |
+| **Atiqah** | Shelter Management | MySQL 9.5 |
+| **Danish** | Booking & Adoption | MariaDB 10.11 |
 
 ---
 
