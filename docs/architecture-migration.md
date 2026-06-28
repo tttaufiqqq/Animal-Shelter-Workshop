@@ -33,6 +33,35 @@ Laravel's `config/database.php` then connected to `127.0.0.1` on those local por
 Tunnel management was done via a shell script (`ssh-tunnels.txt`) that stored
 plaintext SSH credentials and had to be run manually before starting the app.
 
+Each tunnel was opened with `ssh -L` (local port forwarding). The commands from
+`ssh-tunnels.txt` looked like this:
+
+```bash
+# Run on app-server before starting Laravel — all five tunnels required
+
+# MariaDB on workshop-2 → local port 13306
+ssh -N -L 13306:localhost:3306 taufiq@192.168.1.101 &
+
+# MySQL (shelter) on msi → local port 13307
+ssh -N -L 13307:localhost:3306 taufiq@192.168.1.102 &
+
+# MySQL (animals) on msi — second connection, different local port
+ssh -N -L 13308:localhost:3306 taufiq@192.168.1.102 &
+
+# SQL Server on msi → local port 1434
+ssh -N -L 1434:localhost:1433 taufiq@192.168.1.102 &
+
+# PostgreSQL on workshop-postgres → local port 15432
+ssh -N -L 15432:localhost:5432 taufiq@192.168.1.103 &
+```
+
+Flags used:
+- `-N` — do not execute a remote command; keep the tunnel open but do nothing else
+- `-L local_port:remote_host:remote_port` — forward `local_port` on the local machine to `remote_port` on the remote host through the SSH connection
+- `&` — run in the background; all five had to be running simultaneously before `php artisan serve`
+
+To verify a tunnel was alive you would run `ss -tlnp | grep 13306` and check that the local port was bound. If a tunnel had crashed there was no error — the port would simply be missing and the app would fail with a "Connection refused" database error at runtime.
+
 ### Why It Failed
 
 **1. Operational fragility**
