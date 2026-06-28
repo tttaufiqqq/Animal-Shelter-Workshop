@@ -74,6 +74,11 @@
                         </li>
                     @endforeach
                 </ul>
+
+                <button onclick="openGuideModal()" class="mt-8 w-full flex items-center justify-center gap-2 bg-white bg-opacity-15 hover:bg-opacity-25 border border-white border-opacity-30 text-white font-semibold py-3 px-5 rounded-xl transition backdrop-blur-sm text-sm">
+                    <i class="fas fa-key"></i>
+                    Trying the system? View test accounts
+                </button>
             </div>
 
             <!-- Right Section - Registration Form -->
