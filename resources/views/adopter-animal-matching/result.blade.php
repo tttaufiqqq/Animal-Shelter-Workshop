@@ -159,9 +159,7 @@
                     </div>
                     <h3 class="text-lg font-semibold text-gray-900 mb-2">Something went wrong</h3>
                     <p class="text-sm text-gray-600" id="errorMessage"></p>
-                    <button onclick="loadMatches()" class="mt-4 px-6 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg font-semibold hover:from-purple-700 hover:to-indigo-700 transition shadow-lg">
-                        Try Again
-                    </button>
+                    <div id="errorAction" class="mt-4"></div>
                 </div>
             </div>
         </div>
@@ -394,6 +392,15 @@ function animateScoreNumbers() {
 function showError(message) {
     document.getElementById('errorState').classList.remove('hidden');
     document.getElementById('errorMessage').textContent = message;
+
+    const isProfileError = message.toLowerCase().includes('adopter profile') || message.toLowerCase().includes('complete your');
+    const actionDiv = document.getElementById('errorAction');
+
+    if (isProfileError) {
+        actionDiv.innerHTML = `<a href="{{ route('profile.edit') }}" class="inline-block px-6 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg font-semibold hover:from-purple-700 hover:to-indigo-700 transition shadow-lg">Complete Your Profile</a>`;
+    } else {
+        actionDiv.innerHTML = `<button onclick="loadMatches()" class="px-6 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg font-semibold hover:from-purple-700 hover:to-indigo-700 transition shadow-lg">Try Again</button>`;
+    }
 }
 
 // Close modal on outside click
