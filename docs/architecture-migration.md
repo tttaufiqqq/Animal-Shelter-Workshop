@@ -111,6 +111,35 @@ forwarding, no wrapper scripts:
 The `booking` connection was previously configured for SQL Server with T-SQL syntax.
 All stored procedures and triggers were rewritten for MariaDB.
 
+### Why SQL Server Was Replaced
+
+The project runs on a homelab Proxmox cluster with a constrained RAM budget shared
+across four virtual machines and one physical host. SQL Server's minimum idle
+footprint is approximately **1 GB** per instance — that alone would claim a
+significant share of available memory before Laravel, Nginx, or any DB server for
+the other modules had even started.
+
+MariaDB idles at **under 100 MB** and provides the same procedural SQL features the
+booking module was built on: stored procedures with `IN`/`OUT` parameters,
+`BEFORE`/`AFTER` triggers, `START TRANSACTION` / `ROLLBACK`, and `SIGNAL` for
+application-level errors. The rewrite required no changes to the PHP application
+layer — only the SQL dialect inside the migration files changed.
+
+**The heterogeneous distributed database architecture is fully preserved.** The system
+still integrates three distinct database engines across four separate machines:
+
+| Engine | Version | Module connections |
+|---|---|---|
+| MariaDB | 10.11 | `reporting`, `booking` |
+| MySQL | 9.5 | `shelter`, `animals` |
+| PostgreSQL | 16 | `users` |
+
+MariaDB and MySQL share lineage but are independent products with separate release
+schedules, default configurations, and behavioural differences (e.g. MariaDB's
+`RETURNING` clause, default `utf8mb4` charset, and strict mode defaults differ from
+MySQL 9.x). Treating them as the same engine would be incorrect — the architecture
+is genuinely heterogeneous.
+
 ### Key Syntax Changes
 
 | SQL Server | MariaDB |
