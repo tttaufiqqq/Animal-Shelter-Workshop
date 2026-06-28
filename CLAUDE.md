@@ -17,11 +17,11 @@ Example: `ssh taufiq@100.78.124.25`
 
 | Connection name | Module | Server | Driver | Database | Username | Password |
 |---|---|---|---|---|---|---|
-| reporting | Stray Reporting | workshop-2 (100.78.124.25) | mariadb | workshop_2 | root | — |
-| booking | Booking Adoption | workshop-2 (100.78.124.25) | mariadb | workshop_2 | root | — |
-| shelter | Shelter Management | msi (100.68.235.121) | mysql | workshop_2 | root | password |
-| animals | Stray Animal | msi (100.68.235.121) | mysql | workshop_2 | root | password |
-| users | Users Management | workshop-postgres (100.113.234.24) | pgsql | workshop_2 | postgres | — |
+| reporting | Stray Reporting | workshop-2 (100.78.124.25) | mariadb | workshop_2 | workshop_2 | workshop_2 |
+| booking | Booking Adoption | workshop-2 (100.78.124.25) | mariadb | workshop_2 | workshop_2 | workshop_2 |
+| shelter | Shelter Management | msi (100.68.235.121) | mysql | workshop_2 | workshop_2 | workshop_2 |
+| animals | Stray Animal | msi (100.68.235.121) | mysql | workshop_2 | workshop_2 | workshop_2 |
+| users | Users Management | workshop-postgres (100.113.234.24) | pgsql | workshop_2 | workshop_2 | workshop_2 |
 
 ### Database Ownership by Connection
 
