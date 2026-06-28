@@ -255,6 +255,28 @@ GRANT CREATE ON DATABASE workshop_2 TO workshop_2;
 
 ---
 
+## Test Accounts
+
+All accounts are seeded by `database/seeders/UserSeeder.php`. Password for every
+account is `password`.
+
+| Role | Email | Access |
+|---|---|---|
+| admin | admin1@gmail.com | Full system — reports, animals, shelter, bookings, audit logs |
+| admin | admin2@gmail.com | Full system — reports, animals, shelter, bookings, audit logs |
+| caretaker | caretaker1@gmail.com | Rescue ops, animal management, medical records |
+| caretaker | caretaker2@gmail.com | Rescue ops, animal management, medical records |
+| public user | taufiq@gmail.com | Submit reports, browse animals, book adoptions |
+| public user | shafiqah@gmail.com | Submit reports, browse animals, book adoptions |
+| public user | atiqah@gmail.com | Submit reports, browse animals, book adoptions |
+| public user | danish@gmail.com | Submit reports, browse animals, book adoptions |
+| public user | eilya@gmail.com | Submit reports, browse animals, book adoptions |
+
+> The `adopter` role is not seeded directly. A public user becomes an adopter after
+> completing an adoption — the role is assigned by the booking/adoption workflow.
+
+---
+
 ## Deployment Steps (app-server)
 
 These steps deploy the Laravel app to app-server. All commands run on

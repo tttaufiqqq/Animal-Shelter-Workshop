@@ -312,15 +312,19 @@ The three database servers (MariaDB on workshop-2, MySQL on msi, PostgreSQL on w
 
 ### Default Login Credentials
 
-After seeding, you can login with any of the following (password: `password`):
+After seeding, use any of the following test accounts. All passwords are `password`.
 
-| Role | Email |
-|------|-------|
-| Admin | admin1@gmail.com |
-| Admin | admin2@gmail.com |
-| Caretaker | caretaker1@gmail.com |
-| Caretaker | caretaker2@gmail.com |
-| Public user | taufiq@gmail.com |
+| Role | Email | Notes |
+|------|-------|-------|
+| Admin | admin1@gmail.com | Full system access |
+| Admin | admin2@gmail.com | Full system access |
+| Caretaker | caretaker1@gmail.com | Rescue ops + animal care |
+| Caretaker | caretaker2@gmail.com | Rescue ops + animal care |
+| Public User | taufiq@gmail.com | Reports + adoption booking |
+| Public User | shafiqah@gmail.com | Reports + adoption booking |
+| Public User | atiqah@gmail.com | Reports + adoption booking |
+| Public User | danish@gmail.com | Reports + adoption booking |
+| Public User | eilya@gmail.com | Reports + adoption booking |
 
 ---
 
