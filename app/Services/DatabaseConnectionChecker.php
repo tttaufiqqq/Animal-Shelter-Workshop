@@ -159,14 +159,25 @@ class DatabaseConnectionChecker
             // File cache failed, proceed with check
         }
 
-        try {
-            // Timeouts are now configured in database.php:
-            // - MySQL/PostgreSQL: 0.5 seconds (PDO::ATTR_TIMEOUT)
-            // - SQL Server: 2 seconds (ConnectTimeout/LoginTimeout)
-            // - PostgreSQL: 0.5 seconds (connect_timeout)
-            // NO RETRIES - fail fast and use cache
+        // TCP probe with 2-second timeout — fast fail before attempting PDO.
+        // PDO::MYSQL_ATTR_CONNECT_TIMEOUT is unavailable on this PHP build, so we
+        // use fsockopen() which always honours the timeout regardless of PHP/driver version.
+        $dbConfig = config("database.connections.$connection");
+        if ($dbConfig && isset($dbConfig['host'], $dbConfig['port'])) {
+            $socket = @fsockopen($dbConfig['host'], (int) $dbConfig['port'], $errno, $errstr, 2.0);
+            if ($socket === false) {
+                try {
+                    Cache::store('file')->put($circuitKey, true, 30);
+                } catch (\Exception $e) {
+                    // Not critical
+                }
+                \Log::debug("TCP probe failed for {$connection} ({$dbConfig['host']}:{$dbConfig['port']}): {$errstr}");
+                return false;
+            }
+            fclose($socket);
+        }
 
-            // Attempt to get PDO connection (will use configured timeouts)
+        try {
             $pdo = DB::connection($connection)->getPdo();
 
             // Connection successful - clear any existing circuit breaker
