@@ -5,10 +5,10 @@ proxmox_endpoint     = "https://192.168.1.10:8006"    # your Proxmox IP
 proxmox_api_token    = "root@pam!terraform=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
 proxmox_ssh_user     = "root"
 proxmox_ssh_password = "your-proxmox-root-password"
-proxmox_node         = "pve"                           # node name shown in Proxmox UI
+proxmox_node         = "taufiq"                        # node name shown in Proxmox UI
 
 vm_template_id = 9000   # VM ID of your Ubuntu 24.04 cloud-init template
-storage_pool   = "local-lvm"
+storage_pool   = "local"
 
 ssh_public_key = "ssh-ed25519 AAAAC3Nza... your-public-key"
 

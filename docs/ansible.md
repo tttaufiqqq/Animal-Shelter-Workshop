@@ -75,8 +75,8 @@ terraform apply
                     └── joins Tailscale (hostname = VM name)
 
 # Wait ~60s for cloud-init to finish, then verify connectivity:
-tailscale status                          # confirm all 4 VMs appear
-ssh workshop@linux-mysql "echo ok"        # test SSH
+tailscale status                              # confirm all 4 VMs appear (tf-* names)
+ssh workshop@tf-linux-mysql "echo ok"         # test SSH
 
 # Then run Ansible
 cd /mnt/c/Users/taufi/Documents/Dev/Animal-Shelter-Workshop/infrastructure/ansible
@@ -102,7 +102,7 @@ tailscale status
 
 Then edit `inventory.yml` and replace `ansible_host` values with the actual IPs:
 ```yaml
-linux-mysql:
+tf-linux-mysql:
   ansible_host: 100.x.x.x   # from tailscale status
 ```
 
@@ -120,16 +120,16 @@ linux-mysql:
 
 ```bash
 # MySQL
-ssh workshop@linux-mysql "mysql -u workshop_2 -pworkshop_2 -e 'SHOW DATABASES;'"
+ssh workshop@tf-linux-mysql "mysql -u workshop_2 -pworkshop_2 -e 'SHOW DATABASES;'"
 
 # MariaDB
-ssh workshop@linux-mariadb "mysql -u workshop_2 -pworkshop_2 -e 'SHOW DATABASES;'"
+ssh workshop@tf-linux-mariadb "mysql -u workshop_2 -pworkshop_2 -e 'SHOW DATABASES;'"
 
 # PostgreSQL
-ssh workshop@linux-postgres "psql -U workshop_2 -d workshop_2 -c '\l'"
+ssh workshop@tf-linux-postgres "psql -U workshop_2 -d workshop_2 -c '\l'"
 
 # PHP on app-server
-ssh workshop@app-server "php -v && nginx -v && composer --version"
+ssh workshop@tf-app-server "php -v && nginx -v && composer --version"
 ```
 
 ## Full infrastructure flow

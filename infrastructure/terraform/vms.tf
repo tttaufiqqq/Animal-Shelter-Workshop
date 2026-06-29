@@ -1,25 +1,25 @@
 locals {
   vms = {
-    "app-server" = {
-      vmid   = 101
+    "tf-app-server" = {
+      vmid   = 201
       cores  = 2
       memory = 2048
       disk   = 20
     }
-    "linux-mysql" = {
-      vmid   = 104
+    "tf-linux-mysql" = {
+      vmid   = 204
       cores  = 2
       memory = 2048
       disk   = 20
     }
-    "linux-mariadb" = {
-      vmid   = 105
+    "tf-linux-mariadb" = {
+      vmid   = 205
       cores  = 2
       memory = 2048
       disk   = 20
     }
-    "linux-postgres" = {
-      vmid   = 106
+    "tf-linux-postgres" = {
+      vmid   = 206
       cores  = 2
       memory = 2048
       disk   = 20
@@ -73,7 +73,7 @@ resource "proxmox_virtual_environment_vm" "vms" {
     datastore_id = var.storage_pool
     size         = each.value.disk
     interface    = "scsi0"
-    file_format  = "raw"
+    file_format  = "qcow2"
     discard      = "on"
   }
 
@@ -84,6 +84,7 @@ resource "proxmox_virtual_environment_vm" "vms" {
 
   # Inject cloud-init
   initialization {
+    datastore_id      = var.storage_pool
     user_data_file_id = proxmox_virtual_environment_file.cloud_init[each.key].id
 
     ip_config {
