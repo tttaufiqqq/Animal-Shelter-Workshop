@@ -41,6 +41,7 @@ return [
             'charset' => 'utf8mb4',
             'collation' => 'utf8mb4_unicode_ci',
             'options' => [
+                PDO::MYSQL_ATTR_CONNECT_TIMEOUT => 2, // TCP connect timeout (fail fast when VM is down)
                 PDO::ATTR_TIMEOUT => 5,
                 PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
             ],
@@ -57,6 +58,7 @@ return [
             'charset' => 'utf8mb4',
             'collation' => 'utf8mb4_unicode_ci',
             'options' => [
+                PDO::MYSQL_ATTR_CONNECT_TIMEOUT => 2, // TCP connect timeout (fail fast when VM is down)
                 PDO::ATTR_TIMEOUT => 5,
                 PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
             ],
@@ -73,6 +75,7 @@ return [
             'charset' => 'utf8mb4',
             'collation' => 'utf8mb4_unicode_ci',
             'options' => [
+                PDO::MYSQL_ATTR_CONNECT_TIMEOUT => 2, // TCP connect timeout (fail fast when VM is down)
                 PDO::ATTR_TIMEOUT => 60, // Allow longer for stored procedures
                 PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
             ],
@@ -89,6 +92,7 @@ return [
             'charset' => 'utf8mb4',
             'collation' => 'utf8mb4_unicode_ci',
             'options' => [
+                PDO::MYSQL_ATTR_CONNECT_TIMEOUT => 2, // TCP connect timeout (fail fast when VM is down)
                 PDO::ATTR_TIMEOUT => 60, // Allow longer for stored procedures
                 PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
             ],
@@ -96,19 +100,19 @@ return [
 
         // taufiq — workshop-postgres server (PostgreSQL, 100.113.234.24)
         'users' => [
-            'driver'   => 'pgsql',
-            'host'     => env('DB5_HOST', '100.113.234.24'),
-            'port'     => env('DB5_PORT', 5432),
-            'database' => env('DB5_DATABASE', 'workshop_2'),
-            'username' => env('DB5_USERNAME', 'postgres'),
-            'password' => env('DB5_PASSWORD', ''),
-            'charset'  => 'utf8',
-            'schema'   => 'public',
-            'options'  => [
+            'driver'          => 'pgsql',
+            'host'            => env('DB5_HOST', '100.113.234.24'),
+            'port'            => env('DB5_PORT', 5432),
+            'database'        => env('DB5_DATABASE', 'workshop_2'),
+            'username'        => env('DB5_USERNAME', 'postgres'),
+            'password'        => env('DB5_PASSWORD', ''),
+            'charset'         => 'utf8',
+            'schema'          => 'public',
+            'connect_timeout' => 2, // Laravel injects this into the DSN for pgsql
+            'options'         => [
                 PDO::ATTR_TIMEOUT => 5,
                 PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
             ],
-            'connect_timeout' => 5,
         ],
 
 
