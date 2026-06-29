@@ -40,11 +40,10 @@ return [
             'password' => env('DB1_PASSWORD', ''),
             'charset' => 'utf8mb4',
             'collation' => 'utf8mb4_unicode_ci',
-            'options' => [
-                PDO::MYSQL_ATTR_CONNECT_TIMEOUT => 2, // TCP connect timeout (fail fast when VM is down)
-                PDO::ATTR_TIMEOUT => 5,
-                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-            ],
+            'options' => array_merge(
+                extension_loaded('pdo_mysql') ? [PDO::MYSQL_ATTR_CONNECT_TIMEOUT => 2] : [],
+                [PDO::ATTR_TIMEOUT => 5, PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]
+            ),
         ],
 
         // atiqah — msi/local machine (MySQL, 100.68.235.121)
@@ -57,11 +56,10 @@ return [
             'password' => env('DB2_PASSWORD', 'password'),
             'charset' => 'utf8mb4',
             'collation' => 'utf8mb4_unicode_ci',
-            'options' => [
-                PDO::MYSQL_ATTR_CONNECT_TIMEOUT => 2, // TCP connect timeout (fail fast when VM is down)
-                PDO::ATTR_TIMEOUT => 5,
-                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-            ],
+            'options' => array_merge(
+                extension_loaded('pdo_mysql') ? [PDO::MYSQL_ATTR_CONNECT_TIMEOUT => 2] : [],
+                [PDO::ATTR_TIMEOUT => 5, PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]
+            ),
         ],
 
         // shafiqah — msi/local machine (MySQL, 100.68.235.121)
@@ -74,11 +72,10 @@ return [
             'password' => env('DB3_PASSWORD', 'password'),
             'charset' => 'utf8mb4',
             'collation' => 'utf8mb4_unicode_ci',
-            'options' => [
-                PDO::MYSQL_ATTR_CONNECT_TIMEOUT => 2, // TCP connect timeout (fail fast when VM is down)
-                PDO::ATTR_TIMEOUT => 60, // Allow longer for stored procedures
-                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-            ],
+            'options' => array_merge(
+                extension_loaded('pdo_mysql') ? [PDO::MYSQL_ATTR_CONNECT_TIMEOUT => 2] : [],
+                [PDO::ATTR_TIMEOUT => 60, PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION] // ATTR_TIMEOUT allows longer for stored procedures
+            ),
         ],
 
         // danish — workshop-2 server (MariaDB, 100.78.124.25) — replaced SQL Server
@@ -91,11 +88,10 @@ return [
             'password' => env('DB4_PASSWORD', ''),
             'charset' => 'utf8mb4',
             'collation' => 'utf8mb4_unicode_ci',
-            'options' => [
-                PDO::MYSQL_ATTR_CONNECT_TIMEOUT => 2, // TCP connect timeout (fail fast when VM is down)
-                PDO::ATTR_TIMEOUT => 60, // Allow longer for stored procedures
-                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-            ],
+            'options' => array_merge(
+                extension_loaded('pdo_mysql') ? [PDO::MYSQL_ATTR_CONNECT_TIMEOUT => 2] : [],
+                [PDO::ATTR_TIMEOUT => 60, PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION] // ATTR_TIMEOUT allows longer for stored procedures
+            ),
         ],
 
         // taufiq — workshop-postgres server (PostgreSQL, 100.113.234.24)
