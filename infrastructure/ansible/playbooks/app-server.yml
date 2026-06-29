@@ -59,3 +59,42 @@
         name: php8.3-fpm
         state: started
         enabled: true
+
+    # ── Firewall ──────────────────────────────────────────────────────────────
+    - name: UFW — default deny incoming
+      community.general.ufw:
+        default: deny
+        direction: incoming
+
+    - name: UFW — default allow outgoing
+      community.general.ufw:
+        default: allow
+        direction: outgoing
+
+    - name: UFW — SSH from admin machine via Tailscale only
+      community.general.ufw:
+        rule: allow
+        interface: tailscale0
+        direction: in
+        from_ip: "100.68.235.121"
+        to_port: "22"
+        proto: tcp
+        comment: "SSH from msi admin machine"
+
+    - name: UFW — HTTP public
+      community.general.ufw:
+        rule: allow
+        to_port: "80"
+        proto: tcp
+        comment: "HTTP public"
+
+    - name: UFW — HTTPS public
+      community.general.ufw:
+        rule: allow
+        to_port: "443"
+        proto: tcp
+        comment: "HTTPS public"
+
+    - name: UFW — enable
+      community.general.ufw:
+        state: enabled

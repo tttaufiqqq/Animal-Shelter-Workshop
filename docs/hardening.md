@@ -71,7 +71,14 @@ UFW is already enabled with these rules:
 ```bash
 sudo ufw default deny incoming    # drop everything by default
 sudo ufw default allow outgoing   # app can initiate outbound connections (to DB servers)
-sudo ufw allow 22/tcp             # SSH for remote management
+
+# SSH restricted to Tailscale interface from the admin machine only.
+# Binding to tailscale0 means the rule only fires on packets that arrived
+# through the encrypted WireGuard tunnel — a spoofed source IP on eth0 cannot
+# satisfy this rule. The global `allow 22/tcp` that would expose SSH to the
+# public internet is intentionally absent.
+sudo ufw allow in on tailscale0 from 100.68.235.121 to any port 22 proto tcp comment 'SSH from msi'
+
 sudo ufw allow 80/tcp             # HTTP for the web app
 sudo ufw allow 443/tcp            # HTTPS (when TLS certificate is added)
 sudo ufw --force enable
@@ -169,13 +176,16 @@ connectivity can break after UFW is enabled.
 ```bash
 sudo ufw default deny incoming
 sudo ufw default allow outgoing
-sudo ufw allow 22/tcp comment 'SSH'
 
-# Allow MariaDB port only from app-server Tailscale IP
-sudo ufw allow from 100.100.123.90 to any port 3306 proto tcp comment 'MariaDB from app-server'
+# SSH only from the admin machine, only on the Tailscale interface.
+# Do NOT use `allow 22/tcp` (global) — that exposes SSH to the LAN and public internet.
+sudo ufw allow in on tailscale0 from 100.68.235.121 to any port 22 proto tcp comment 'SSH from msi'
 
-# Allow Tailscale management traffic (keeps VPN mesh functional)
-sudo ufw allow in on tailscale0
+# MariaDB only from app-server, only on the Tailscale interface.
+# Do NOT use `allow in on tailscale0` (blanket) — that would allow every Tailscale
+# peer to reach port 3306, making this rule pointless. The interface + source IP
+# combination is what provides the actual restriction.
+sudo ufw allow in on tailscale0 from 100.100.123.90 to any port 3306 proto tcp comment 'MariaDB from app-server'
 
 sudo ufw --force enable
 sudo ufw status verbose
@@ -283,13 +293,14 @@ Both layers are independent; neither alone is sufficient.
 ```bash
 sudo ufw default deny incoming
 sudo ufw default allow outgoing
-sudo ufw allow 22/tcp comment 'SSH'
 
-# Allow PostgreSQL port only from app-server Tailscale IP
-sudo ufw allow from 100.100.123.90 to any port 5432 proto tcp comment 'PostgreSQL from app-server'
+# SSH only from the admin machine, only on the Tailscale interface.
+sudo ufw allow in on tailscale0 from 100.68.235.121 to any port 22 proto tcp comment 'SSH from msi'
 
-# Allow Tailscale management traffic
-sudo ufw allow in on tailscale0
+# PostgreSQL only from app-server, only on the Tailscale interface.
+# Same reasoning as MariaDB: `allow in on tailscale0` (blanket) would allow all
+# Tailscale peers to reach 5432 and negate the source-IP restriction entirely.
+sudo ufw allow in on tailscale0 from 100.100.123.90 to any port 5432 proto tcp comment 'PostgreSQL from app-server'
 
 sudo ufw --force enable
 sudo ufw status verbose
