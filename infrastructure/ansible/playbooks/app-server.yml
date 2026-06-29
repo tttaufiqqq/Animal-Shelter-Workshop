@@ -1,0 +1,61 @@
+- name: Provision app-server (PHP 8.3 + Nginx + Composer)
+  hosts: app-server
+  become: true
+
+  tasks:
+    - name: Add ondrej/php PPA (PHP 8.3 for Ubuntu)
+      apt_repository:
+        repo: ppa:ondrej/php
+        state: present
+        update_cache: true
+
+    - name: Install PHP 8.3 and required extensions
+      apt:
+        name:
+          - php8.3
+          - php8.3-fpm
+          - php8.3-cli
+          - php8.3-mbstring
+          - php8.3-xml
+          - php8.3-curl
+          - php8.3-zip
+          - php8.3-bcmath
+          - php8.3-pdo
+          - php8.3-mysql       # PDO MySQL (for reporting/booking/shelter/animals)
+          - php8.3-pgsql       # PDO PostgreSQL (for users)
+          - php8.3-gd
+          - php8.3-intl
+          - php8.3-redis
+        state: present
+
+    - name: Install Nginx
+      apt:
+        name: nginx
+        state: present
+
+    - name: Install Node.js 20 LTS
+      shell: |
+        curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+        apt-get install -y nodejs
+      args:
+        creates: /usr/bin/node
+
+    - name: Install Composer
+      shell: |
+        curl -sS https://getcomposer.org/installer | php
+        mv composer.phar /usr/local/bin/composer
+        chmod +x /usr/local/bin/composer
+      args:
+        creates: /usr/local/bin/composer
+
+    - name: Start and enable Nginx
+      service:
+        name: nginx
+        state: started
+        enabled: true
+
+    - name: Start and enable PHP-FPM
+      service:
+        name: php8.3-fpm
+        state: started
+        enabled: true

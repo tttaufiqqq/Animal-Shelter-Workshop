@@ -1,0 +1,31 @@
+# Hosts use Tailscale MagicDNS hostnames (set by cloud-init hostname field).
+# If MagicDNS is not enabled, replace ansible_host values with Tailscale IPs
+# from: tailscale status (run on any Tailscale node after terraform apply).
+
+all:
+  children:
+    app:
+      hosts:
+        app-server:
+          ansible_host: app-server
+
+    mysql_hosts:
+      hosts:
+        linux-mysql:
+          ansible_host: linux-mysql
+
+    mariadb_hosts:
+      hosts:
+        linux-mariadb:
+          ansible_host: linux-mariadb
+
+    postgres_hosts:
+      hosts:
+        linux-postgres:
+          ansible_host: linux-postgres
+
+    databases:
+      children:
+        mysql_hosts:
+        mariadb_hosts:
+        postgres_hosts:

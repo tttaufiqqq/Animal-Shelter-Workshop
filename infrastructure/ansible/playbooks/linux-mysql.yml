@@ -1,0 +1,64 @@
+- name: Provision linux-mysql (MySQL 8.0)
+  hosts: linux-mysql
+  become: true
+
+  vars:
+    db_name: workshop_2
+    db_user: workshop_2
+    db_password: workshop_2
+    mysql_config: /etc/mysql/mysql.conf.d/mysqld.cnf
+
+  tasks:
+    - name: Install MySQL and Python MySQL client
+      apt:
+        name:
+          - mysql-server
+          - python3-pymysql
+        state: present
+        update_cache: true
+
+    - name: Start and enable MySQL
+      service:
+        name: mysql
+        state: started
+        enabled: true
+
+    - name: Allow remote connections
+      lineinfile:
+        path: "{{ mysql_config }}"
+        regexp: '^bind-address'
+        line: "bind-address = 0.0.0.0"
+      notify: Restart MySQL
+
+    - name: Enable log_bin_trust_function_creators (needed for trigger creation)
+      lineinfile:
+        path: "{{ mysql_config }}"
+        insertafter: '^bind-address'
+        line: "log_bin_trust_function_creators = 1"
+      notify: Restart MySQL
+
+    - name: Flush handlers so config is applied before DB tasks
+      meta: flush_handlers
+
+    - name: Create workshop_2 database
+      community.mysql.mysql_db:
+        name: "{{ db_name }}"
+        encoding: utf8mb4
+        collation: utf8mb4_unicode_ci
+        state: present
+        login_unix_socket: /var/run/mysqld/mysqld.sock
+
+    - name: Create workshop_2 user (allow from any host)
+      community.mysql.mysql_user:
+        name: "{{ db_user }}"
+        password: "{{ db_password }}"
+        host: "%"
+        priv: "{{ db_name }}.*:ALL"
+        state: present
+        login_unix_socket: /var/run/mysqld/mysqld.sock
+
+  handlers:
+    - name: Restart MySQL
+      service:
+        name: mysql
+        state: restarted

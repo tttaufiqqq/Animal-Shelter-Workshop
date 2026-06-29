@@ -1,0 +1,27 @@
+#cloud-config
+
+hostname: ${hostname}
+manage_etc_hosts: true
+
+users:
+  - name: workshop
+    gecos: Workshop User
+    groups: sudo
+    shell: /bin/bash
+    lock_passwd: true
+    ssh_authorized_keys:
+      - ${ssh_public_key}
+    sudo: ALL=(ALL) NOPASSWD:ALL
+
+package_update: true
+package_upgrade: false
+
+packages:
+  - curl
+  - git
+  - ca-certificates
+
+runcmd:
+  # Install Tailscale and join the network
+  - curl -fsSL https://tailscale.com/install.sh | sh
+  - tailscale up --authkey=${tailscale_auth_key} --hostname=${hostname} --accept-routes

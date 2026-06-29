@@ -1,0 +1,9 @@
+# Master playbook — runs all VM setups in dependency order.
+# Run individual playbooks during development; use this for a full provision.
+#
+# Usage: ansible-playbook playbooks/site.yml
+
+- import_playbook: linux-mysql.yml
+- import_playbook: linux-mariadb.yml
+- import_playbook: linux-postgres.yml
+- import_playbook: app-server.yml

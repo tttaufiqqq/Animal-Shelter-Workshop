@@ -1,0 +1,91 @@
+- name: Provision linux-postgres (PostgreSQL)
+  hosts: linux-postgres
+  become: true
+
+  vars:
+    db_name: workshop_2
+    db_user: workshop_2
+    db_password: workshop_2
+
+  tasks:
+    - name: Install PostgreSQL and Python psycopg2
+      apt:
+        name:
+          - postgresql
+          - python3-psycopg2
+        state: present
+        update_cache: true
+
+    - name: Start and enable PostgreSQL
+      service:
+        name: postgresql
+        state: started
+        enabled: true
+
+    # Allow connections from all IPs (Tailscale network is the security boundary)
+    - name: Set listen_addresses to all
+      lineinfile:
+        path: /etc/postgresql/{{ pg_version.stdout }}/main/postgresql.conf
+        regexp: "^#?listen_addresses"
+        line: "listen_addresses = '*'"
+      notify: Restart PostgreSQL
+
+    - name: Get PostgreSQL version
+      command: psql --version
+      register: pg_version_raw
+      changed_when: false
+
+    - name: Parse PostgreSQL major version
+      set_fact:
+        pg_version:
+          stdout: "{{ pg_version_raw.stdout | regex_search('(\\d+)', '\\1') | first }}"
+
+    - name: Allow MD5 auth from all IPs in pg_hba.conf
+      lineinfile:
+        path: /etc/postgresql/{{ pg_version.stdout }}/main/pg_hba.conf
+        line: "host    all    all    0.0.0.0/0    md5"
+        insertafter: EOF
+      notify: Restart PostgreSQL
+
+    - name: Flush handlers
+      meta: flush_handlers
+
+    - name: Create workshop_2 database
+      community.postgresql.postgresql_db:
+        name: "{{ db_name }}"
+        encoding: UTF8
+        state: present
+      become_user: postgres
+
+    - name: Create workshop_2 user
+      community.postgresql.postgresql_user:
+        name: "{{ db_user }}"
+        password: "{{ db_password }}"
+        state: present
+      become_user: postgres
+
+    - name: Grant all privileges on database to workshop_2
+      community.postgresql.postgresql_privs:
+        database: "{{ db_name }}"
+        roles: "{{ db_user }}"
+        type: database
+        privs: ALL
+        state: present
+      become_user: postgres
+
+    # PostgreSQL 15+ no longer grants CREATE on public schema by default
+    - name: Grant CREATE on public schema (PostgreSQL 15+)
+      community.postgresql.postgresql_privs:
+        database: "{{ db_name }}"
+        roles: "{{ db_user }}"
+        type: schema
+        objs: public
+        privs: ALL
+        state: present
+      become_user: postgres
+
+  handlers:
+    - name: Restart PostgreSQL
+      service:
+        name: postgresql
+        state: restarted

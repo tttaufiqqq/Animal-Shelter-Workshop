@@ -1,0 +1,57 @@
+- name: Provision linux-mariadb (MariaDB)
+  hosts: linux-mariadb
+  become: true
+
+  vars:
+    db_name: workshop_2
+    db_user: workshop_2
+    db_password: workshop_2
+    mariadb_config: /etc/mysql/mariadb.conf.d/50-server.cnf
+
+  tasks:
+    - name: Install MariaDB and Python MySQL client
+      apt:
+        name:
+          - mariadb-server
+          - python3-pymysql
+        state: present
+        update_cache: true
+
+    - name: Start and enable MariaDB
+      service:
+        name: mariadb
+        state: started
+        enabled: true
+
+    - name: Allow remote connections
+      lineinfile:
+        path: "{{ mariadb_config }}"
+        regexp: '^bind-address'
+        line: "bind-address = 0.0.0.0"
+      notify: Restart MariaDB
+
+    - name: Flush handlers so config is applied before DB tasks
+      meta: flush_handlers
+
+    - name: Create workshop_2 database
+      community.mysql.mysql_db:
+        name: "{{ db_name }}"
+        encoding: utf8mb4
+        collation: utf8mb4_unicode_ci
+        state: present
+        login_unix_socket: /var/run/mysqld/mysqld.sock
+
+    - name: Create workshop_2 user (allow from any host)
+      community.mysql.mysql_user:
+        name: "{{ db_user }}"
+        password: "{{ db_password }}"
+        host: "%"
+        priv: "{{ db_name }}.*:ALL"
+        state: present
+        login_unix_socket: /var/run/mysqld/mysqld.sock
+
+  handlers:
+    - name: Restart MariaDB
+      service:
+        name: mariadb
+        state: restarted
