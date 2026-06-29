@@ -7,6 +7,7 @@
 | app-server | 100.100.123.90 | Laravel application host | — |
 | workshop-2 | 100.78.124.25 | reporting + booking connections | MariaDB |
 | msi (local) | 100.68.235.121 | shelter + animals connections | MySQL |
+| workshop-mysql | 100.115.237.93 | Proxmox MySQL VM | MySQL 8.0 |
 | workshop-postgres | 100.113.234.24 | users connection | PostgreSQL |
 
 SSH access is via Tailscale IP directly — SSH keys are pre-configured, no password needed.
@@ -60,6 +61,16 @@ psql -U postgres -c "CREATE USER workshop_2 WITH PASSWORD 'workshop_2';"
 psql -U postgres -c "GRANT ALL PRIVILEGES ON DATABASE workshop_2 TO workshop_2;"
 psql -U postgres -d workshop_2 -c "GRANT ALL PRIVILEGES ON SCHEMA public TO workshop_2;"
 # Note: PostgreSQL 15+ no longer grants CREATE on public schema by default
+```
+
+```bash
+# --- workshop-mysql (MySQL 8.0, 100.115.237.93) — root password: 'Password123!' ---
+mysql -u root -pPassword123! -e "
+  CREATE DATABASE IF NOT EXISTS workshop_2 CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+  CREATE USER IF NOT EXISTS 'workshop_2'@'%' IDENTIFIED BY 'workshop_2';
+  GRANT ALL PRIVILEGES ON workshop_2.* TO 'workshop_2'@'%';
+  FLUSH PRIVILEGES;
+"
 ```
 
 ### Running Migrations
