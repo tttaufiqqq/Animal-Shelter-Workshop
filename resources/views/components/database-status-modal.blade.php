@@ -78,7 +78,7 @@
                             {{ $info['module'] }}
                         </p>
                         <p class="text-xs {{ $info['connected'] ? 'text-green-600' : 'text-red-600' }} mt-1">
-                            {{ $info['name'] }} • Port {{ $info['port'] }}
+                            Connection: {{ $connection }}
                         </p>
                     </div>
                 </div>
@@ -95,9 +95,9 @@
                     Developer Tips
                 </h4>
                 <ul class="text-sm text-blue-800 space-y-1 ml-7">
-                    <li>• Ensure SSH tunnels are active to remote databases</li>
-                    <li>• Verify database services are running on remote machines</li>
-                    <li>• Check firewall rules allow connections on specified ports</li>
+                    <li>• Ensure the database VMs are powered on in Proxmox</li>
+                    <li>• Verify this machine is connected to Tailscale VPN</li>
+                    <li>• Check that the database service is running on the target VM</li>
                     <li>• Use <code class="bg-blue-100 px-2 py-0.5 rounded">php artisan db:check-connections</code> to diagnose</li>
                 </ul>
             </div>
