@@ -52,13 +52,12 @@ class Notifications extends Component
         $adoptions = collect([]);
         $bookings = collect([]);
 
-        // Check Danish database connection first (required for all notification types)
-        try {
-            DB::connection('booking')->getPdo();
-        } catch (\Exception $e) {
+        // Check booking database connection first (required for all notification types)
+        // Uses DatabaseConnectionChecker (fsockopen probe + circuit breaker) for fast fail
+        if (!app(\App\Services\DatabaseConnectionChecker::class)->isConnected('booking')) {
             $this->danishDbOnline = false;
-            $this->databaseErrors['booking'] = 'Notifications unavailable - Danish database is offline';
-            Log::warning('Danish database offline in Notifications component: ' . $e->getMessage());
+            $this->databaseErrors['booking'] = 'Notifications unavailable - booking database is offline';
+            Log::warning('Booking database offline in Notifications component');
 
             // Add system notification about offline database
             $this->notifications = collect([[
