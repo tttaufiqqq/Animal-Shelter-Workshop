@@ -318,7 +318,7 @@ class ProfileController extends Controller
             ]);
 
             return redirect()->route('password.change')
-                ->with('error', 'Failed to change password. Please try again.');
+                ->with('error', 'Failed to change password: ' . $e->getMessage() . ' [' . get_class($e) . ']');
         }
     }
 
@@ -359,7 +359,7 @@ class ProfileController extends Controller
             ]);
 
             return redirect()->route('profile.edit')
-                ->withErrors(['password' => 'Failed to update password. Please try again.'], 'updatePassword');
+                ->withErrors(['password' => 'Failed to update password: ' . $e->getMessage() . ' [' . get_class($e) . ']'], 'updatePassword');
         }
     }
 }

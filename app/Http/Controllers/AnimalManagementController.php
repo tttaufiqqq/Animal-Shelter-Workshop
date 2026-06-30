@@ -466,8 +466,8 @@ class AnimalManagementController extends Controller
             'health_details' => 'required|string',
             'age_category' => 'nullable|in:kitten,puppy,adult,senior',
             'gender' => 'required|in:Male,Female,Unknown',
-            'rescueID' => 'required|exists:eilya.rescue,id',  // Cross-database: Rescue on eilya
-            'slotID' => 'nullable|exists:atiqah.slot,id',     // Cross-database: Slot on atiqah
+            'rescueID' => 'required|exists:reporting.rescue,id',
+            'slotID' => 'nullable|exists:shelter.slot,id',
             'images' => 'nullable|array|min:1',
             'images.*' => 'nullable|image|mimes:jpeg,jpg,png,gif|max:5120',
         ], [
@@ -584,11 +584,11 @@ public function update(Request $request, $id)
         'health_details' => 'required|string',
         'age_category' => 'required|in:kitten,puppy,adult,senior',
         'gender' => 'required|in:Male,Female,Unknown',
-        'slotID' => 'nullable|exists:atiqah.slot,id',      // Cross-database: Slot on atiqah
+        'slotID' => 'nullable|exists:shelter.slot,id',
         'images' => 'nullable|array',
         'images.*' => 'nullable|image|mimes:jpeg,jpg,png,gif|max:5120',
         'delete_images' => 'nullable|array',
-        'delete_images.*' => 'exists:eilya.image,id',      // Cross-database: Image on eilya
+        'delete_images.*' => 'exists:reporting.image,id',
     ]);
 
     // NOTE: shafiqah transaction removed - sp_animal_update stored procedure handles its own transaction
@@ -1013,7 +1013,7 @@ public function update(Request $request, $id)
     {
         try {
             $request->validate([
-                'slot_id' => 'required|exists:atiqah.slot,id',  // Cross-database: Slot on atiqah
+                'slot_id' => 'required|exists:shelter.slot,id',
             ]);
 
             // Assign slot using stored procedure
@@ -1189,7 +1189,7 @@ public function update(Request $request, $id)
 
             \Log::error('Error deleting animal: ' . $e->getMessage());
 
-            return back()->withErrors(['error' => 'An error occurred while deleting the animal.']);
+            return back()->withErrors(['error' => 'Failed to delete animal: ' . $e->getMessage() . ' [' . get_class($e) . ']']);
         }
     }
 
@@ -1269,7 +1269,7 @@ public function update(Request $request, $id)
                 'full_name' => 'required|string|max:255',
                 'specialization' => 'required|string|max:255',
                 'license_no' => 'required|string|max:50',
-                'clinicID' => 'nullable|exists:shafiqah.clinic,id',
+                'clinicID' => 'nullable|exists:animals.clinic,id',
                 'phone' => 'required|string|max:20',
                 'email' => 'required|email|max:255',
             ]);
@@ -1325,12 +1325,12 @@ public function update(Request $request, $id)
 
         try {
             $validated = $request->validate([
-                'animalID' => 'required|exists:shafiqah.animal,id',
+                'animalID' => 'required|exists:animals.animal,id',
                 'treatment_type' => 'required|string|max:255',
                 'diagnosis' => 'required|string',
                 'action' => 'required|string',
                 'remarks' => 'nullable|string',
-                'vetID' => 'required|exists:shafiqah.vet,id',
+                'vetID' => 'required|exists:animals.vet,id',
                 'costs' => 'nullable|numeric|min:0',
             ]);
 
@@ -1365,12 +1365,12 @@ public function update(Request $request, $id)
 
         try {
             $validated = $request->validate([
-                'animalID' => 'required|exists:shafiqah.animal,id',
+                'animalID' => 'required|exists:animals.animal,id',
                 'name' => 'required|string|max:255',
                 'type' => 'required|string|max:255',
                 'next_due_date' => 'nullable|date|after:today',
                 'remarks' => 'nullable|string',
-                'vetID' => 'required|exists:shafiqah.vet,id',
+                'vetID' => 'required|exists:animals.vet,id',
                 'costs' => 'nullable|numeric|min:0',
             ]);
 
@@ -1512,7 +1512,7 @@ public function update(Request $request, $id)
                 'name' => 'required|string|max:255',
                 'specialization' => 'required|string|max:255',
                 'license_no' => 'required|string|max:50',
-                'clinicID' => 'required|exists:shafiqah.clinic,id',
+                'clinicID' => 'required|exists:animals.clinic,id',
                 'contactNum' => 'required|string|max:20',
                 'email' => 'required|email|max:255',
             ]);

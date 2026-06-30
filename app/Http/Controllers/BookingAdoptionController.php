@@ -377,7 +377,7 @@ class BookingAdoptionController extends Controller
             ]);
 
             return back()->with([
-                'error' => 'Failed to remove animal from visit list. Please try again.',
+                'error' => 'Failed to remove animal from visit list: ' . $e->getMessage() . ' [' . get_class($e) . ']',
                 'open_visit_modal' => true
             ]);
         }
@@ -396,7 +396,7 @@ class BookingAdoptionController extends Controller
                 'appointment_date' => 'required|date|after_or_equal:today',
                 'appointment_time' => 'required',
                 'animal_ids' => 'required|array|min:1',
-                'animal_ids.*' => 'required|exists:shafiqah.animal,id',  // Cross-database: Animal on shafiqah
+                'animal_ids.*' => 'required|exists:animals.animal,id',
                 'remarks' => 'nullable|array',
                 'remarks.*' => 'nullable|string|max:500',
                 'terms' => 'required|accepted',
@@ -641,7 +641,7 @@ class BookingAdoptionController extends Controller
             ]);
 
             return back()
-                ->with('error', 'Failed to schedule appointment. Please try again.')
+                ->with('error', 'Failed to schedule appointment: ' . $e->getMessage() . ' [' . get_class($e) . ']')
                 ->with('open_visit_modal', true);
         }
     }
@@ -939,7 +939,7 @@ class BookingAdoptionController extends Controller
             // Validate
             $validated = $request->validate([
                 'animal_ids' => 'required|array|min:1',
-                'animal_ids.*' => 'required|exists:shafiqah.animal,id',  // Cross-database: Animal on shafiqah
+                'animal_ids.*' => 'required|exists:animals.animal,id',
                 'total_fee'   => 'required|numeric|min:0',
                 'agree_terms' => 'required|accepted',
             ], [
@@ -1050,7 +1050,7 @@ class BookingAdoptionController extends Controller
                 'trace' => $e->getTraceAsString()
             ]);
 
-            return back()->with('error', 'An unexpected error occurred while confirming the booking.');
+            return back()->with('error', 'Failed to confirm booking: ' . $e->getMessage() . ' [' . get_class($e) . ']');
         }
     }
 
