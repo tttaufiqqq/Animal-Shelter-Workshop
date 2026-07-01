@@ -106,7 +106,6 @@ class AnimalProfileSeeder extends Seeder
         return [
             'animalID'       => $animal->id,
             'age'            => $this->getAgeCategory($animal->species),
-
             'size'           => $size,
             'energy_level'   => $energy,
             'good_with_kids' => $adopter->has_children ? 1 : rand(0, 1),
@@ -116,7 +115,6 @@ class AnimalProfileSeeder extends Seeder
         ];
     }
 
-
     /**
      * Fallback: random but realistic profile
      */
@@ -125,7 +123,6 @@ class AnimalProfileSeeder extends Seeder
         return [
             'animalID'       => $animal->id,
             'age'            => $this->getAgeCategory($animal->species),
-
             'size'           => $this->getSizeForSpecies($animal->species),
             'energy_level'   => $this->randomEnergy(),
             'good_with_kids' => rand(0, 1),
