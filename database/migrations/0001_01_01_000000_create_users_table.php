@@ -8,7 +8,7 @@ return new class extends Migration
 {
     /**
      * Run the migrations.
-     * This table belongs to Taufiq's database (User Management Module)
+     * This table belongs to Taufiq - Users Management
      */
     public function up(): void
     {

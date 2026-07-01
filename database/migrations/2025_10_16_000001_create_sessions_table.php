@@ -11,7 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        // Create sessions table in taufiq database (PostgreSQL)
+        // Create sessions table in Taufiq - Users Management (PostgreSQL)
         Schema::connection('users')->create('sessions', function (Blueprint $table) {
             $table->string('id')->primary();
             $table->foreignId('user_id')->nullable()->index();

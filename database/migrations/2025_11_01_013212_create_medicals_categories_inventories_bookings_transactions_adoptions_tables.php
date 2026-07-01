@@ -9,14 +9,14 @@ return new class extends Migration {
     /**
      * Run the migrations.
      * This migration handles tables across multiple databases:
-     * - Shafiqah: medical
+     * - Shafiqah - Stray Animal: medical
      * - Atiqah: category, inventory
      * - Danish: booking, transaction, adoption
      */
     public function up(): void
     {
         /**
-         * SHAFIQAH'S DATABASE - Animal & Medical Module
+         * SHAFIQAH - Stray Animal
          */
         Schema::connection('animals')->create('medical', function (Blueprint $table) {
             $table->id();
@@ -48,7 +48,7 @@ return new class extends Migration {
         });
 
         /**
-         * ATIQAH'S DATABASE - Inventory Module
+         * ATIQAH - Shelter Management
          */
         Schema::connection('shelter')->create('category', function (Blueprint $table) {
             $table->id();
@@ -87,7 +87,7 @@ return new class extends Migration {
         });
 
         /**
-         * DANISH'S DATABASE - Booking & Adoption Module
+         * DANISH - Booking Adoption
          */
         Schema::connection('booking')->create('booking', function (Blueprint $table) {
             $table->id();
@@ -96,7 +96,7 @@ return new class extends Migration {
             $table->string('status', 50)->nullable();
             $table->text('remarks')->nullable();
 
-            // Logical FK - references Taufiq's users table (cross-database, NO FK constraint)
+            // Logical FK - references Taufiq - Users Management users table (cross-database, NO FK constraint)
             $table->unsignedBigInteger('userID')->nullable();
             $table->timestamps();
 
@@ -113,7 +113,7 @@ return new class extends Migration {
             $table->string('bill_code', 100)->nullable();
             $table->string('reference_no', 100)->nullable();
 
-            // Logical FK - references Taufiq's users table (cross-database, NO FK constraint)
+            // Logical FK - references Taufiq - Users Management users table (cross-database, NO FK constraint)
             $table->unsignedBigInteger('userID')->nullable();
             $table->timestamps();
 
@@ -128,7 +128,7 @@ return new class extends Migration {
             $table->unsignedBigInteger('bookingID')->nullable();
             $table->unsignedBigInteger('transactionID')->nullable();
 
-            // Logical FK - references Shafiqah's animal table (cross-database, NO FK constraint)
+            // Logical FK - references Shafiqah - Stray Animal animal table (cross-database, NO FK constraint)
             $table->unsignedBigInteger('animalID')->nullable();
             $table->timestamps();
 
@@ -160,19 +160,19 @@ return new class extends Migration {
         /**
          * Drop FKs first
          */
-        // Danish's adoption table
+        // Danish - Booking Adoption adoption table
         Schema::connection('booking')->table('adoption', function (Blueprint $table) {
             $table->dropForeign(['bookingID']);
             $table->dropForeign(['transactionID']);
         });
 
-        // Atiqah's inventory table
+        // Atiqah - Shelter Management inventory table
         Schema::connection('shelter')->table('inventory', function (Blueprint $table) {
             $table->dropForeign(['slotID']);
             $table->dropForeign(['categoryID']);
         });
 
-        // Shafiqah's medical table
+        // Shafiqah - Stray Animal medical table
         Schema::connection('animals')->table('medical', function (Blueprint $table) {
             $table->dropForeign(['vetID']);
             $table->dropForeign(['animalID']);
@@ -181,16 +181,16 @@ return new class extends Migration {
         /**
          * Drop tables
          */
-        // Danish's tables
+        // Danish - Booking Adoption tables
         Schema::connection('booking')->dropIfExists('adoption');
         Schema::connection('booking')->dropIfExists('transaction');
         Schema::connection('booking')->dropIfExists('booking');
 
-        // Atiqah's tables
+        // Atiqah - Shelter Management tables
         Schema::connection('shelter')->dropIfExists('inventory');
         Schema::connection('shelter')->dropIfExists('category');
 
-        // Shafiqah's table
+        // Shafiqah - Stray Animal table
         Schema::connection('animals')->dropIfExists('medical');
     }
 };

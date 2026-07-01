@@ -95,7 +95,7 @@ class SectionSlotSeeder extends Seeder
                 $percentage = round(($count / $totalSlots) * 100, 1);
                 $this->command->info("  - Capacity {$capacity}: {$count} slots ({$percentage}%)");
             }
-            $this->command->info('Database: Atiqah (MySQL)');
+            $this->command->info('Database: Atiqah - Shelter Management (MySQL)');
             $this->command->info('=================================');
 
         } catch (\Exception $e) {

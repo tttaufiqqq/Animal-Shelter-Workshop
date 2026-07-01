@@ -11,7 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        // Create cache table in taufiq database (PostgreSQL)
+        // Create cache table in Taufiq - Users Management (PostgreSQL)
         Schema::connection('users')->create('cache', function (Blueprint $table) {
             $table->string('key')->primary();
             $table->text('value');

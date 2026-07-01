@@ -9,7 +9,7 @@ return new class extends Migration
 {
     /**
      * Run the migrations.
-     * These modifications are for Danish's database (Booking & Adoption Module)
+     * These modifications are for Danish - Booking Adoption
      */
     public function up(): void
     {
@@ -77,7 +77,7 @@ return new class extends Migration
     }
 
     /**
-     * Check if an index exists on a table in Danish's database
+     * Check if an index exists on a table in Danish - Booking Adoption database
      */
     private function indexExists(string $table, string $index): bool
     {

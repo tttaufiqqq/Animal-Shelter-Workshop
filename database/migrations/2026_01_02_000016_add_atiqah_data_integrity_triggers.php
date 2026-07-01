@@ -30,7 +30,7 @@ return new class extends Migration
         });
 
         $conn   = DB::connection('shelter');
-        $sqlDir = database_path('sql/atiqah/data_integrity_triggers');
+        $sqlDir = database_path('sql/atiqah-shelter/data_integrity_triggers');
 
         $conn->unprepared(require "$sqlDir/trg_section.php");
         $conn->unprepared(require "$sqlDir/trg_slot.php");

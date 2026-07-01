@@ -16,7 +16,7 @@ class BookingSeeder extends Seeder
     {
         $this->command->info('Starting Booking Seeder (600 Bookings - SQL Server Optimized)...');
 
-        // Get NON-ADMIN users from Taufiq's database
+        // Get NON-ADMIN users from Taufiq - Users Management database
         $adminRole = DB::connection('users')->table('roles')->where('name', 'admin')->first();
         $adminUserIds = $adminRole
             ? DB::connection('users')->table('model_has_roles')
@@ -35,7 +35,7 @@ class BookingSeeder extends Seeder
         }
         $this->command->info("Found " . count($users) . " non-admin users");
 
-        // Get animals from Shafiqah's database
+        // Get animals from Shafiqah - Stray Animal database
         $animals = DB::connection('animals')->table('animal')->pluck('id')->toArray();
         if (empty($animals)) {
             $this->command->error('No animals found.');

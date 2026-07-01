@@ -8,14 +8,14 @@ return new class extends Migration
 {
     /**
      * Run the migrations.
-     * These tables belong to Danish's database (Booking & Adoption Module)
+     * These tables belong to Danish - Booking Adoption
      */
     public function up(): void
     {
         Schema::connection('booking')->create('visit_list', function (Blueprint $table) {
             $table->id();
 
-            // Logical FK - references Taufiq's users table (cross-database, NO FK constraint)
+            // Logical FK - references Taufiq - Users Management users table (cross-database, NO FK constraint)
             $table->unsignedBigInteger('userID')->unique(); // one visit list per user
             $table->timestamps();
 
@@ -29,7 +29,7 @@ return new class extends Migration
             // FK to visit_list table (same database, OK to use FK)
             $table->unsignedBigInteger('listID');
 
-            // Logical FK - references Shafiqah's animal table (cross-database, NO FK constraint)
+            // Logical FK - references Shafiqah - Stray Animal animal table (cross-database, NO FK constraint)
             $table->unsignedBigInteger('animalID');
 
             $table->text('remarks')->nullable();

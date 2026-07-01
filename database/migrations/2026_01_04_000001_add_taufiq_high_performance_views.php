@@ -8,7 +8,7 @@ return new class extends Migration
     public function up(): void
     {
         $conn   = DB::connection('users');
-        $sqlDir = database_path('sql/taufiq/high_performance_views');
+        $sqlDir = database_path('sql/taufiq-users/high_performance_views');
 
         $conn->unprepared(require "$sqlDir/v_user_full_profile.php");
         $conn->unprepared(require "$sqlDir/v_user_account_stats.php");

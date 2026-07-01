@@ -8,7 +8,7 @@ return new class extends Migration
     public function up(): void
     {
         $conn   = DB::connection('users');
-        $sqlDir = database_path('sql/taufiq/user_procedures');
+        $sqlDir = database_path('sql/taufiq-users/user_procedures');
 
         $conn->unprepared(require "$sqlDir/sp_user_create.php");
         $conn->unprepared(require "$sqlDir/sp_user_read.php");

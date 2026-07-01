@@ -8,7 +8,7 @@ return new class extends Migration
     public function up(): void
     {
         $conn   = DB::connection('animals');
-        $sqlDir = database_path('sql/shafiqah/validation_triggers');
+        $sqlDir = database_path('sql/shafiqah-animals/validation_triggers');
 
         $conn->unprepared(require "$sqlDir/trg_vet_validate.php");
         $conn->unprepared(require "$sqlDir/trg_clinic_validate.php");

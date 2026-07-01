@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         $conn   = DB::connection('users');
-        $sqlDir = database_path('sql/taufiq/user_procedures_with_call');
+        $sqlDir = database_path('sql/taufiq-users/user_procedures_with_call');
 
         $conn->unprepared(require "$sqlDir/sp_user_create_proc.php");
         $conn->unprepared(require "$sqlDir/sp_user_update_proc.php");

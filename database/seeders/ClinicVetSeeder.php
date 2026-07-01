@@ -10,7 +10,7 @@ class ClinicVetSeeder extends Seeder
 {
     /**
      * Run the database seeds.
-     * Clinics and Vets are stored in Shafiqah's database (Animal Management Module)
+     * Clinics and Vets are stored in Shafiqah - Stray Animal - Stray Animal database (Animal Management Module)
      */
     public function run(): void
     {
@@ -59,16 +59,16 @@ class ClinicVetSeeder extends Seeder
             ],
         ];
 
-        // Use transaction for Shafiqah's database
+        // Use transaction for Shafiqah - Stray Animal database
         DB::connection('animals')->beginTransaction();
 
         try {
-            $this->command->info('Inserting clinics into Shafiqah\'s database...');
+            $this->command->info('Inserting clinics into Shafiqah - Stray Animal database...');
 
-            // Insert clinics into Shafiqah's database
+            // Insert clinics into Shafiqah - Stray Animal database
             DB::connection('animals')->table('clinic')->insert($clinics);
 
-            // Get inserted clinic IDs from Shafiqah's database
+            // Get inserted clinic IDs from Shafiqah - Stray Animal database
             $clinicIds = DB::connection('animals')->table('clinic')->pluck('id')->toArray();
 
         // Create Vets assigned to clinics
@@ -159,9 +159,9 @@ class ClinicVetSeeder extends Seeder
             ],
         ];
 
-            $this->command->info('Inserting vets into Shafiqah\'s database...');
+            $this->command->info('Inserting vets into Shafiqah - Stray Animal database...');
 
-            // Insert vets into Shafiqah's database
+            // Insert vets into Shafiqah - Stray Animal database
             DB::connection('animals')->table('vet')->insert($vets);
 
             DB::connection('animals')->commit();
@@ -172,7 +172,7 @@ class ClinicVetSeeder extends Seeder
             $this->command->info('=================================');
             $this->command->info('Total clinics created: ' . count($clinics));
             $this->command->info('Total vets created: ' . count($vets));
-            $this->command->info('Database: Shafiqah (MySQL)');
+            $this->command->info('Database: Shafiqah - Stray Animal (MySQL)');
             $this->command->info('=================================');
 
         } catch (\Exception $e) {

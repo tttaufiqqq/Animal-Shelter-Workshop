@@ -9,7 +9,7 @@ class CategorySeeder extends Seeder
 {
     /**
      * Run the database seeds.
-     * Categories are stored in Atiqah's database (Shelter Management Module)
+     * Categories are stored in Atiqah - Shelter Management - Shelter Management database (Shelter Management Module)
      */
     public function run()
     {
@@ -55,13 +55,13 @@ class CategorySeeder extends Seeder
             $category['updated_at'] = $now;
         }
 
-        // Use transaction for Atiqah's database
+        // Use transaction for Atiqah - Shelter Management database
         DB::connection('shelter')->beginTransaction();
 
         try {
-            $this->command->info('Inserting categories into Atiqah\'s database...');
+            $this->command->info('Inserting categories into Atiqah - Shelter Management database...');
 
-            // Insert categories into Atiqah's database
+            // Insert categories into Atiqah - Shelter Management database
             DB::connection('shelter')->table('category')->insert($categories);
 
             DB::connection('shelter')->commit();
@@ -71,7 +71,7 @@ class CategorySeeder extends Seeder
             $this->command->info('✓ Category Seeding Completed!');
             $this->command->info('=================================');
             $this->command->info('Total categories created: ' . count($categories));
-            $this->command->info('Database: Atiqah (MySQL)');
+            $this->command->info('Database: Atiqah - Shelter Management (MySQL)');
             $this->command->info('=================================');
 
         } catch (\Exception $e) {

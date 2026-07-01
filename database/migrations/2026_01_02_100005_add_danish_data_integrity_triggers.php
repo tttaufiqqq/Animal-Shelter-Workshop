@@ -8,7 +8,7 @@ return new class extends Migration
     public function up(): void
     {
         $conn   = DB::connection('booking');
-        $sqlDir = database_path('sql/danish/data_integrity_triggers');
+        $sqlDir = database_path('sql/danish-booking/data_integrity_triggers');
 
         $conn->unprepared(require "$sqlDir/trg_booking.php");
         $conn->unprepared(require "$sqlDir/trg_visit_list.php");

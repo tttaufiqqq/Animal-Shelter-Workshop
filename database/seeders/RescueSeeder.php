@@ -16,7 +16,7 @@ class RescueSeeder extends Seeder
         $this->command->info('Starting Rescue Seeder...');
         $this->command->info('========================================');
 
-        $this->command->info("Fetching reports from Eilya's database...");
+        $this->command->info("Fetching reports from Eilya - Stray Reporting database...");
         $reports = DB::connection('reporting')->table('report')->get();
         if ($reports->isEmpty()) {
             $this->command->error("No reports found. Seed Reports first.");
@@ -24,7 +24,7 @@ class RescueSeeder extends Seeder
         }
         $this->command->info("Found " . $reports->count() . " reports");
 
-        $this->command->info("Fetching caretakers from Taufiq's database...");
+        $this->command->info("Fetching caretakers from Taufiq - Users Management database...");
         $caretakers = DB::connection('users')->table('users')
             ->join('model_has_roles', 'users.id', '=', 'model_has_roles.model_id')
             ->join('roles', 'model_has_roles.role_id', '=', 'roles.id')
@@ -44,7 +44,7 @@ class RescueSeeder extends Seeder
         DB::connection('reporting')->beginTransaction();
         try {
             if (!empty($rescues)) {
-                $this->command->info("Inserting rescue records into Eilya's database...");
+                $this->command->info("Inserting rescue records into Eilya - Stray Reporting - Stray Reporting database...");
                 $totalInserted = 0;
                 foreach (array_chunk($rescues, 300) as $chunk) {
                     DB::connection('reporting')->table('rescue')->insert($chunk);
@@ -63,7 +63,7 @@ class RescueSeeder extends Seeder
             $this->command->info('✓ Rescue Seeding Completed!');
             $this->command->info('=================================');
             $this->command->info("Total rescue records created: " . count($rescues));
-            $this->command->info("Database: Eilya (MySQL) | Caretaker references: Taufiq (PostgreSQL)");
+            $this->command->info("Database: Eilya - Stray Reporting (MariaDB) | Caretaker references: Taufiq - Users Management (PostgreSQL)");
             $this->command->info('');
             $this->command->info('Status Distribution:');
             foreach ($statusCounts as $status => $count) {

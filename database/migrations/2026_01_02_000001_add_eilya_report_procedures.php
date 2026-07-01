@@ -8,7 +8,7 @@ return new class extends Migration
     public function up(): void
     {
         $conn   = DB::connection('reporting');
-        $sqlDir = database_path('sql/eilya/report_procedures');
+        $sqlDir = database_path('sql/eilya-reporting/report_procedures');
 
         $conn->unprepared(require "$sqlDir/sp_report_create.php");
         $conn->unprepared(require "$sqlDir/sp_report_read.php");

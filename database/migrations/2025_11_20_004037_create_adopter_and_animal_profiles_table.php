@@ -9,13 +9,13 @@ return new class extends Migration
     /**
      * Run the migrations.
      * This migration handles tables across multiple databases:
-     * - Taufiq: adopter_profile
-     * - Shafiqah: animal_profile
+     * - Taufiq - Users Management: adopter_profile
+     * - Shafiqah - Stray Animal: animal_profile
      */
     public function up(): void
     {
         /**
-         * TAUFIQ'S DATABASE - User Management Module
+         * TAUFIQ - Users Management
          */
         Schema::connection('users')->create('adopter_profile', function (Blueprint $table) {
             $table->id();
@@ -45,7 +45,7 @@ return new class extends Migration
         });
 
         /**
-         * SHAFIQAH'S DATABASE - Animal & Medical Module
+         * SHAFIQAH - Stray Animal
          */
         Schema::connection('animals')->create('animal_profile', function (Blueprint $table) {
             $table->id();

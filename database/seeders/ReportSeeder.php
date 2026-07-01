@@ -22,7 +22,7 @@ class ReportSeeder extends Seeder
         $malaccaLocations = $this->getMalaccaLocations();
         $this->command->info('Loaded ' . count($malaccaLocations) . ' real Malacca locations');
 
-        $this->command->info("Fetching eligible users from Taufiq's database...");
+        $this->command->info("Fetching eligible users from Taufiq - Users Management database...");
         $excludedRoles = ['admin', 'caretaker'];
         $userIDs = User::whereDoesntHave('roles', function ($q) use ($excludedRoles) {
             $q->whereIn('name', $excludedRoles);
@@ -78,7 +78,7 @@ class ReportSeeder extends Seeder
 
         DB::connection('reporting')->beginTransaction();
         try {
-            $this->command->info("Inserting reports into Eilya's database...");
+            $this->command->info("Inserting reports into Eilya - Stray Reporting - Stray Reporting database...");
             $totalInserted = 0;
             foreach (array_chunk($reports, 100) as $chunk) {
                 DB::connection('reporting')->table('report')->insert($chunk);
@@ -108,7 +108,7 @@ class ReportSeeder extends Seeder
             $this->command->info("Areas covered: " . count($malaccaLocations) . " real locations");
             $this->command->info("Latitude range: " . number_format(min($latitudes), 4) . "° to " . number_format(max($latitudes), 4) . "°");
             $this->command->info("Longitude range: " . number_format(min($longitudes), 4) . "° to " . number_format(max($longitudes), 4) . "°");
-            $this->command->info("Database: Eilya (MySQL) | User references: Taufiq (PostgreSQL)");
+            $this->command->info("Database: Eilya - Stray Reporting (MariaDB) | User references: Taufiq - Users Management (PostgreSQL)");
             $this->command->info('=================================');
 
         } catch (\Exception $e) {

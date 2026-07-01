@@ -10,7 +10,7 @@ trait UpdatesAdoptedSlots
     {
         if (!$atiqahAvailable) {
             if (!empty($affectedSlotIds)) {
-                $this->command->warn("Skipped " . count(array_unique($affectedSlotIds)) . " slot updates (Atiqah offline)");
+                $this->command->warn("Skipped " . count(array_unique($affectedSlotIds)) . " slot updates (Atiqah - Shelter Management offline)");
             }
             return;
         }

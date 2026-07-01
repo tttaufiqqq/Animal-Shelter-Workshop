@@ -8,7 +8,7 @@ return new class extends Migration
     public function up(): void
     {
         $conn   = DB::connection('reporting');
-        $sqlDir = database_path('sql/eilya/rescue_procedures');
+        $sqlDir = database_path('sql/eilya-reporting/rescue_procedures');
 
         $conn->unprepared(require "$sqlDir/sp_rescue_assign_caretaker.php");
         $conn->unprepared(require "$sqlDir/sp_rescue_update_status.php");

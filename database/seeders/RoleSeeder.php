@@ -10,15 +10,15 @@ class RoleSeeder extends Seeder
 {
     /**
      * Run the database seeds.
-     * Roles are stored in Taufiq's database (User Management Module)
+     * Roles are stored in Taufiq - Users Management
      */
     public function run()
     {
-        // Use transaction for Taufiq's database
+        // Use transaction for Taufiq - Users Management database
         DB::connection('users')->beginTransaction();
 
         try {
-            // Create roles in Taufiq's database
+            // Create roles in Taufiq - Users Management database
             // Spatie's Role model already uses the 'users' connection from your config
 
             $roles = [
@@ -41,7 +41,7 @@ class RoleSeeder extends Seeder
             DB::connection('users')->commit();
 
             $this->command->info('');
-            $this->command->info('Roles seeded successfully in Taufiq\'s database!');
+            $this->command->info('Roles seeded successfully in Taufiq - Users Management database!');
 
         } catch (\Exception $e) {
             DB::connection('users')->rollBack();

@@ -11,18 +11,18 @@ class UserSeeder extends Seeder
 {
     /**
      * Run the database seeds.
-     * Users and Roles are both in Taufiq's database
+     * Users and Roles are both in Taufiq - Users Management database
      */
     public function run(): void
     {
-        // Use transaction for Taufiq's database
+        // Use transaction for Taufiq - Users Management database
         DB::connection('users')->beginTransaction();
 
         try {
-            $this->command->info('Seeding users in Taufiq\'s database...');
+            $this->command->info('Seeding users in Taufiq - Users Management database...');
             $this->command->info('========================================');
 
-            // Create roles if they don't exist (all in Taufiq's database)
+            // Create roles if they don't exist (all in Taufiq - Users Management database)
             $adminRole = Role::firstOrCreate(['name' => 'admin']);
             $caretakerRole = Role::firstOrCreate(['name' => 'caretaker']);
             $publicRole = Role::firstOrCreate(['name' => 'public user']);
@@ -139,7 +139,7 @@ class UserSeeder extends Seeder
 
             $this->command->info('');
             $this->command->info('========================================');
-            $this->command->info('✓ All users seeded successfully in Taufiq\'s database!');
+            $this->command->info('✓ All users seeded successfully in Taufiq - Users Management database!');
             $this->command->info('');
             $this->command->info('Login Credentials:');
             $this->command->info('  Email: any of the above emails');

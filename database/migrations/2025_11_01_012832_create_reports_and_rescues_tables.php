@@ -8,11 +8,11 @@ use Illuminate\Support\Facades\DB;
 return new class extends Migration {
     /**
      * Run the migrations.
-     * Report and Rescue tables belong to Eilya's database (Reporting & Rescue Module)
+     * Report and Rescue tables belong to Eilya - Stray Reporting
      */
     public function up(): void
     {
-        // Create report table in Eilya's database
+        // Create report table in Eilya - Stray Reporting - Stray Reporting database
         Schema::connection('reporting')->create('report', function (Blueprint $table) {
             $table->id();
             $table->decimal('latitude', 10, 8)->nullable();
@@ -23,7 +23,7 @@ return new class extends Migration {
             $table->string('report_status', 50)->nullable();
             $table->text('description')->nullable();
 
-            // Logical foreign key - references Taufiq's users table (cross-database)
+            // Logical foreign key - references Taufiq - Users Management users table (cross-database)
             $table->unsignedBigInteger('userID')->nullable();
             $table->timestamps();
 
@@ -31,7 +31,7 @@ return new class extends Migration {
             $table->index('userID');
         });
 
-        // Create rescue table in Eilya's database
+        // Create rescue table in Eilya - Stray Reporting - Stray Reporting database
         Schema::connection('reporting')->create('rescue', function (Blueprint $table) {
             $table->id();
             $table->string('status', 50)->nullable();
@@ -41,7 +41,7 @@ return new class extends Migration {
             // Logical foreign key - references report table (same database - can use FK)
             $table->unsignedBigInteger('reportID')->nullable();
 
-            // Logical foreign key - references Taufiq's users table (cross-database)
+            // Logical foreign key - references Taufiq - Users Management users table (cross-database)
             $table->unsignedBigInteger('caretakerID')->nullable();
             $table->timestamps();
 
@@ -52,7 +52,7 @@ return new class extends Migration {
         });
 
         // Add foreign key constraint for reportID only (same database)
-        // Do NOT add foreign keys for userID or caretakerID (cross-database to Taufiq)
+        // Do NOT add foreign keys for userID or caretakerID (cross-database to Taufiq - Users Management)
         Schema::connection('reporting')->table('rescue', function (Blueprint $table) {
             $table->foreign('reportID')
                 ->references('id')

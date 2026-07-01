@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         $conn   = DB::connection('reporting');
-        $sqlDir = database_path('sql/eilya/rescue_caretaker_priority');
+        $sqlDir = database_path('sql/eilya-reporting/rescue_caretaker_priority');
 
         $conn->unprepared(require "$sqlDir/sp_rescue_assign_caretaker_with_priority.php");
     }
@@ -20,7 +20,7 @@ return new class extends Migration
     public function down(): void
     {
         $conn   = DB::connection('reporting');
-        $sqlDir = database_path('sql/eilya/rescue_caretaker_priority');
+        $sqlDir = database_path('sql/eilya-reporting/rescue_caretaker_priority');
 
         // Restore original procedure without priority parameter
         $conn->unprepared(require "$sqlDir/sp_rescue_assign_caretaker_original.php");

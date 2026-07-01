@@ -16,7 +16,7 @@ trait SeedsAnimals
         for ($i = 1; $i <= 8; $i++) { $catImages[] = "animal_images/cat{$i}.jpg"; }
         for ($i = 1; $i <= 6; $i++) { $dogImages[] = "animal_images/dog{$i}.jpg"; }
 
-        $this->command->info("Fetching successful rescues from Eilya's database...");
+        $this->command->info("Fetching successful rescues from Eilya - Stray Reporting database...");
         $successfulRescues = DB::connection('reporting')->table('rescue')->where('status', 'Success')->get();
         if ($successfulRescues->isEmpty()) {
             $this->command->error('No successful rescues found. Please run RescueSeeder first.');
@@ -24,7 +24,7 @@ trait SeedsAnimals
         }
         $this->command->info("Found " . $successfulRescues->count() . " successful rescues");
 
-        $this->command->info("Fetching available slots from Atiqah's database...");
+        $this->command->info("Fetching available slots from Atiqah - Shelter Management database...");
         $availableSlots = DB::connection('shelter')->table('slot')->where('status', 'available')->get();
         if ($availableSlots->isEmpty()) {
             $this->command->error('No available slots found. Please run SectionSlotSeeder first.');
@@ -32,7 +32,7 @@ trait SeedsAnimals
         }
         $this->command->info("Found " . $availableSlots->count() . " available slots");
 
-        $this->command->info("Fetching vets from Shafiqah's database...");
+        $this->command->info("Fetching vets from Shafiqah - Stray Animal database...");
         $vets = DB::connection('animals')->table('vet')->get();
         if ($vets->isEmpty()) {
             $this->command->warn('No vets found. Vaccination records will not be created. Please run ClinicVetSeeder first.');
@@ -46,7 +46,7 @@ trait SeedsAnimals
         DB::connection('animals')->beginTransaction();
         try {
             $this->command->info('');
-            $this->command->info("Inserting animals into Shafiqah's database...");
+            $this->command->info("Inserting animals into Shafiqah - Stray Animal database...");
             foreach ($animals as $animalData) {
                 $animalId = DB::connection('animals')->table('animal')->insertGetId($animalData);
                 $animal   = (object) $animalData;
@@ -63,10 +63,10 @@ trait SeedsAnimals
             }
 
             DB::connection('animals')->commit();
-            $this->command->info("✓ Shafiqah transaction committed successfully");
+            $this->command->info("✓ Shafiqah - Stray Animal transaction committed successfully");
         } catch (\Exception $e) {
             DB::connection('animals')->rollBack();
-            $this->command->error("Failed to create animals in Shafiqah: " . $e->getMessage());
+            $this->command->error("Failed to create animals in Shafiqah - Stray Animal - Stray Animal: " . $e->getMessage());
             throw $e;
         }
 
@@ -77,9 +77,9 @@ trait SeedsAnimals
             $this->command->info('Uploading animal seed images to Cloudinary...');
             $this->command->info('(This may take a moment for first-time uploads)');
             $this->assignImagesToAnimals($createdAnimals, $catImages, $dogImages);
-            $this->command->info("✓ Images assigned successfully in Eilya's database");
+            $this->command->info("✓ Images assigned successfully in Eilya - Stray Reporting - Stray Reporting database");
         } catch (\Exception $e) {
-            $this->command->error("Failed to assign images in Eilya: " . $e->getMessage());
+            $this->command->error("Failed to assign images in Eilya - Stray Reporting - Stray Reporting: " . $e->getMessage());
         }
 
         $ageCount        = array_count_values(array_column($animals, 'age'));
@@ -107,8 +107,8 @@ trait SeedsAnimals
             $this->command->info("  - " . ucfirst($category) . ": {$count}");
         }
         $this->command->info('');
-        $this->command->info("Database: Shafiqah (MySQL) - Animals, Medical, Vaccinations");
-        $this->command->info("Cross-references: Eilya (Rescues, Images), Atiqah (Slots)");
+        $this->command->info("Database: Shafiqah - Stray Animal (MySQL) - Animals, Medical, Vaccinations");
+        $this->command->info("Cross-references: Eilya - Stray Reporting (Rescues, Images), Atiqah - Shelter Management (Slots)");
         $this->command->info('=================================');
     }
 }

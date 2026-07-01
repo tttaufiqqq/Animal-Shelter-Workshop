@@ -8,7 +8,7 @@ return new class extends Migration
     public function up(): void
     {
         $conn   = DB::connection('shelter');
-        $sqlDir = database_path('sql/atiqah/category_procedures');
+        $sqlDir = database_path('sql/atiqah-shelter/category_procedures');
 
         $conn->unprepared(require "$sqlDir/sp_category_create.php");
         $conn->unprepared(require "$sqlDir/sp_category_read.php");

@@ -8,7 +8,7 @@ return new class extends Migration
     public function up(): void
     {
         $conn   = DB::connection('shelter');
-        $sqlDir = database_path('sql/atiqah/inventory_procedures');
+        $sqlDir = database_path('sql/atiqah-shelter/inventory_procedures');
 
         $conn->unprepared(require "$sqlDir/sp_inventory_create.php");
         $conn->unprepared(require "$sqlDir/sp_inventory_read.php");

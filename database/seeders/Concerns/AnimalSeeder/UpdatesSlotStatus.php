@@ -44,7 +44,7 @@ trait UpdatesSlotStatus
 
             $this->command->info(
                 "✓ Updated " . count($assignedSlotIds) .
-                " slots in Atiqah's database ({$occupiedCount} occupied, {$availableCount} available)"
+                " slots in Atiqah - Shelter Management - Shelter Management database ({$occupiedCount} occupied, {$availableCount} available)"
             );
 
             return $assignedSlotIds;

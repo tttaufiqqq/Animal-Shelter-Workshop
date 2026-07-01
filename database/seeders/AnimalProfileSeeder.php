@@ -10,19 +10,19 @@ class AnimalProfileSeeder extends Seeder
     /**
      * Run the database seeds.
      * Cross-database references to:
-     * - Animals (Shafiqah's database)
+     * - Animals (Shafiqah - Stray Animal database)
      */
     public function run()
     {
         $this->command->info('Starting Animal Profile Seeder...');
         $this->command->info('========================================');
 
-        // Get adopter profiles from Taufiq's database
-        $this->command->info('Fetching adopter profiles from Taufiq\'s database...');
+        // Get adopter profiles from Taufiq - Users Management database
+        $this->command->info('Fetching adopter profiles from Taufiq - Users Management database...');
         $adopters = DB::connection('users')->table('adopter_profile')->get();
 
-        // Get animals with 'Not Adopted' OR 'Adopted' status from Shafiqah's database
-        $this->command->info('Fetching animals from Shafiqah\'s database...');
+        // Get animals with 'Not Adopted' OR 'Adopted' status from Shafiqah - Stray Animal database
+        $this->command->info('Fetching animals from Shafiqah - Stray Animal database...');
         $animals = DB::connection('animals')
             ->table('animal')
             ->whereIn('adoption_status', ['Not Adopted', 'Adopted'])
@@ -35,17 +35,17 @@ class AnimalProfileSeeder extends Seeder
 
         $this->command->info("Found " . $animals->count() . " animals");
 
-        // Use transaction for Shafiqah's database
+        // Use transaction for Shafiqah - Stray Animal database
         DB::connection('animals')->beginTransaction();
 
         try {
             $this->command->info('');
-            $this->command->info('Creating animal profiles in Shafiqah\'s database...');
+            $this->command->info('Creating animal profiles in Shafiqah - Stray Animal - Stray Animal database...');
 
             $profileCount = 0;
 
             foreach ($animals as $animal) {
-                // Check if profile already exists in Shafiqah's database
+                // Check if profile already exists in Shafiqah - Stray Animal - Stray Animal database
                 $existingProfile = DB::connection('animals')
                     ->table('animal_profile')
                     ->where('animalID', $animal->id)
@@ -68,7 +68,7 @@ class AnimalProfileSeeder extends Seeder
                 $profileData['created_at'] = now();
                 $profileData['updated_at'] = now();
 
-                // Insert into Shafiqah's database
+                // Insert into Shafiqah - Stray Animal database
                 DB::connection('animals')->table('animal_profile')->insert($profileData);
                 $profileCount++;
             }
@@ -80,7 +80,7 @@ class AnimalProfileSeeder extends Seeder
             $this->command->info('✓ Animal Profile Seeding Completed!');
             $this->command->info('=================================');
             $this->command->info("Animal profiles created: {$profileCount}");
-            $this->command->info('Database: Shafiqah (MySQL)');
+            $this->command->info('Database: Shafiqah - Stray Animal (MySQL)');
             $this->command->info('Cross-references: Shafiqah (Animals), Taufiq (Adopter Profiles)');
             $this->command->info('=================================');
 

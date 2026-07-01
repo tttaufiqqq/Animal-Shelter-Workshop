@@ -9,19 +9,19 @@ return new class extends Migration
     /**
      * Run the migrations.
      *
-     * DISABLED: Audit logging is handled at application layer via taufiq database.
-     * Only validation triggers are used in shafiqah database.
+     * DISABLED: Audit logging is handled at application layer via Taufiq - Users Management.
+     * Only validation triggers are used in Shafiqah - Stray Animal - Stray Animal database.
      */
     public function up(): void
     {
-        // DISABLED: Using centralized audit_logs in taufiq database instead
+        // DISABLED: Using centralized audit_logs in Taufiq - Users Management instead
         return;
 
         Schema::connection('animals')->create('audit_log', function (Blueprint $table) {
             $table->id();
 
             // User context
-            $table->unsignedBigInteger('user_id')->nullable()->comment('User ID from taufiq database');
+            $table->unsignedBigInteger('user_id')->nullable()->comment('User ID from Taufiq - Users Management');
             $table->string('user_name')->nullable();
             $table->string('user_email')->nullable();
             $table->string('user_role', 50)->nullable();
@@ -55,7 +55,7 @@ return new class extends Migration
 
         // Add comment to table
         DB::connection('animals')->statement(
-            "ALTER TABLE audit_log COMMENT = 'Comprehensive audit log for all Shafiqah database operations'"
+            "ALTER TABLE audit_log COMMENT = 'Comprehensive audit log for all Shafiqah - Stray Animal database operations'"
         );
     }
 

@@ -40,7 +40,7 @@ trait AssignsAnimalImages
             }
         }
 
-        $this->command->info("Inserting animal images into Eilya's database...");
+        $this->command->info("Inserting animal images into Eilya - Stray Reporting - Stray Reporting database...");
         foreach (array_chunk($images, 300) as $chunk) {
             DB::connection('reporting')->table('image')->insert($chunk);
         }
