@@ -110,15 +110,38 @@ The **heterogeneous distributed database** concept is preserved: the system stil
 
 ## Database Connections
 
-All servers communicate over a **Tailscale VPN mesh** — no database port is exposed on the public network or local LAN.
+All servers communicate over a **Tailscale VPN mesh** — no database port is exposed on the public network or local LAN. DNS hostnames under `taufiq.lab` are available on any device connected to the tailnet (resolved via dnsmasq on Proxmox `100.97.8.93` using Tailscale Split DNS).
 
-| Connection Name | Database Engine | Server (Tailscale IP) | Module/Domain | Key Tables |
-|----------------|-----------------|----------------------|---------------|------------|
-| **reporting** | MariaDB 10.11 | workshop-2 (100.78.124.25) | Stray Reporting | reports, rescues, images |
-| **booking** | MariaDB 10.11 | workshop-2 (100.78.124.25) | Booking & Adoption | bookings, adoptions, transactions, visit_lists, animal_booking |
-| **shelter** | MySQL 9.5 | msi (100.68.235.121) | Shelter Management | slots, sections, inventory, categories |
-| **animals** | MySQL 9.5 | msi (100.68.235.121) | Animal Management | animals, medical_records, vaccinations, clinics, vets, animal_profiles |
-| **users** | PostgreSQL 16 | workshop-postgres (100.113.234.24) | User Management | users, roles, permissions, adopter_profiles, audit_log |
+| Connection Name | Database Engine | Server (Tailscale IP) | DNS Hostname | Module/Domain | Key Tables |
+|----------------|-----------------|----------------------|--------------|---------------|------------|
+| **reporting** | MariaDB 10.11 | workshop-2 (100.78.124.25) | linux-mariadb.taufiq.lab | Stray Reporting | reports, rescues, images |
+| **booking** | MariaDB 10.11 | workshop-2 (100.78.124.25) | linux-mariadb.taufiq.lab | Booking & Adoption | bookings, adoptions, transactions, visit_lists, animal_booking |
+| **shelter** | MySQL 9.5 | msi (100.68.235.121) | — (direct IP only) | Shelter Management | slots, sections, inventory, categories |
+| **animals** | MySQL 9.5 | msi (100.68.235.121) | — (direct IP only) | Animal Management | animals, medical_records, vaccinations, clinics, vets, animal_profiles |
+| **users** | PostgreSQL 16 | workshop-postgres (100.113.234.24) | linux-postgres.taufiq.lab | User Management | users, roles, permissions, adopter_profiles, audit_log |
+
+## Database Admin Credentials
+
+These are the superuser / root credentials for direct database administration (DBeaver, migrations, password resets). They are **not** used by the Laravel application — the app uses the `workshop_2` application user.
+
+| Server | Engine | Tailscale IP | DNS Hostname | Admin User | Admin Password |
+|--------|--------|-------------|--------------|------------|----------------|
+| workshop-2 | MariaDB 10.11 | 100.78.124.25 | linux-mariadb.taufiq.lab | `root` | `qwertY@1612` |
+| msi (local) | MySQL 9.5 | 100.68.235.121 | — | `root` | `password` |
+| workshop-mysql | MySQL 8.0 | 100.115.237.93 | linux-mysql.taufiq.lab | `root` | `qwertY@1612` |
+| workshop-postgres | PostgreSQL 16 | 100.113.234.24 | linux-postgres.taufiq.lab | `postgres` | `qwertY@1612` |
+
+> All root/superuser passwords follow the `qwertY@1612` convention except msi (local MySQL) which uses `password` for historical reasons.
+
+## Application User Credentials
+
+The Laravel application connects using a dedicated `workshop_2` user on all three DB engines. Same credentials across all servers:
+
+| Field | Value |
+|-------|-------|
+| Username | `workshop_2` |
+| Password | `workshop_2` |
+| Database | `workshop_2` |
 
 ## Cross-Database Relationship Pattern
 
