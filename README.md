@@ -277,22 +277,92 @@ infrastructure/
         └── nginx-app.conf.j2  # Nginx site config
 ```
 
+### Pre-flight checklist (Proxmox)
+
+Complete these steps once before the first `terraform apply`.
+
+**1. Create an Ubuntu 24.04 cloud-init template**
+
+If you don't already have one, download the Ubuntu 24.04 cloud image and create a template VM in Proxmox. Note the VM ID (e.g. `9000`) — this goes into `vm_template_id`.
+
+**2. Enable Snippets on the `local` storage**
+
+Terraform uploads cloud-init snippets to Proxmox storage. By default the `local` datastore does not allow snippets:
+
+- Datacenter → Storage → `local` → Edit → check **Snippets** → OK
+
+**3. Create a Proxmox API token**
+
+Terraform authenticates to Proxmox via API token, not a password:
+
+- Datacenter → Permissions → API Tokens → Add
+- User: `root@pam` · Token ID: `terraform` · uncheck **Privilege Separation**
+- Copy the token secret — it is shown only once
+
+**4. Generate a Tailscale auth key**
+
+Each VM joins your tailnet automatically on first boot via cloud-init:
+
+- Go to `login.tailscale.com/admin/settings/keys` → Generate auth key
+- Enable **Reusable** (so all 4 VMs can use the same key) and set an appropriate expiry
+
+**5. Fill in `terraform.tfvars`**
+
+```bash
+cd infrastructure/terraform
+cp terraform.tfvars.example terraform.tfvars
+```
+
+Edit `terraform.tfvars` with your values. Based on this project's Proxmox setup (node `taufiq`, template VM 9000):
+
+```hcl
+proxmox_endpoint     = "https://<proxmox-LAN-IP>:8006"
+proxmox_api_token    = "root@pam!terraform=<token-secret>"
+proxmox_ssh_user     = "root"
+proxmox_ssh_password = "<proxmox-root-password>"
+proxmox_node         = "taufiq"
+
+vm_template_id = 9000
+storage_pool   = "local-lvm"   # or "local" — check Node > Storage in Proxmox UI
+
+ssh_public_key     = "ssh-ed25519 AAAA... your-public-key"
+tailscale_auth_key = "tskey-auth-..."
+```
+
+> `terraform.tfvars` is gitignored — never commit it. The SSH public key injected here is what allows ansible (and you) to SSH into the provisioned VMs. The private key must be at `~/.ssh/id_ed25519` on the machine that runs ansible (see `ansible.cfg`).
+
+**6. Install tools**
+
+```bash
+# Terraform (Windows)
+winget install HashiCorp.Terraform
+
+# Ansible (Python)
+pip install ansible
+cd infrastructure/ansible
+ansible-galaxy collection install -r requirements.yml
+```
+
+> **Already have VMs running?** If your Proxmox already has `app-server`, `linux-mysql`, `linux-mariadb`, and `linux-postgres` VMs (e.g. IDs 101–106), skip terraform entirely. Update `infrastructure/ansible/inventory.yml` with their Tailscale IPs or MagicDNS hostnames and run ansible directly. Terraform would create *additional* VMs at IDs 201, 204, 205, 206 — it won't touch existing ones.
+
 ### Provision from scratch
 
 ```bash
 # 1. Provision VMs on Proxmox
 cd infrastructure/terraform
-cp terraform.tfvars.example terraform.tfvars   # fill in Proxmox + Tailscale values
-terraform init && terraform apply
+terraform init
+terraform plan    # review what will be created
+terraform apply
 
-# 2. Wait for VMs to appear in Tailscale dashboard, then configure:
+# 2. Wait for all 4 VMs to appear in the Tailscale admin dashboard,
+#    then run ansible to configure everything:
 cd ../ansible
 ansible-playbook playbooks/site.yml -i inventory.yml
-# This installs all DB engines, creates workshop_2 databases/users,
-# clones the app, runs migrations, and seeds all databases automatically.
+# Installs DB engines, creates workshop_2 DB + user on each server,
+# clones the app, runs composer/npm, creates .env, and seeds all databases.
 ```
 
-> **Note**: `app-server.yml` creates `/var/www/animal-shelter/.env` from the template only if the file does not already exist. After first deploy, edit the `.env` directly to add Cloudinary and ToyyibPay credentials, then run `php artisan config:clear`.
+> **After first deploy**: edit `/var/www/animal-shelter/.env` on the app-server to add Cloudinary and ToyyibPay credentials, then run `php artisan config:clear`. The `.env` is created from the template only once — ansible won't overwrite it on subsequent runs.
 
 ---
 
