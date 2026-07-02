@@ -98,3 +98,93 @@
     - name: UFW — enable
       community.general.ufw:
         state: enabled
+
+    # ── Application deployment ────────────────────────────────────────────────
+    - name: Clone application repository
+      git:
+        repo: https://github.com/tttaufiqqq/Animal-Shelter-Workshop.git
+        dest: /var/www/animal-shelter
+        version: main
+        force: false
+      become_user: workshop
+
+    - name: Set web root ownership
+      file:
+        path: /var/www/animal-shelter
+        owner: workshop
+        group: www-data
+        recurse: true
+
+    - name: Set storage and cache permissions
+      file:
+        path: "{{ item }}"
+        mode: "0775"
+        recurse: true
+      loop:
+        - /var/www/animal-shelter/storage
+        - /var/www/animal-shelter/bootstrap/cache
+
+    - name: Install Composer dependencies
+      composer:
+        command: install
+        arguments: "--no-dev --optimize-autoloader --no-interaction"
+        working_dir: /var/www/animal-shelter
+      become_user: workshop
+
+    - name: Deploy .env from template (skip if already exists)
+      template:
+        src: ../templates/env-app.j2
+        dest: /var/www/animal-shelter/.env
+        owner: workshop
+        group: www-data
+        mode: "0640"
+        force: false
+
+    - name: Generate application key
+      command: php artisan key:generate --force
+      args:
+        chdir: /var/www/animal-shelter
+      become_user: workshop
+
+    - name: Build frontend assets
+      command: npm ci && npm run build
+      args:
+        chdir: /var/www/animal-shelter
+        creates: /var/www/animal-shelter/public/build/manifest.json
+      become_user: workshop
+
+    - name: Deploy Nginx site config
+      template:
+        src: ../templates/nginx-app.conf.j2
+        dest: /etc/nginx/sites-available/animal-shelter
+      notify: Reload Nginx
+
+    - name: Enable Nginx site
+      file:
+        src: /etc/nginx/sites-available/animal-shelter
+        dest: /etc/nginx/sites-enabled/animal-shelter
+        state: link
+      notify: Reload Nginx
+
+    - name: Remove default Nginx site
+      file:
+        path: /etc/nginx/sites-enabled/default
+        state: absent
+      notify: Reload Nginx
+
+    - name: Flush handlers before migrations
+      meta: flush_handlers
+
+    - name: Run database migrations and seed
+      command: php artisan db:fresh-all --seed
+      args:
+        chdir: /var/www/animal-shelter
+      become_user: workshop
+      environment:
+        HOME: /home/workshop
+
+  handlers:
+    - name: Reload Nginx
+      service:
+        name: nginx
+        state: reloaded

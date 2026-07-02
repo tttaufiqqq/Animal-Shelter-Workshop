@@ -100,13 +100,27 @@ This project implements a **distributed database architecture** with 5 separate 
 
 **Key Challenge**: Cross-database relationships cannot use traditional foreign key constraints. All referential integrity is enforced at the **application layer** using Laravel's Eloquent ORM.
 
-### Why MariaDB Instead of SQL Server
+<p align="center">
+  <img src="docs/images/database-architecture.jpeg" alt="Distributed Database Architecture — Tailscale VPN mesh connecting app-server to 4 database VMs" width="900"/>
+</p>
 
-The booking module was originally designed for SQL Server. It was migrated to **MariaDB 10.11** for the following reason:
+The diagram above shows the full network topology. All five database connections run over a **Tailscale WireGuard mesh** — no database port is ever exposed to the public internet or local LAN. Each VM enforces UFW rules that accept database traffic only from the app-server's Tailscale IP (`100.100.123.90`):
 
-The project runs on a homelab Proxmox cluster with limited RAM. SQL Server's minimum footprint (~1 GB idle) is prohibitive when sharing hardware with three other virtual machines and a physical host. MariaDB idles at under 100 MB and provides the same procedural SQL features (stored procedures, triggers, transactions) that the booking module relies on — making it a practical drop-in replacement without changing the application layer design.
+| Module | Database VM | Engine | Firewall rule |
+|--------|-------------|--------|---------------|
+| Stray Animal Management | `msi-laptop` (100.68.235.121) | MySQL | `:3306 → 100.100.123.90 only` |
+| Booking & Adoption | `linux-mariadb` (100.78.124.25) | MariaDB | `:3306 → 100.100.123.90 only` |
+| Shelter Management | `msi-laptop` (100.68.235.121) | MySQL | `:3306 → 100.100.123.90 only` |
+| User Management | `linux-postgres` (100.113.234.24) | PostgreSQL | `:5432 → 100.100.123.90 only` |
+| Stray Animal Reporting | `linux-mariadb` (100.78.124.25) | MariaDB | `:3306 → 100.100.123.90 only` |
 
-The **heterogeneous distributed database** concept is preserved: the system still integrates three different database engines (MariaDB, MySQL, PostgreSQL) across four separate physical/virtual machines, each accessed through a named Laravel connection. MariaDB and MySQL are distinct products with different versioning, licensing, and default behaviour, so the architecture remains genuinely heterogeneous.
+The app-server itself only opens ports 80 and 443 to the public internet. SSH is restricted to the admin machine (`100.68.235.121`) via the Tailscale interface.
+
+### Why MariaDB for Booking & Adoption
+
+The booking module was originally designed for SQL Server. It was migrated to **MariaDB 10.11** because the project runs on a homelab Proxmox cluster with limited RAM. SQL Server's minimum footprint (~1 GB idle) is prohibitive when sharing hardware with three other VMs. MariaDB idles at under 100 MB and provides the same procedural SQL features (stored procedures, triggers, transactions) the booking module relies on.
+
+The **heterogeneous distributed database** concept is preserved: three different database engines (MariaDB, MySQL, PostgreSQL) across four separate machines, each accessed through a named Laravel connection.
 
 ## Database Connections
 
@@ -235,6 +249,50 @@ Always test queries that span multiple databases with proper error handling.
 | **Code Quality**        | Laravel Pint (PHP CS Fixer)               |
 | **Version Control**     | Git / GitHub                              |
 | **Development Server**  | Laravel Artisan + Vite                    |
+
+---
+
+## 🏗️ Infrastructure Provisioning (Terraform + Ansible)
+
+The `infrastructure/` directory contains everything needed to provision the database VMs from scratch on a Proxmox homelab.
+
+```
+infrastructure/
+├── terraform/          # Proxmox VM provisioning (4 VMs via cloud-init + Tailscale)
+│   ├── vms.tf          # VM specs: app-server, linux-mysql, linux-mariadb, linux-postgres
+│   ├── main.tf         # Proxmox provider config
+│   ├── variables.tf    # Input variables
+│   ├── terraform.tfvars.example  # Copy → terraform.tfvars and fill in values
+│   └── cloud-init.yml.tftpl      # Cloud-init: hostname, SSH key, Tailscale join
+└── ansible/            # Software + DB setup on provisioned VMs
+    ├── inventory.yml   # Host groups using Tailscale MagicDNS hostnames
+    ├── playbooks/
+    │   ├── site.yml           # Master playbook (runs all four below in order)
+    │   ├── linux-mysql.yml    # MySQL 8.0 + workshop_2 DB + UFW
+    │   ├── linux-mariadb.yml  # MariaDB + workshop_2 DB + UFW
+    │   ├── linux-postgres.yml # PostgreSQL + workshop_2 DB + UFW
+    │   └── app-server.yml     # PHP 8.3 + Nginx + app deploy + migrations
+    └── templates/
+        ├── env-app.j2         # .env template (Tailscale hostnames as DB hosts)
+        └── nginx-app.conf.j2  # Nginx site config
+```
+
+### Provision from scratch
+
+```bash
+# 1. Provision VMs on Proxmox
+cd infrastructure/terraform
+cp terraform.tfvars.example terraform.tfvars   # fill in Proxmox + Tailscale values
+terraform init && terraform apply
+
+# 2. Wait for VMs to appear in Tailscale dashboard, then configure:
+cd ../ansible
+ansible-playbook playbooks/site.yml -i inventory.yml
+# This installs all DB engines, creates workshop_2 databases/users,
+# clones the app, runs migrations, and seeds all databases automatically.
+```
+
+> **Note**: `app-server.yml` creates `/var/www/animal-shelter/.env` from the template only if the file does not already exist. After first deploy, edit the `.env` directly to add Cloudinary and ToyyibPay credentials, then run `php artisan config:clear`.
 
 ---
 

@@ -61,13 +61,13 @@ class FreshAllDatabases extends Command
         }
 
         $this->info("Running migrations on {$successCount} available database(s)...");
-        $this->call('migrate');
+        $this->call('migrate', ['--force' => true]);
 
         if ($this->option('seed')) {
             $this->newLine();
             $this->info('Seeding databases...');
             $this->warn('Note: Seeding may fail if cross-database dependencies are offline.');
-            $this->call('db:seed');
+            $this->call('db:seed', ['--force' => true]);
         }
 
         $this->newLine();

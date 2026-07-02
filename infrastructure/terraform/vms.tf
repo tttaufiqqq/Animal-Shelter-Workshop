@@ -1,24 +1,24 @@
 locals {
   vms = {
-    "tf-app-server" = {
+    "app-server" = {
       vmid   = 201
       cores  = 2
       memory = 2048
       disk   = 20
     }
-    "tf-linux-mysql" = {
+    "linux-mysql" = {
       vmid   = 204
       cores  = 2
       memory = 2048
       disk   = 20
     }
-    "tf-linux-mariadb" = {
+    "linux-mariadb" = {
       vmid   = 205
       cores  = 2
       memory = 2048
       disk   = 20
     }
-    "tf-linux-postgres" = {
+    "linux-postgres" = {
       vmid   = 206
       cores  = 2
       memory = 2048

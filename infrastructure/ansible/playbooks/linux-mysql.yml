@@ -57,6 +57,41 @@
         state: present
         login_unix_socket: /var/run/mysqld/mysqld.sock
 
+    # ── Firewall ──────────────────────────────────────────────────────────────
+    - name: UFW — default deny incoming
+      community.general.ufw:
+        default: deny
+        direction: incoming
+
+    - name: UFW — default allow outgoing
+      community.general.ufw:
+        default: allow
+        direction: outgoing
+
+    - name: UFW — SSH from admin machine via Tailscale only
+      community.general.ufw:
+        rule: allow
+        interface: tailscale0
+        direction: in
+        from_ip: "100.68.235.121"
+        to_port: "22"
+        proto: tcp
+        comment: "SSH from msi admin machine"
+
+    - name: UFW — MySQL from app-server via Tailscale only
+      community.general.ufw:
+        rule: allow
+        interface: tailscale0
+        direction: in
+        from_ip: "100.100.123.90"
+        to_port: "3306"
+        proto: tcp
+        comment: "MySQL from app-server"
+
+    - name: UFW — enable
+      community.general.ufw:
+        state: enabled
+
   handlers:
     - name: Restart MySQL
       service:

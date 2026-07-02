@@ -22,14 +22,6 @@
         state: started
         enabled: true
 
-    # Allow connections from all IPs (Tailscale network is the security boundary)
-    - name: Set listen_addresses to all
-      lineinfile:
-        path: /etc/postgresql/{{ pg_version.stdout }}/main/postgresql.conf
-        regexp: "^#?listen_addresses"
-        line: "listen_addresses = '*'"
-      notify: Restart PostgreSQL
-
     - name: Get PostgreSQL version
       command: psql --version
       register: pg_version_raw
@@ -39,6 +31,14 @@
       set_fact:
         pg_version:
           stdout: "{{ pg_version_raw.stdout | regex_search('(\\d+)', '\\1') | first }}"
+
+    # Allow connections from all IPs (Tailscale network is the security boundary)
+    - name: Set listen_addresses to all
+      lineinfile:
+        path: /etc/postgresql/{{ pg_version.stdout }}/main/postgresql.conf
+        regexp: "^#?listen_addresses"
+        line: "listen_addresses = '*'"
+      notify: Restart PostgreSQL
 
     - name: Allow MD5 auth from all IPs in pg_hba.conf
       lineinfile:
