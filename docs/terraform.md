@@ -9,13 +9,13 @@ Each VM is cloned from a Ubuntu 24.04 cloud-init template and automatically join
 
 | VM ID | Name | Role |
 |---|---|---|
-| 201 | tf-app-server | Laravel app (PHP + Nginx + Composer) |
-| 204 | tf-linux-mysql | MySQL 8.0 |
-| 205 | tf-linux-mariadb | MariaDB |
-| 206 | tf-linux-postgres | PostgreSQL |
+| 201 | app-server | Laravel app (PHP + Nginx + Composer) |
+| 204 | linux-mysql | MySQL 8.0 |
+| 205 | linux-mariadb | MariaDB |
+| 206 | linux-postgres | PostgreSQL |
 
-> IDs start at 201 (not 101) because 101–106 are pre-existing manual VMs kept as backups.
-> The `tf-` prefix in the name makes Terraform-managed VMs visually distinct in Proxmox UI and Tailscale.
+> IDs start at 201 (not 101) because 101–107 are pre-existing manual VMs kept as backups.
+> VM names match the Ansible inventory and Tailscale MagicDNS hostnames exactly — no prefix.
 
 ---
 
@@ -198,7 +198,7 @@ Fix: `sudo snap install terraform --classic`
 tailscale status
 
 # Wait ~60s for cloud-init, then test SSH
-ssh workshop@tf-linux-mysql "echo ok"
+ssh workshop@linux-mysql "echo ok"
 
 # Then run Ansible to install software
 cd infrastructure/ansible

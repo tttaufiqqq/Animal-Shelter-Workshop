@@ -75,8 +75,8 @@ terraform apply
                     └── joins Tailscale (hostname = VM name)
 
 # Wait ~60s for cloud-init to finish, then verify connectivity:
-tailscale status                              # confirm all 4 VMs appear (tf-* names)
-ssh workshop@tf-linux-mysql "echo ok"         # test SSH
+tailscale status                              # confirm all 4 VMs appear
+ssh workshop@linux-mysql "echo ok"            # test SSH
 
 # Then run Ansible
 cd /mnt/c/Users/taufi/Documents/Dev/Animal-Shelter-Workshop/infrastructure/ansible
@@ -102,34 +102,34 @@ tailscale status
 
 Then edit `inventory.yml` and replace `ansible_host` values with the actual IPs:
 ```yaml
-tf-linux-mysql:
+linux-mysql:
   ansible_host: 100.x.x.x   # from tailscale status
 ```
 
 ## What each playbook does
 
-| Playbook | Host | Installs |
+| Playbook | Host | Installs / Does |
 |---|---|---|
-| `linux-mysql.yml` | linux-mysql | MySQL 8.0, creates workshop_2 DB + user, enables remote + triggers |
-| `linux-mariadb.yml` | linux-mariadb | MariaDB, creates workshop_2 DB + user, enables remote |
-| `linux-postgres.yml` | linux-postgres | PostgreSQL, creates workshop_2 DB + user, pg_hba + schema grants |
-| `app-server.yml` | app-server | PHP 8.3 + all extensions, Nginx, Node 20, Composer |
+| `linux-mysql.yml` | linux-mysql | MySQL 8.0, creates workshop_2 DB + user, enables remote + triggers, UFW |
+| `linux-mariadb.yml` | linux-mariadb | MariaDB, creates workshop_2 DB + user, enables remote, UFW |
+| `linux-postgres.yml` | linux-postgres | PostgreSQL, creates workshop_2 DB + user, pg_hba + schema grants, UFW |
+| `app-server.yml` | app-server | PHP 8.3 + extensions, Nginx, Node 20, Composer, UFW; clones repo to `/var/www/animal-shelter`, deploys `.env`, builds frontend assets, runs `db:fresh-all --seed` |
 | `site.yml` | all | Runs the 4 above in order |
 
 ## Verifying DB setup
 
 ```bash
 # MySQL
-ssh workshop@tf-linux-mysql "mysql -u workshop_2 -pworkshop_2 -e 'SHOW DATABASES;'"
+ssh workshop@linux-mysql "mysql -u workshop_2 -pworkshop_2 -e 'SHOW DATABASES;'"
 
 # MariaDB
-ssh workshop@tf-linux-mariadb "mysql -u workshop_2 -pworkshop_2 -e 'SHOW DATABASES;'"
+ssh workshop@linux-mariadb "mysql -u workshop_2 -pworkshop_2 -e 'SHOW DATABASES;'"
 
 # PostgreSQL
-ssh workshop@tf-linux-postgres "psql -U workshop_2 -d workshop_2 -c '\l'"
+ssh workshop@linux-postgres "psql -U workshop_2 -d workshop_2 -c '\l'"
 
 # PHP on app-server
-ssh workshop@tf-app-server "php -v && nginx -v && composer --version"
+ssh workshop@app-server "php -v && nginx -v && composer --version"
 ```
 
 ## Full infrastructure flow
@@ -137,6 +137,15 @@ ssh workshop@tf-app-server "php -v && nginx -v && composer --version"
 ```
 1. terraform init && terraform apply        → VMs created on Proxmox
 2. VMs boot, cloud-init joins Tailscale     → all 4 VMs appear in tailscale status
-3. ansible-playbook playbooks/site.yml      → software installed and DBs configured
-4. Deploy Laravel app to app-server         → php artisan migrate (from app-server)
+3. ansible-playbook playbooks/site.yml      → software installed, DBs configured,
+                                               app deployed, migrations + seed run
 ```
+
+`app-server.yml` handles the full application deployment end-to-end:
+- Clones the repo to `/var/www/animal-shelter` (as `workshop` user)
+- Deploys `.env` from `templates/env-app.j2` (skipped if `.env` already exists)
+- Runs `composer install`, `npm ci && npm run build`, `php artisan key:generate`
+- Deploys the Nginx site config from `templates/nginx-app.conf.j2`
+- Runs `php artisan db:fresh-all --seed` to create tables and seed data
+
+After the first run, re-running `ansible-playbook playbooks/app-server.yml` is safe — all tasks are idempotent. The `.env` file is never overwritten once it exists.

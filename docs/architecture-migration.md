@@ -385,76 +385,40 @@ account is `password`.
 
 ## Deployment Steps (app-server)
 
-These steps deploy the Laravel app to app-server. All commands run on
-app-server (100.100.123.90) unless noted.
+App-server deployment is fully automated by Ansible. Run from the WSL control node:
 
 ```bash
-# 1. SSH into app-server
-ssh taufiq@100.100.123.90
+cd infrastructure/ansible
+ansible-playbook playbooks/app-server.yml
+```
 
-# 2. Install PHP 8.3, Nginx, Composer, MariaDB client, and required extensions
-sudo apt-get update
-sudo apt-get install -y php8.3 php8.3-fpm php8.3-cli php8.3-mbstring php8.3-xml \
-  php8.3-curl php8.3-pgsql php8.3-mysql php8.3-gd php8.3-zip php8.3-bcmath \
-  php8.3-intl nginx mariadb-client postgresql-client
+This handles everything in order:
+1. Installs PHP 8.3 (all extensions), Nginx, Node 20, Composer
+2. Clones the repo to `/var/www/animal-shelter` as user `workshop`
+3. Sets ownership `workshop:www-data` and 775 on `storage/` and `bootstrap/cache/`
+4. Runs `composer install --no-dev --optimize-autoloader`
+5. Deploys `.env` from the `env-app.j2` template (skipped if already exists)
+6. Runs `php artisan key:generate --force`
+7. Runs `npm ci && npm run build` (skipped if `public/build/manifest.json` exists)
+8. Deploys Nginx config to `/etc/nginx/sites-available/animal-shelter`, enables it
+9. Runs `php artisan db:fresh-all --seed`
 
-# 3. Install Composer
-curl -sS https://getcomposer.org/installer | php
-sudo mv composer.phar /usr/local/bin/composer
+The app lives at `/var/www/animal-shelter`. Nginx serves from `/var/www/animal-shelter/public`.
 
-# 4. Clone repo
-git clone https://github.com/tttaufiqqq/Animal-Shelter-Workshop.git ~/Animal-Shelter-Workshop
-cd ~/Animal-Shelter-Workshop
+For manual access or debugging:
 
-# 5. Install PHP dependencies
-composer install --no-dev --optimize-autoloader
+```bash
+# SSH into app-server
+ssh workshop@100.100.123.90
 
-# 6. Create .env and generate app key
-cp .env.example .env
-# Edit .env: set all DB_USERNAME=workshop_2 and DB_PASSWORD=workshop_2
-# Set DB_CONNECTION=reporting (needed for the migrations tracking table)
-php artisan key:generate
+# App directory
+cd /var/www/animal-shelter
 
-# 7. Set storage permissions (taufiq owns, www-data can write)
-sudo chown -R taufiq:www-data storage bootstrap/cache
-chmod -R 775 storage bootstrap/cache
-
-# 8. Allow Nginx to traverse the home directory
-chmod o+x /home/taufiq
-
-# 9. Link public storage
-php artisan storage:link
-
-# 10. Configure Nginx
-# Write config to /tmp first, then sudo-copy it:
-cat > /tmp/nginx-animal-shelter.conf << 'EOF'
-server {
-    listen 80;
-    server_name _;
-    root /home/taufiq/Animal-Shelter-Workshop/public;
-    index index.php index.html;
-    charset utf-8;
-    location / { try_files $uri $uri/ /index.php?$query_string; }
-    location = /favicon.ico { access_log off; log_not_found off; }
-    location = /robots.txt  { access_log off; log_not_found off; }
-    error_page 404 /index.php;
-    location ~ \.php$ {
-        fastcgi_pass unix:/var/run/php/php8.3-fpm.sock;
-        fastcgi_index index.php;
-        fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
-        include fastcgi_params;
-    }
-    location ~ /\.(?!well-known).* { deny all; }
-}
-EOF
-sudo cp /tmp/nginx-animal-shelter.conf /etc/nginx/sites-available/animal-shelter
-sudo ln -sf /etc/nginx/sites-available/animal-shelter /etc/nginx/sites-enabled/animal-shelter
-sudo rm -f /etc/nginx/sites-enabled/default
-sudo nginx -t && sudo systemctl restart nginx
-sudo systemctl restart php8.3-fpm
-
-# 11. Run migrations
+# Re-run migrations (e.g. after a schema change)
 php artisan migrate --force
+
+# View logs
+tail -f storage/logs/laravel.log
 ```
 
 ---

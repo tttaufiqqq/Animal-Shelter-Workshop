@@ -13,12 +13,13 @@ blocks unauthorized access. If one layer is misconfigured, the others still hold
 
 ### Machine Reference
 
-| Tailscale IP | OS | DBMS | DB Port |
-|---|---|---|---|
-| 100.100.123.90 (app-server) | Ubuntu 24.04 (Proxmox VM) | — (Laravel) | — |
-| 100.78.124.25 | Ubuntu 24.04 (Proxmox VM) | MariaDB 10.11 | 3306 |
-| 100.113.234.24 | Ubuntu (Proxmox VM) | PostgreSQL 16 | 5432 |
-| 100.68.235.121 | Windows 11 (physical) | MySQL 9.5 | 3306 |
+| Tailscale IP | Hostname | OS | DBMS | DB Port |
+|---|---|---|---|---|
+| 100.100.123.90 | app-server | Ubuntu 24.04 (Proxmox VM) | — (Laravel) | — |
+| 100.78.124.25 | linux-mariadb | Ubuntu 24.04 (Proxmox VM) | MariaDB 10.11 | 3306 |
+| 100.113.234.24 | linux-postgres | Ubuntu (Proxmox VM) | PostgreSQL 16 | 5432 |
+| 100.115.237.93 | linux-mysql | Ubuntu (Proxmox VM) | MySQL 8.0 | 3306 |
+| 100.68.235.121 | msi | Windows 11 (physical) | MySQL 9.5 | 3306 |
 
 ### Hardening Goals
 
@@ -99,11 +100,10 @@ not have write access, the app throws 500 errors. After certain system operation
 the recovery command:
 
 ```bash
-sudo chown -R taufiq:www-data ~/Animal-Shelter-Workshop/storage \
-                               ~/Animal-Shelter-Workshop/bootstrap/cache
-chmod -R 775 ~/Animal-Shelter-Workshop/storage \
-             ~/Animal-Shelter-Workshop/bootstrap/cache
-chmod o+x /home/taufiq   # allows nginx (www-data) to traverse the home dir
+sudo chown -R workshop:www-data /var/www/animal-shelter/storage \
+                                /var/www/animal-shelter/bootstrap/cache
+chmod -R 775 /var/www/animal-shelter/storage \
+             /var/www/animal-shelter/bootstrap/cache
 ```
 
 ### 1.4 Proxmox — Start at Boot
