@@ -214,27 +214,23 @@ function updateStepDisplay(bookingId) {
         return;
     }
 
-    // Animate connecting lines based on progress
+    // Animate connecting lines based on progress (height-based, avoids transform-origin conflicts)
     const progressLine1 = document.getElementById(`progress-line-1-${bookingId}`);
     const progressLine2 = document.getElementById(`progress-line-2-${bookingId}`);
 
     if (currentStep >= 2 && progressLine1) {
-        progressLine1.style.transform = 'scaleY(1)';
-        progressLine1.classList.add('animate-lineFillDown');
-        setTimeout(() => progressLine1.classList.remove('animate-lineFillDown'), 500);
+        progressLine1.style.height = '64px';
     } else if (progressLine1) {
-        progressLine1.style.transform = 'scaleY(0)';
+        progressLine1.style.height = '0';
     }
 
     if (currentStep >= 3 && progressLine2) {
-        // Delay second line animation slightly for cascading effect
+        // Slight cascade delay for second line
         setTimeout(() => {
-            progressLine2.style.transform = 'scaleY(1)';
-            progressLine2.classList.add('animate-lineFillDown');
-            setTimeout(() => progressLine2.classList.remove('animate-lineFillDown'), 500);
+            progressLine2.style.height = '64px';
         }, 200);
     } else if (progressLine2) {
-        progressLine2.style.transform = 'scaleY(0)';
+        progressLine2.style.height = '0';
     }
 
     // Update step indicators with animations
@@ -984,22 +980,6 @@ style.textContent = `
 
     .animate-numberFadeOut {
         animation: numberFadeOut 0.3s ease-out forwards;
-    }
-
-    /* Connecting Line Fill - Grows from top to bottom */
-    @keyframes lineFillDown {
-        from {
-            transform: scaleY(0);
-            transform-origin: top;
-        }
-        to {
-            transform: scaleY(1);
-            transform-origin: top;
-        }
-    }
-
-    .animate-lineFillDown {
-        animation: lineFillDown 0.5s ease-out forwards;
     }
 
     /* Confetti Particle Burst Effect */

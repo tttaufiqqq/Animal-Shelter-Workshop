@@ -31,7 +31,7 @@ trait ManagesBookings
             if ($request->filled('date_from')) $query->where('appointment_date', '>=', $request->date_from);
             if ($request->filled('date_to')) $query->where('appointment_date', '<=', $request->date_to);
 
-            $bookings = $query->orderBy('appointment_date', 'desc')->orderBy('appointment_time', 'desc')->paginate(40)->appends($request->query());
+            $bookings = $query->orderBy('created_at', 'desc')->paginate(40)->appends($request->query());
 
             $this->loadAnimalsForBookings($bookings, true);
             $bookings->each(function($booking) use ($taufiqOnline) {

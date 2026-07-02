@@ -105,13 +105,13 @@
                     {{-- Vertical connecting line (base - always visible) --}}
                     <div class="absolute left-[18px] top-12 bottom-12 w-0.5 bg-gray-300"></div>
 
-                    {{-- Vertical connecting line (progress - animated) --}}
-                    <div class="absolute left-[18px] top-12 w-0.5 h-12 bg-green-500 scale-y-0 transition-transform duration-500 ease-out"
+                    {{-- Vertical connecting line (progress - animated via height) --}}
+                    <div class="absolute w-0.5 bg-green-500"
                          id="progress-line-1-{{ $booking->id }}"
-                         style="{{ $allStepsCompleted ? 'transform: scaleY(1);' : 'transform-origin: top;' }}"></div>
-                    <div class="absolute left-[18px] top-[6.5rem] w-0.5 h-12 bg-green-500 scale-y-0 transition-transform duration-500 ease-out"
+                         style="left:18px; top:26px; height:{{ $allStepsCompleted ? '64px' : '0' }}; transition: height 0.5s ease-out;"></div>
+                    <div class="absolute w-0.5 bg-green-500"
                          id="progress-line-2-{{ $booking->id }}"
-                         style="{{ $allStepsCompleted ? 'transform: scaleY(1);' : 'transform-origin: top;' }}"></div>
+                         style="left:18px; top:90px; height:{{ $allStepsCompleted ? '64px' : '0' }}; transition: height 0.5s ease-out;"></div>
 
                     {{-- Step 1: Details --}}
                     <div class="step-indicator relative flex items-center gap-3 py-2" data-step="1">

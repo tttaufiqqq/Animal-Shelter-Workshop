@@ -24,8 +24,8 @@
     ])->filter()->count();
 @endphp
 @include('components.user-guide-modal.modal-header')
-@include('components.user-guide-modal.content-nav')
-@include('components.user-guide-modal.section-admin-caretaker')
-@include('components.user-guide-modal.section-user-adopter')
-@include('components.user-guide-modal.section-adoption-footer')
+@include('components.user-guide-modal.content-nav', compact('showAdmin', 'showCaretaker', 'showPublicUser', 'showAdopter', 'showAdoptionProcess', 'visibleSections'))
+@include('components.user-guide-modal.section-admin-caretaker', compact('showAdmin', 'showCaretaker'))
+@include('components.user-guide-modal.section-user-adopter', compact('showPublicUser', 'showAdopter', 'showAdoptionProcess'))
+@include('components.user-guide-modal.section-adoption-footer', compact('showAdoptionProcess'))
 @include('components.user-guide-modal.scripts')

@@ -30,4 +30,4 @@
                         Browse Animals
                     </button>
                 </div>
-            @else
+            @endif

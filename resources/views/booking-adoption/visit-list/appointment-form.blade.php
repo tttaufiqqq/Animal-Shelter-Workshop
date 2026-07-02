@@ -103,7 +103,6 @@
                         </button>
                     </div>
                 </form>
-            @endif
-        </div>
-    </div>
-</div>
+        </div>{{-- closes overflow-y-auto div from modal-body-errors --}}
+    </div>{{-- closes visitModalContent --}}
+</div>{{-- closes visitModal --}}
