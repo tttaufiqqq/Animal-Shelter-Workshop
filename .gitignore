@@ -1,10 +1,13 @@
 *.log
 .DS_Store
 .env
+.env.testing
 /.nul
 **/nul
 .env.backup
 .env.production
+/database/testing.sqlite
+/handoff.md
 .phpactor.json
 .phpunit.result.cache
 /.fleet

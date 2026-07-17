@@ -3,7 +3,6 @@
 namespace Database\Factories;
 
 use Illuminate\Database\Eloquent\Factories\Factory;
-use App\Models\Animal;
 use App\Models\Report;
 
 class ImageFactory extends Factory
@@ -12,8 +11,13 @@ class ImageFactory extends Factory
     {
         return [
             'image_path' => $this->faker->imageUrl(640, 480, 'animals', true),
-            'animal_id' => Animal::factory(),
-            'report_id' => Report::factory(),
+            // Report lives on the same 'reporting' connection as Image, so
+            // nesting its factory is safe. animalID (animals) and clinicID
+            // (animals) are cross-connection logical FKs — left null; pass a
+            // real id via ->state(['animalID' => $animal->id]) when needed.
+            'reportID' => Report::factory(),
+            'animalID' => null,
+            'clinicID' => null,
         ];
     }
 }

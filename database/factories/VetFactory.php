@@ -15,7 +15,8 @@ class VetFactory extends Factory
             'contactNum' => $this->faker->phoneNumber(),
             'specialization' => $this->faker->word(),
             'license_no' => strtoupper($this->faker->bothify('LIC-####')),
-            'clinic_id' => Clinic::factory(),
+            // Clinic lives on the same 'animals' connection, safe to nest.
+            'clinicID' => Clinic::factory(),
         ];
     }
 }

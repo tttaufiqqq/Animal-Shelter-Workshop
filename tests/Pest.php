@@ -11,9 +11,17 @@
 |
 */
 
+// RefreshDatabase only refreshes the default connection, which this app
+// never queries directly (every model/migration pins its own connection —
+// see docs/db-architecture.md). UsesDistributedDatabases wraps all five
+// named connections in a transaction instead. Unit tests get no DB trait
+// at all, so pure-logic tests (matching algorithm, fee calc) stay fast.
 pest()->extend(Tests\TestCase::class)
-    ->use(Illuminate\Foundation\Testing\RefreshDatabase::class)
+    ->use(Tests\Concerns\UsesDistributedDatabases::class)
     ->in('Feature');
+
+pest()->extend(Tests\TestCase::class)
+    ->in('Unit');
 
 /*
 |--------------------------------------------------------------------------
