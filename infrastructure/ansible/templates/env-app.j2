@@ -55,9 +55,9 @@ CLOUDINARY_CLOUD_NAME={{ cloudinary_cloud_name | default('') }}
 CLOUDINARY_API_KEY={{ cloudinary_api_key | default('') }}
 CLOUDINARY_API_SECRET={{ cloudinary_api_secret | default('') }}
 
-# ToyyibPay — fill in after provisioning
-TOYYIBPAY_SECRET_KEY={{ toyyibpay_secret_key | default('') }}
-TOYYIBPAY_CATEGORY_CODE={{ toyyibpay_category_code | default('') }}
+# ToyyibPay — fill in after provisioning with the same sandbox key/category
+# used in local dev (config/toyyibpay.php reads TOYYIBPAY_KEY / TOYYIBPAY_CATEGORY;
+# this project has no live merchant account — dev and prod both stay on sandbox).
+TOYYIBPAY_KEY={{ toyyibpay_key | default('') }}
+TOYYIBPAY_CATEGORY={{ toyyibpay_category | default('') }}
 TOYYIBPAY_BASE_URL={{ toyyibpay_base_url | default('https://dev.toyyibpay.com') }}
-TOYYIBPAY_RETURN_URL={{ toyyibpay_return_url | default('') }}
-TOYYIBPAY_CALLBACK_URL={{ toyyibpay_callback_url | default('') }}

@@ -212,7 +212,7 @@ trait HandlesPayment
     private function getBillTransactions($billCode)
     {
         try {
-            $response = Http::withoutVerifying()->asForm()->post('https://dev.toyyibpay.com/index.php/api/getBillTransactions', [
+            $response = Http::withoutVerifying()->asForm()->post(config('toyyibpay.base_url') . '/index.php/api/getBillTransactions', [
                 'billCode' => $billCode,
                 'userSecretKey' => config('toyyibpay.key'),
             ]);
