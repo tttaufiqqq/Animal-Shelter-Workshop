@@ -222,14 +222,14 @@ trait ManagesBookings
                 'billContentEmail' => 'Thank you for adopting from our shelter!',
             ];
 
-            $baseUrl = config('toyyibpay.base_url');
-            $response = Http::withoutVerifying()->asForm()->post($baseUrl . '/index.php/api/createBill', $option);
+            $url = 'https://dev.toyyibpay.com/index.php/api/createBill';
+            $response = Http::withoutVerifying()->asForm()->post($url, $option);
             $data = $response->json();
 
             if (isset($data[0]['BillCode'])) {
                 $billCode = $data[0]['BillCode'];
                 session(['bill_code' => $billCode, 'reference_no' => $referenceNo]);
-                return redirect($baseUrl . '/' . $billCode);
+                return redirect('https://dev.toyyibpay.com/' . $billCode);
             }
 
             $booking->update(['status' => 'Confirmed']);
