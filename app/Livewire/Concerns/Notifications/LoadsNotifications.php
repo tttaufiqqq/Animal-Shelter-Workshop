@@ -68,7 +68,7 @@ trait LoadsNotifications
         }
 
         try {
-            $bookings = Booking::with(['user', 'animals'])
+            $bookings = Booking::with(['user', 'animalBookings'])
                 ->where('created_at', '>=', $since)
                 ->whereIn('status', ['Pending', 'Confirmed'])
                 ->orderBy('created_at', 'desc')

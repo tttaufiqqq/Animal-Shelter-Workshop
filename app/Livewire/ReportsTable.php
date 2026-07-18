@@ -31,8 +31,11 @@ class ReportsTable extends Component
 
     public function mount()
     {
-        // Initialize with URL parameters
-        $this->userSearch = request('user_search', '');
+        // Initialize with URL parameters (key must match $queryString's
+        // property name, 'userSearch' — not the unrelated 'user_search' key
+        // this used to read, which meant a shared ?userSearch=... URL never
+        // actually restored the search box)
+        $this->userSearch = request('userSearch', '');
         $this->status = request('status', '');
 
         // Get the latest report ID when component loads

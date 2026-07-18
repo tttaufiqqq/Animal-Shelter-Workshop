@@ -83,7 +83,12 @@ trait MapsNotificationTypes
 
         $animalCount = 0;
         try {
-            $animalCount = $booking->animals->count();
+            // Booking::animals() joins the 'booking'-connection animal_booking
+            // table against the 'animals'-connection animal table in one
+            // query - a real cross-server join MySQL/MariaDB can't do (same
+            // bug fixed in HandlesPayment::callback(), see handoff). Count
+            // via the same-connection animalBookings() pivot relation instead.
+            $animalCount = $booking->animalBookings->count();
         } catch (\Exception $e) {
             Log::warning('Failed to fetch animals for booking: ' . $e->getMessage());
         }

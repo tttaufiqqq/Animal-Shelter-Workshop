@@ -15,8 +15,13 @@ class UserReportsTracker extends Component
     public $statusChanges = [];
     public $hasStatusChanges = false;
 
-    // Store report statuses to detect changes
-    protected $reportStatuses = [];
+    // Store report statuses to detect changes. Must be public: Livewire only
+    // persists public properties across the hydrate/dehydrate cycle between
+    // requests (each poll is a fresh PHP object rehydrated from a snapshot),
+    // so a protected property here silently reset to [] on every poll after
+    // the initial mount and checkForStatusChanges() could never detect a
+    // real change.
+    public $reportStatuses = [];
 
     // Polling interval in milliseconds (15 seconds)
     protected $pollInterval = 15000;
