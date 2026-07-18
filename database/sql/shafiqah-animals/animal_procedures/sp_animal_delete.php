@@ -16,8 +16,8 @@ CREATE PROCEDURE sp_animal_delete(
 BEGIN
     DECLARE EXIT HANDLER FOR SQLEXCEPTION
     BEGIN
-        ROLLBACK;
         GET DIAGNOSTICS CONDITION 1 o_message = MESSAGE_TEXT;
+        ROLLBACK;
         SET o_status = 'error';
         SET o_animal_name = NULL;
         SET o_slot_id = NULL;

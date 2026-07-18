@@ -19,8 +19,8 @@ CREATE PROCEDURE sp_clinic_create(
 BEGIN
     DECLARE EXIT HANDLER FOR SQLEXCEPTION
     BEGIN
-        ROLLBACK;
         GET DIAGNOSTICS CONDITION 1 o_message = MESSAGE_TEXT;
+        ROLLBACK;
         SET o_status = 'error';
         SET o_clinic_id = NULL;
     END;

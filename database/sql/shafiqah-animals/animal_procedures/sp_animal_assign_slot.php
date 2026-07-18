@@ -16,8 +16,8 @@ CREATE PROCEDURE sp_animal_assign_slot(
 BEGIN
     DECLARE EXIT HANDLER FOR SQLEXCEPTION
     BEGIN
-        ROLLBACK;
         GET DIAGNOSTICS CONDITION 1 o_message = MESSAGE_TEXT;
+        ROLLBACK;
         SET o_status = 'error';
         SET o_previous_slot_id = NULL;
     END;

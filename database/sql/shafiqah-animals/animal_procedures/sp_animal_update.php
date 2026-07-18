@@ -21,8 +21,8 @@ CREATE PROCEDURE sp_animal_update(
 BEGIN
     DECLARE EXIT HANDLER FOR SQLEXCEPTION
     BEGIN
-        ROLLBACK;
         GET DIAGNOSTICS CONDITION 1 o_message = MESSAGE_TEXT;
+        ROLLBACK;
         SET o_status = 'error';
     END;
 
