@@ -24,7 +24,7 @@ trait ManagesVisitList
     {
         $user = Auth::user();
 
-        $animals = $this->safeQuery(function() use ($user) {
+        $animalList = $this->safeQuery(function() use ($user) {
             $visitList = VisitList::firstOrCreate(['userID' => $user->id]);
 
             $withRelations = [];
@@ -42,7 +42,10 @@ trait ManagesVisitList
             return $this->loadAnimalsForVisitList($visitList, $withRelations);
         }, collect([]), 'booking');
 
-        return view('booking-adoption.visit-list', compact('animals'));
+        // booking-adoption.visit-list expects $animalList — every other
+        // caller (ViewsAnimals::index/show) already passes it under that
+        // name; this route previously passed $animals and crashed on render.
+        return view('booking-adoption.visit-list', compact('animalList'));
     }
 
     public function addList($animalId)
