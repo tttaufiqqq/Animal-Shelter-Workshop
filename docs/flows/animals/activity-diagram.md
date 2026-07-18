@@ -152,5 +152,5 @@
   Note: only the FIRST 20 candidates (in default PK order, no ORDER BY) are
   ever scored — a genuinely better match beyond that window is never
   surfaced. This is a known, deliberately-unfixed limitation (see
-  docs/testing.md), not a bug in this diagram.
+  docs/08-testing.md), not a bug in this diagram.
 ```

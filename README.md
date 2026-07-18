@@ -20,7 +20,7 @@ a vaccination record, an admin needs to see whether adoption revenue is trending
 just wants to book a Saturday visit and pay online. This app does all five — and, because it started
 life as a five-person team project, each of those jobs also owns its **own database**, on its own
 engine, on its own machine (now a personal homelab, not five people's laptops — see
-[`docs/architecture-migration.md`](docs/architecture-migration.md#origin-from-a-five-person-team-project-to-a-solo-homelab-rebuild)
+[`docs/01-architecture-migration.md`](docs/01-architecture-migration.md#origin-from-a-five-person-team-project-to-a-solo-homelab-rebuild)
 for how that happened).
 
 That's the part that makes this more than a CRUD app: **five real databases across three engines**
@@ -29,8 +29,8 @@ over a private Tailscale mesh with no database port ever touching the public int
 `JOIN` that can span two of them — every cross-database relationship, every rollback, every
 "is the other database even reachable right now" check is something this codebase has to handle
 itself. The full topology, the reasoning behind it, and exactly how cross-database writes stay
-consistent are written up in [`docs/db-architecture.md`](docs/db-architecture.md),
-[`docs/foreign-keys.md`](docs/foreign-keys.md), and [`docs/cross-db-queries.md`](docs/cross-db-queries.md)
+consistent are written up in [`docs/03-db-architecture.md`](docs/03-db-architecture.md),
+[`docs/04-foreign-keys.md`](docs/04-foreign-keys.md), and [`docs/05-cross-db-queries.md`](docs/05-cross-db-queries.md)
 — this README sticks to the tour.
 
 Built as an academic project for BITU3923 Workshop II at Universiti Teknikal Malaysia Melaka
@@ -114,7 +114,7 @@ completely broken at one point, password reset silently never sent an email, and
 once trusted a client-supplied fee amount.
 
 The full breakdown — what's covered module by module, why each layer of testing exists, and the
-complete list of bugs the suite caught — is in [`docs/testing.md`](docs/testing.md).
+complete list of bugs the suite caught — is in [`docs/08-testing.md`](docs/08-testing.md).
 
 ---
 
@@ -146,17 +146,17 @@ alongside three other VMs. MariaDB idles under 100MB and still offers everything
 actually needs — stored procedures, triggers, real transactions — so the "three different engines"
 constraint stayed genuine rather than becoming an SQL-Server-everywhere shortcut. The full migration
 story (and why SSH tunnels were replaced with Tailscale along the way) is in
-[`docs/architecture-migration.md`](docs/architecture-migration.md).
+[`docs/01-architecture-migration.md`](docs/01-architecture-migration.md).
 
 For everything else about this architecture — the exact table ownership per connection, the
 cross-database query patterns the app relies on instead of `JOIN`, how referential integrity is
 enforced without real foreign keys, and the server hardening that keeps four independent machines
 surviving reboots unattended — see:
 
-- [`docs/db-architecture.md`](docs/db-architecture.md) — full topology, connection map, table ownership
-- [`docs/foreign-keys.md`](docs/foreign-keys.md) — native vs. logical foreign keys, where each is enforced
-- [`docs/cross-db-queries.md`](docs/cross-db-queries.md) — the query patterns that replace cross-DB `JOIN`
-- [`docs/hardening.md`](docs/hardening.md) — firewalls, systemd auto-start, defence-in-depth per machine
+- [`docs/03-db-architecture.md`](docs/03-db-architecture.md) — full topology, connection map, table ownership
+- [`docs/04-foreign-keys.md`](docs/04-foreign-keys.md) — native vs. logical foreign keys, where each is enforced
+- [`docs/05-cross-db-queries.md`](docs/05-cross-db-queries.md) — the query patterns that replace cross-DB `JOIN`
+- [`docs/02-hardening.md`](docs/02-hardening.md) — firewalls, systemd auto-start, defence-in-depth per machine
 - `CLAUDE.md` — live server IPs, admin credentials, and the pre-migration checklist for provisioning
   the `workshop_2` database/user on all three engines
 
@@ -166,7 +166,7 @@ surviving reboots unattended — see:
 
 The `infrastructure/` directory holds everything needed to provision all four VMs on a Proxmox
 homelab node — Terraform for the VMs themselves, Ansible for everything that runs on top of them
-(the three database engines, the app deployment, and the firewall rules from `docs/hardening.md`).
+(the three database engines, the app deployment, and the firewall rules from `docs/02-hardening.md`).
 
 ```
 infrastructure/
@@ -178,7 +178,7 @@ Provisioning is a two-step `terraform apply` then `ansible-playbook playbooks/si
 are a handful of one-time Proxmox prerequisites (a cloud-init template, an API token, a Tailscale
 auth key) that need to exist first. The complete walkthrough — including what to do if the VMs
 already exist and you just want to reconfigure them — lives in
-[`docs/terraform.md`](docs/terraform.md) and [`docs/ansible.md`](docs/ansible.md); this README
+[`docs/07-terraform.md`](docs/07-terraform.md) and [`docs/06-ansible.md`](docs/06-ansible.md); this README
 won't duplicate it.
 
 That Proxmox node is a shared personal homelab, not infrastructure dedicated to this project alone —
@@ -244,7 +244,7 @@ php artisan migrate                 # apply new migrations only
 # Development server (all services at once)
 composer dev
 
-# Tests — see docs/testing.md for what each layer actually proves
+# Tests — see docs/08-testing.md for what each layer actually proves
 composer test
 php artisan test --filter=TestName
 
@@ -267,9 +267,9 @@ php artisan test --filter=TestName
 | **Authorization**       | Spatie Laravel Permission                 |
 | **Payment Gateway**     | ToyyibPay Integration                     |
 | **Maps & Geolocation**  | Leaflet.js with clustering                |
-| **Testing**             | Pest PHP 4 + Playwright (real distributed DBs, not mocks — see [`docs/testing.md`](docs/testing.md)) |
+| **Testing**             | Pest PHP 4 + Playwright (real distributed DBs, not mocks — see [`docs/08-testing.md`](docs/08-testing.md)) |
 | **Code Quality**        | Laravel Pint (PHP CS Fixer)               |
-| **Infrastructure**      | Terraform + Ansible ([`docs/terraform.md`](docs/terraform.md), [`docs/ansible.md`](docs/ansible.md)) |
+| **Infrastructure**      | Terraform + Ansible ([`docs/07-terraform.md`](docs/07-terraform.md), [`docs/06-ansible.md`](docs/06-ansible.md)) |
 
 ---
 
@@ -279,7 +279,7 @@ php artisan test --filter=TestName
 Animal-Shelter-Workshop/
 ├── app/
 │   ├── Http/Controllers/         # AnimalManagement, BookingAdoption, StrayReporting, ShelterManagement...
-│   ├── Models/                   # every model declares an explicit $connection — see docs/db-architecture.md
+│   ├── Models/                   # every model declares an explicit $connection — see docs/03-db-architecture.md
 │   ├── Services/                 # DatabaseConnectionChecker and friends
 │   └── Livewire/                 # Dashboard, Notifications, ReportsTable, UserReportsTracker
 ├── database/
@@ -290,7 +290,7 @@ Animal-Shelter-Workshop/
 │   ├── testing.md                # what's tested and why
 │   ├── db-architecture.md        # the full distributed-DB picture
 │   └── ...                       # foreign-keys, cross-db-queries, hardening, terraform, ansible
-├── tests/                        # Unit, Feature, Procedures, Browser — see docs/testing.md
+├── tests/                        # Unit, Feature, Procedures, Browser — see docs/08-testing.md
 ├── routes/
 │   ├── web.php
 │   └── partials/                 # one route file per module
@@ -305,7 +305,7 @@ Animal-Shelter-Workshop/
 CSRF protection on every form, SQL injection prevention via Eloquent's parameter binding, XSS
 protection through Blade's automatic escaping, role-based access control, bcrypt password hashing,
 and a secure gateway integration for payments. None of the database ports are reachable from
-outside the Tailscale mesh in the first place — see [`docs/hardening.md`](docs/hardening.md) for
+outside the Tailscale mesh in the first place — see [`docs/02-hardening.md`](docs/02-hardening.md) for
 exactly how each of the four machines is locked down and kept running unattended.
 
 ---
@@ -316,11 +316,11 @@ exactly how each of the four machines is locked down and kept running unattended
    cross-database foreign key to lean on.
 2. **Graceful degradation that's actually tested, not just hoped for** — the app keeps serving
    readable pages when a database goes offline, and the test suite proves it (see
-   [`docs/testing.md`](docs/testing.md)).
+   [`docs/08-testing.md`](docs/08-testing.md)).
 3. **A payment flow that doesn't trust the client** — the adoption fee is always recomputed
    server-side, and the ToyyibPay gateway's own status is cross-checked, not just assumed.
 4. **343 tests against real infrastructure**, not a simplified local stand-in — see
-   [`docs/testing.md`](docs/testing.md) for the bugs that testing actually caught.
+   [`docs/08-testing.md`](docs/08-testing.md) for the bugs that testing actually caught.
 5. **Real infrastructure-as-code**, not a README describing steps someone did by hand once —
    Terraform + Ansible can rebuild all four machines from nothing.
 
@@ -349,7 +349,7 @@ This project is developed for academic purposes as part of BITU3923 Workshop II 
 ## 📞 Support
 
 For issues or questions about this project, please contact the development team, or start with
-[`docs/testing.md`](docs/testing.md) and [`docs/flows/`](docs/flows/) for how a given feature
+[`docs/08-testing.md`](docs/08-testing.md) and [`docs/flows/`](docs/flows/) for how a given feature
 actually behaves, and `CLAUDE.md` for infrastructure and developer conventions.
 
 ---

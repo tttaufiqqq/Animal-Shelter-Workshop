@@ -8,7 +8,7 @@ the comments in `tests/Concerns/*.php` and `tests/Pest.php` — this file is abo
 ## Why this suite exists
 
 The app writes to **5 real databases across 3 engines** (MariaDB, MySQL, PostgreSQL) over Tailscale —
-see `db-architecture.md`. Laravel's usual `RefreshDatabase` only refreshes one connection, so without
+see `03-db-architecture.md`. Laravel's usual `RefreshDatabase` only refreshes one connection, so without
 deliberate setup, tests either silently pass while hitting nothing, or actually write to production
 data. Every test in this suite runs against real `_test` copies of all 5 databases, wrapped in
 transactions that roll back (or, for stored-procedure routes that self-commit, explicit truncation).

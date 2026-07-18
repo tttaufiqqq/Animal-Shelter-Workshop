@@ -77,5 +77,5 @@ Notes on the real constraints these associations imply:
   doesn't exist.
 - "Delete Animal" always `<<include>>`s "Free Vacated Slot" when the animal held one, but does *not*
   check whether an adoption or active booking still references the animal first (a documented,
-  intentional gap — see `docs/testing.md`'s "orphan risk" note, not modeled as a use case here since
+  intentional gap — see `docs/08-testing.md`'s "orphan risk" note, not modeled as a use case here since
   nothing in the system currently enforces it).
