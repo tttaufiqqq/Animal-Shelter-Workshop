@@ -18,6 +18,7 @@
 // at all, so pure-logic tests (matching algorithm, fee calc) stay fast.
 pest()->extend(Tests\TestCase::class)
     ->use(Tests\Concerns\UsesDistributedDatabases::class)
+    ->use(Tests\Concerns\SeedsMinimalDomain::class)
     ->in('Feature');
 
 pest()->extend(Tests\TestCase::class)

@@ -6,7 +6,7 @@ use App\Http\Controllers\Admin\UserManagementController;
 use App\Http\Controllers\Admin\ShelterManagementController as AdminShelterManagementController;
 use Illuminate\Support\Facades\Route;
 
-Route::middleware(['auth'])->prefix('admin/audit')->name('admin.audit.')->group(function () {
+Route::middleware(['auth', 'role:admin'])->prefix('admin/audit')->name('admin.audit.')->group(function () {
     Route::get('/', [AuditController::class, 'index'])->name('index');
     Route::get('/all', [AuditController::class, 'all'])->name('all');
     Route::get('/authentication', [AuditController::class, 'authentication'])->name('authentication');
@@ -17,12 +17,12 @@ Route::middleware(['auth'])->prefix('admin/audit')->name('admin.audit.')->group(
     Route::get('/export/{category}', [AuditController::class, 'export'])->name('export');
 });
 
-Route::middleware(['auth'])->prefix('admin/caretaker')->name('admin.caretaker.')->group(function () {
+Route::middleware(['auth', 'role:admin'])->prefix('admin/caretaker')->name('admin.caretaker.')->group(function () {
     Route::get('/', [CaretakerController::class, 'index'])->name('index');
     Route::post('/store', [CaretakerController::class, 'store'])->name('store');
 });
 
-Route::middleware(['auth'])->prefix('admin/users')->name('admin.users.')->group(function () {
+Route::middleware(['auth', 'role:admin'])->prefix('admin/users')->name('admin.users.')->group(function () {
     Route::get('/{userId}/activity', [UserManagementController::class, 'getUserActivity'])->name('activity');
     Route::post('/{userId}/suspend', [UserManagementController::class, 'suspendUser'])->name('suspend');
     Route::post('/{userId}/lock', [UserManagementController::class, 'lockUser'])->name('lock');
@@ -30,7 +30,7 @@ Route::middleware(['auth'])->prefix('admin/users')->name('admin.users.')->group(
     Route::post('/{userId}/force-password-reset', [UserManagementController::class, 'forcePasswordReset'])->name('force-password-reset');
 });
 
-Route::middleware(['auth'])->prefix('admin/shelter-management')->name('admin.shelter-management.')->group(function () {
+Route::middleware(['auth', 'role:admin'])->prefix('admin/shelter-management')->name('admin.shelter-management.')->group(function () {
     Route::get('/', [AdminShelterManagementController::class, 'index'])->name('index');
 
     Route::post('/slots', [AdminShelterManagementController::class, 'storeSlot'])->name('store-slot');
