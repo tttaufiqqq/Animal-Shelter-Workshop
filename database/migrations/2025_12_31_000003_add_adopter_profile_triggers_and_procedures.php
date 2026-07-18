@@ -16,10 +16,11 @@ return new class extends Migration
             CREATE OR REPLACE FUNCTION validate_adopter_profile()
             RETURNS TRIGGER AS $$
             BEGIN
-                -- Validate housing_type
+                -- Validate housing_type (must match the dropdown in
+                -- resources/views/adopter-animal-matching/adopter-modal/modal-form.blade.php)
                 IF NEW.housing_type IS NOT NULL AND
-                   NEW.housing_type NOT IN ('condo', 'landed', 'apartment', 'house') THEN
-                    RAISE EXCEPTION 'Invalid housing_type: %. Must be one of: condo, landed, apartment, house', NEW.housing_type;
+                   NEW.housing_type NOT IN ('condo', 'landed', 'apartment', 'hdb') THEN
+                    RAISE EXCEPTION 'Invalid housing_type: %. Must be one of: condo, landed, apartment, hdb', NEW.housing_type;
                 END IF;
 
                 -- Validate activity_level
@@ -40,10 +41,11 @@ return new class extends Migration
                     RAISE EXCEPTION 'Invalid preferred_species: %. Must be one of: cat, dog, both', NEW.preferred_species;
                 END IF;
 
-                -- Validate preferred_size
+                -- Validate preferred_size (must match the dropdown in
+                -- resources/views/adopter-animal-matching/adopter-modal/modal-form.blade.php)
                 IF NEW.preferred_size IS NOT NULL AND
-                   NEW.preferred_size NOT IN ('small', 'medium', 'large') THEN
-                    RAISE EXCEPTION 'Invalid preferred_size: %. Must be one of: small, medium, large', NEW.preferred_size;
+                   NEW.preferred_size NOT IN ('small', 'medium', 'large', 'any') THEN
+                    RAISE EXCEPTION 'Invalid preferred_size: %. Must be one of: small, medium, large, any', NEW.preferred_size;
                 END IF;
 
                 RETURN NEW;

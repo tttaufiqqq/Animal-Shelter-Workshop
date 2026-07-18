@@ -13,7 +13,8 @@ class VaccinationFactory extends Factory
         return [
             'name' => $this->faker->word(),
             'type' => $this->faker->word(),
-            'next_due_date' => $this->faker->optional()->date(),
+            // A DB trigger rejects a next_due_date in the past — must stay future-dated.
+            'next_due_date' => $this->faker->optional()->dateTimeBetween('+1 day', '+1 year'),
             'remarks' => $this->faker->sentence(),
             'weight' => $this->faker->randomFloat(2, 1, 40),
             'costs' => $this->faker->randomFloat(2, 10, 200),
