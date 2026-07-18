@@ -7,7 +7,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules;
-use Spatie\Permission\Models\Role;
+use App\Models\Role;
 
 class CaretakerController extends Controller
 {
@@ -31,7 +31,7 @@ class CaretakerController extends Controller
         // Validate the request using a named error bag
         $validator = \Illuminate\Support\Facades\Validator::make($request->all(), [
             'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'string', 'email', 'max:255', 'unique:users'],
+            'email' => ['required', 'string', 'email', 'max:255', 'unique:users.users'],
             'phoneNum' => ['required', 'string', 'max:20'],
             'address' => ['required', 'string', 'max:255'],
             'city' => ['required', 'string', 'max:100'],

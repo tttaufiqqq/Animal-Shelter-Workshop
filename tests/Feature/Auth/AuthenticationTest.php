@@ -17,7 +17,9 @@ test('users can authenticate using the login screen', function () {
     ]);
 
     $this->assertAuthenticated();
-    $response->assertRedirect(route('dashboard', absolute: false));
+    // Non-admin users land on welcome, never /dashboard (role:admin-only) -
+    // see AuthenticatedSessionController::store()'s role-based redirect.
+    $response->assertRedirect(route('welcome', absolute: false));
 });
 
 test('users can not authenticate with invalid password', function () {

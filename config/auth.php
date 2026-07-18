@@ -93,6 +93,11 @@ return [
     'passwords' => [
         'users' => [
             'provider' => 'users',
+            // password_reset_tokens lives on 'users' (Postgres), same as the
+            // users table itself — without this, DatabaseTokenRepository
+            // falls back to the default (sqlite in testing) connection,
+            // which doesn't have the table at all.
+            'connection' => 'users',
             'table' => env('AUTH_PASSWORD_RESET_TOKEN_TABLE', 'password_reset_tokens'),
             'expire' => 60,
             'throttle' => 60,

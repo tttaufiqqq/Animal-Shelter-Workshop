@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules;
 use Illuminate\View\View;
-use Spatie\Permission\Models\Role;
+use App\Models\Role;
 use App\Services\UserProcedureService;
 
 class RegisteredUserController extends Controller
@@ -40,7 +40,7 @@ class RegisteredUserController extends Controller
     {
         $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'string', 'email', 'max:255', 'unique:users'],
+            'email' => ['required', 'string', 'email', 'max:255', 'unique:users.users'],
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
             'city' => ['required', 'string', 'max:100'],
             'state' => ['required', 'string', 'max:100'],
