@@ -35,14 +35,19 @@ return new class extends Migration
                     v_new_values := NULL;
                 END IF;
 
-                -- Insert audit log
+                -- Insert audit log. user_id references the *acted-upon* row here,
+                -- not an actor — on DELETE that row no longer exists, so
+                -- referencing OLD.id would violate audit_logs_user_id_foreign
+                -- (the FK's ON DELETE SET NULL only cleans up existing rows, it
+                -- can't satisfy a fresh INSERT). entity_id still identifies
+                -- which user was deleted; user_id is NULL in that case only.
                 INSERT INTO audit_logs (
                     user_id, user_name, user_email,
                     category, action, entity_type, entity_id,
                     source_database, performed_at,
                     old_values, new_values, status
                 ) VALUES (
-                    COALESCE(NEW.id, OLD.id),
+                    CASE WHEN TG_OP = 'DELETE' THEN NULL ELSE NEW.id END,
                     COALESCE(NEW.name, OLD.name),
                     COALESCE(NEW.email, OLD.email),
                     'user_management', v_action, 'User', COALESCE(NEW.id, OLD.id),
