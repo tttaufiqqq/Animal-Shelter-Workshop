@@ -18,8 +18,16 @@ class PreventDatabaseTimeout
      */
     public function handle(Request $request, Closure $next): Response
     {
-        // Set per-request timeout
-        @set_time_limit(60);
+        // Set per-request timeout. Skipped in tests: Pest's browser driver
+        // dispatches every simulated page load through this same middleware
+        // in one long-lived PHP process (never a fresh process per request
+        // like real HTTP), and on Windows set_time_limit() is enforced even
+        // under the CLI SAPI - so this reset was killing the whole browser
+        // test process 60s after its last request, mid-assertion, regardless
+        // of how fast the app itself actually responded.
+        if (!app()->runningUnitTests()) {
+            @set_time_limit(60);
+        }
 
         // Check if this is a login request
         if ($request->is('login') && $request->isMethod('POST')) {

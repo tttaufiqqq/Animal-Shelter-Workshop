@@ -35,6 +35,25 @@ pest()->extend(Tests\TestCase::class)
 pest()->extend(Tests\TestCase::class)
     ->in('Procedures');
 
+// Pest 4 browser tests (Playwright-backed). visit() dispatches through the
+// same booted app's HttpKernel in-process (Pest\Browser\Drivers\LaravelHttpServer),
+// so it shares this process's .env.testing connections/transactions exactly
+// like Feature tests do - never a separate `php artisan serve` with its own env.
+pest()->extend(Tests\TestCase::class)
+    ->use(Tests\Concerns\UsesDistributedDatabases::class)
+    ->use(Tests\Concerns\SeedsMinimalDomain::class)
+    ->in('Browser');
+
+// The plan's own CI caveat, confirmed locally: every page loads 4 real external
+// CDNs (Tailwind, Font Awesome, Chart.js, etc.) and every request round-trips
+// to real Tailscale-hosted databases, and Playwright's default action timeout
+// (5s) isn't reliably enough - observed intermittent timeouts around 5-20s
+// that are pure network/CDN variance, not app or test bugs (same action
+// passes in ~2-4s most runs). Bumped generously for the whole Browser suite.
+if (class_exists(\Pest\Browser\Playwright\Playwright::class)) {
+    \Pest\Browser\Playwright\Playwright::setTimeout(30_000);
+}
+
 /*
 |--------------------------------------------------------------------------
 | Expectations

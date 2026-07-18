@@ -18,7 +18,11 @@ trait ManagesClinicsVets
 
     public function storeClinic(Request $request)
     {
-        set_time_limit(60);
+        // Skipped in tests - see PreventDatabaseTimeout for why an unconditional
+        // set_time_limit() breaks the long-lived test process on Windows.
+        if (!app()->runningUnitTests()) {
+            set_time_limit(60);
+        }
 
         try {
             $validated = $request->validate([
@@ -105,7 +109,9 @@ trait ManagesClinicsVets
 
     public function storeVet(Request $request)
     {
-        set_time_limit(60);
+        if (!app()->runningUnitTests()) {
+            set_time_limit(60);
+        }
         \Log::info('storeVet: Controller method reached', ['request_data' => $request->except(['_token']), 'session_id' => session()->getId()]);
 
         try {

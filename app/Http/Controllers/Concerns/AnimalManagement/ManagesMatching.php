@@ -17,7 +17,11 @@ trait ManagesMatching
     public function getMatches()
     {
         try {
-            set_time_limit(25);
+            // Skipped in tests - see PreventDatabaseTimeout for why an unconditional
+            // set_time_limit() breaks the long-lived test process on Windows.
+            if (!app()->runningUnitTests()) {
+                set_time_limit(25);
+            }
             $user = Auth::user();
             Log::info('Starting match calculation', ['user_id' => $user->id]);
 
@@ -107,7 +111,9 @@ trait ManagesMatching
 
     public function storeOrUpdate(Request $request, $animalId)
     {
-        set_time_limit(60);
+        if (!app()->runningUnitTests()) {
+            set_time_limit(60);
+        }
 
         try {
             $validated = $request->validate([
