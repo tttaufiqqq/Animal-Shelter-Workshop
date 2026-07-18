@@ -49,10 +49,11 @@ trait ManagesAnimals
         DB::connection('reporting')->beginTransaction();
 
         try {
-            $age = ucfirst($validated['age_category']);
+            $age = ucfirst($validated['age_category'] ?? '');
+            $slotId = $validated['slotID'] ?? null;
 
-            if ($validated['slotID']) {
-                $slot = Slot::find($validated['slotID']);
+            if ($slotId) {
+                $slot = Slot::find($slotId);
                 if (!$slot || $slot->status !== 'available') {
                     return back()->withInput()->withErrors(['slotID' => 'Selected slot is not available.']);
                 }
@@ -67,7 +68,7 @@ trait ManagesAnimals
                 'gender' => $validated['gender'],
                 'adoption_status' => 'Not Adopted',
                 'rescueID' => $validated['rescueID'],
-                'slotID' => $validated['slotID'],
+                'slotID' => $slotId,
             ]);
 
             if (!$result['success']) {

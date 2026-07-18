@@ -23,6 +23,8 @@ trait ManagesConnectionCache
                 // Not critical
             }
 
+            $this->forgetCircuitBreaker($connection);
+
             \Log::info("Cleared cache for database connection: {$connection}");
         } else {
             try {
@@ -51,9 +53,20 @@ trait ManagesConnectionCache
                 } catch (\Exception $e) {
                     // Not critical
                 }
+
+                $this->forgetCircuitBreaker($conn);
             }
 
             \Log::info("Cleared all database connection caches");
+        }
+    }
+
+    private function forgetCircuitBreaker(string $connection): void
+    {
+        try {
+            Cache::store('file')->forget("db_circuit_breaker_{$connection}");
+        } catch (\Exception $e) {
+            // Not critical
         }
     }
 }
