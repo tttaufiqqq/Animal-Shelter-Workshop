@@ -17,9 +17,13 @@ afterEach(function () {
 
 function callAssignCaretaker(int $reportId, int $caretakerId): object
 {
+    // 6 IN params, matching the live procedure (report_id, caretaker_id, priority,
+    // user_id, user_name, user_email) — see migration
+    // 2026_01_13_000001_update_rescue_assign_caretaker_with_priority.php, which
+    // supersedes the 5-param version this test originally called.
     DB::connection('reporting')->statement(
-        'CALL sp_rescue_assign_caretaker(?, ?, ?, ?, ?, @o_rescue_id, @o_is_reassignment, @o_old_caretaker_id, @o_status, @o_message)',
-        [$reportId, $caretakerId, null, null, null]
+        'CALL sp_rescue_assign_caretaker(?, ?, ?, ?, ?, ?, @o_rescue_id, @o_is_reassignment, @o_old_caretaker_id, @o_status, @o_message)',
+        [$reportId, $caretakerId, null, null, null, null]
     );
 
     return DB::connection('reporting')->selectOne(
