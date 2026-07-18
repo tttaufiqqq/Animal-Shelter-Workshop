@@ -43,7 +43,12 @@ it('creates an animal per entry and completes the rescue and report', function (
     expect($rescue->fresh()->status)->toBe(Rescue::STATUS_SUCCESS)
         ->and($report->fresh()->report_status)->toBe(Report::STATUS_COMPLETED);
 
-    $created = Animal::whereIn('name', ['Rex', 'Bella'])->get();
+    // Scoped by rescueID, not by name: AnimalCrudTest.php also hardcodes an
+    // animal named 'Rex', created via the self-committing sp_animal_create
+    // procedure (see docs/testing.md's note on procedure self-commit leaks) -
+    // that row isn't rolled back by this test's own transaction and can still
+    // be sitting in the table if that file ran earlier in the same suite.
+    $created = Animal::where('rescueID', $rescue->id)->get();
     expect($created)->toHaveCount(2);
 });
 
