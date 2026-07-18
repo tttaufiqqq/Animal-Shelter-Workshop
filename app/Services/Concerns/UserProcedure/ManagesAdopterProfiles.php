@@ -2,6 +2,7 @@
 
 namespace App\Services\Concerns\UserProcedure;
 
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 trait ManagesAdopterProfiles
@@ -26,9 +27,17 @@ trait ManagesAdopterProfiles
         ]);
 
         $row = $result[0] ?? null;
+        $success = $row && $row->o_status === 'success';
+
+        if ($success) {
+            // ManagesMatching::getMatches() caches scored matches for 300s under
+            // this key; without invalidating it here, an edited profile appears
+            // to have no effect on matches for up to 5 minutes.
+            Cache::forget("animal_matches_user_{$adopterId}");
+        }
 
         return [
-            'success' => $row && $row->o_status === 'success',
+            'success' => $success,
             'profile_id' => $row->o_profile_id ?? null,
             'message' => $row->o_message ?? 'Failed to save adopter profile',
         ];
