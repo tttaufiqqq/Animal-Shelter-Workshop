@@ -24,6 +24,17 @@ pest()->extend(Tests\TestCase::class)
 pest()->extend(Tests\TestCase::class)
     ->in('Unit');
 
+// A sibling of Feature/Unit, not tests/Feature/Procedures: Pest's uses()->in()
+// bindings are additive by directory prefix (Pest\Repositories\TestRepository::make()
+// applies every registered path that prefixes a file, it doesn't let a more
+// specific path override a broader one). Nesting under Feature would apply
+// UsesDistributedDatabases' DatabaseTransactions *in addition to* the manual
+// truncation these tests need, not instead of it. Stored procedures issue their
+// own START TRANSACTION/COMMIT (see TruncatesDistributedDatabases), so this
+// suite gets no DB trait here — each test file opts in via uses() explicitly.
+pest()->extend(Tests\TestCase::class)
+    ->in('Procedures');
+
 /*
 |--------------------------------------------------------------------------
 | Expectations
