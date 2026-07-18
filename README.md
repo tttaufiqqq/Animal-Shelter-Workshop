@@ -1,4 +1,4 @@
-﻿<p align="center">
+<p align="center">
   <img src="docs/images/utem-logo.png" alt="University Logo" width="200"/>
 </p>
 
@@ -11,604 +11,310 @@
 
 ---
 
-## 📖 Overview
+## 📖 What this project actually is
 
-The **Animal Rescue & Adoption Management System** is a comprehensive web-based platform designed to streamline animal rescue operations, medical records management, shelter inventory tracking, and adoption processes. This project showcases a **distributed database architecture** with 5 separate databases across different database engines (PostgreSQL, MySQL, and MariaDB), demonstrating advanced database integration and cross-database relationship management.
+Picture a shelter that needs five different jobs done at once: someone has to log a stray
+sighting off a phone in a car park, a caretaker needs to check a rescue in, a vet needs to attach
+a vaccination record, an admin needs to see whether adoption revenue is trending up, and an adopter
+just wants to book a Saturday visit and pay online. This app does all five — and, because it started
+life as a five-person team project, each of those jobs also owns its **own database**, on its own
+engine, on its own machine.
 
-The system provides role-based access control for administrators, caretakers, and general users, ensuring efficient animal welfare tracking, rescue coordination, and adoption services. Built as an academic project for BITU3923 Workshop II at Universiti Teknikal Malaysia Melaka (UTeM), it demonstrates enterprise-level software architecture and distributed systems design.
+That's the part that makes this more than a CRUD app: **five real databases across three engines**
+(PostgreSQL, MySQL, MariaDB), talking to each other only through the application layer, connected
+over a private Tailscale mesh with no database port ever touching the public internet. There's no
+`JOIN` that can span two of them — every cross-database relationship, every rollback, every
+"is the other database even reachable right now" check is something this codebase has to handle
+itself. The full topology, the reasoning behind it, and exactly how cross-database writes stay
+consistent are written up in [`docs/db-architecture.md`](docs/db-architecture.md),
+[`docs/foreign-keys.md`](docs/foreign-keys.md), and [`docs/cross-db-queries.md`](docs/cross-db-queries.md)
+— this README sticks to the tour.
+
+Built as an academic project for BITU3923 Workshop II at Universiti Teknikal Malaysia Melaka
+(UTeM), the goal was to demonstrate enterprise-shaped distributed-systems problems on a five-person
+homelab budget, not to shortcut them with a single convenient database.
 
 ---
 
-## 🚀 Features
+## 🚀 A tour of the five modules
 
-### 👥 User Management (PostgreSQL)
+Each module below owns one database connection and one corner of the shelter's actual workflow.
+For the full page-by-page journey through any of them — every route, every redirect, every branch
+in the logic — see its dedicated flow doc under [`docs/flows/`](docs/flows/), which also includes
+an activity diagram and a use-case diagram.
 
-- Secure user authentication and registration with Laravel Breeze
-- Role-based access control using Spatie Laravel Permission (Admin, Caretaker, User)
-- User profile management with editable information
-- Adopter profiles with matching preferences for animal adoption
-- Password reset and email verification
+### 👥 User Management — PostgreSQL
 
-### 🐶 Stray Reporting & Rescue Management (MySQL)
+Everyone starts here: registration, login, password resets, and the role a user carries
+(Admin, Caretaker, or ordinary User) through Spatie's permission package. Adopters also keep a
+matching profile — housing type, energy tolerance, whether there are kids at home — that feeds
+straight into the adoption-matching algorithm in the Animals module. Admins can suspend or lock an
+account, force a password reset, and audit every sensitive action from a dashboard.
+→ [`docs/flows/auth/flow.md`](docs/flows/auth/flow.md) ·
+[`docs/flows/users-admin/flow.md`](docs/flows/users-admin/flow.md)
 
-- Submit public stray animal reports with detailed information
-- Geolocation tracking using latitude and longitude coordinates
-- Interactive rescue map with clustering visualization
-- Assign caretakers to rescue cases for field operations
-- Image gallery for rescue documentation
-- Report status tracking (Pending, In Progress, Completed)
+### 🐶 Stray Reporting & Rescue Management — MariaDB
 
-### 🏥 Animal & Medical Management (MySQL)
+The public-facing entry point: anyone can drop a pin on a map and submit a stray sighting with
+photos, no account required. From there it's a handoff chain — a report becomes a rescue once a
+caretaker is assigned, the caretaker moves it through In Progress/Success/Failed, and completing a
+rescue creates the actual animal record(s) that then belong to the Animals module.
+→ [`docs/flows/reporting/flow.md`](docs/flows/reporting/flow.md)
 
-- Comprehensive animal database with species, breed, age, and health status
-- Medical records tracking with treatment history
-- Vaccination management with due date tracking
-- Clinic and veterinarian assignment
-- Animal profile system for adoption matching
-- Link animals to rescue operations and shelter slots
-- Image management for animal photos
+### 🏥 Animal & Medical Management — MySQL
 
-### 🏢 Shelter Management (MySQL)
+The system of record for every animal: species, breed, medical history, vaccination schedule,
+which clinic and vet looked after them, and which shelter slot they occupy. This is also where the
+adoption-matching algorithm lives — scoring every available animal against an adopter's stated
+preferences (species, energy level, housing, size, kids-and-other-pets compatibility) and caching
+the result.
+→ [`docs/flows/animals/flow.md`](docs/flows/animals/flow.md)
 
-- Slot allocation system for animal housing
-- Section-based shelter organization (e.g., Dog Section, Cat Section)
-- Inventory management for food, medicine, and supplies
-- Category-based inventory tracking
-- Slot capacity and occupancy monitoring
-- Automatic slot assignment to rescued animals
+### 🏢 Shelter Management — MySQL
 
-### 📅 Booking & Adoption Management (MariaDB)
+The physical side of the operation: sections, the individual slots animals actually occupy, and
+the inventory of food, medicine, and supplies that keeps the place running. A slot's status isn't
+something staff sets by hand day-to-day — it recomputes automatically from how many animals are
+currently assigned to it versus its capacity.
+→ [`docs/flows/shelter/flow.md`](docs/flows/shelter/flow.md)
 
-- Appointment booking system for shelter visits
-- Visit list feature allowing users to save animals they want to visit
-- Multiple animal booking in a single appointment
-- ToyyibPay payment integration for adoption fees
-- Transaction records and payment tracking
-- Adoption history and status management
-- Booking conflict prevention (prevents double-booking of animals)
-- Email notifications for booking confirmations
+### 📅 Booking & Adoption Management — MariaDB
 
-### 📊 Admin Dashboard
+Where the story ends, happily: an adopter builds a visit list, books an appointment, walks through
+a 3-step confirmation modal with a live fee breakdown, and pays through ToyyibPay. The payment
+callback has to survive duplicate webhook deliveries, browser-back races, and a gateway that might
+disagree with what the browser is claiming — and if any step of "mark the booking complete, adopt
+the animal, free up the slot, record the transaction" fails partway through, all of it rolls back
+together rather than leaving an animal adopted with no payment on file.
+→ [`docs/flows/booking-adoption/flow.md`](docs/flows/booking-adoption/flow.md)
 
-- Real-time overview of rescue reports, adoptions, and revenue
-- Visualization of animal statistics and system metrics
-- Chart-based analytics for decision making
-- Database connection status monitoring with smart caching
-- Cross-database data aggregation and reporting
+### 📊 Admin Dashboard & Notifications
 
-### 🔄 Distributed Database Features
-
-- **5 separate databases** across 3 different database engines
-- **Cross-database relationships** managed at the application layer
-- **Foreign key validation** in application code (no database constraints across databases)
-- **Smart connection status caching** with adaptive cache duration (30 min when healthy, 60 sec when degraded)
-- **Offline mode handling** with graceful degradation when databases are unavailable
-- **Transaction management** across multiple database connections
-- **Custom migration commands** (`db:fresh-all`) for distributed database refresh
-
-### ERD
+Sitting across all of the above: a Livewire-powered dashboard with booking trends, revenue by
+species, and audit summaries, plus a notification bell that merges bookings, rescues, transactions,
+and adoptions into one feed. Both are built to degrade gracefully — if one of the five databases is
+unreachable, the dashboard shows a warning banner and zeroed metrics for that slice instead of a
+500 page.
+→ [`docs/flows/dashboard-notifications/flow.md`](docs/flows/dashboard-notifications/flow.md)
 
 <p align="center"> <img src="docs/images/erd.png" alt="ERD Diagram" width="700"/> </p>
 
 ---
 
-# 🗄️ Distributed Database Architecture
+## 🧪 It's actually tested — thoroughly
 
-## Overview
+This isn't a demo dressed up as a distributed system. There are **343 tests across 68 files**,
+every one of them running against real copies of all five databases (not mocks, not SQLite
+standing in) — because a distributed-DB bug almost never shows up until a query actually crosses a
+connection boundary. Building that suite surfaced real, previously-unknown bugs: registration was
+completely broken at one point, password reset silently never sent an email, and a payment flow
+once trusted a client-supplied fee amount.
 
-This project implements a **distributed database architecture** with 5 separate databases, each hosted on different database engines and ports. This architecture demonstrates real-world scenarios where organizations integrate multiple legacy systems or distribute data across different database technologies for scalability, performance, or organizational reasons.
+The full breakdown — what's covered module by module, why each layer of testing exists, and the
+complete list of bugs the suite caught — is in [`docs/testing.md`](docs/testing.md).
 
-**Key Challenge**: Cross-database relationships cannot use traditional foreign key constraints. All referential integrity is enforced at the **application layer** using Laravel's Eloquent ORM.
+---
+
+## 🗄️ Distributed Database Architecture
 
 <p align="center">
   <img src="docs/images/database-architecture.jpeg" alt="Distributed Database Architecture — Tailscale VPN mesh connecting app-server to 4 database VMs" width="900"/>
 </p>
 
-The diagram above shows the full network topology. All five database connections run over a **Tailscale WireGuard mesh** — no database port is ever exposed to the public internet or local LAN. Each VM enforces UFW rules that accept database traffic only from the app-server's Tailscale IP (`100.100.123.90`):
+Five Laravel connections, three engines, four physical machines, one rule that shapes everything
+else: **no foreign key can cross a connection**. A MariaDB server has no way to verify that an
+`animalID` column points at a real row in a MySQL table on a different machine, so every
+cross-database reference is validated in application code instead of by the database engine. All
+five connections run over a Tailscale WireGuard mesh — no database port is ever exposed to the
+public internet, and each VM's firewall accepts DB traffic only from the app-server's Tailscale IP.
 
-| Module | Database VM | Engine | Firewall rule |
-|--------|-------------|--------|---------------|
-| Stray Animal Management | `msi-laptop` (100.68.235.121) | MySQL | `:3306 → 100.100.123.90 only` |
-| Booking & Adoption | `linux-mariadb` (100.78.124.25) | MariaDB | `:3306 → 100.100.123.90 only` |
-| Shelter Management | `msi-laptop` (100.68.235.121) | MySQL | `:3306 → 100.100.123.90 only` |
-| User Management | `linux-postgres` (100.113.234.24) | PostgreSQL | `:5432 → 100.100.123.90 only` |
-| Stray Animal Reporting | `linux-mariadb` (100.78.124.25) | MariaDB | `:3306 → 100.100.123.90 only` |
+| Connection | Module | Engine | Key tables |
+|---|---|---|---|
+| `users` | User Management | PostgreSQL 16 | users, roles, adopter_profiles, audit_log |
+| `reporting` | Stray Reporting | MariaDB 10.11 | reports, rescues, images |
+| `animals` | Animal & Medical | MySQL 9.5 | animals, medical_records, vaccinations, clinics, vets |
+| `shelter` | Shelter Management | MySQL 9.5 | slots, sections, inventory, categories |
+| `booking` | Booking & Adoption | MariaDB 10.11 | bookings, adoptions, transactions, visit_lists |
 
-The app-server itself only opens ports 80 and 443 to the public internet. SSH is restricted to the admin machine (`100.68.235.121`) via the Tailscale interface.
+**Why MariaDB for Booking & Adoption, of all engines?** It wasn't the first choice — the module was
+originally designed for SQL Server. It moved to MariaDB 10.11 because the whole stack runs on a
+homelab Proxmox cluster with limited RAM, and SQL Server's ~1GB idle footprint was too much to ask
+alongside three other VMs. MariaDB idles under 100MB and still offers everything the booking module
+actually needs — stored procedures, triggers, real transactions — so the "three different engines"
+constraint stayed genuine rather than becoming an SQL-Server-everywhere shortcut. The full migration
+story (and why SSH tunnels were replaced with Tailscale along the way) is in
+[`docs/architecture-migration.md`](docs/architecture-migration.md).
 
-### Why MariaDB for Booking & Adoption
+For everything else about this architecture — the exact table ownership per connection, the
+cross-database query patterns the app relies on instead of `JOIN`, how referential integrity is
+enforced without real foreign keys, and the server hardening that keeps four independent machines
+surviving reboots unattended — see:
 
-The booking module was originally designed for SQL Server. It was migrated to **MariaDB 10.11** because the project runs on a homelab Proxmox cluster with limited RAM. SQL Server's minimum footprint (~1 GB idle) is prohibitive when sharing hardware with three other VMs. MariaDB idles at under 100 MB and provides the same procedural SQL features (stored procedures, triggers, transactions) the booking module relies on.
-
-The **heterogeneous distributed database** concept is preserved: three different database engines (MariaDB, MySQL, PostgreSQL) across four separate machines, each accessed through a named Laravel connection.
-
-## Database Connections
-
-All servers communicate over a **Tailscale VPN mesh** — no database port is exposed on the public network or local LAN. DNS hostnames under `taufiq.lab` are available on any device connected to the tailnet (resolved via dnsmasq on Proxmox `100.97.8.93` using Tailscale Split DNS).
-
-| Connection Name | Database Engine | Server (Tailscale IP) | DNS Hostname | Module/Domain | Key Tables |
-|----------------|-----------------|----------------------|--------------|---------------|------------|
-| **reporting** | MariaDB 10.11 | workshop-2 (100.78.124.25) | linux-mariadb.taufiq.lab | Stray Reporting | reports, rescues, images |
-| **booking** | MariaDB 10.11 | workshop-2 (100.78.124.25) | linux-mariadb.taufiq.lab | Booking & Adoption | bookings, adoptions, transactions, visit_lists, animal_booking |
-| **shelter** | MySQL 9.5 | msi (100.68.235.121) | — (direct IP only) | Shelter Management | slots, sections, inventory, categories |
-| **animals** | MySQL 9.5 | msi (100.68.235.121) | — (direct IP only) | Animal Management | animals, medical_records, vaccinations, clinics, vets, animal_profiles |
-| **users** | PostgreSQL 16 | workshop-postgres (100.113.234.24) | linux-postgres.taufiq.lab | User Management | users, roles, permissions, adopter_profiles, audit_log |
-
-## Database Admin Credentials
-
-These are the superuser / root credentials for direct database administration (DBeaver, migrations, password resets). They are **not** used by the Laravel application — the app uses the `workshop_2` application user.
-
-| Server | Engine | Tailscale IP | DNS Hostname | Admin User | Admin Password |
-|--------|--------|-------------|--------------|------------|----------------|
-| workshop-2 | MariaDB 10.11 | 100.78.124.25 | linux-mariadb.taufiq.lab | `root` | `qwertY@1612` |
-| msi (local) | MySQL 9.5 | 100.68.235.121 | — | `root` | `password` |
-| workshop-mysql | MySQL 8.0 | 100.115.237.93 | linux-mysql.taufiq.lab | `root` | `qwertY@1612` |
-| workshop-postgres | PostgreSQL 16 | 100.113.234.24 | linux-postgres.taufiq.lab | `postgres` | `qwertY@1612` |
-
-> All root/superuser passwords follow the `qwertY@1612` convention except msi (local MySQL) which uses `password` for historical reasons.
-
-## Application User Credentials
-
-The Laravel application connects using a dedicated `workshop_2` user on all three DB engines. Same credentials across all servers:
-
-| Field | Value |
-|-------|-------|
-| Username | `workshop_2` |
-| Password | `workshop_2` |
-| Database | `workshop_2` |
-
-## Cross-Database Relationship Pattern
-
-Since foreign key constraints cannot exist across databases, the project uses a special Eloquent pattern:
-
-```php
-// Example: Animal model (shafiqah) accessing Rescue (eilya)
-public function rescue()
-{
-    return $this->setConnection('reporting')
-        ->belongsTo(Rescue::class, 'rescueID', 'id');
-}
-
-// Example: Booking (danish) accessing Animal (shafiqah)
-public function animals()
-{
-    return $this->belongsToMany(
-        Animal::class,
-        'animal_booking',
-        'bookingID',
-        'animalID'
-    )->using(AnimalBooking::class);
-}
-```
-
-## Developer Guidelines
-
-### 1. Always Specify Database Connection
-
-Each Eloquent model explicitly declares its connection:
-
-```php
-class Animal extends Model
-{
-    protected $connection = 'animals';
-}
-```
-
-### 2. Validate Foreign Keys at Application Layer
-
-Before creating records with cross-database foreign keys, always validate:
-
-```php
-// Check if rescue exists before creating animal
-$rescue = Rescue::find($rescueId);
-if (!$rescue) {
-    throw new Exception('Invalid rescue ID');
-}
-```
-
-### 3. Use Transactions Per Database
-
-When modifying multiple databases, use separate transactions:
-
-```php
-DB::connection('animals')->beginTransaction();
-DB::connection('reporting')->beginTransaction();
-
-try {
-    Animal::create([...]); // shafiqah
-    Image::create([...]);  // eilya
-
-    DB::connection('animals')->commit();
-    DB::connection('reporting')->commit();
-} catch (\Exception $e) {
-    DB::connection('animals')->rollBack();
-    DB::connection('reporting')->rollBack();
-}
-```
-
-### 4. Test Cross-Database Queries
-
-Always test queries that span multiple databases with proper error handling.
+- [`docs/db-architecture.md`](docs/db-architecture.md) — full topology, connection map, table ownership
+- [`docs/foreign-keys.md`](docs/foreign-keys.md) — native vs. logical foreign keys, where each is enforced
+- [`docs/cross-db-queries.md`](docs/cross-db-queries.md) — the query patterns that replace cross-DB `JOIN`
+- [`docs/hardening.md`](docs/hardening.md) — firewalls, systemd auto-start, defence-in-depth per machine
+- `CLAUDE.md` — live server IPs, admin credentials, and the pre-migration checklist for provisioning
+  the `workshop_2` database/user on all three engines
 
 ---
 
-## 🧩 System Architecture
+## 🏗️ Standing up the infrastructure from scratch
+
+The `infrastructure/` directory holds everything needed to provision all four VMs on a Proxmox
+homelab node — Terraform for the VMs themselves, Ansible for everything that runs on top of them
+(the three database engines, the app deployment, and the firewall rules from `docs/hardening.md`).
+
+```
+infrastructure/
+├── terraform/    # Proxmox VM provisioning (4 VMs via cloud-init + Tailscale)
+└── ansible/      # DB engine + app-server setup on the provisioned VMs
+```
+
+Provisioning is a two-step `terraform apply` then `ansible-playbook playbooks/site.yml`, but there
+are a handful of one-time Proxmox prerequisites (a cloud-init template, an API token, a Tailscale
+auth key) that need to exist first. The complete walkthrough — including what to do if the VMs
+already exist and you just want to reconfigure them — lives in
+[`docs/terraform.md`](docs/terraform.md) and [`docs/ansible.md`](docs/ansible.md); this README
+won't duplicate it.
+
+---
+
+## 🛠️ Running it locally
+
+You don't need to install a single database engine on your own machine — the three that back this
+app are already running on the project's Proxmox homelab, and you just need to be on the Tailscale
+tailnet to reach them.
+
+**Prerequisites**: PHP 8.3+, Composer, Node.js & npm, Git, and a Tailscale connection to the
+project's tailnet.
+
+```bash
+# 1. Clone and install
+git clone <repository-url>
+cd Animal-Shelter-Workshop
+composer setup          # composer install + .env + app key + built assets
+
+# 2. Fill in the 5 database connections in .env (see .env.example for all fields —
+#    every host is a Tailscale IP, so step 1's tailnet connection has to be live)
+
+# 3. Migrate + seed all 5 databases at once
+php artisan db:fresh-all --seed
+# (composer fresh is a shortcut for the same thing)
+
+# 4. Start everything — server, queue worker, log viewer, and Vite — together
+composer dev
+```
+
+Then open `http://localhost:8000`. If it's your first time touching this codebase, one command is
+worth knowing before you run anything else:
+
+> **Never use `migrate:fresh` here.** Laravel's built-in version only drops tables on the *default*
+> connection — with five named connections and none of them default, it silently does nothing
+> useful. `php artisan db:fresh-all` is the custom command that actually wipes and rebuilds all five.
+
+### Try it out without creating an account
+
+Every seeded account below uses the password `password`:
+
+| Role | Email | What you can do with it |
+|------|-------|--------------------------|
+| Admin | admin1@gmail.com / admin2@gmail.com | Full system access, dashboard, audit log |
+| Caretaker | caretaker1@gmail.com / caretaker2@gmail.com | Rescue operations, animal medical records |
+| Public User | taufiq@ · shafiqah@ · atiqah@ · danish@ · eilya@gmail.com | Submit reports, book adoptions |
+
+---
+
+## 🧰 Everyday commands
+
+```bash
+# Database
+php artisan db:fresh-all --seed     # wipe + reseed all 5 databases (see warning above)
+php artisan db:clear-status-cache   # clear the "is this DB reachable" cache
+php artisan migrate                 # apply new migrations only
+
+# Development server (all services at once)
+composer dev
+
+# Tests — see docs/testing.md for what each layer actually proves
+composer test
+php artisan test --filter=TestName
+
+# Code style
+./vendor/bin/pint
+```
+
+---
+
+## 🧩 Tech stack at a glance
 
 | Layer                   | Technology                                |
 |-------------------------|-------------------------------------------|
-| **Backend Framework**   | Laravel 11 (PHP 8.2+)                     |
+| **Backend Framework**   | Laravel 11 (PHP 8.3+)                     |
 | **Frontend**            | Blade Templates + Tailwind CSS + Alpine.js|
 | **Interactive Components** | Livewire 3.6                           |
-| **Databases**           | PostgreSQL 16 + MySQL 9.5 + MariaDB 10.11      |
-| **VPN / Networking**    | Tailscale (WireGuard mesh)                     |
+| **Databases**           | PostgreSQL 16 + MySQL 9.5 + MariaDB 10.11 |
+| **VPN / Networking**    | Tailscale (WireGuard mesh)                |
 | **Authentication**      | Laravel Breeze                            |
 | **Authorization**       | Spatie Laravel Permission                 |
 | **Payment Gateway**     | ToyyibPay Integration                     |
 | **Maps & Geolocation**  | Leaflet.js with clustering                |
-| **Testing**             | Pest PHP (with SQLite in-memory)          |
+| **Testing**             | Pest PHP 4 + Playwright (real distributed DBs, not mocks — see [`docs/testing.md`](docs/testing.md)) |
 | **Code Quality**        | Laravel Pint (PHP CS Fixer)               |
-| **Version Control**     | Git / GitHub                              |
-| **Development Server**  | Laravel Artisan + Vite                    |
+| **Infrastructure**      | Terraform + Ansible ([`docs/terraform.md`](docs/terraform.md), [`docs/ansible.md`](docs/ansible.md)) |
 
 ---
 
-## 🏗️ Infrastructure Provisioning (Terraform + Ansible)
-
-The `infrastructure/` directory contains everything needed to provision the database VMs from scratch on a Proxmox homelab.
-
-```
-infrastructure/
-├── terraform/          # Proxmox VM provisioning (4 VMs via cloud-init + Tailscale)
-│   ├── vms.tf          # VM specs: app-server, linux-mysql, linux-mariadb, linux-postgres
-│   ├── main.tf         # Proxmox provider config
-│   ├── variables.tf    # Input variables
-│   ├── terraform.tfvars.example  # Copy → terraform.tfvars and fill in values
-│   └── cloud-init.yml.tftpl      # Cloud-init: hostname, SSH key, Tailscale join
-└── ansible/            # Software + DB setup on provisioned VMs
-    ├── inventory.yml   # Host groups using Tailscale MagicDNS hostnames
-    ├── playbooks/
-    │   ├── site.yml           # Master playbook (runs all four below in order)
-    │   ├── linux-mysql.yml    # MySQL 8.0 + workshop_2 DB + UFW
-    │   ├── linux-mariadb.yml  # MariaDB + workshop_2 DB + UFW
-    │   ├── linux-postgres.yml # PostgreSQL + workshop_2 DB + UFW
-    │   └── app-server.yml     # PHP 8.3 + Nginx + app deploy + migrations
-    └── templates/
-        ├── env-app.j2         # .env template (Tailscale hostnames as DB hosts)
-        └── nginx-app.conf.j2  # Nginx site config
-```
-
-### Pre-flight checklist (Proxmox)
-
-Complete these steps once before the first `terraform apply`.
-
-**1. Create an Ubuntu 24.04 cloud-init template**
-
-If you don't already have one, download the Ubuntu 24.04 cloud image and create a template VM in Proxmox. Note the VM ID (e.g. `9000`) — this goes into `vm_template_id`.
-
-**2. Enable Snippets on the `local` storage**
-
-Terraform uploads cloud-init snippets to Proxmox storage. By default the `local` datastore does not allow snippets:
-
-- Datacenter → Storage → `local` → Edit → check **Snippets** → OK
-
-**3. Create a Proxmox API token**
-
-Terraform authenticates to Proxmox via API token, not a password:
-
-- Datacenter → Permissions → API Tokens → Add
-- User: `root@pam` · Token ID: `terraform` · uncheck **Privilege Separation**
-- Copy the token secret — it is shown only once
-
-**4. Generate a Tailscale auth key**
-
-Each VM joins your tailnet automatically on first boot via cloud-init:
-
-- Go to `login.tailscale.com/admin/settings/keys` → Generate auth key
-- Enable **Reusable** (so all 4 VMs can use the same key) and set an appropriate expiry
-
-**5. Fill in `terraform.tfvars`**
-
-```bash
-cd infrastructure/terraform
-cp terraform.tfvars.example terraform.tfvars
-```
-
-Edit `terraform.tfvars` with your values. Based on this project's Proxmox setup (node `taufiq`, template VM 9000):
-
-```hcl
-proxmox_endpoint     = "https://<proxmox-LAN-IP>:8006"
-proxmox_api_token    = "root@pam!terraform=<token-secret>"
-proxmox_ssh_user     = "root"
-proxmox_ssh_password = "<proxmox-root-password>"
-proxmox_node         = "taufiq"
-
-vm_template_id = 9000
-storage_pool   = "local-lvm"   # or "local" — check Node > Storage in Proxmox UI
-
-ssh_public_key     = "ssh-ed25519 AAAA... your-public-key"
-tailscale_auth_key = "tskey-auth-..."
-```
-
-> `terraform.tfvars` is gitignored — never commit it. The SSH public key injected here is what allows ansible (and you) to SSH into the provisioned VMs. The private key must be at `~/.ssh/id_ed25519` on the machine that runs ansible (see `ansible.cfg`).
-
-**6. Install tools**
-
-```bash
-# Terraform (Windows)
-winget install HashiCorp.Terraform
-
-# Ansible (Python)
-pip install ansible
-cd infrastructure/ansible
-ansible-galaxy collection install -r requirements.yml
-```
-
-> **Already have VMs running?** If your Proxmox already has `app-server`, `linux-mysql`, `linux-mariadb`, and `linux-postgres` VMs (e.g. IDs 101–106), skip terraform entirely. Update `infrastructure/ansible/inventory.yml` with their Tailscale IPs or MagicDNS hostnames and run ansible directly. Terraform would create *additional* VMs at IDs 201, 204, 205, 206 — it won't touch existing ones.
-
-### Provision from scratch
-
-```bash
-# 1. Provision VMs on Proxmox
-cd infrastructure/terraform
-terraform init
-terraform plan    # review what will be created
-terraform apply
-
-# 2. Wait for all 4 VMs to appear in the Tailscale admin dashboard,
-#    then run ansible to configure everything:
-cd ../ansible
-ansible-playbook playbooks/site.yml -i inventory.yml
-# Installs DB engines, creates workshop_2 DB + user on each server,
-# clones the app, runs composer/npm, creates .env, and seeds all databases.
-```
-
-> **After first deploy**: edit `/var/www/animal-shelter/.env` on the app-server to add Cloudinary and ToyyibPay credentials, then run `php artisan config:clear`. The `.env` is created from the template only once — ansible won't overwrite it on subsequent runs.
-
----
-
-## 🛠️ Installation & Setup
-
-### Prerequisites
-
-- PHP 8.3+
-- Composer
-- Node.js & npm
-- Tailscale (connected to the project's tailnet)
-- Git
-
-The three database servers (MariaDB on workshop-2, MySQL on msi, PostgreSQL on workshop-postgres) are already provisioned and running. You do not need to install any database engine locally.
-
-### Initial Setup
-
-1. **Clone the repository**
-   ```bash
-   git clone <repository-url>
-   cd Animal-Shelter-Workshop
-   ```
-
-2. **Install dependencies and setup environment**
-   ```bash
-   composer setup
-   # This runs: composer install, copies .env, generates app key, and builds assets
-   ```
-
-3. **Configure database connections**
-
-   Copy `.env.example` to `.env` and fill in the 5 database connections.
-   All hosts are Tailscale IPs — connect to the tailnet before running the app.
-
-   ```env
-   DB_CONNECTION=reporting
-
-   # DB1 — reporting (MariaDB, workshop-2)
-   DB1_HOST=100.78.124.25
-   DB1_PORT=3306
-   DB1_DATABASE=workshop_2
-   DB1_USERNAME=workshop_2
-   DB1_PASSWORD=workshop_2
-
-   # DB2 — shelter (MySQL, msi)
-   DB2_HOST=100.68.235.121
-   DB2_PORT=3306
-   DB2_DATABASE=workshop_2
-   DB2_USERNAME=workshop_2
-   DB2_PASSWORD=workshop_2
-
-   # DB3 — animals (MySQL, msi)
-   DB3_HOST=100.68.235.121
-   DB3_PORT=3306
-   DB3_DATABASE=workshop_2
-   DB3_USERNAME=workshop_2
-   DB3_PASSWORD=workshop_2
-
-   # DB4 — booking (MariaDB, workshop-2)
-   DB4_HOST=100.78.124.25
-   DB4_PORT=3306
-   DB4_DATABASE=workshop_2
-   DB4_USERNAME=workshop_2
-   DB4_PASSWORD=workshop_2
-
-   # DB5 — users (PostgreSQL, workshop-postgres)
-   DB5_HOST=100.113.234.24
-   DB5_PORT=5432
-   DB5_DATABASE=workshop_2
-   DB5_USERNAME=workshop_2
-   DB5_PASSWORD=workshop_2
-
-   # Cloudinary — animal and rescue image storage
-   CLOUDINARY_CLOUD_NAME=your_cloud_name
-   CLOUDINARY_API_KEY=your_api_key
-   CLOUDINARY_API_SECRET=your_api_secret
-
-   SESSION_DRIVER=file
-   ```
-
-4. **Run migrations and seeders**
-   ```bash
-   # Use custom command for distributed databases
-   php artisan db:fresh-all --seed
-   # OR using composer shortcut
-   composer fresh
-   ```
-
-5. **Start development server**
-   ```bash
-   composer dev
-   # This runs: php artisan serve, queue worker, log viewer, and Vite concurrently
-   ```
-
-6. **Access the application**
-
-   Open `http://localhost:8000` in your browser
-
-### Default Login Credentials
-
-After seeding, use any of the following test accounts. All passwords are `password`.
-
-| Role | Email | Notes |
-|------|-------|-------|
-| Admin | admin1@gmail.com | Full system access |
-| Admin | admin2@gmail.com | Full system access |
-| Caretaker | caretaker1@gmail.com | Rescue ops + animal care |
-| Caretaker | caretaker2@gmail.com | Rescue ops + animal care |
-| Public User | taufiq@gmail.com | Reports + adoption booking |
-| Public User | shafiqah@gmail.com | Reports + adoption booking |
-| Public User | atiqah@gmail.com | Reports + adoption booking |
-| Public User | danish@gmail.com | Reports + adoption booking |
-| Public User | eilya@gmail.com | Reports + adoption booking |
-
----
-
-## 🧪 Development Commands
-
-### Database Operations
-
-```bash
-# Fresh migration for ALL 5 databases
-php artisan db:fresh-all
-
-# Fresh migration with seeding
-php artisan db:fresh-all --seed
-composer fresh  # shortcut
-
-# Clear database connection status cache
-php artisan db:clear-status-cache
-
-# Standard migration (only for new migrations)
-php artisan migrate
-
-# Seed only
-php artisan db:seed
-```
-
-**IMPORTANT**: Always use `db:fresh-all` instead of `migrate:fresh` for this project. Laravel's default `migrate:fresh` only drops tables from the default connection, not all 5 distributed databases.
-
-### Running Development Environment
-
-```bash
-# Run all services concurrently (recommended)
-composer dev
-
-# Or run individually:
-php artisan serve              # Development server
-php artisan queue:listen --tries=1  # Queue worker
-php artisan pail --timeout=0   # Log viewer
-npm run dev                    # Vite asset compilation
-```
-
-### Testing
-
-```bash
-composer test           # Run all Pest tests
-php artisan test        # Laravel test runner
-php artisan test --filter=TestName  # Specific test
-```
-
-### Code Quality
-
-```bash
-./vendor/bin/pint       # Format code with Laravel Pint
-```
-
-### Assets
-
-```bash
-npm run dev            # Development mode with HMR
-npm run build          # Production build
-```
-
----
-
-## 📂 Project Structure
+## 📂 Finding your way around
 
 ```
 Animal-Shelter-Workshop/
 ├── app/
-│   ├── Console/Commands/
-│   │   └── FreshAllDatabases.php    # Custom distributed DB migration command
-│   ├── Http/Controllers/
-│   │   ├── AnimalManagementController.php
-│   │   ├── BookingAdoptionController.php
-│   │   ├── StrayReportingManagementController.php
-│   │   ├── ShelterManagementController.php
-│   │   ├── RescueMapController.php
-│   │   └── ProfileController.php
-│   ├── Models/
-│   │   ├── Animal.php          # connection: animals (MySQL, msi)
-│   │   ├── Booking.php         # connection: booking (MariaDB, workshop-2)
-│   │   ├── Rescue.php          # connection: reporting (MariaDB, workshop-2)
-│   │   ├── Slot.php            # connection: shelter (MySQL, msi)
-│   │   ├── User.php            # connection: users (PostgreSQL, workshop-postgres)
-│   │   └── ... (all models declare explicit $connection)
-│   ├── Services/
-│   │   └── DatabaseConnectionChecker.php
-│   └── Livewire/
-│       └── Dashboard.php
+│   ├── Http/Controllers/         # AnimalManagement, BookingAdoption, StrayReporting, ShelterManagement...
+│   ├── Models/                   # every model declares an explicit $connection — see docs/db-architecture.md
+│   ├── Services/                 # DatabaseConnectionChecker and friends
+│   └── Livewire/                 # Dashboard, Notifications, ReportsTable, UserReportsTracker
 ├── database/
-│   ├── migrations/        # Migrations for all 5 databases
+│   ├── migrations/               # one set per connection, all run together via db:fresh-all
 │   └── seeders/
-│       └── DatabaseSeeder.php  # Orchestrates seeding order
-├── resources/
-│   └── views/
-│       ├── animal-management/
-│       ├── booking-adoption/
-│       ├── stray-reporting/
-│       └── shelter-management/
+├── docs/
+│   ├── flows/{module}/           # page flow + activity diagram + use-case diagram, per module
+│   ├── testing.md                # what's tested and why
+│   ├── db-architecture.md        # the full distributed-DB picture
+│   └── ...                       # foreign-keys, cross-db-queries, hardening, terraform, ansible
+├── tests/                        # Unit, Feature, Procedures, Browser — see docs/testing.md
 ├── routes/
-│   └── web.php           # All application routes
-├── config/
-│   ├── database.php      # 5 database connection configurations
-│   ├── session.php       # Session configuration (file-based)
-│   └── queue.php         # Queue configuration
-├── CLAUDE.md            # Developer documentation for Claude Code
-└── README.md            # This file
+│   ├── web.php
+│   └── partials/                 # one route file per module
+├── CLAUDE.md                     # live infra details, dev conventions, credentials
+└── README.md                     # this file
 ```
 
 ---
 
-## 🔐 Security Features
+## 🔐 Security
 
-- CSRF protection on all forms
-- SQL injection prevention via Eloquent ORM
-- XSS protection with Blade templating
-- Role-based access control (RBAC)
-- Secure password hashing (Bcrypt)
-- Session security with file-based storage
-- Payment integration with ToyyibPay secure gateway
+CSRF protection on every form, SQL injection prevention via Eloquent's parameter binding, XSS
+protection through Blade's automatic escaping, role-based access control, bcrypt password hashing,
+and a secure gateway integration for payments. None of the database ports are reachable from
+outside the Tailscale mesh in the first place — see [`docs/hardening.md`](docs/hardening.md) for
+exactly how each of the four machines is locked down and kept running unattended.
 
 ---
 
-## 🌟 Key Technical Highlights
+## 🌟 What makes this one worth a second look
 
-1. **Distributed Database Management**: Successfully integrates 5 databases across 3 different database engines (PostgreSQL, MySQL, MariaDB)
-2. **Cross-Database Relationships**: Implements complex relationships without foreign key constraints
-3. **Smart Connection Caching**: Adaptive cache duration based on database health (30 min healthy, 60 sec degraded)
-4. **Graceful Degradation**: Application remains partially functional when individual databases are offline
-5. **Custom Artisan Commands**: `db:fresh-all` for proper distributed database migrations
-6. **Booking Conflict Prevention**: Multi-layer validation system prevents double-booking of animals
-7. **Geolocation Features**: Interactive maps with clustering for rescue operations
-8. **Payment Integration**: Secure online payment processing for adoption fees
-9. **Real-time Dashboard**: Livewire-powered analytics and metrics
+1. **Five databases, three engines, one application layer holding it all together** — with no
+   cross-database foreign key to lean on.
+2. **Graceful degradation that's actually tested, not just hoped for** — the app keeps serving
+   readable pages when a database goes offline, and the test suite proves it (see
+   [`docs/testing.md`](docs/testing.md)).
+3. **A payment flow that doesn't trust the client** — the adoption fee is always recomputed
+   server-side, and the ToyyibPay gateway's own status is cross-checked, not just assumed.
+4. **343 tests against real infrastructure**, not a simplified local stand-in — see
+   [`docs/testing.md`](docs/testing.md) for the bugs that testing actually caught.
+5. **Real infrastructure-as-code**, not a README describing steps someone did by hand once —
+   Terraform + Ansible can rebuild all four machines from nothing.
 
 ---
 
@@ -632,7 +338,9 @@ This project is developed for academic purposes as part of BITU3923 Workshop II 
 
 ## 📞 Support
 
-For issues or questions about this project, please contact the development team or refer to the `CLAUDE.md` file for detailed developer documentation.
+For issues or questions about this project, please contact the development team, or start with
+[`docs/testing.md`](docs/testing.md) and [`docs/flows/`](docs/flows/) for how a given feature
+actually behaves, and `CLAUDE.md` for infrastructure and developer conventions.
 
 ---
 
