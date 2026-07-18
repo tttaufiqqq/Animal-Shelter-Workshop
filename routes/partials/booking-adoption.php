@@ -17,17 +17,15 @@ Route::middleware('auth')->group(function () {
     Route::prefix('bookings')->group(function () {
         Route::get('/index', [BookingAdoptionController::class, 'index'])->name('bookings.index');
         Route::get('/all', [BookingAdoptionController::class, 'indexAdmin'])->name('bookings.index-admin');
-        Route::get('/create', [BookingAdoptionController::class, 'create'])->name('bookings.create');
-        Route::post('/store', [BookingAdoptionController::class, 'store'])->name('bookings.store');
-        Route::get('/{booking}', [BookingAdoptionController::class, 'show'])->name('bookings.show');
         Route::patch('/{booking}/cancel', [BookingAdoptionController::class, 'cancel'])->name('bookings.cancel');
         Route::patch('/{booking}/confirm', [BookingAdoptionController::class, 'confirm'])->name('bookings.confirm');
-        Route::get('/{id}/modal', [BookingAdoptionController::class, 'showModal'])->name('bookings.show.modal');
-        Route::get('/{id}/modal/admin', [BookingAdoptionController::class, 'showModalAdmin'])->name('bookings.show.modal-admin');
     });
 
-    Route::prefix('payment')->group(function () {
-        Route::get('/status', [BookingAdoptionController::class, 'paymentStatus'])->name('toyyibpay-status');
-        Route::post('/callback', [BookingAdoptionController::class, 'callback'])->name('toyyibpay-callback');
-    });
+    Route::get('/payment/status', [BookingAdoptionController::class, 'paymentStatus'])->name('toyyibpay-status');
 });
+
+// ToyyibPay calls this server-to-server with no browser session — it cannot carry
+// an auth cookie or a CSRF token, so it must sit outside both (see bootstrap/app.php
+// for the matching CSRF exemption). Gateway authenticity is verified separately via
+// isGatewayConfirmed() rather than relying on auth/CSRF.
+Route::post('/payment/callback', [BookingAdoptionController::class, 'callback'])->name('toyyibpay-callback');

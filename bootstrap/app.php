@@ -20,6 +20,11 @@ return Application::configure(basePath: dirname(__DIR__))
             // \App\Http\Middleware\CheckDatabaseHealth::class, // DISABLED: Database backup system (uncomment to enable)
         ]);
 
+        // ToyyibPay's server-to-server callback can't carry a CSRF token.
+        $middleware->validateCsrfTokens(except: [
+            'payment/callback',
+        ]);
+
         // Register Spatie Permission middleware aliases
         $middleware->alias([
             'role' => \Spatie\Permission\Middleware\RoleMiddleware::class,
