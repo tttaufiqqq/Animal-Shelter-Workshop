@@ -9,13 +9,11 @@ Route::middleware('auth')->group(function () {
     Route::get('/animal/create/rescue-{rescue_id?}', [AnimalManagementController::class, 'create'])->name('animal-management.create');
     Route::post('/animal/store', [AnimalManagementController::class, 'store'])->name('animal-management.store');
     Route::get('/animal/{animal}', [AnimalManagementController::class, 'show'])->name('animal-management.show');
-    Route::get('/animal/{animal}/edit', [AnimalManagementController::class, 'edit'])->name('animal-management.edit');
     Route::put('/animal/{animal}', [AnimalManagementController::class, 'update'])->name('animal-management.update');
     Route::delete('/animal/{animal}', [AnimalManagementController::class, 'destroy'])->name('animal-management.destroy');
     Route::post('/animals/{animal}/assign-slot', [AnimalManagementController::class, 'assignSlot'])->name('animals.assignSlot');
 
     Route::get('/clinic-vet', [AnimalManagementController::class, 'indexClinic'])->name('animal-management.clinic-index');
-    Route::get('/create-vet', [AnimalManagementController::class, 'createVet'])->name('animal-management.create.vet');
     Route::post('/store-clinics', [AnimalManagementController::class, 'storeClinic'])->name('animal-management.store-clinics');
     Route::post('/store-vets', [AnimalManagementController::class, 'storeVet'])->name('animal-management.store-vets');
     Route::get('/clinics/{id}/edit', [AnimalManagementController::class, 'editClinic'])->name('clinics.edit');

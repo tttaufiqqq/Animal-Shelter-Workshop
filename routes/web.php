@@ -8,7 +8,6 @@ use App\Services\DatabaseConnectionChecker;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/rescue-map', [RescueMapController::class, 'index'])->name('rescue.map');
-Route::get('/api/rescue-clusters', [RescueMapController::class, 'getClusterData'])->name('rescue.clusters');
 
 // CSRF Token Refresh Route
 Route::get('/refresh-csrf', function () {
@@ -51,10 +50,9 @@ Route::get('/about', function () {
     return view('contact');
 })->name('contact');
 
-Route::post('/animal/profile/store/{animal}', [AnimalManagementController::class, 'storeOrUpdate'])->name('animal.profile.store');
-Route::post('/adopter/profile/store', [ProfileController::class, 'storeOrUpdate'])->name('adopter.profile.store');
-
 Route::middleware('auth')->group(function () {
+    Route::post('/animal/profile/store/{animal}', [AnimalManagementController::class, 'storeOrUpdate'])->name('animal.profile.store');
+    Route::post('/adopter/profile/store', [ProfileController::class, 'storeOrUpdate'])->name('adopter.profile.store');
     Route::get('/animal-matches', [AnimalManagementController::class, 'getMatches'])->name('animal.matches');
 });
 

@@ -6,10 +6,8 @@ use Illuminate\Support\Facades\Route;
 Route::middleware('auth')->group(function () {
     Route::prefix('reports')->group(function () {
         Route::get('/all', [StrayReportingManagementController::class, 'index'])->name('reports.index');
-        Route::get('/create', [StrayReportingManagementController::class, 'create'])->name('reports.create');
         Route::post('/', [StrayReportingManagementController::class, 'store'])->name('reports.store');
         Route::get('/{id}', [StrayReportingManagementController::class, 'show'])->name('reports.show');
-        Route::get('/{id}/edit', [StrayReportingManagementController::class, 'edit'])->name('reports.edit');
         Route::delete('/{id}', [StrayReportingManagementController::class, 'destroy'])->name('reports.destroy');
         Route::patch('/{id}/assign-caretaker', [StrayReportingManagementController::class, 'assignCaretaker'])->name('reports.assign-caretaker');
     });
