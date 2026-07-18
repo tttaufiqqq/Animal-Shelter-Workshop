@@ -88,24 +88,31 @@ These columns store IDs of rows that live on a different server. All are declare
 Because the DB engine cannot enforce these constraints, the application implements three
 complementary layers:
 
-### Layer 1 — `ForeignKeyValidator` (application pre-write checks)
+### Layer 1 — per-write-path validation (application pre-write checks)
 
-`app/Services/ForeignKeyValidator.php` provides static methods that query the target
-connection before a write is committed:
+There is no single central validator — each write path checks the specific cross-DB id it
+accepts, using whichever mechanism fits that call site:
 
 ```php
-// Before creating a rescue, verify the user (caretaker) exists:
-ForeignKeyValidator::validateUser($caretakerId);
+// Laravel's cross-connection `exists:` validation rule, e.g. when confirming a
+// booking or assigning an animal to a slot:
+'animal_ids.*' => 'required|exists:animals.animal,id',
+'slotID' => 'nullable|exists:shelter.slot,id',
 
-// Before inserting an animal_booking row, verify the animal exists:
-ForeignKeyValidator::validateAnimal($animalId);
+// Inline lookup before assigning a caretaker:
+$caretaker = User::findOrFail($request->caretaker_id); // on the `users` connection
 
-// Check slot capacity before assigning an animal:
-ForeignKeyValidator::slotHasCapacity($slotId);
+// Some logical FKs (booking.userID, report.userID, visit_list.userID, ...) never
+// take untrusted input at all — they're always Auth::id(), so there's nothing to
+// validate.
 ```
 
-Results are cached in Laravel's cache for 5 minutes (`CACHE_DURATION = 300`) to avoid
-a validation query on every write.
+(A previous iteration centralized this in `app/Services/ForeignKeyValidator.php` with
+5-minute-cached static methods like `ForeignKeyValidator::validateAnimal($id)`. That class
+was deleted — grep confirmed it had zero callers anywhere in `app/`; every write path
+above was already doing its own validation independently. See
+`tests/Feature/CrossDb/LogicalForeignKeyTest.php` for per-FK coverage of the mechanism
+each one actually uses today.)
 
 ### Layer 2 — DB-level triggers (intra-DB cascades and guards)
 
@@ -147,7 +154,9 @@ still holds its ID). The application mitigates this by:
 
 1. Always deleting from the referencing side (booking/adoption) before deleting the
    referenced entity (animal) in controller logic.
-2. `ForeignKeyValidator::validateAnimal()` checks before writes so invalid IDs are
-   rejected before entry, not after.
-3. Cache TTL of 5 minutes means stale validation passes are possible in a narrow window —
-   acceptable trade-off for the performance gain.
+2. Each write path validates the specific cross-DB id it accepts before the row is created
+   (see Layer 1 above) so invalid IDs are rejected before entry, not after.
+3. Existing rows are not re-validated after creation — if the referenced row is deleted out
+   from under a logical FK (bypassing the "delete referencing side first" convention above,
+   e.g. via direct DB access), the reference goes stale with no automatic cleanup. See
+   `tests/Feature/CrossDb/OrphanRiskTest.php`.
