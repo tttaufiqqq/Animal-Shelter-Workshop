@@ -2,14 +2,64 @@
 
 ## Overview
 
-This document records the decision to replace SSH port-forwarding tunnels with
-Tailscale for connecting Laravel to a heterogeneous distributed database cluster.
+This document records two migrations, in chronological order: first, how this project moved from
+five team members' own laptops to a single homelab-hosted deployment; second — once it was
+homelab-hosted — the decision to replace SSH port-forwarding tunnels with Tailscale for connecting
+Laravel to the heterogeneous distributed database cluster.
 
 The mesh itself — join keys, split-DNS via dnsmasq, and the rest of the tailnet these VMs sit on —
 is set up and documented at the infrastructure level in
 [taufiq's homelab repo](https://github.com/tttaufiqqq/oracle-db-linux-proxmox)'s
 `docs/02-dns/dns-setup.md`. This document only covers the decision from the application's side:
 why Tailscale over the SSH-tunnel approach that came before it.
+
+---
+
+## Origin: From a Five-Person Team Project to a Solo Homelab Rebuild
+
+### The original team setup (Oct 2025 – Jan 2026)
+
+This project was originally built by a five-person team for BITU3923 Workshop II, each member
+owning one module and one database engine (see the README's Development Team table). There was no
+dedicated application server and no shared always-on infrastructure — whoever was running or
+demoing the app started it on their own laptop, connecting out to the other four members' machines
+over manual SSH tunnels, then running `php artisan serve` locally. Reaching the distributed
+databases at all depended on whichever teammates happened to have their machine on and tunnel
+commands running at the time.
+
+### Picking it back up solo (Jan 2026)
+
+The team project concluded, and the five-person setup along with it — none of the original
+teammates are involved in what follows. In January 2026, working through past projects to find
+something worth revisiting now that a personal Proxmox homelab
+([`oracle-db-linux-proxmox`](https://github.com/tttaufiqqq/oracle-db-linux-proxmox)) already
+existed, this project stood out: a genuinely heterogeneous multi-database app was exactly the kind
+of infrastructure problem the homelab was built to practice on. From this point on it's a solo side
+project, not a continuation of the team's work.
+
+### Why the homelab, specifically
+
+Two reasons, not one. Practically, a single laptop can't run five different database engines at
+once — virtualizing each engine as its own Proxmox VM was the direct fix for that constraint, the
+same way the homelab's other single-engine VMs (`linux-mariadb`, `linux-postgres`, etc.) already
+existed for exactly this reason. Just as importantly, this was also a deliberate choice to learn
+how a real multi-database web application gets deployed and kept running across several machines —
+something none of the homelab's other, single-engine projects exercise.
+
+### How the rebuild was actually done
+
+Only the GitHub repository — the team's original application code — carried over. No database from
+any of the five original team members' machines was migrated or restored; the distributed databases
+on the homelab VMs are freshly created and reseeded from this repo's own seeders
+(`php artisan db:fresh-all --seed`), not a copy of anything that existed during the team era. Each
+database VM was built and configured by hand: SSH in, install the engine, create the `workshop_2`
+user, configure the firewall — one command at a time, not from an existing image or script.
+Claude Code was used as a development aid throughout this solo rebuild and the improvements that
+followed it.
+
+What follows in this document is the *next* step after that rebuild: the app-server's first
+attempt at reaching those hand-built VMs (over SSH tunnels again, though this time to fixed
+homelab machines rather than teammates' laptops), and why that was replaced with Tailscale.
 
 ---
 

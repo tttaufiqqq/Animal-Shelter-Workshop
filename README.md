@@ -19,7 +19,9 @@ sighting off a phone in a car park, a caretaker needs to check a rescue in, a ve
 a vaccination record, an admin needs to see whether adoption revenue is trending up, and an adopter
 just wants to book a Saturday visit and pay online. This app does all five — and, because it started
 life as a five-person team project, each of those jobs also owns its **own database**, on its own
-engine, on its own machine.
+engine, on its own machine (now a personal homelab, not five people's laptops — see
+[`docs/architecture-migration.md`](docs/architecture-migration.md#origin-from-a-five-person-team-project-to-a-solo-homelab-rebuild)
+for how that happened).
 
 That's the part that makes this more than a CRUD app: **five real databases across three engines**
 (PostgreSQL, MySQL, MariaDB), talking to each other only through the application layer, connected
