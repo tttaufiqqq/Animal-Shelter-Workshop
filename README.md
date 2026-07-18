@@ -116,7 +116,7 @@ complete list of bugs the suite caught — is in [`docs/testing.md`](docs/testin
 
 ---
 
-## 🗄️ Distributed Database Architecture
+## 🗄️ Heterogeneous Distributed Database Architecture
 
 <p align="center">
   <img src="docs/images/database-architecture.jpeg" alt="Distributed Database Architecture — Tailscale VPN mesh connecting app-server to 4 database VMs" width="900"/>
