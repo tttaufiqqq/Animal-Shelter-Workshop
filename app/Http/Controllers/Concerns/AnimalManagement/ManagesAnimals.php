@@ -55,6 +55,7 @@ trait ManagesAnimals
             if ($slotId) {
                 $slot = Slot::find($slotId);
                 if (!$slot || $slot->status !== 'available') {
+                    DB::connection('reporting')->rollBack();
                     return back()->withInput()->withErrors(['slotID' => 'Selected slot is not available.']);
                 }
             }
@@ -137,6 +138,7 @@ trait ManagesAnimals
             if (($validated['slotID'] ?? null) !== null && $slotID != $animal->slotID) {
                 $slot = Slot::find($slotID);
                 if (!$slot || $slot->status !== 'available') {
+                    DB::connection('reporting')->rollBack();
                     return back()->withInput()->withErrors(['slotID' => 'Selected slot is not available.']);
                 }
             }
