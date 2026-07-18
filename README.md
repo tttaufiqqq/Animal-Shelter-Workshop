@@ -6,7 +6,8 @@
 
 <p align="center">
   <b>Developed for BITU3923 Workshop II at UTeM</b><br>
-  A Distributed Database Application built with Laravel 11
+  A Distributed Database Application built with Laravel 11<br>
+  Supervised by Ts. Fathin Nabilla
 </p>
 
 ---
@@ -333,6 +334,8 @@ This project is developed for academic purposes as part of BITU3923 Workshop II 
 | **Shafiqah** | Animal Management | MySQL 9.5 |
 | **Atiqah** | Shelter Management | MySQL 9.5 |
 | **Danish** | Booking & Adoption | MariaDB 10.11 |
+
+**Supervisor:** Ts. Fathin Nabilla
 
 ---
 
