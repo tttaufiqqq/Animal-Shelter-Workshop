@@ -5,6 +5,12 @@
 This document records the decision to replace SSH port-forwarding tunnels with
 Tailscale for connecting Laravel to a heterogeneous distributed database cluster.
 
+The mesh itself — join keys, split-DNS via dnsmasq, and the rest of the tailnet these VMs sit on —
+is set up and documented at the infrastructure level in
+[taufiq's homelab repo](https://github.com/tttaufiqqq/oracle-db-linux-proxmox)'s
+`docs/02-dns/dns-setup.md`. This document only covers the decision from the application's side:
+why Tailscale over the SSH-tunnel approach that came before it.
+
 ---
 
 ## The Original (Wrong) Approach: SSH Tunnels

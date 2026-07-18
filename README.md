@@ -179,6 +179,11 @@ already exist and you just want to reconfigure them — lives in
 [`docs/terraform.md`](docs/terraform.md) and [`docs/ansible.md`](docs/ansible.md); this README
 won't duplicate it.
 
+That Proxmox node is a shared personal homelab, not infrastructure dedicated to this project alone —
+see [taufiq's homelab repo](https://github.com/tttaufiqqq/oracle-db-linux-proxmox) for the full VM/CT
+inventory, the other database engines and services it also runs, and how the Tailscale mesh and
+DNS layer these VMs sit on were built.
+
 ---
 
 ## 🛠️ Running it locally

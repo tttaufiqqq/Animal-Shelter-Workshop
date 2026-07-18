@@ -7,6 +7,14 @@ servers connected via a Tailscale VPN mesh. There is no shared database server �
 owns its data on an independent machine with a different DB engine. The Laravel application
 running on `app-server` opens five named connections and routes queries explicitly per module.
 
+`app-server`, `workshop-2` (MariaDB), and `workshop-postgres` are not dedicated to this project —
+they're VMs on a shared personal Proxmox homelab that also runs Oracle, MySQL, SQL Server, and
+MongoDB instances for other learning projects. The host inventory, how each VM was provisioned,
+and the Tailscale/DNS mesh all three ride on are documented from the infrastructure side in
+[taufiq's homelab repo](https://github.com/tttaufiqqq/oracle-db-linux-proxmox) — this doc only
+covers the application's view of those same three machines. `msi` is a separate physical laptop,
+not part of that homelab's Proxmox inventory.
+
 ---
 
 ## Server Topology
