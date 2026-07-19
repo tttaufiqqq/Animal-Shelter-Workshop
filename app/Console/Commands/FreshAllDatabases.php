@@ -13,7 +13,7 @@ class FreshAllDatabases extends Command
      *
      * @var string
      */
-    protected $signature = 'db:fresh-all {--seed : Seed the database after migration}';
+    protected $signature = 'db:fresh-all {--seed : Seed the database after migration} {--force : Skip the confirmation prompt}';
 
     /**
      * The console command description.
@@ -32,7 +32,7 @@ class FreshAllDatabases extends Command
      */
     public function handle()
     {
-        if (!$this->confirm('This will DROP ALL TABLES from all 5 databases. Do you want to continue?')) {
+        if (!$this->option('force') && !$this->confirm('This will DROP ALL TABLES from all 5 databases. Do you want to continue?')) {
             $this->info('Operation cancelled.');
             return 0;
         }

@@ -6,6 +6,14 @@ on:
   pull_request:
     branches: [main]
 
+# The 5 databases this resets are real, shared MariaDB/MySQL/PostgreSQL
+# servers, not per-run containers — two runs resetting them at once would
+# stomp on each other. Queue instead of running in parallel (don't cancel
+# an in-progress reset, that'd leave tables half-dropped).
+concurrency:
+  group: tests-shared-db
+  cancel-in-progress: false
+
 jobs:
   backend:
     runs-on: [self-hosted, linux, homelab, tailnet]
@@ -25,14 +33,58 @@ jobs:
       - name: Configure test environment
         run: cp .env.testing.example .env.testing
 
-      # Runs against the real `_test` copies of the 5 distributed databases
-      # over Tailscale (see docs/db-architecture.md, docs/08-testing.md) —
-      # schema/seed state on those databases is managed manually
-      # (`php artisan migrate:fresh --env=testing --force`, an explicit,
-      # destructive, out-of-band decision), not by this workflow.
-      #
-      # Browser suite (Pest 4 + Playwright) intentionally excluded for now —
-      # needs Node/Playwright/Chromium provisioning this first workflow
-      # doesn't set up yet.
+      # migrate:fresh (Laravel's built-in) only drops tables on the default
+      # connection (sqlite) — this app's migrations pin to 5 named
+      # connections instead, so that command would silently not reset them.
+      # db:fresh-all (app/Console/Commands/FreshAllDatabases.php) is the
+      # app's own command that resets all 5 correctly; --force skips its
+      # interactive confirmation prompt for CI.
+      - name: Reset the 5 distributed test databases
+        run: php artisan db:fresh-all --env=testing --force
+
       - name: Run backend test suite
-        run: php artisan test --env=testing --testsuite=Unit --testsuite=Feature --testsuite=Procedures
+        run: php artisan test --env=testing --testsuite=Unit,Feature,Procedures
+
+  # Separate job, forced to run after `backend` (`needs:`) — this CT has a
+  # single core, so two artisan/npm processes at once would just contend for
+  # the same CPU, not actually run faster.
+  browser:
+    needs: backend
+    runs-on: [self-hosted, linux, homelab, tailnet]
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: mbstring, bcmath, ctype, curl, dom, fileinfo, json, openssl, tokenizer, xml, zip, pdo, pdo_mysql, mysqli, pdo_pgsql, pgsql
+
+      - name: Install Composer dependencies
+        run: composer install --no-interaction --prefer-dist --optimize-autoloader
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      # --with-deps installs Chromium's system libraries via apt; runner user
+      # has passwordless sudo (see actions-runner-setup.md) so this runs
+      # non-interactively.
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Build frontend assets
+        run: npm run build
+
+      - name: Configure test environment
+        run: cp .env.testing.example .env.testing
+
+      - name: Reset the 5 distributed test databases
+        run: php artisan db:fresh-all --env=testing --force
+
+      - name: Run browser test suite
+        run: php artisan test --env=testing --testsuite=Browser
