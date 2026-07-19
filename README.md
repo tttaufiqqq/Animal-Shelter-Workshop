@@ -120,7 +120,9 @@ completely broken at one point, password reset silently never sent an email, and
 once trusted a client-supplied fee amount.
 
 The full breakdown — what's covered module by module, why each layer of testing exists, and the
-complete list of bugs the suite caught — is in [`docs/08-testing.md`](docs/08-testing.md).
+complete list of bugs the suite caught — is in [`docs/08-testing.md`](docs/08-testing.md). The suite
+runs in CI on a self-hosted GitHub Actions runner (needed to reach the Tailscale-only DB servers) —
+see [`docs/11-ci.md`](docs/11-ci.md).
 
 ---
 
@@ -167,6 +169,8 @@ surviving reboots unattended — see:
   everything else that turned this from "deployable" into production-grade
 - [`docs/10-backups.md`](docs/10-backups.md) — coordinated cross-database backups, integrity
   verification, retention, and the restore runbook
+- [`docs/11-ci.md`](docs/11-ci.md) — the self-hosted GitHub Actions runner, why it's self-hosted, and
+  a real upstream Action bug found running it for the first time
 - `CLAUDE.md` — live server IPs, admin credentials, and the pre-migration checklist for provisioning
   the `workshop_2` database/user on all three engines
 
@@ -278,6 +282,7 @@ php artisan test --filter=TestName
 | **Payment Gateway**     | ToyyibPay Integration                     |
 | **Maps & Geolocation**  | Leaflet.js with clustering                |
 | **Testing**             | Pest PHP 4 + Playwright (real distributed DBs, not mocks — see [`docs/08-testing.md`](docs/08-testing.md)) |
+| **CI/CD**               | GitHub Actions, self-hosted homelab runner (see [`docs/11-ci.md`](docs/11-ci.md)) |
 | **Code Quality**        | Laravel Pint (PHP CS Fixer)               |
 | **Infrastructure**      | Terraform + Ansible ([`docs/07-terraform.md`](docs/07-terraform.md), [`docs/06-ansible.md`](docs/06-ansible.md)) |
 
