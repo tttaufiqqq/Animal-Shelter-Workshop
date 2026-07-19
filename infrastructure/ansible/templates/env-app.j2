@@ -76,3 +76,19 @@ TOYYIBPAY_CATEGORY_CODE={{ toyyibpay_category_code | default('') }}
 TOYYIBPAY_BASE_URL={{ toyyibpay_base_url | default('https://dev.toyyibpay.com') }}
 TOYYIBPAY_RETURN_URL={{ toyyibpay_return_url | default('') }}
 TOYYIBPAY_CALLBACK_URL={{ toyyibpay_callback_url | default('') }}
+
+# Mail — required for password reset to actually deliver (see
+# docs/09-production-hardening.md). Without real SMTP credentials this
+# silently falls back to Laravel's `log` mailer (config/mail.php's own
+# default), which writes the reset email to storage/logs instead of sending
+# it. Supply mail_host/username/password via `-e` or an ansible-vaulted vars
+# file — e.g. a Gmail app password, or any SMTP relay (SendGrid, Mailgun,
+# a self-hosted relay on the homelab).
+MAIL_MAILER={{ mail_mailer | default('smtp') }}
+MAIL_HOST={{ mail_host | default('') }}
+MAIL_PORT={{ mail_port | default('587') }}
+MAIL_USERNAME={{ mail_username | default('') }}
+MAIL_PASSWORD={{ mail_password | default('') }}
+MAIL_SCHEME={{ mail_scheme | default('') }}
+MAIL_FROM_ADDRESS={{ mail_from_address | default('noreply@' + app_domain) }}
+MAIL_FROM_NAME="{{ mail_from_name | default(app_name | default('Animal Shelter Workshop')) }}"
