@@ -47,9 +47,11 @@ No agent or extra VM is needed — it connects over SSH via Tailscale.
 # 1. Install Ansible and pip dependencies
 sudo apt update && sudo apt install -y ansible python3-pip
 
-# 2. Install community collections (MySQL + PostgreSQL modules)
+# 2. Install community collections (MySQL, PostgreSQL, Vault modules) + the
+#    Vault Python client the hashi_vault collection needs
 cd /mnt/c/Users/taufi/Documents/Dev/Animal-Shelter-Workshop/infrastructure/ansible
 ansible-galaxy collection install -r requirements.yml
+pip3 install hvac
 
 # 3. Set up your SSH key in WSL
 #    Option A: generate a new key
@@ -77,6 +79,19 @@ terraform apply
 # Wait ~60s for cloud-init to finish, then verify connectivity:
 tailscale status                              # confirm all 4 VMs appear
 ssh workshop@linux-mysql "echo ok"            # test SSH
+
+# app-server.yml now deploys as 'taufiq', not 'workshop' (see the table
+# below) — it targets the real, hand-configured box, which has a 'taufiq'
+# user. A truly fresh Terraform VM only gets 'workshop' from cloud-init, so
+# app-server.yml won't run to completion against one until a 'taufiq' user
+# exists there too. See docs/09-production-hardening.md's "Known follow-ups".
+
+# Every playbook that reads asw_secrets (the 3 DB playbooks + app-server.yml)
+# needs a scoped Vault AppRole in the environment first — see
+# oracle-db-learning-proxmox/docs/11-vault-approle-app-integration/ for how
+# asw-deploy was created. Never use the lab's Vault root token here.
+export VAULT_ROLE_ID="<asw-deploy role_id>"
+export VAULT_SECRET_ID="<asw-deploy secret_id>"
 
 # Then run Ansible
 cd /mnt/c/Users/taufi/Documents/Dev/Animal-Shelter-Workshop/infrastructure/ansible
@@ -113,7 +128,7 @@ linux-mysql:
 | `linux-mysql.yml` | linux-mysql | MySQL 8.0, creates workshop_2 DB + user, enables remote + triggers, UFW |
 | `linux-mariadb.yml` | linux-mariadb | MariaDB, creates workshop_2 DB + user, enables remote, UFW |
 | `linux-postgres.yml` | linux-postgres | PostgreSQL, creates workshop_2 DB + user, pg_hba + schema grants, UFW |
-| `app-server.yml` | app-server | PHP 8.3 + extensions, Nginx, Node 20, Composer, UFW; clones repo to `/var/www/animal-shelter`, deploys `.env`, builds frontend assets, runs `db:fresh-all --seed` |
+| `app-server.yml` | app-server | PHP 8.3 + extensions, Nginx, Node 20, Composer, UFW; clones repo to `/home/taufiq/Animal-Shelter-Workshop`, deploys `.env` from Vault (`asw_secrets`, re-rendered every run), builds frontend assets, runs `migrate --force` + a first-deploy-only `db:seed` — **never** `db:fresh-all` (see `docs/09-production-hardening.md`) |
 | `site.yml` | all | Runs the 4 above in order |
 
 ## Verifying DB setup
@@ -142,10 +157,15 @@ ssh workshop@app-server "php -v && nginx -v && composer --version"
 ```
 
 `app-server.yml` handles the full application deployment end-to-end:
-- Clones the repo to `/var/www/animal-shelter` (as `workshop` user)
-- Deploys `.env` from `templates/env-app.j2` (skipped if `.env` already exists)
-- Runs `composer install`, `npm ci && npm run build`, `php artisan key:generate`
-- Deploys the Nginx site config from `templates/nginx-app.conf.j2`
-- Runs `php artisan db:fresh-all --seed` to create tables and seed data
+- Clones the repo to `/home/taufiq/Animal-Shelter-Workshop` (as `taufiq` user)
+- Deploys `.env` from `templates/env-app.j2`, sourcing every credential (5 DB passwords,
+  `APP_KEY`, Cloudinary, ToyyibPay, SMTP) from Vault via `asw_secrets` — re-rendered on
+  every run, not just the first
+- Runs `composer install`, `npm ci && npm run build`
+- Deploys the Nginx site config from `templates/nginx-app.conf.j2` (plain HTTP on `:80` —
+  TLS is terminated by the Cloudflare Tunnel, not certbot, unless `-e use_certbot=true`
+  is passed explicitly)
+- Runs `migrate --force` (always, idempotent) and `db:seed --force` (first deploy only,
+  gated on `storage/.provisioned`) — never `db:fresh-all`
 
-After the first run, re-running `ansible-playbook playbooks/app-server.yml` is safe — all tasks are idempotent. The `.env` file is never overwritten once it exists.
+After the first run, re-running `ansible-playbook playbooks/app-server.yml` is safe — all tasks are idempotent, including `.env`: it re-renders from Vault every time but produces the same content unless a secret actually changed.

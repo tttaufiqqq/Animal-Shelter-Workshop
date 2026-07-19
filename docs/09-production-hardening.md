@@ -24,8 +24,18 @@ redeploy after go-live would have wiped real data. It's now: `optimize:clear` �
 (always, idempotent) → `db:seed --force` gated on a `storage/.provisioned` flag file that only gets
 created once → `config:cache`/`route:cache`/`view:cache`/`event:cache` → `storage:link`.
 `db:fresh-all` is no longer called anywhere in the playbook. The `git` clone task also now uses
-`update: true` so a redeploy actually pulls new commits, and `key:generate` only runs on a genuinely
-fresh `.env` (regenerating `APP_KEY` on every deploy would invalidate every existing session).
+`update: true` so a redeploy actually pulls new commits. `APP_KEY` no longer comes from
+`key:generate` at all — see "Secrets moved to Vault" below.
+
+A real `--check --diff` run against the live box (done as part of the Vault work below) surfaced a
+gap in this exact gating logic: `storage/.provisioned` was missing on the live `app-server`, since
+the box was hand-configured outside this playbook and had never actually gone through a real
+deploy. Left as-is, the very first real run would have read as a first deploy and triggered
+`db:seed --force` against the live databases — inserting seeder demo/starter records on top of real
+data (102 real animal rows, real user accounts, and everything else already live). An empty
+`storage/.provisioned` was created directly on the box before any real deploy — the same marker the
+playbook's own "Mark server as provisioned" task would create on a first run — so the seed step is
+now correctly skipped going forward.
 
 The two migrations that had only ever run against the `_test` databases —
 `0001_01_01_000001_create_password_reset_tokens_table` and
@@ -142,6 +152,47 @@ unbounded `storage/logs/laravel.log`. It's now `LOG_STACK=daily`, using `config/
 per-connection reachability. External error tracking (Sentry/Flare) is intentionally out of scope for
 a single-user homelab — the daily log is the sink.
 
+### Secrets moved to Vault
+
+App-server's credentials lived in three places at once: `env-app.j2` hardcoded all five
+`DBn_PASSWORD`s as the literal `workshop_2`, the three `linux-{mysql,mariadb,postgres}.yml`
+playbooks hardcoded the *same* password again as a play var, and the real Resend SMTP key existed
+only hand-applied to the live `.env` (see the now-resolved path-mismatch entry below) — nowhere in
+any repo. All of it now comes from one Vault path, `secret/animal-shelter-workshop` on
+`linux-vault`, read at deploy time via `community.hashi_vault`'s `vault_kv2_get` lookup
+(`infrastructure/ansible/group_vars/all.yml`), authenticated with a scoped, read-only AppRole
+(`asw-deploy`) rather than the lab's root token. `APP_KEY` moved in too, which is what makes the
+`.env` template genuinely re-renderable now (`force: true` — see below) instead of a first-deploy-
+only artifact. See `oracle-db-learning-proxmox/docs/11-vault-approle-app-integration/` for the
+policy and AppRole setup.
+
+Preparing this also surfaced three pre-existing bugs in `env-app.j2` that predate the Vault change
+and would have bitten on the very first real run of this playbook, `force: true` or not:
+`TOYYIBPAY_SECRET_KEY`/`TOYYIBPAY_CATEGORY_CODE` never matched what `config/toyyibpay.php` actually
+reads (`TOYYIBPAY_KEY`/`TOYYIBPAY_CATEGORY`) — fixed. `DB2_HOST`/`DB3_HOST` (shelter/animals) were
+hardcoded to `linux-mysql` (`100.115.237.93`, the Proxmox MySQL VM), but that host has no
+`workshop_2` database at all — confirmed live (`Unknown database 'workshop_2'`). The real
+shelter/animal data (102 rows in `animal`, confirmed live) is on `msi` (`100.68.235.121`), matching
+CLAUDE.md's connection table and the live `.env`. Both now use the correct host. Most seriously,
+found via an actual `--check --diff` run against the live box: `env-app.j2` never set
+`FILESYSTEM_DISK` at all — `config/filesystems.php` defaults that to `'local'` when unset, which
+would have silently moved every upload off Cloudinary onto local disk on the first real deploy.
+Fixed (`FILESYSTEM_DISK=cloudinary`, a plain literal — not a secret, not Vault-sourced). The same
+dry run's diff also showed `BOOKING_PREFER_SQLSRV`, `VITE_APP_NAME`, and `BROADCAST_CONNECTION` as
+present in the live `.env` but absent from the template — checked all three against the actual
+codebase (`grep` across `app/`, `config/`, `resources/`) and confirmed all three are dead: no
+`config/broadcasting.php` exists at all, and the other two aren't referenced anywhere. Left out of
+the template deliberately, not missed. None of these four bugs had ever surfaced before because the
+playbook has never actually been run against the real box — see the path-mismatch entry below.
+
+Two consequences worth stating plainly:
+- Deploys now depend on Vault being unsealed. Runtime doesn't — `config:cache` bakes resolved
+  values into compiled config, so an already-running app is unaffected if Vault goes down
+  afterward.
+- `key:generate` no longer runs at all; regenerating a key that's supposed to come from Vault would
+  silently diverge the two. The `.env` deploy task's `force: false` guard is also gone — Vault is
+  now the actual source of truth, not a one-time seed.
+
 ### Removed: non-functional email-verification scaffolding
 
 Routes, controllers, and a view for Laravel's standard email-verification flow existed but were never
@@ -166,20 +217,23 @@ the now-meaningless `email_verified_at` cast on `User`.
   done from a Windows dev machine with no `ansible`/Python installed. Every YAML file was reviewed by
   hand for indentation and brace-balance correctness, but an automated syntax check on the actual
   control node is worth doing before the next real deploy.
-- **`app-server.yml`'s deploy path doesn't match the real, live app-server.** The playbook and
-  `env-app.j2` assume `/var/www/animal-shelter` (owned by a `workshop` user) — confirmed that path
-  doesn't exist on the actual box (only the default `/var/www/html` placeholder does). The real app is
-  at `/home/taufiq/Animal-Shelter-Workshop` (owned by `taufiq`), confirmed via nginx's actual `root`
-  directive. This box was set up by hand at some point and the two have quietly diverged — a fresh
-  playbook run wouldn't update the live site, it'd create an unused parallel copy with no error to
-  signal the mismatch. Needs an explicit decision (migrate the live path to match Ansible, or update
-  Ansible to match reality), not a silent fix.
-- ~~SMTP credentials still needed~~ — **done.** Resend is the provider (`smtp.resend.com`, username
-  `resend`), domain `mail.tttaufiqqq.com` verified (SPF/DKIM/DMARC), and the real API key is applied
-  directly to app-server's live `.env` (not via the Ansible template — see the path-mismatch finding
-  below). `Password::sendResetLink()` returned `passwords.sent`, no mail exception logged, and
-  Resend's own dashboard confirms the message was actually relayed to Gmail — it then **bounced**,
-  but only because the test recipient (`admin1@gmail.com`) is a seeded demo account
+- ~~`app-server.yml`'s deploy path doesn't match the real, live app-server~~ — **resolved.** The
+  playbook, `env-app.j2`, and the scheduler/nginx templates now target
+  `/home/taufiq/Animal-Shelter-Workshop` and `become_user: taufiq` throughout, matching the box as it
+  actually exists (confirmed via nginx's real `root` directive) rather than the `/var/www/animal-shelter`
+  / `workshop` layout that was never actually deployed. Decision taken: update Ansible to match reality,
+  not migrate the live site. One new gap this creates: a *fresh* Terraform-provisioned app-server VM
+  only gets a `workshop` OS user from cloud-init (see `docs/06-ansible.md`), not `taufiq` — this
+  playbook would now fail against a truly from-scratch VM until a `taufiq` user exists. Flagged, not
+  fixed, since every real run so far has targeted the existing hand-configured box.
+- ~~SMTP credentials still needed~~ — **done, and now in Vault.** Resend is the provider
+  (`smtp.resend.com`, username `resend`), domain `mail.tttaufiqqq.com` verified (SPF/DKIM/DMARC). The
+  real API key was originally applied by hand directly to app-server's live `.env`, existing in no
+  repo at all — it's now stored in Vault (`secret/animal-shelter-workshop`, see the Secrets moved to
+  Vault entry above) and rendered by the template like every other credential.
+  `Password::sendResetLink()` returned `passwords.sent`, no mail exception logged, and Resend's own
+  dashboard confirms the message was actually relayed to Gmail — it then **bounced**, but only
+  because the test recipient (`admin1@gmail.com`) is a seeded demo account
   (`database/seeders/UserSeeder.php`), not a real inbox. A hard bounce from the real destination mail
   server is evidence the relay itself works correctly (Resend accepted it, routed it, Gmail rejected
   the *mailbox*, not the sender) — this was a bad choice of test recipient on my part, not a config
@@ -187,6 +241,11 @@ the now-meaningless `email_verified_at` cast on `User`.
 - **Still open: confirm delivery to a real inbox.** Re-run the same `Password::sendResetLink()` test
   against an email address that actually exists, and check it arrives (not just that Resend accepted
   it) before calling this fully closed.
+- **Vault runs with `tls_disable = true`.** Fine behind Tailscale for DB-engine root passwords, but
+  the app's own secrets (including the Resend key and `APP_KEY`) now flow over that same unencrypted
+  listener too — Tailscale's own encryption covers the transport, but it's worth naming rather than
+  leaving unsaid. Not blocking for a lab with no real data; would be a real gap in an actual
+  production Vault.
 
 ## Verification
 
