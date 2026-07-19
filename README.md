@@ -37,6 +37,12 @@ Built as an academic project for BITU3923 Workshop II at Universiti Teknikal Mal
 (UTeM), the goal was to demonstrate enterprise-shaped distributed-systems problems on a five-person
 homelab budget, not to shortcut them with a single convenient database.
 
+> **A note on "production"**: this project is deployed and hardened the way a real system would be,
+> but the goal is to show that engineering work to others — not to serve real users. There's no real
+> user base and no real data at stake, and the payment gateway (ToyyibPay) is deliberately kept on
+> its sandbox permanently rather than ever switching to live payments. See
+> [`docs/09-production-hardening.md`](docs/09-production-hardening.md) for the full scope note.
+
 ---
 
 ## 🚀 A tour of the five modules

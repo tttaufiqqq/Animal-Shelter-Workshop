@@ -6,6 +6,14 @@ on the `users` connection were off by ~8 hours, and there was no TLS, no backups
 services beyond the web request/response cycle. This document records what changed, why, and what's
 still a deliberate follow-up rather than something silently left undone.
 
+**What "production" means for this project**: this is a portfolio deployment — the point is for
+other people to see the engineering work, not to serve real users or hold real data. There is no
+real user base and no real data to protect. That scope deliberately caps how far some of this
+hardening goes: e.g. the payment gateway stays on ToyyibPay's sandbox permanently (see the ToyyibPay
+bullet below) rather than ever switching to live payments, since there's no real money or real
+adopters involved. Treat "production-grade" throughout this doc as "handled the way a real deploy
+would be," not "actually serving real users."
+
 ## What changed
 
 ### Deploy pipeline no longer destroys data
@@ -68,6 +76,22 @@ terminates TLS and proxies plain HTTP to php-fpm, so Laravel never sees `https:/
 (Tailwind, Font Awesome, Leaflet, Nominatim for reverse geocoding) — a CSP needs its own scoped pass
 to enumerate every legitimate external origin without breaking the map/geocoding flow. Flagged here
 as a follow-up, not silently skipped.
+
+### Trusted proxies
+
+The public request path is `Cloudflare (real TLS termination) → cloudflared tunnel → nginx
+(localhost:80) → php-fpm`. `cloudflared` and nginx both run on the same app-server box, so every
+request php-fpm actually sees arrives from `127.0.0.1` — the real client's IP and the fact the
+original request was HTTPS only exist in the `X-Forwarded-For`/`X-Forwarded-Proto` headers Cloudflare
+attaches. Laravel trusts none of those headers by default (a proxy you don't control could otherwise
+have a client forge them), so `$request->ip()` returned the proxy's own address and
+`$request->isSecure()` returned `false` even on a real HTTPS visit — `URL::forceScheme('https')` (see
+above) was already masking the symptom for generated links, but anything reading `isSecure()`
+directly still saw plain HTTP.
+
+Fixed in `bootstrap/app.php` — `$middleware->trustProxies(at: ['127.0.0.1'])`. `127.0.0.1` specifically
+(not `'*'`) because that's the one fixed, known hop in this chain (cloudflared → nginx are always
+local to each other); no other proxy sits between the internet and this box.
 
 ### Mail
 
@@ -153,16 +177,35 @@ the now-meaningless `email_verified_at` cast on `User`.
   loads without breaking the map/geocoding flow.
 - **Off-VM backup copies** — see the Backups section above.
 - **A real restore drill** — the runbook above hasn't been exercised against real hardware.
-- **`TOYYIBPAY_BASE_URL` still points at the ToyyibPay sandbox** (`dev.toyyibpay.com`). Switching to
-  the live payment gateway is a financial decision with real consequences — left for whoever owns
-  that decision to make explicitly, not bundled into infra hardening.
+- **`TOYYIBPAY_BASE_URL` stays on the ToyyibPay sandbox** (`dev.toyyibpay.com`) **by design, not as an
+  open decision.** This project has no real users and no real money moving through it — it exists for
+  others to see the engineering work, not to process live payments. Switching to the live gateway is
+  explicitly out of scope, not a pending follow-up.
 - **Ansible syntax was never run through `ansible-playbook --syntax-check`** — this hardening pass was
   done from a Windows dev machine with no `ansible`/Python installed. Every YAML file was reviewed by
   hand for indentation and brace-balance correctness, but an automated syntax check on the actual
   control node is worth doing before the next real deploy.
-- **A live end-to-end HTTPS check** (`https://{{ app_domain }}` actually serving, password reset email
-  actually arriving) needs a real public domain and SMTP credentials, neither of which exist on this
-  dev machine.
+- **`app-server.yml`'s deploy path doesn't match the real, live app-server.** The playbook and
+  `env-app.j2` assume `/var/www/animal-shelter` (owned by a `workshop` user) — confirmed that path
+  doesn't exist on the actual box (only the default `/var/www/html` placeholder does). The real app is
+  at `/home/taufiq/Animal-Shelter-Workshop` (owned by `taufiq`), confirmed via nginx's actual `root`
+  directive. This box was set up by hand at some point and the two have quietly diverged — a fresh
+  playbook run wouldn't update the live site, it'd create an unused parallel copy with no error to
+  signal the mismatch. Needs an explicit decision (migrate the live path to match Ansible, or update
+  Ansible to match reality), not a silent fix.
+- ~~SMTP credentials still needed~~ — **done.** Resend is the provider (`smtp.resend.com`, username
+  `resend`), domain `mail.tttaufiqqq.com` verified (SPF/DKIM/DMARC), and the real API key is applied
+  directly to app-server's live `.env` (not via the Ansible template — see the path-mismatch finding
+  below). `Password::sendResetLink()` returned `passwords.sent`, no mail exception logged, and
+  Resend's own dashboard confirms the message was actually relayed to Gmail — it then **bounced**,
+  but only because the test recipient (`admin1@gmail.com`) is a seeded demo account
+  (`database/seeders/UserSeeder.php`), not a real inbox. A hard bounce from the real destination mail
+  server is evidence the relay itself works correctly (Resend accepted it, routed it, Gmail rejected
+  the *mailbox*, not the sender) — this was a bad choice of test recipient on my part, not a config
+  problem.
+- **Still open: confirm delivery to a real inbox.** Re-run the same `Password::sendResetLink()` test
+  against an email address that actually exists, and check it arrives (not just that Resend accepted
+  it) before calling this fully closed.
 
 ## Verification
 

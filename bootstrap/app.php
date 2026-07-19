@@ -11,6 +11,14 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        // cloudflared and nginx both run on the same app-server box, so every
+        // request php-fpm sees arrives from 127.0.0.1 regardless of the real
+        // visitor — trust that single hop so $request->ip()/isSecure() reflect
+        // the real client via X-Forwarded-For/-Proto instead of the proxy's own.
+        $middleware->trustProxies(at: [
+            '127.0.0.1',
+        ]);
+
         $middleware->web(append: [
             \App\Http\Middleware\PreventDatabaseTimeout::class,
             \App\Http\Middleware\InjectDatabaseStatus::class,
