@@ -45,9 +45,18 @@ DB5_DATABASE=workshop_2
 DB5_USERNAME=workshop_2
 DB5_PASSWORD=workshop_2
 
-CACHE_STORE=database
-SESSION_DRIVER=database
-QUEUE_CONNECTION=database
+# file, not database: session/cache must not hard-depend on the users (Postgres)
+# connection, or a single DB outage would take down every page's session too —
+# this is what the app's own circuit breaker already assumes (it forces
+# Cache::store('file') internally regardless of the default store).
+CACHE_STORE=file
+SESSION_DRIVER=file
+
+# sync, not database: grep-confirmed zero Jobs/Mail/Notifications classes and
+# no ShouldQueue usage anywhere in app/ — there is no queued work to run, so a
+# queue driver that needs its own worker process would just be unused
+# complexity. Revisit if queued work is ever added.
+QUEUE_CONNECTION=sync
 
 # Cloudinary — fill in after provisioning
 CLOUDINARY_URL={{ cloudinary_url | default('cloudinary://api_key:api_secret@cloud_name') }}
