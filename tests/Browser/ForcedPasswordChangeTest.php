@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Role;
 use App\Models\User;
 
 /**
@@ -31,6 +32,11 @@ function submitForm($page, string $buttonSelector): void
 
 function makeForcedResetUser(string $password = 'OldPassword123!'): User
 {
+    // Not $this->makeAdopter() (SeedsMinimalDomain) — this is a plain global
+    // function, not bound to the test case, so the role has to be seeded
+    // directly here instead.
+    Role::firstOrCreate(['name' => 'adopter']);
+
     $user = User::factory()->create([
         'password' => bcrypt($password),
         'require_password_reset' => true,
