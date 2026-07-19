@@ -213,6 +213,34 @@ trait ManagesAnimals
         }
 
         try {
+            // sp_animal_delete has no referencing-row check of its own, and
+            // adoption/animal_booking live on the booking connection — a
+            // different physical server, so no real foreign key can block
+            // this delete. Without this check, deleting an adopted/booked
+            // animal silently orphans those rows (see
+            // tests/Feature/CrossDb/OrphanRiskTest.php). Fail closed if
+            // booking is unreachable: proceeding without being able to check
+            // risks silently orphaning a real reference we just couldn't see.
+            if (!$this->isDatabaseAvailable('booking')) {
+                if ($eilyaOnline) DB::connection('reporting')->rollBack();
+                if ($animal->slotID && $atiqahOnline) DB::connection('shelter')->rollBack();
+                return back()->withErrors(['error' => 'Cannot delete this animal right now — the booking database is unreachable, so existing adoption/booking references cannot be checked.']);
+            }
+
+            $hasAdoption = DB::connection('booking')->table('adoption')
+                ->where('animalID', $animal->id)
+                ->exists();
+
+            $hasBooking = DB::connection('booking')->table('animal_booking')
+                ->where('animalID', $animal->id)
+                ->exists();
+
+            if ($hasAdoption || $hasBooking) {
+                if ($eilyaOnline) DB::connection('reporting')->rollBack();
+                if ($animal->slotID && $atiqahOnline) DB::connection('shelter')->rollBack();
+                return back()->withErrors(['error' => 'Cannot delete this animal — it has an associated adoption or booking record. Remove those first.']);
+            }
+
             if ($eilyaOnline) {
                 try {
                     foreach ($animal->images as $image) {

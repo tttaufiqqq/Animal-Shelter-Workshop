@@ -8,27 +8,23 @@ use Illuminate\Support\Facades\DB;
  * docs/foreign-keys.md's Orphan Risk section claims the app mitigates orphaned
  * cross-DB references by "always deleting from the referencing side (booking/
  * adoption) before deleting the referenced entity (animal) in controller logic."
- * These tests check whether that's actually enforced by code, or just a
- * convention nothing verifies.
+ * ManagesAnimals::destroy() now actually enforces this itself (it wasn't
+ * before — these tests originally proved the gap; they now pin the fix).
  */
 
-it('lets an animal be deleted while an adoption row still references it, orphaning the reference', function () {
+it('blocks deleting an animal while an adoption row still references it', function () {
     $admin = $this->makeAdmin();
     $animal = $this->makeAnimalWithProfile();
     $adoption = Adoption::factory()->create(['animalID' => $animal->id]);
 
     $response = $this->actingAs($admin)->delete("/animal/{$animal->id}");
 
-    $response->assertSessionHasNoErrors();
-    expect(Animal::find($animal->id))->toBeNull();
-    // The documented mitigation does not hold at the code level: nothing checked
-    // for referencing adoption rows before the delete went through, so the
-    // adoption row is now orphaned (animalID points at nothing).
+    $response->assertSessionHasErrors('error');
+    expect(Animal::find($animal->id))->not->toBeNull();
     expect(Adoption::find($adoption->id))->not->toBeNull();
-    expect(Animal::find($adoption->fresh()->animalID))->toBeNull();
 });
 
-it('lets an animal be deleted while a pending booking still references it, orphaning animal_booking', function () {
+it('blocks deleting an animal while a pending booking still references it via animal_booking', function () {
     $admin = $this->makeAdmin();
     $user = $this->makeAdopter();
     $animal = $this->makeAnimalWithProfile();
@@ -36,8 +32,8 @@ it('lets an animal be deleted while a pending booking still references it, orpha
 
     $response = $this->actingAs($admin)->delete("/animal/{$animal->id}");
 
-    $response->assertSessionHasNoErrors();
-    expect(Animal::find($animal->id))->toBeNull();
+    $response->assertSessionHasErrors('error');
+    expect(Animal::find($animal->id))->not->toBeNull();
     $stillReferenced = DB::connection('booking')->table('animal_booking')
         ->where('bookingID', $booking->id)
         ->where('animalID', $animal->id)
