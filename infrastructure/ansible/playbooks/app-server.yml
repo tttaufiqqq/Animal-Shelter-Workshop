@@ -244,8 +244,38 @@
         creates: /var/www/animal-shelter/public/storage
       become_user: workshop
 
+    # ── Scheduler ──────────────────────────────────────────────────────────────
+    # QUEUE_CONNECTION is `sync` (see templates/env-app.j2) — grep-confirmed zero
+    # queued jobs/mail/notifications anywhere in app/, so no queue worker service
+    # is needed here. Only the scheduler (routes/console.php: db:refresh-status
+    # every minute, taufiq:refresh-stats every 5 minutes) needs a runtime.
+    - name: Deploy Laravel scheduler systemd service
+      template:
+        src: ../templates/laravel-scheduler.service.j2
+        dest: /etc/systemd/system/laravel-scheduler.service
+
+    - name: Deploy Laravel scheduler systemd timer
+      template:
+        src: ../templates/laravel-scheduler.timer.j2
+        dest: /etc/systemd/system/laravel-scheduler.timer
+      notify: Reload systemd units
+
+    - name: Flush handlers before enabling the scheduler timer
+      meta: flush_handlers
+
+    - name: Enable and start the Laravel scheduler timer
+      systemd:
+        name: laravel-scheduler.timer
+        enabled: true
+        state: started
+        daemon_reload: true
+
   handlers:
     - name: Reload Nginx
       service:
         name: nginx
         state: reloaded
+
+    - name: Reload systemd units
+      systemd:
+        daemon_reload: true

@@ -1,0 +1,8 @@
+[Unit]
+Description=Animal Shelter Workshop - Laravel scheduler (single schedule:run pass)
+
+[Service]
+Type=oneshot
+User=workshop
+WorkingDirectory=/var/www/animal-shelter
+ExecStart=/usr/bin/php artisan schedule:run

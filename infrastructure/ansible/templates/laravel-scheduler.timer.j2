@@ -1,0 +1,13 @@
+[Unit]
+Description=Run the Animal Shelter Workshop Laravel scheduler every minute
+# This is what actually executes routes/console.php's scheduled commands:
+# db:refresh-status (every minute) and taufiq:refresh-stats (every 5 minutes).
+# Without this timer neither ever runs in production.
+
+[Timer]
+OnCalendar=*-*-* *:*:00
+AccuracySec=1sec
+Persistent=true
+
+[Install]
+WantedBy=timers.target
