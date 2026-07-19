@@ -163,8 +163,10 @@ surviving reboots unattended — see:
 - [`docs/04-foreign-keys.md`](docs/04-foreign-keys.md) — native vs. logical foreign keys, where each is enforced
 - [`docs/05-cross-db-queries.md`](docs/05-cross-db-queries.md) — the query patterns that replace cross-DB `JOIN`
 - [`docs/02-hardening.md`](docs/02-hardening.md) — firewalls, systemd auto-start, defence-in-depth per machine
-- [`docs/09-production-hardening.md`](docs/09-production-hardening.md) — deploy safety, TLS, backups,
-  and everything else that turned this from "deployable" into production-grade
+- [`docs/09-production-hardening.md`](docs/09-production-hardening.md) — deploy safety, TLS, and
+  everything else that turned this from "deployable" into production-grade
+- [`docs/10-backups.md`](docs/10-backups.md) — coordinated cross-database backups, integrity
+  verification, retention, and the restore runbook
 - `CLAUDE.md` — live server IPs, admin credentials, and the pre-migration checklist for provisioning
   the `workshop_2` database/user on all three engines
 

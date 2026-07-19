@@ -115,4 +115,18 @@ return [
         'name' => env('MAIL_FROM_NAME', 'Example'),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Backup Failure Alert Recipient
+    |--------------------------------------------------------------------------
+    |
+    | php artisan db:backup emails here when a nightly backup fails or
+    | completes with logical foreign key orphans. See docs/10-backups.md.
+    | Left empty, no alert is sent — MAIL_MAILER also needs to be a real
+    | transport (not "log") for the email to actually be delivered.
+    |
+    */
+
+    'backup_alert_to' => env('BACKUP_ALERT_EMAIL'),
+
 ];

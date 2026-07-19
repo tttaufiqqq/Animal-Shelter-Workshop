@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\AuditController;
+use App\Http\Controllers\Admin\BackupController;
 use App\Http\Controllers\Admin\CaretakerController;
 use App\Http\Controllers\Admin\UserManagementController;
 use App\Http\Controllers\Admin\ShelterManagementController as AdminShelterManagementController;
@@ -15,6 +16,10 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin/audit')->name('admin.au
     Route::get('/rescues', [AuditController::class, 'rescues'])->name('rescues');
     Route::get('/timeline/{correlationId}', [AuditController::class, 'timeline'])->name('timeline');
     Route::get('/export/{category}', [AuditController::class, 'export'])->name('export');
+});
+
+Route::middleware(['auth', 'role:admin'])->prefix('admin/backups')->name('admin.backups.')->group(function () {
+    Route::get('/', [BackupController::class, 'index'])->name('index');
 });
 
 Route::middleware(['auth', 'role:admin'])->prefix('admin/caretaker')->name('admin.caretaker.')->group(function () {

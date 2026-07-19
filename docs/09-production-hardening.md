@@ -104,40 +104,20 @@ needs a real external secret** — supply working SMTP credentials (a Gmail app 
 Mailgun, or a homelab relay) via `-e` or a vaulted vars file before deploying, or password reset will
 continue to silently do nothing.
 
-### Automated backups
+### Automated backups — superseded, see docs/10-backups.md
 
-None of the 3 database engines had any backup task anywhere in `infrastructure/`. Each now runs a
-nightly (02:00, systemd timer) dump via a small script:
+This section originally described a per-host `mysqldump`/`pg_dump` nightly timer on each of the 3 DB
+VMs (`templates/backup-{mysql,postgres}.sh.j2`, `/var/backups/workshop_2` on each host). That approach
+had exactly the gaps called out below (no off-VM copy, no restore drill) plus two more found later: it
+never covered `msi` at all (a Windows machine, unreachable by these Linux playbooks) and had no
+cross-database consistency check, despite the app having 12 undeclared logical foreign keys across
+3 servers (`docs/04-foreign-keys.md`).
 
-- **PostgreSQL** (`templates/backup-postgres.sh.j2`): `pg_dump -U postgres workshop_2 | gzip`
-- **MySQL / MariaDB** (`templates/backup-mysql.sh.j2`, shared by both engines):
-  `mysqldump --single-transaction --routines --triggers workshop_2 | gzip` — `--routines` matters
-  specifically here: unlike triggers, `mysqldump` does not include stored procedures by default, and
-  this app's CRUD paths lean on them heavily.
-
-Both write to `/var/backups/workshop_2/workshop_2_<timestamp>.sql.gz` and prune anything older than 7
-days (`find ... -mtime +7 -delete`).
-
-**Not implemented: an off-VM copy.** All 3 homelab DB VMs share one Proxmox node — losing that node
-loses every local backup too. Rsync/scp'ing each night's dump to another host (e.g. app-server) would
-close that gap, but it requires setting up new passwordless SSH trust from 3 separate production VMs
-pushing to another live host, which is a more invasive change (touching `authorized_keys` on multiple
-production machines) than "add a backup job." Recommended as a deliberate follow-up, not bundled in
-silently.
-
-**Restore runbook** (not yet drilled on real hardware — see Verification below):
-
-1. Stop the app (or put it in maintenance mode) so nothing writes mid-restore.
-2. For PostgreSQL: `gunzip -c workshop_2_<ts>.sql.gz | psql -U postgres workshop_2`
-3. For MySQL/MariaDB: `gunzip -c workshop_2_<ts>.sql.gz | mysql workshop_2`
-4. Restore order matters because cross-database references are logical, not enforced by a real
-   foreign key: restore `animals` and `shelter` before `booking`/`reporting`, since `booking.adoption`
-   and `booking.animal_booking` reference `animals.animal` by ID with no DB-level constraint — if
-   `booking` is restored to a point where it references animal IDs that don't exist yet, the app will
-   surface those as orphaned-reference errors (the same class of issue the Phase 8 guard below now
-   catches going forward) rather than a hard failure, so this is a correctness concern, not a
-   catastrophic one.
-5. Restart the app and spot-check `/api/database-status` and a few real pages before resuming traffic.
+It has been replaced with a single coordinated backup orchestrated from app-server
+(`php artisan db:backup`) that dumps all 3 physical databases, verifies the 12 logical foreign keys
+still resolve, checksums and centrally retains the result, and alerts on failure. **See
+`docs/10-backups.md` for the current architecture, retention policy, and restore runbook** — the
+per-host scripts and systemd units referenced above no longer exist.
 
 ### Animal delete now blocks on real adoption/booking references
 
@@ -175,8 +155,9 @@ the now-meaningless `email_verified_at` cast on `User`.
 
 - **Content-Security-Policy** — needs its own pass to enumerate the CDN origins this app actually
   loads without breaking the map/geocoding flow.
-- **Off-VM backup copies** — see the Backups section above.
-- **A real restore drill** — the runbook above hasn't been exercised against real hardware.
+- ~~Off-VM backup copies~~ / ~~a real restore drill~~ — **superseded**, see `docs/10-backups.md`:
+  backups are now centralized on app-server (closing the off-VM gap) with a documented, drillable
+  `--into-scratch` restore path.
 - **`TOYYIBPAY_BASE_URL` stays on the ToyyibPay sandbox** (`dev.toyyibpay.com`) **by design, not as an
   open decision.** This project has no real users and no real money moving through it — it exists for
   others to see the engineering work, not to process live payments. Switching to the live gateway is

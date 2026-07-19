@@ -25,3 +25,13 @@ Schedule::command('taufiq:refresh-stats')
     ->description('Refresh materialized views for user and adopter statistics')
     ->withoutOverlapping()
     ->runInBackground();
+
+// Nightly Coordinated Database Backup - 02:00 UTC
+// Dumps all 3 physical databases, runs the logical FK integrity audit, prunes
+// old runs, and alerts on failure/degradation. See docs/10-backups.md.
+Schedule::command('db:backup')
+    ->dailyAt('02:00')
+    ->name('nightly-database-backup')
+    ->description('Coordinated backup + integrity check of all distributed databases')
+    ->withoutOverlapping()
+    ->runInBackground();

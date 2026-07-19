@@ -86,44 +86,37 @@
         state: enabled
 
     # ── Backups ──────────────────────────────────────────────────────────────
-    - name: Create the backup directory
-      file:
-        path: /var/backups/workshop_2
-        state: directory
-        owner: root
-        mode: "0700"
-
-    - name: Deploy the nightly backup script
-      template:
-        src: ../templates/backup-mysql.sh.j2
-        dest: /usr/local/bin/backup-workshop-db.sh
-        owner: root
-        mode: "0700"
-
-    - name: Deploy the backup systemd service
-      template:
-        src: ../templates/db-backup.service.j2
-        dest: /etc/systemd/system/workshop-db-backup.service
-      vars:
-        backup_engine_label: MariaDB
-        backup_run_as_user: root
-      notify: Reload systemd (backup)
-
-    - name: Deploy the backup systemd timer
-      template:
-        src: ../templates/db-backup.timer.j2
-        dest: /etc/systemd/system/workshop-db-backup.timer
-      notify: Reload systemd (backup)
-
-    - name: Flush handlers before enabling the backup timer
-      meta: flush_handlers
-
-    - name: Enable and start the nightly backup timer
+    # Per-host backup timers retired in favor of one coordinated backup run
+    # from app-server (php artisan db:backup) — see docs/10-backups.md for why:
+    # per-host dumps never left this VM, never covered msi, and had no
+    # cross-database integrity check. These tasks stop and remove the old
+    # unit on already-provisioned hosts; they don't reinstall it.
+    - name: Stop and disable the retired per-host backup timer
       systemd:
         name: workshop-db-backup.timer
-        enabled: true
-        state: started
-        daemon_reload: true
+        state: stopped
+        enabled: false
+      ignore_errors: true
+
+    - name: Remove the retired backup systemd timer unit
+      file:
+        path: /etc/systemd/system/workshop-db-backup.timer
+        state: absent
+      notify: Reload systemd (backup)
+
+    - name: Remove the retired backup systemd service unit
+      file:
+        path: /etc/systemd/system/workshop-db-backup.service
+        state: absent
+      notify: Reload systemd (backup)
+
+    - name: Remove the retired backup script
+      file:
+        path: /usr/local/bin/backup-workshop-db.sh
+        state: absent
+
+    # /var/backups/workshop_2 is left in place — delete manually once the
+    # centralized backup on app-server is confirmed working.
 
   handlers:
     - name: Restart MariaDB

@@ -28,6 +28,17 @@
           - php8.3-redis
         state: present
 
+    # The PDO extensions above let PHP query the 3 remote databases, but
+    # php artisan db:backup shells out to the native dump/restore binaries
+    # directly (mysqldump/mysql, pg_dump/pg_restore/psql) — those aren't
+    # provided by the PDO packages and must be installed separately.
+    - name: Install MySQL/MariaDB and PostgreSQL client tools (for db:backup / db:restore)
+      apt:
+        name:
+          - mysql-client
+          - postgresql-client
+        state: present
+
     - name: Install Nginx
       apt:
         name: nginx
@@ -124,6 +135,17 @@
       loop:
         - /var/www/animal-shelter/storage
         - /var/www/animal-shelter/bootstrap/cache
+
+    # php artisan db:backup writes nightly dumps here — the whole reason for
+    # centralizing on app-server, since dumps then survive losing any single
+    # DB VM. Mode 0700: these files contain full database contents.
+    - name: Create the centralized database backups directory
+      file:
+        path: /var/www/animal-shelter/storage/app/backups
+        state: directory
+        owner: workshop
+        group: workshop
+        mode: "0700"
 
     - name: Install Composer dependencies
       composer:
@@ -317,10 +339,11 @@
       become_user: workshop
 
     # ── Scheduler ──────────────────────────────────────────────────────────────
-    # QUEUE_CONNECTION is `sync` (see templates/env-app.j2) — grep-confirmed zero
-    # queued jobs/mail/notifications anywhere in app/, so no queue worker service
-    # is needed here. Only the scheduler (routes/console.php: db:refresh-status
-    # every minute, taufiq:refresh-stats every 5 minutes) needs a runtime.
+    # QUEUE_CONNECTION is `sync` (see templates/env-app.j2) — db:backup's mail
+    # alert sends synchronously via Mail::send(), not ->queue(), so no queue
+    # worker service is needed here either. Only the scheduler (routes/console.php:
+    # db:refresh-status every minute, taufiq:refresh-stats every 5 minutes,
+    # db:backup nightly at 02:00 — see docs/10-backups.md) needs a runtime.
     - name: Deploy Laravel scheduler systemd service
       template:
         src: ../templates/laravel-scheduler.service.j2

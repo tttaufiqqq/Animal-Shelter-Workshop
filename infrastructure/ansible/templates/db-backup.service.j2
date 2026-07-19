@@ -1,7 +1,0 @@
-[Unit]
-Description=Nightly workshop_2 database backup ({{ backup_engine_label }})
-
-[Service]
-Type=oneshot
-User={{ backup_run_as_user }}
-ExecStart=/usr/local/bin/backup-workshop-db.sh
