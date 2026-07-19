@@ -1,32 +1,39 @@
 server {
     listen 80;
-    server_name {{ server_name | default('_') }};
+    server_name {{ app_domain }};
     root /var/www/animal-shelter/public;
 
-    add_header X-Frame-Options "SAMEORIGIN";
-    add_header X-Content-Type-Options "nosniff";
-
-    index index.php;
-
-    charset utf-8;
-
+{% if tls_cert_exists %}
+    # A certificate already exists — send everything else to HTTPS.
     location / {
-        try_files $uri $uri/ /index.php?$query_string;
-    }
-
-    location = /favicon.ico { access_log off; log_not_found off; }
-    location = /robots.txt  { access_log off; log_not_found off; }
-
-    error_page 404 /index.php;
-
-    location ~ \.php$ {
-        fastcgi_pass unix:/var/run/php/php8.3-fpm.sock;
-        fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
-        include fastcgi_params;
-        fastcgi_hide_header X-Powered-By;
-    }
-
-    location ~ /\.(?!well-known).* {
-        deny all;
+        return 301 https://$host$request_uri;
     }
 }
+
+server {
+    listen 443 ssl;
+    http2 on;
+    server_name {{ app_domain }};
+    root /var/www/animal-shelter/public;
+
+    ssl_certificate     /etc/letsencrypt/live/{{ app_domain }}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/{{ app_domain }}/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+    add_header X-XSS-Protection "1; mode=block" always;
+
+    include /etc/nginx/snippets/animal-shelter-locations.conf;
+}
+{% else %}
+    # No certificate yet (first deploy) — serve the app over plain HTTP so
+    # certbot's webroot challenge (and the app itself) both work. The block
+    # above switches this to a permanent HTTPS redirect and adds the real
+    # :443 server block automatically, the moment a certificate exists — see
+    # infrastructure/ansible/playbooks/app-server.yml's TLS/HTTPS section.
+    include /etc/nginx/snippets/animal-shelter-locations.conf;
+}
+{% endif %}

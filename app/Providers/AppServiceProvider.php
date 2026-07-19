@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -42,6 +43,14 @@ class AppServiceProvider extends ServiceProvider
         // Especially important for distributed database architecture
         if (!app()->runningInConsole()) {
             @set_time_limit(120); // 2 minutes max execution time
+        }
+
+        // nginx terminates TLS and proxies to php-fpm over plain HTTP, so
+        // Laravel never sees an https:// request directly — force it here or
+        // every generated URL (password reset links, ToyyibPay return/callback)
+        // would render as http://.
+        if ($this->app->environment('production')) {
+            URL::forceScheme('https');
         }
     }
 }

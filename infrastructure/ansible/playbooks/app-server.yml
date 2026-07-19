@@ -163,10 +163,43 @@
         creates: /var/www/animal-shelter/public/build/manifest.json
       become_user: workshop
 
-    - name: Deploy Nginx site config
+    # ── TLS / HTTPS ──────────────────────────────────────────────────────────
+    - name: Fail early if TLS variables are not provided
+      assert:
+        that:
+          - app_domain is defined
+          - (app_domain | default('')) | length > 0
+          - certbot_email is defined
+          - (certbot_email | default('')) | length > 0
+        fail_msg: >-
+          app_domain and certbot_email must be set (e.g. via
+          -e app_domain=shelter.example.com -e certbot_email=you@example.com)
+          before this playbook can issue a Let's Encrypt certificate. A public
+          DNS A record for app_domain must already point at this server, and
+          inbound :443 must be reachable (UFW already allows it).
+
+    - name: Install certbot
+      apt:
+        name: certbot
+        state: present
+
+    - name: Check whether a certificate already exists for app_domain
+      stat:
+        path: "/etc/letsencrypt/live/{{ app_domain }}/fullchain.pem"
+      register: tls_cert_stat
+
+    - name: Deploy the shared Nginx location block (php-fpm, try_files, etc.)
+      template:
+        src: ../templates/nginx-locations.conf.j2
+        dest: /etc/nginx/snippets/animal-shelter-locations.conf
+      notify: Reload Nginx
+
+    - name: Deploy Nginx site config (HTTP-only bootstrap until a cert exists)
       template:
         src: ../templates/nginx-app.conf.j2
         dest: /etc/nginx/sites-available/animal-shelter
+      vars:
+        tls_cert_exists: "{{ tls_cert_stat.stat.exists }}"
       notify: Reload Nginx
 
     - name: Enable Nginx site
@@ -181,6 +214,45 @@
         path: /etc/nginx/sites-enabled/default
         state: absent
       notify: Reload Nginx
+
+    - name: Flush handlers so Nginx is already serving :80 before requesting a
+        certificate (certbot's webroot challenge needs a live server)
+      meta: flush_handlers
+
+    - name: Obtain a Let's Encrypt certificate via the webroot challenge
+        (first run only — later deploys see tls_cert_stat.stat.exists = true
+        and skip this)
+      command: >-
+        certbot certonly --webroot -w /var/www/animal-shelter/public
+        -d {{ app_domain }} -m {{ certbot_email }} --agree-tos --non-interactive
+      when: not tls_cert_stat.stat.exists
+
+    - name: Re-deploy Nginx site config now that a certificate exists
+        (first run only — adds the real :443 block and the :80 -> :443 redirect)
+      template:
+        src: ../templates/nginx-app.conf.j2
+        dest: /etc/nginx/sites-available/animal-shelter
+      vars:
+        tls_cert_exists: true
+      when: not tls_cert_stat.stat.exists
+      notify: Reload Nginx
+
+    - name: Flush handlers to apply the post-certificate Nginx reload
+      meta: flush_handlers
+
+    - name: Ensure certbot's renewal timer is enabled
+      systemd:
+        name: certbot.timer
+        enabled: true
+        state: started
+
+    - name: Reload Nginx automatically after certificate renewal
+      copy:
+        dest: /etc/letsencrypt/renewal-hooks/deploy/reload-nginx.sh
+        content: |
+          #!/bin/sh
+          systemctl reload nginx
+        mode: "0755"
 
     - name: Flush handlers before migrations
       meta: flush_handlers
