@@ -30,11 +30,16 @@ jobs:
       # failing with ENOENT on every run. Installing PHP via apt (Ubuntu 24.04 ships 8.3
       # natively, matching infrastructure/ansible/playbooks/app-server.yml's production
       # install) sidesteps the third-party action entirely.
+      # php8.3-sqlite3 (pdo_sqlite) isn't for app data - every model/migration pins one of
+      # the 5 real connections (docs/03-db-architecture.md) - it's for Laravel's own migration
+      # *repository* bookkeeping, which always runs against config('database.default') no
+      # matter which connection an individual migration targets. .env.testing.example points
+      # that default at local sqlite specifically so it never touches a real Tailscale DB.
       - name: Install PHP 8.3 and required extensions
         run: |
           sudo apt-get update
           sudo apt-get install -y php8.3-cli php8.3-mbstring php8.3-bcmath php8.3-curl \
-            php8.3-xml php8.3-zip php8.3-mysql php8.3-pgsql
+            php8.3-xml php8.3-zip php8.3-mysql php8.3-pgsql php8.3-sqlite3
 
       - name: Install Composer
         run: |
@@ -46,8 +51,14 @@ jobs:
       - name: Install Composer dependencies
         run: composer install --no-interaction --prefer-dist --optimize-autoloader
 
+      # database/testing.sqlite is gitignored (it's a local artifact, not app data - see the
+      # pdo_sqlite comment above) so a fresh checkout never has it; the sqlite driver needs
+      # the file to actually exist, not just the extension.
       - name: Configure test environment
-        run: cp .env.testing.example .env.testing
+        run: |
+          cp .env.testing.example .env.testing
+          mkdir -p database
+          touch database/testing.sqlite
 
       # migrate:fresh (Laravel's built-in) only drops tables on the default
       # connection (sqlite) — this app's migrations pin to 5 named
@@ -80,11 +91,16 @@ jobs:
       # failing with ENOENT on every run. Installing PHP via apt (Ubuntu 24.04 ships 8.3
       # natively, matching infrastructure/ansible/playbooks/app-server.yml's production
       # install) sidesteps the third-party action entirely.
+      # php8.3-sqlite3 (pdo_sqlite) isn't for app data - every model/migration pins one of
+      # the 5 real connections (docs/03-db-architecture.md) - it's for Laravel's own migration
+      # *repository* bookkeeping, which always runs against config('database.default') no
+      # matter which connection an individual migration targets. .env.testing.example points
+      # that default at local sqlite specifically so it never touches a real Tailscale DB.
       - name: Install PHP 8.3 and required extensions
         run: |
           sudo apt-get update
           sudo apt-get install -y php8.3-cli php8.3-mbstring php8.3-bcmath php8.3-curl \
-            php8.3-xml php8.3-zip php8.3-mysql php8.3-pgsql
+            php8.3-xml php8.3-zip php8.3-mysql php8.3-pgsql php8.3-sqlite3
 
       - name: Install Composer
         run: |
@@ -112,8 +128,14 @@ jobs:
       - name: Build frontend assets
         run: npm run build
 
+      # database/testing.sqlite is gitignored (it's a local artifact, not app data - see the
+      # pdo_sqlite comment above) so a fresh checkout never has it; the sqlite driver needs
+      # the file to actually exist, not just the extension.
       - name: Configure test environment
-        run: cp .env.testing.example .env.testing
+        run: |
+          cp .env.testing.example .env.testing
+          mkdir -p database
+          touch database/testing.sqlite
 
       - name: Reset the 5 distributed test databases
         run: php artisan db:fresh-all --env=testing --force
