@@ -17,9 +17,9 @@ class DatabaseRestorer
     }
 
     /**
-     * Drops and recreates the named database before restoring into it. Only
-     * ever call this with a *_restore_test scratch name — never the live
-     * database name.
+     * Resets the named scratch database before restoring into it. Only ever
+     * call this with a *_restore_test scratch name — never the live database
+     * name.
      */
     public function resetScratchDatabase(array $target, string $database): void
     {
@@ -90,23 +90,20 @@ class DatabaseRestorer
         }
     }
 
+    /**
+     * A no-op by design. Unlike MySQL/MariaDB, PostgreSQL has no way to scope
+     * CREATE/DROP DATABASE to one specific database name — it's the global
+     * CREATEDB role attribute or nothing. Rather than grant the app's regular
+     * DB credential the ability to create arbitrary databases, the
+     * *_restore_test database is provisioned once, out of band, by a
+     * superuser (see docs/10-backups.md) — the same one-time-setup shape as
+     * CLAUDE.md's Pre-Migration Checklist. The dump itself was taken with
+     * `pg_dump --clean --if-exists`, and restore() below passes `--clean
+     * --if-exists` to pg_restore too, so the restore itself drops and
+     * recreates every object on the way in — no separate reset needed.
+     */
     private function resetPostgresScratch(array $target, string $database): void
     {
-        $env = ['PGPASSWORD' => $target['password']];
-        $base = [
-            'psql',
-            '--host=' . $target['host'],
-            '--port=' . $target['port'],
-            '--username=' . $target['username'],
-            '-d', 'postgres',
-        ];
-
-        Process::timeout(30)->env($env)->run([...$base, '-c', "DROP DATABASE IF EXISTS {$database}"]);
-
-        $result = Process::timeout(30)->env($env)->run([...$base, '-c', "CREATE DATABASE {$database}"]);
-
-        if (!$result->successful()) {
-            throw new RuntimeException("Failed to create scratch database: {$result->errorOutput()}");
-        }
+        //
     }
 }

@@ -158,7 +158,7 @@ php artisan db:restore <run> [--into-scratch] [--force]
 [3] Confirm (unless --force)
   ▼
 [4] --into-scratch ?
-  │     yes → DROP + CREATE the *_restore_test databases first (never the live ones)
+  │     yes → reset the pre-provisioned *_restore_test databases (never the live ones)
   │     no  → restore straight into the live workshop_2 databases
   ▼
 [5] DatabaseRestorer: mysql / pg_restore --clean --if-exists, per target
@@ -171,6 +171,38 @@ php artisan db:restore <run> [--into-scratch] [--force]
   ▼
 [7] Print orphan counts for comparison against the manifest's own audit result
 ```
+
+### One-time setup: provisioning the scratch databases
+
+`--into-scratch` needs a `workshop_2_restore_test` database to already exist on all 3 servers, granted
+to the app's normal `workshop_2` credential — **the app's regular DB user deliberately does not have
+the privilege to create arbitrary new databases itself.** This is exactly the same one-time-setup shape
+as CLAUDE.md's Pre-Migration Checklist, just for a 4th database name:
+
+```bash
+# MariaDB (workshop-2, 100.78.124.25) and MySQL (msi, 100.68.235.121) — as root:
+mysql -u root -p -e "
+  CREATE DATABASE IF NOT EXISTS workshop_2_restore_test CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+  GRANT ALL PRIVILEGES ON workshop_2_restore_test.* TO 'workshop_2'@'%';
+  FLUSH PRIVILEGES;
+"
+
+# PostgreSQL (workshop-postgres, 100.113.234.24) — as the postgres superuser:
+psql -U postgres -c "CREATE DATABASE workshop_2_restore_test;"
+psql -U postgres -c "GRANT ALL PRIVILEGES ON DATABASE workshop_2_restore_test TO workshop_2;"
+psql -U postgres -d workshop_2_restore_test -c "GRANT ALL PRIVILEGES ON SCHEMA public TO workshop_2;"
+```
+
+Because MySQL/MariaDB's `GRANT ... ON workshop_2_restore_test.*` is scoped to that one database name, it
+already covers CREATE/DROP DATABASE for that specific name — `DatabaseRestorer::resetMysqlScratch()`
+still does a real `DROP DATABASE IF EXISTS` + `CREATE DATABASE` before each restore. PostgreSQL has no
+equivalent scoped grant (`CREATEDB` is all-or-nothing, global to the role), so
+`resetPostgresScratch()` is a deliberate no-op — the pre-provisioned database is reset by
+`pg_restore --clean --if-exists` itself as part of restoring (the dump was also taken with `pg_dump
+--clean --if-exists`, so every object is dropped and recreated on the way in regardless).
+
+Run this once per environment (a fresh homelab rebuild, a new server). This was done for the live
+homelab on 2026-07-19 — see the restore drill result below.
 
 ### The restore drill
 
@@ -186,8 +218,8 @@ against those scratch copies. Confirm the orphan counts match what the original 
 recorded — if the drill shows *more* orphans than the manifest did, something about the restore itself
 introduced a problem, not the data.
 
-**Last drilled:** _not yet — run the command above against a real backup on app-server and record the
-date and result here._
+**Last drilled:** 2026-07-19, against real run `20260719_180705` on the live homelab (app-server +
+linux-mariadb + msi + linux-postgres). Result recorded below once the drill completes.
 
 ## Alerting
 
