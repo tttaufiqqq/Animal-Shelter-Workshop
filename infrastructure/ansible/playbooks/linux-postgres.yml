@@ -119,8 +119,52 @@
       community.general.ufw:
         state: enabled
 
+    # ── Backups ──────────────────────────────────────────────────────────────
+    - name: Create the backup directory
+      file:
+        path: /var/backups/workshop_2
+        state: directory
+        owner: postgres
+        mode: "0700"
+
+    - name: Deploy the nightly backup script
+      template:
+        src: ../templates/backup-postgres.sh.j2
+        dest: /usr/local/bin/backup-workshop-db.sh
+        owner: postgres
+        mode: "0700"
+
+    - name: Deploy the backup systemd service
+      template:
+        src: ../templates/db-backup.service.j2
+        dest: /etc/systemd/system/workshop-db-backup.service
+      vars:
+        backup_engine_label: PostgreSQL
+        backup_run_as_user: postgres
+      notify: Reload systemd (backup)
+
+    - name: Deploy the backup systemd timer
+      template:
+        src: ../templates/db-backup.timer.j2
+        dest: /etc/systemd/system/workshop-db-backup.timer
+      notify: Reload systemd (backup)
+
+    - name: Flush handlers before enabling the backup timer
+      meta: flush_handlers
+
+    - name: Enable and start the nightly backup timer
+      systemd:
+        name: workshop-db-backup.timer
+        enabled: true
+        state: started
+        daemon_reload: true
+
   handlers:
     - name: Restart PostgreSQL
       service:
         name: postgresql
         state: restarted
+
+    - name: Reload systemd (backup)
+      systemd:
+        daemon_reload: true

@@ -1,0 +1,11 @@
+#!/bin/bash
+set -euo pipefail
+
+BACKUP_DIR="/var/backups/workshop_2"
+TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+FILE="$BACKUP_DIR/workshop_2_${TIMESTAMP}.sql.gz"
+
+pg_dump -U postgres workshop_2 | gzip > "$FILE"
+
+# Retention: keep the last 7 daily dumps.
+find "$BACKUP_DIR" -name 'workshop_2_*.sql.gz' -mtime +7 -delete
