@@ -40,6 +40,17 @@
         line: "listen_addresses = '*'"
       notify: Restart PostgreSQL
 
+    # A connection left idle inside an open transaction (e.g. a killed app
+    # process that never rolled back) holds its locks forever otherwise —
+    # this is exactly what blocked new connections for ~2 hours during this
+    # project's own hardening pass. Auto-terminate after 5 minutes idle.
+    - name: Set idle_in_transaction_session_timeout to 5 minutes
+      lineinfile:
+        path: /etc/postgresql/{{ pg_version.stdout }}/main/postgresql.conf
+        regexp: "^#?idle_in_transaction_session_timeout"
+        line: "idle_in_transaction_session_timeout = 5min"
+      notify: Restart PostgreSQL
+
     - name: Allow MD5 auth from all IPs in pg_hba.conf
       lineinfile:
         path: /etc/postgresql/{{ pg_version.stdout }}/main/pg_hba.conf
