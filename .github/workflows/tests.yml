@@ -1,0 +1,38 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  backend:
+    runs-on: [self-hosted, linux, homelab, tailnet]
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: mbstring, bcmath, ctype, curl, dom, fileinfo, json, openssl, tokenizer, xml, zip, pdo, pdo_mysql, mysqli, pdo_pgsql, pgsql
+
+      - name: Install Composer dependencies
+        run: composer install --no-interaction --prefer-dist --optimize-autoloader
+
+      - name: Configure test environment
+        run: cp .env.testing.example .env.testing
+
+      # Runs against the real `_test` copies of the 5 distributed databases
+      # over Tailscale (see docs/db-architecture.md, docs/08-testing.md) —
+      # schema/seed state on those databases is managed manually
+      # (`php artisan migrate:fresh --env=testing --force`, an explicit,
+      # destructive, out-of-band decision), not by this workflow.
+      #
+      # Browser suite (Pest 4 + Playwright) intentionally excluded for now —
+      # needs Node/Playwright/Chromium provisioning this first workflow
+      # doesn't set up yet.
+      - name: Run backend test suite
+        run: php artisan test --env=testing --testsuite=Unit --testsuite=Feature --testsuite=Procedures
