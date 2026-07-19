@@ -157,6 +157,8 @@ surviving reboots unattended — see:
 - [`docs/04-foreign-keys.md`](docs/04-foreign-keys.md) — native vs. logical foreign keys, where each is enforced
 - [`docs/05-cross-db-queries.md`](docs/05-cross-db-queries.md) — the query patterns that replace cross-DB `JOIN`
 - [`docs/02-hardening.md`](docs/02-hardening.md) — firewalls, systemd auto-start, defence-in-depth per machine
+- [`docs/09-production-hardening.md`](docs/09-production-hardening.md) — deploy safety, TLS, backups,
+  and everything else that turned this from "deployable" into production-grade
 - `CLAUDE.md` — live server IPs, admin credentials, and the pre-migration checklist for provisioning
   the `workshop_2` database/user on all three engines
 
@@ -306,7 +308,9 @@ CSRF protection on every form, SQL injection prevention via Eloquent's parameter
 protection through Blade's automatic escaping, role-based access control, bcrypt password hashing,
 and a secure gateway integration for payments. None of the database ports are reachable from
 outside the Tailscale mesh in the first place — see [`docs/02-hardening.md`](docs/02-hardening.md) for
-exactly how each of the four machines is locked down and kept running unattended.
+exactly how each of the four machines is locked down and kept running unattended, and
+[`docs/09-production-hardening.md`](docs/09-production-hardening.md) for how the app itself is served
+over HTTPS with a real certificate, secure cookies, and HSTS.
 
 ---
 
