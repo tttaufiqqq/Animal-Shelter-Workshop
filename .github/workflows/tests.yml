@@ -22,10 +22,26 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: shivammathur/setup-php@v2
-        with:
-          php-version: '8.2'
-          extensions: mbstring, bcmath, ctype, curl, dom, fileinfo, json, openssl, tokenizer, xml, zip, pdo, pdo_mysql, mysqli, pdo_pgsql, pgsql
+      # shivammathur/setup-php@v2 has a path-construction bug (n.replace(e, "run") does a
+      # naive string replace of the FIRST match of the platform name "linux" anywhere in
+      # the full extracted path, not just the trailing linux.sh filename) that this runner
+      # triggers because its own hostname, linux-gh-runner, contains "linux" earlier in the
+      # path than the filename does — corrupting it to .../home/run-gh-runner/... and
+      # failing with ENOENT on every run. Installing PHP via apt (Ubuntu 24.04 ships 8.3
+      # natively, matching infrastructure/ansible/playbooks/app-server.yml's production
+      # install) sidesteps the third-party action entirely.
+      - name: Install PHP 8.3 and required extensions
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y php8.3-cli php8.3-mbstring php8.3-bcmath php8.3-curl \
+            php8.3-xml php8.3-zip php8.3-mysql php8.3-pgsql
+
+      - name: Install Composer
+        run: |
+          command -v composer >/dev/null 2>&1 && exit 0
+          curl -sS https://getcomposer.org/installer | php
+          sudo mv composer.phar /usr/local/bin/composer
+          sudo chmod +x /usr/local/bin/composer
 
       - name: Install Composer dependencies
         run: composer install --no-interaction --prefer-dist --optimize-autoloader
@@ -56,10 +72,26 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: shivammathur/setup-php@v2
-        with:
-          php-version: '8.2'
-          extensions: mbstring, bcmath, ctype, curl, dom, fileinfo, json, openssl, tokenizer, xml, zip, pdo, pdo_mysql, mysqli, pdo_pgsql, pgsql
+      # shivammathur/setup-php@v2 has a path-construction bug (n.replace(e, "run") does a
+      # naive string replace of the FIRST match of the platform name "linux" anywhere in
+      # the full extracted path, not just the trailing linux.sh filename) that this runner
+      # triggers because its own hostname, linux-gh-runner, contains "linux" earlier in the
+      # path than the filename does — corrupting it to .../home/run-gh-runner/... and
+      # failing with ENOENT on every run. Installing PHP via apt (Ubuntu 24.04 ships 8.3
+      # natively, matching infrastructure/ansible/playbooks/app-server.yml's production
+      # install) sidesteps the third-party action entirely.
+      - name: Install PHP 8.3 and required extensions
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y php8.3-cli php8.3-mbstring php8.3-bcmath php8.3-curl \
+            php8.3-xml php8.3-zip php8.3-mysql php8.3-pgsql
+
+      - name: Install Composer
+        run: |
+          command -v composer >/dev/null 2>&1 && exit 0
+          curl -sS https://getcomposer.org/installer | php
+          sudo mv composer.phar /usr/local/bin/composer
+          sudo chmod +x /usr/local/bin/composer
 
       - name: Install Composer dependencies
         run: composer install --no-interaction --prefer-dist --optimize-autoloader
