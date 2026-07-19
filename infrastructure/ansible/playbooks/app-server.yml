@@ -100,12 +100,13 @@
         state: enabled
 
     # ── Application deployment ────────────────────────────────────────────────
-    - name: Clone application repository
+    - name: Clone/update application repository
       git:
         repo: https://github.com/tttaufiqqq/Animal-Shelter-Workshop.git
         dest: /var/www/animal-shelter
         version: main
         force: false
+        update: true
       become_user: workshop
 
     - name: Set web root ownership
@@ -140,11 +141,20 @@
         mode: "0640"
         force: false
 
-    - name: Generate application key
+    - name: Check whether an application key is already set
+      command: grep -q '^APP_KEY=base64:' /var/www/animal-shelter/.env
+      register: app_key_check
+      failed_when: false
+      changed_when: false
+      become_user: workshop
+
+    - name: Generate application key (first deploy only — regenerating on every
+        deploy would invalidate all existing sessions and encrypted data)
       command: php artisan key:generate --force
       args:
         chdir: /var/www/animal-shelter
       become_user: workshop
+      when: app_key_check.rc != 0
 
     - name: Build frontend assets
       command: npm ci && npm run build
@@ -175,13 +185,64 @@
     - name: Flush handlers before migrations
       meta: flush_handlers
 
-    - name: Run database migrations and seed
-      command: php artisan db:fresh-all --seed
+    - name: Check whether this server has already been provisioned
+      stat:
+        path: /var/www/animal-shelter/storage/.provisioned
+      register: provisioned_flag
+
+    - name: Clear cached config before migrating (a stale cached config could
+        point migrations at the wrong database)
+      command: php artisan optimize:clear
+      args:
+        chdir: /var/www/animal-shelter
+      become_user: workshop
+
+    # Idempotent — safe to run on every deploy. NEVER use db:fresh-all here:
+    # it drops every table on all 5 databases and would destroy production data
+    # on every redeploy.
+    - name: Run database migrations
+      command: php artisan migrate --force
       args:
         chdir: /var/www/animal-shelter
       become_user: workshop
       environment:
         HOME: /home/workshop
+
+    - name: Seed databases (first deployment only)
+      command: php artisan db:seed --force
+      args:
+        chdir: /var/www/animal-shelter
+      become_user: workshop
+      environment:
+        HOME: /home/workshop
+      when: not provisioned_flag.stat.exists
+
+    - name: Mark server as provisioned so future deploys never reseed
+      file:
+        path: /var/www/animal-shelter/storage/.provisioned
+        state: touch
+        owner: workshop
+        group: www-data
+        mode: "0640"
+      when: not provisioned_flag.stat.exists
+
+    - name: Cache configuration, routes, views, and events for production
+      command: "php artisan {{ item }}"
+      args:
+        chdir: /var/www/animal-shelter
+      become_user: workshop
+      loop:
+        - config:cache
+        - route:cache
+        - view:cache
+        - event:cache
+
+    - name: Link the public storage directory
+      command: php artisan storage:link
+      args:
+        chdir: /var/www/animal-shelter
+        creates: /var/www/animal-shelter/public/storage
+      become_user: workshop
 
   handlers:
     - name: Reload Nginx
