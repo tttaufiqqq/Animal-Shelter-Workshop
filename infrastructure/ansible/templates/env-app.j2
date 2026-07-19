@@ -6,6 +6,11 @@ APP_URL=https://{{ app_domain }}
 
 LOG_CHANNEL=stack
 LOG_LEVEL=error
+# Rotating daily files (config/logging.php's own 14-day default retention),
+# not the 'single' channel LOG_CHANNEL=stack falls back to when LOG_STACK is
+# unset — a single unbounded storage/logs/laravel.log file never gets
+# trimmed on its own.
+LOG_STACK=daily
 
 # Secure/encrypted session cookie — nginx terminates real TLS on :443 (see
 # templates/nginx-app.conf.j2 / the app-server.yml TLS section), so the
