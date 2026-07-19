@@ -2,5 +2,16 @@
 vault-password.txt
 *.vault
 
+# HashiCorp Vault AppRole credentials for the asw-deploy role — these are
+# read from VAULT_ROLE_ID/VAULT_SECRET_ID env vars (group_vars/all.yml), but
+# guard against a local convenience file (.envrc, a sourced .env) leaking in
+vault-approle*
+.envrc
+
 # Retry files left by failed runs
 *.retry
+
+# Local IP-override inventory (worked around a WSL control node that
+# couldn't resolve Tailscale MagicDNS hostnames) — machine-specific, not the
+# intended inventory mechanism, never commit
+.scratch-inventory-ip-override.yml

@@ -5,7 +5,9 @@
   vars:
     db_name: workshop_2
     db_user: workshop_2
-    db_password: workshop_2
+    # Sourced from Vault (group_vars/all.yml's asw_secrets) — was hardcoded
+    # here and in env-app.j2 as two copies of the same literal, free to drift.
+    db_password: "{{ asw_secrets.db_password }}"
     mariadb_config: /etc/mysql/mariadb.conf.d/50-server.cnf
 
   tasks:

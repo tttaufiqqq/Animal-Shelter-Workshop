@@ -2,6 +2,16 @@
   hosts: app-server
   become: true
 
+  vars:
+    # Public access is now a Cloudflare Tunnel (outbound-only, no port
+    # forwarding) which terminates TLS itself — see
+    # oracle-db-learning-proxmox/docs/10-cloudflare-tunnel/. The certbot
+    # webroot flow below needs a public DNS A record and inbound :443, which
+    # the tunnel doesn't provide, so it's off by default. Nginx still serves
+    # plain HTTP on :80 for the tunnel to connect to. Set -e use_certbot=true
+    # only if direct HTTPS (bypassing the tunnel) is restored later.
+    use_certbot: false
+
   tasks:
     - name: Add ondrej/php PPA (PHP 8.3 for Ubuntu)
       apt_repository:
@@ -114,16 +124,16 @@
     - name: Clone/update application repository
       git:
         repo: https://github.com/tttaufiqqq/Animal-Shelter-Workshop.git
-        dest: /var/www/animal-shelter
+        dest: /home/taufiq/Animal-Shelter-Workshop
         version: main
         force: false
         update: true
-      become_user: workshop
+      become_user: taufiq
 
     - name: Set web root ownership
       file:
-        path: /var/www/animal-shelter
-        owner: workshop
+        path: /home/taufiq/Animal-Shelter-Workshop
+        owner: taufiq
         group: www-data
         recurse: true
 
@@ -133,59 +143,51 @@
         mode: "0775"
         recurse: true
       loop:
-        - /var/www/animal-shelter/storage
-        - /var/www/animal-shelter/bootstrap/cache
+        - /home/taufiq/Animal-Shelter-Workshop/storage
+        - /home/taufiq/Animal-Shelter-Workshop/bootstrap/cache
 
     # php artisan db:backup writes nightly dumps here — the whole reason for
     # centralizing on app-server, since dumps then survive losing any single
     # DB VM. Mode 0700: these files contain full database contents.
     - name: Create the centralized database backups directory
       file:
-        path: /var/www/animal-shelter/storage/app/backups
+        path: /home/taufiq/Animal-Shelter-Workshop/storage/app/backups
         state: directory
-        owner: workshop
-        group: workshop
+        owner: taufiq
+        group: taufiq
         mode: "0700"
 
     - name: Install Composer dependencies
       composer:
         command: install
         arguments: "--no-dev --optimize-autoloader --no-interaction"
-        working_dir: /var/www/animal-shelter
-      become_user: workshop
+        working_dir: /home/taufiq/Animal-Shelter-Workshop
+      become_user: taufiq
 
-    - name: Deploy .env from template (skip if already exists)
+    # force: true — .env is now fully re-renderable from Vault (asw_secrets)
+    # on every deploy, APP_KEY included, so it's no longer a first-deploy-only
+    # artifact. This is what makes Vault the actual live source of truth
+    # instead of a one-time seed.
+    - name: Deploy .env from template
       template:
         src: ../templates/env-app.j2
-        dest: /var/www/animal-shelter/.env
-        owner: workshop
+        dest: /home/taufiq/Animal-Shelter-Workshop/.env
+        owner: taufiq
         group: www-data
         mode: "0640"
-        force: false
-
-    - name: Check whether an application key is already set
-      command: grep -q '^APP_KEY=base64:' /var/www/animal-shelter/.env
-      register: app_key_check
-      failed_when: false
-      changed_when: false
-      become_user: workshop
-
-    - name: Generate application key (first deploy only — regenerating on every
-        deploy would invalidate all existing sessions and encrypted data)
-      command: php artisan key:generate --force
-      args:
-        chdir: /var/www/animal-shelter
-      become_user: workshop
-      when: app_key_check.rc != 0
+        force: true
 
     - name: Build frontend assets
       command: npm ci && npm run build
       args:
-        chdir: /var/www/animal-shelter
-        creates: /var/www/animal-shelter/public/build/manifest.json
-      become_user: workshop
+        chdir: /home/taufiq/Animal-Shelter-Workshop
+        creates: /home/taufiq/Animal-Shelter-Workshop/public/build/manifest.json
+      become_user: taufiq
 
     # ── TLS / HTTPS ──────────────────────────────────────────────────────────
+    # This whole block only runs when use_certbot is set — see the vars
+    # comment above. app_domain is still required unconditionally: it names
+    # the Nginx server_block regardless of who terminates TLS.
     - name: Fail early if TLS variables are not provided
       assert:
         that:
@@ -199,11 +201,13 @@
           before this playbook can issue a Let's Encrypt certificate. A public
           DNS A record for app_domain must already point at this server, and
           inbound :443 must be reachable (UFW already allows it).
+      when: use_certbot
 
     - name: Install certbot
       apt:
         name: certbot
         state: present
+      when: use_certbot
 
     - name: Check whether a certificate already exists for app_domain
       stat:
@@ -245,9 +249,9 @@
         (first run only — later deploys see tls_cert_stat.stat.exists = true
         and skip this)
       command: >-
-        certbot certonly --webroot -w /var/www/animal-shelter/public
+        certbot certonly --webroot -w /home/taufiq/Animal-Shelter-Workshop/public
         -d {{ app_domain }} -m {{ certbot_email }} --agree-tos --non-interactive
-      when: not tls_cert_stat.stat.exists
+      when: use_certbot and not tls_cert_stat.stat.exists
 
     - name: Re-deploy Nginx site config now that a certificate exists
         (first run only — adds the real :443 block and the :80 -> :443 redirect)
@@ -256,7 +260,7 @@
         dest: /etc/nginx/sites-available/animal-shelter
       vars:
         tls_cert_exists: true
-      when: not tls_cert_stat.stat.exists
+      when: use_certbot and not tls_cert_stat.stat.exists
       notify: Reload Nginx
 
     - name: Flush handlers to apply the post-certificate Nginx reload
@@ -267,6 +271,7 @@
         name: certbot.timer
         enabled: true
         state: started
+      when: use_certbot
 
     - name: Reload Nginx automatically after certificate renewal
       copy:
@@ -275,21 +280,22 @@
           #!/bin/sh
           systemctl reload nginx
         mode: "0755"
+      when: use_certbot
 
     - name: Flush handlers before migrations
       meta: flush_handlers
 
     - name: Check whether this server has already been provisioned
       stat:
-        path: /var/www/animal-shelter/storage/.provisioned
+        path: /home/taufiq/Animal-Shelter-Workshop/storage/.provisioned
       register: provisioned_flag
 
     - name: Clear cached config before migrating (a stale cached config could
         point migrations at the wrong database)
       command: php artisan optimize:clear
       args:
-        chdir: /var/www/animal-shelter
-      become_user: workshop
+        chdir: /home/taufiq/Animal-Shelter-Workshop
+      become_user: taufiq
 
     # Idempotent — safe to run on every deploy. NEVER use db:fresh-all here:
     # it drops every table on all 5 databases and would destroy production data
@@ -297,25 +303,25 @@
     - name: Run database migrations
       command: php artisan migrate --force
       args:
-        chdir: /var/www/animal-shelter
-      become_user: workshop
+        chdir: /home/taufiq/Animal-Shelter-Workshop
+      become_user: taufiq
       environment:
-        HOME: /home/workshop
+        HOME: /home/taufiq
 
     - name: Seed databases (first deployment only)
       command: php artisan db:seed --force
       args:
-        chdir: /var/www/animal-shelter
-      become_user: workshop
+        chdir: /home/taufiq/Animal-Shelter-Workshop
+      become_user: taufiq
       environment:
-        HOME: /home/workshop
+        HOME: /home/taufiq
       when: not provisioned_flag.stat.exists
 
     - name: Mark server as provisioned so future deploys never reseed
       file:
-        path: /var/www/animal-shelter/storage/.provisioned
+        path: /home/taufiq/Animal-Shelter-Workshop/storage/.provisioned
         state: touch
-        owner: workshop
+        owner: taufiq
         group: www-data
         mode: "0640"
       when: not provisioned_flag.stat.exists
@@ -323,8 +329,8 @@
     - name: Cache configuration, routes, views, and events for production
       command: "php artisan {{ item }}"
       args:
-        chdir: /var/www/animal-shelter
-      become_user: workshop
+        chdir: /home/taufiq/Animal-Shelter-Workshop
+      become_user: taufiq
       loop:
         - config:cache
         - route:cache
@@ -334,9 +340,9 @@
     - name: Link the public storage directory
       command: php artisan storage:link
       args:
-        chdir: /var/www/animal-shelter
-        creates: /var/www/animal-shelter/public/storage
-      become_user: workshop
+        chdir: /home/taufiq/Animal-Shelter-Workshop
+        creates: /home/taufiq/Animal-Shelter-Workshop/public/storage
+      become_user: taufiq
 
     # ── Scheduler ──────────────────────────────────────────────────────────────
     # QUEUE_CONNECTION is `sync` (see templates/env-app.j2) — db:backup's mail

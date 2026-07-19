@@ -1,0 +1,19 @@
+# Secrets for app-server's .env and the 3 DB playbooks' db_password, read from
+# HashiCorp Vault (linux-vault, CT 110) instead of being hardcoded here.
+#
+# Requires VAULT_ROLE_ID and VAULT_SECRET_ID in the control node's environment
+# (never committed — see infrastructure/ansible/.gitignore). These come from
+# the asw-deploy AppRole, scoped read-only to this one secret path — see
+# oracle-db-learning-proxmox/docs/11-vault-approle-app-integration/ for how it
+# was created. Do NOT use the lab's Vault root token here.
+#
+# One lookup shared by every playbook that needs it (app-server.yml and the 3
+# linux-{mysql,mariadb,postgres}.yml playbooks) so the secret path is defined
+# once, not per-playbook.
+asw_secrets: "{{ lookup('community.hashi_vault.vault_kv2_get',
+  'animal-shelter-workshop',
+  engine_mount_point='secret',
+  url='http://100.112.41.113:8200',
+  auth_method='approle',
+  role_id=lookup('env', 'VAULT_ROLE_ID'),
+  secret_id=lookup('env', 'VAULT_SECRET_ID')).secret }}"

@@ -5,3 +5,5 @@ collections:
     version: ">=3.4"
   - name: community.general
     version: ">=8.0"
+  - name: community.hashi_vault
+    version: ">=6.2"
