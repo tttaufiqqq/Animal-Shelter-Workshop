@@ -219,7 +219,16 @@ recorded — if the drill shows *more* orphans than the manifest did, something 
 introduced a problem, not the data.
 
 **Last drilled:** 2026-07-19, against real run `20260719_180705` on the live homelab (app-server +
-linux-mariadb + msi + linux-postgres). Result recorded below once the drill completes.
+linux-mariadb + msi + linux-postgres) — full pass:
+
+- `db:backup` produced all 3 files; `gunzip -t` and `pg_restore --list` confirmed both are valid,
+  non-corrupt archives (Postgres dump: 163 TOC entries); `zgrep -c 'CREATE.*PROCEDURE'` on the MariaDB
+  dump found 39 stored procedures, confirming `--routines` actually captured them.
+- Integrity audit: 0 orphans across all 12 logical FK checks.
+- `db:restore 20260719_180705 --into-scratch --force` restored cleanly on all 3 engines; the
+  post-restore audit (run against the `*_restore_test` scratch copies) also found 0 orphans.
+- Row counts spot-checked directly against the restored scratch databases matched the live
+  originals exactly: `users` 9/9 (Postgres), `animal` 102/102 (MySQL), `booking` 601/601 (MariaDB).
 
 ## Alerting
 
