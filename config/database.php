@@ -40,6 +40,14 @@ return [
             'password' => env('DB1_PASSWORD', ''),
             'charset' => 'utf8mb4',
             'collation' => 'utf8mb4_unicode_ci',
+            // Must match config('app.timezone') below — otherwise PHP now() and
+            // this server's session clock disagree on every write. Numeric
+            // offset, not the zone name: this MariaDB server has no named
+            // timezone tables loaded (mysql_tzinfo_to_sql was never run), so
+            // 'Asia/Kuala_Lumpur' is rejected with "Unknown or incorrect time
+            // zone" — confirmed live. Malaysia has no DST, so a fixed +08:00
+            // offset is exact and never drifts.
+            'timezone' => '+08:00',
             'options' => [
                 PDO::ATTR_TIMEOUT => 5,
                 PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
@@ -56,6 +64,7 @@ return [
             'password' => env('DB2_PASSWORD', 'password'),
             'charset' => 'utf8mb4',
             'collation' => 'utf8mb4_unicode_ci',
+            'timezone' => '+08:00', // see 'reporting' connection comment above
             'options' => [
                 PDO::ATTR_TIMEOUT => 5,
                 PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
@@ -72,6 +81,7 @@ return [
             'password' => env('DB3_PASSWORD', 'password'),
             'charset' => 'utf8mb4',
             'collation' => 'utf8mb4_unicode_ci',
+            'timezone' => '+08:00', // see 'reporting' connection comment above
             'options' => [
                 PDO::ATTR_TIMEOUT => 60, // Allow longer for stored procedures
                 PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
@@ -88,6 +98,7 @@ return [
             'password' => env('DB4_PASSWORD', ''),
             'charset' => 'utf8mb4',
             'collation' => 'utf8mb4_unicode_ci',
+            'timezone' => '+08:00', // see 'reporting' connection comment above
             'options' => [
                 PDO::ATTR_TIMEOUT => 60, // Allow longer for stored procedures
                 PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
@@ -104,6 +115,12 @@ return [
             'password'        => env('DB5_PASSWORD', ''),
             'charset'         => 'utf8',
             'schema'          => 'public',
+            // Must match config('app.timezone') below — Postgres columns here are
+            // `timestamp without time zone`, so without this, PHP's now() (already
+            // Asia/Kuala_Lumpur) and the Postgres session clock (UTC by default)
+            // disagree by ~8h on every write (audit_logs.performed_at, Eloquent
+            // updated_at, locked_until comparisons in app/Models/User.php).
+            'timezone'        => 'Asia/Kuala_Lumpur',
             'connect_timeout' => 2, // Laravel injects this into the DSN for pgsql
             'options'         => [
                 PDO::ATTR_TIMEOUT => 5,
