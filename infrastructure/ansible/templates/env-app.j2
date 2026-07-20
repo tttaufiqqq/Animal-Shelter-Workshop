@@ -31,15 +31,17 @@ SESSION_ENCRYPT=true
 DB_CONNECTION=users
 
 # All 5 connections share one app-level credential (asw_secrets.db_password,
-# from Vault) — was hardcoded here as the literal "workshop_2", duplicated a
-# second time in each linux-{mysql,mariadb,postgres}.yml play var. One value
-# now, sourced once, in group_vars/all.yml.
+# from Vault, now the literal "workshop_2_prod" — see the DBA-style prod/dev
+# split below) and a matching "workshop_2_prod" database + username on every
+# server. "workshop_2" (the pre-split shared name) still exists on each
+# server as a fallback until the new credentials are confirmed working — not
+# yet dropped.
 
 # eilya — linux-mariadb (MariaDB, Stray Reporting)
 DB1_HOST=linux-mariadb
 DB1_PORT=3306
-DB1_DATABASE=workshop_2
-DB1_USERNAME=workshop_2
+DB1_DATABASE=workshop_2_prod
+DB1_USERNAME=workshop_2_prod
 DB1_PASSWORD={{ secret(asw_secrets.db_password) }}
 
 # atiqah — linux-mysql (MySQL, Shelter Management). Migrated off msi
@@ -47,8 +49,8 @@ DB1_PASSWORD={{ secret(asw_secrets.db_password) }}
 # docs/03-db-architecture.md.
 DB2_HOST=linux-mysql
 DB2_PORT=3306
-DB2_DATABASE=workshop_2
-DB2_USERNAME=workshop_2
+DB2_DATABASE=workshop_2_prod
+DB2_USERNAME=workshop_2_prod
 DB2_PASSWORD={{ secret(asw_secrets.db_password) }}
 
 # shafiqah — linux-mysql-2 (MySQL, Stray Animal). Migrated off msi onto its
@@ -56,8 +58,8 @@ DB2_PASSWORD={{ secret(asw_secrets.db_password) }}
 # docs/03-db-architecture.md.
 DB3_HOST=linux-mysql-2
 DB3_PORT=3306
-DB3_DATABASE=workshop_2
-DB3_USERNAME=workshop_2
+DB3_DATABASE=workshop_2_prod
+DB3_USERNAME=workshop_2_prod
 DB3_PASSWORD={{ secret(asw_secrets.db_password) }}
 
 # danish — linux-mariadb-2 (MariaDB, Booking & Adoption). Split off
@@ -66,15 +68,15 @@ DB3_PASSWORD={{ secret(asw_secrets.db_password) }}
 # docs/03-db-architecture.md.
 DB4_HOST=linux-mariadb-2
 DB4_PORT=3306
-DB4_DATABASE=workshop_2
-DB4_USERNAME=workshop_2
+DB4_DATABASE=workshop_2_prod
+DB4_USERNAME=workshop_2_prod
 DB4_PASSWORD={{ secret(asw_secrets.db_password) }}
 
 # taufiq — linux-postgres (PostgreSQL, Users)
 DB5_HOST=linux-postgres
 DB5_PORT=5432
-DB5_DATABASE=workshop_2
-DB5_USERNAME=workshop_2
+DB5_DATABASE=workshop_2_prod
+DB5_USERNAME=workshop_2_prod
 DB5_PASSWORD={{ secret(asw_secrets.db_password) }}
 
 # file, not database: session/cache must not hard-depend on the users (Postgres)

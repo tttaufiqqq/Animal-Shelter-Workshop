@@ -3,8 +3,12 @@
   become: true
 
   vars:
-    db_name: workshop_2
-    db_user: workshop_2
+    # workshop_2_prod, not workshop_2 — DBA-style prod/dev split: this server
+    # also carries a workshop_2_dev database (dev environment's local .env,
+    # not managed by this playbook) alongside the prod one this playbook
+    # provisions. See CLAUDE.md's Database Connection Mapping.
+    db_name: workshop_2_prod
+    db_user: workshop_2_prod
     # Sourced from Vault (group_vars/all.yml's asw_secrets) — same shared
     # credential used by every DB playbook in this repo.
     db_password: "{{ asw_secrets.db_password }}"
