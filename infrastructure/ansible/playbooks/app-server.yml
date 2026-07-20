@@ -174,14 +174,19 @@
 
     # php artisan db:backup writes nightly dumps here — the whole reason for
     # centralizing on app-server, since dumps then survive losing any single
-    # DB VM. Mode 0700: these files contain full database contents.
+    # DB VM. group www-data + setgid (not taufiq-only 0700): /admin/backups
+    # (docs/10-backups.md) reads every manifest.json here as www-data, and
+    # www-data already holds live DB credentials via .env, so keeping dumps
+    # locked away from it doesn't reduce blast radius. Setgid makes each
+    # nightly run directory (created later by the app, not this task)
+    # inherit the www-data group automatically.
     - name: Create the centralized database backups directory
       file:
         path: /home/taufiq/Animal-Shelter-Workshop/storage/app/backups
         state: directory
         owner: taufiq
-        group: taufiq
-        mode: "0700"
+        group: www-data
+        mode: "02750"
 
     - name: Install Composer dependencies
       composer:
