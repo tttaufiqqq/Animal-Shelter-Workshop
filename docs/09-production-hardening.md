@@ -186,12 +186,40 @@ the template deliberately, not missed. None of these four bugs had ever surfaced
 playbook has never actually been run against the real box — see the path-mismatch entry below.
 
 Two consequences worth stating plainly:
-- Deploys now depend on Vault being unsealed. Runtime doesn't — `config:cache` bakes resolved
-  values into compiled config, so an already-running app is unaffected if Vault goes down
-  afterward.
+- Deploys depend on Vault being unsealed. Runtime *originally* didn't (`config:cache` baked
+  resolved values into compiled config, so an already-running app was unaffected if Vault went
+  down afterward) — that changed with Vault Agent below, which trades that independence for
+  actually getting secrets off disk. See "Secrets stopped touching disk entirely" just below for
+  the current tradeoff.
 - `key:generate` no longer runs at all; regenerating a key that's supposed to come from Vault would
   silently diverge the two. The `.env` deploy task's `force: false` guard is also gone — Vault is
   now the actual source of truth, not a one-time seed.
+
+### Secrets stopped touching disk entirely (Vault Agent)
+
+The section above closed "secrets hardcoded in the repo," but left a real gap open: every deploy
+still rendered every secret as plaintext into `.env`, and `config:cache` then baked the same
+resolved values into `bootstrap/cache/config.php` too — two plaintext copies on disk, readable by
+anyone with file access to app-server, not just remote code execution. Flagged at the time as a
+deliberate "not yet, but worth naming" — this is that follow-up.
+
+`infrastructure/ansible/playbooks/tasks/vault-agent.yml` now wraps php-fpm (via a systemd
+`ExecStart` override) and the migrate/seed CLI commands under `vault agent`, which injects secrets
+directly into the process environment via `env_template` stanzas — never written to a file.
+`env-app.j2` blanks every Vault-sourced field when this is active (a `secret()` Jinja macro, gated
+on a new `vault_agent_enabled` toggle in `group_vars/all.yml`), and `config:cache` is skipped
+entirely in this mode — caching would just re-bake the same secrets into
+`bootstrap/cache/config.php` regardless of where they came from, defeating the point.
+`vault_agent_enabled: false` fully reverts to the plain `env-app.j2` + `config:cache` flow,
+including removing the systemd override — tested for real, not just designed on paper.
+
+Full design, the 6 real bugs hit getting it running for the first time (an invalid CLI flag on this
+Vault version, two file-permission mismatches between `root`/`taufiq`, `needrestart` hanging
+unattended `apt` installs, a recursive `chmod` silently making tracked files executable, and Vault
+Agent deduplicating identical `env_template` bodies so 4 of 5 identical DB passwords silently never
+reached the running app), and the resulting runtime tradeoff (php-fpm now needs Vault reachable at
+every restart, not just at deploy time) are in
+`oracle-db-learning-proxmox/docs/11-vault-approle-app-integration/`'s "Still Open" section.
 
 ### Removed: non-functional email-verification scaffolding
 
