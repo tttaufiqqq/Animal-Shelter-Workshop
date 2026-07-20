@@ -17,3 +17,12 @@ asw_secrets: "{{ lookup('community.hashi_vault.vault_kv2_get',
   auth_method='approle',
   role_id=lookup('env', 'VAULT_ROLE_ID'),
   secret_id=lookup('env', 'VAULT_SECRET_ID')).secret }}"
+
+# Toggle for playbooks/tasks/vault-agent.yml. true: php-fpm and the
+# secret-reading CLI commands (migrate/seed) run under `vault agent -exec`,
+# secrets never touch .env or bootstrap/cache/config.php. false: rolls back to
+# plain env-app.j2 rendering + config:cache, no Vault Agent involved at
+# runtime. Flip and re-run app-server.yml to switch either direction — see
+# oracle-db-learning-proxmox/docs/11-vault-approle-app-integration/ for why
+# this exists and what "true" actually changes about the deploy.
+vault_agent_enabled: true

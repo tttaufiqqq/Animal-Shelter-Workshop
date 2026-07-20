@@ -1,6 +1,15 @@
+{# vault_agent_enabled (group_vars/all.yml): blank every asw_secrets field
+   below instead of rendering it, so the plaintext value never lands in this
+   file (or, via config:cache, in bootstrap/cache/config.php) — Vault Agent
+   injects it straight into the process env instead. See
+   playbooks/tasks/vault-agent.yml and oracle-db-learning-proxmox/docs/
+   11-vault-approle-app-integration/ for the full design. #}
+{% macro secret(value) -%}
+{{ '' if vault_agent_enabled else value }}
+{%- endmacro %}
 APP_NAME="Animal Shelter Workshop"
 APP_ENV=production
-APP_KEY={{ asw_secrets.app_key }}
+APP_KEY={{ secret(asw_secrets.app_key) }}
 APP_DEBUG=false
 APP_URL=https://{{ app_domain }}
 
@@ -31,7 +40,7 @@ DB1_HOST=linux-mariadb
 DB1_PORT=3306
 DB1_DATABASE=workshop_2
 DB1_USERNAME=workshop_2
-DB1_PASSWORD={{ asw_secrets.db_password }}
+DB1_PASSWORD={{ secret(asw_secrets.db_password) }}
 
 # atiqah — linux-mysql (MySQL, Shelter Management). Migrated off msi
 # (100.68.235.121) onto its own dedicated Proxmox VM — see
@@ -40,7 +49,7 @@ DB2_HOST=linux-mysql
 DB2_PORT=3306
 DB2_DATABASE=workshop_2
 DB2_USERNAME=workshop_2
-DB2_PASSWORD={{ asw_secrets.db_password }}
+DB2_PASSWORD={{ secret(asw_secrets.db_password) }}
 
 # shafiqah — linux-mysql-2 (MySQL, Stray Animal). Migrated off msi onto its
 # own dedicated Proxmox CT, separate from DB2's host — see
@@ -49,7 +58,7 @@ DB3_HOST=linux-mysql-2
 DB3_PORT=3306
 DB3_DATABASE=workshop_2
 DB3_USERNAME=workshop_2
-DB3_PASSWORD={{ asw_secrets.db_password }}
+DB3_PASSWORD={{ secret(asw_secrets.db_password) }}
 
 # danish — linux-mariadb-2 (MariaDB, Booking & Adoption). Split off
 # linux-mariadb onto its own dedicated Proxmox CT (2026-07-20) — reporting
@@ -59,14 +68,14 @@ DB4_HOST=linux-mariadb-2
 DB4_PORT=3306
 DB4_DATABASE=workshop_2
 DB4_USERNAME=workshop_2
-DB4_PASSWORD={{ asw_secrets.db_password }}
+DB4_PASSWORD={{ secret(asw_secrets.db_password) }}
 
 # taufiq — linux-postgres (PostgreSQL, Users)
 DB5_HOST=linux-postgres
 DB5_PORT=5432
 DB5_DATABASE=workshop_2
 DB5_USERNAME=workshop_2
-DB5_PASSWORD={{ asw_secrets.db_password }}
+DB5_PASSWORD={{ secret(asw_secrets.db_password) }}
 
 # file, not database: session/cache must not hard-depend on the users (Postgres)
 # connection, or a single DB outage would take down every page's session too —
@@ -89,10 +98,10 @@ QUEUE_CONNECTION=sync
 
 # Cloudinary — sourced from Vault (asw_secrets). TOYYIBPAY_BASE_URL is not a
 # secret and stays a literal — see the sandbox note below.
-CLOUDINARY_URL={{ asw_secrets.cloudinary_url }}
-CLOUDINARY_CLOUD_NAME={{ asw_secrets.cloudinary_cloud_name }}
-CLOUDINARY_API_KEY={{ asw_secrets.cloudinary_api_key }}
-CLOUDINARY_API_SECRET={{ asw_secrets.cloudinary_api_secret }}
+CLOUDINARY_URL={{ secret(asw_secrets.cloudinary_url) }}
+CLOUDINARY_CLOUD_NAME={{ secret(asw_secrets.cloudinary_cloud_name) }}
+CLOUDINARY_API_KEY={{ secret(asw_secrets.cloudinary_api_key) }}
+CLOUDINARY_API_SECRET={{ secret(asw_secrets.cloudinary_api_secret) }}
 
 # ToyyibPay — sourced from Vault (asw_secrets). config/toyyibpay.php reads
 # TOYYIBPAY_KEY/TOYYIBPAY_CATEGORY specifically (previously this template
@@ -101,8 +110,8 @@ CLOUDINARY_API_SECRET={{ asw_secrets.cloudinary_api_secret }}
 # change). Base URL stays hardcoded to the sandbox by design, not as an open
 # decision — this project has no real users or money moving through it (see
 # docs/09-production-hardening.md). Never point this at the live gateway.
-TOYYIBPAY_KEY={{ asw_secrets.toyyibpay_key }}
-TOYYIBPAY_CATEGORY={{ asw_secrets.toyyibpay_category }}
+TOYYIBPAY_KEY={{ secret(asw_secrets.toyyibpay_key) }}
+TOYYIBPAY_CATEGORY={{ secret(asw_secrets.toyyibpay_category) }}
 TOYYIBPAY_BASE_URL=https://dev.toyyibpay.com
 
 # Mail — required for password reset to actually deliver (see
@@ -112,10 +121,10 @@ TOYYIBPAY_BASE_URL=https://dev.toyyibpay.com
 # it. Sourced from Vault (asw_secrets) — was applied by hand directly to the
 # live .env and existed nowhere else; see docs/09-production-hardening.md.
 MAIL_MAILER=smtp
-MAIL_HOST={{ asw_secrets.mail_host }}
-MAIL_PORT={{ asw_secrets.mail_port | default('587') }}
-MAIL_USERNAME={{ asw_secrets.mail_username }}
-MAIL_PASSWORD={{ asw_secrets.mail_password }}
-MAIL_SCHEME={{ asw_secrets.mail_scheme | default('') }}
-MAIL_FROM_ADDRESS={{ asw_secrets.mail_from_address | default('noreply@' + app_domain) }}
+MAIL_HOST={{ secret(asw_secrets.mail_host) }}
+MAIL_PORT={{ secret(asw_secrets.mail_port | default('587')) }}
+MAIL_USERNAME={{ secret(asw_secrets.mail_username) }}
+MAIL_PASSWORD={{ secret(asw_secrets.mail_password) }}
+MAIL_SCHEME={{ secret(asw_secrets.mail_scheme | default('')) }}
+MAIL_FROM_ADDRESS={{ secret(asw_secrets.mail_from_address | default('noreply@' + app_domain)) }}
 MAIL_FROM_NAME="{{ mail_from_name | default(app_name | default('Animal Shelter Workshop')) }}"

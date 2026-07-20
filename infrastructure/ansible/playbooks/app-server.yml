@@ -2,6 +2,18 @@
   hosts: app-server
   become: true
 
+  # Ansible's apt tasks run over a non-pty SSH channel, so needrestart's
+  # default interactive "which services should restart?" debconf dialog has
+  # nothing to render to and hangs indefinitely rather than erroring — hit
+  # this for real on a live run (Install Node.js 20 LTS stalled >10 minutes
+  # on apt-transport-https's needrestart hook). needrestart.conf's own
+  # $nrconf{restart}='a' wasn't sufficient on its own; these two env vars are
+  # the documented belt-and-suspenders fix and apply to every apt/shell task
+  # in this play, not just the one that first hit it.
+  environment:
+    DEBIAN_FRONTEND: noninteractive
+    NEEDRESTART_MODE: a
+
   vars:
     # Public access is now a Cloudflare Tunnel (outbound-only, no port
     # forwarding) which terminates TLS itself — see
@@ -52,6 +64,16 @@
     - name: Install Nginx
       apt:
         name: nginx
+        state: present
+
+    # Ansible's become_user (used below to run as www-data) needs setfacl to
+    # hand an unprivileged user access to its temp files; without it, Ansible
+    # falls back to a non-Linux chmod ACL dialect that fails outright on
+    # Ubuntu. Found missing when a real --check run hit "Verify www-data can
+    # write to storage/logs" for the first time.
+    - name: Install acl (required for become_user privilege de-escalation)
+      apt:
+        name: acl
         state: present
 
     - name: Install Node.js 20 LTS
@@ -137,10 +159,20 @@
         group: www-data
         recurse: true
 
+    # Symbolic mode, not "0775" — numeric mode + recurse applies identically to
+    # files and directories, which was flipping every tracked file under
+    # storage/ (images, .gitignore, cacert.pem — 38 of them, confirmed via a
+    # real run's `git diff --stat`: 0 insertions/deletions, pure 100644 ->
+    # 100755 mode changes) to executable. Git tracks that mode bit, so every
+    # subsequent deploy's git pull then failed with "Local modifications
+    # exist" — a real, previously-unexercised bug, not touched by anything
+    # else in this playbook. The capital X only adds execute to directories
+    # (and files that already have some execute bit), leaving plain data
+    # files at their existing mode.
     - name: Set storage and cache permissions
       file:
         path: "{{ item }}"
-        mode: "0775"
+        mode: "u=rwX,g=rwX,o=rX"
         recurse: true
       loop:
         - /home/taufiq/Animal-Shelter-Workshop/storage
@@ -207,6 +239,14 @@
         group: www-data
         mode: "0640"
         force: true
+
+    # Gated entirely by vault_agent_enabled (group_vars/all.yml) — installs and
+    # (un)wires Vault Agent so php-fpm and the migrate/seed tasks below get
+    # secrets injected live instead of from the (now blanked) .env fields
+    # above. See playbooks/tasks/vault-agent.yml and oracle-db-learning-proxmox/
+    # docs/11-vault-approle-app-integration/.
+    - name: Configure Vault Agent (or roll it back)
+      include_tasks: tasks/vault-agent.yml
 
     - name: Build frontend assets
       command: npm ci && npm run build
@@ -330,9 +370,14 @@
 
     # Idempotent — safe to run on every deploy. NEVER use db:fresh-all here:
     # it drops every table on all 5 databases and would destroy production data
-    # on every redeploy.
+    # on every redeploy. When vault_agent_enabled, .env's DBn_PASSWORD fields
+    # are blank (see env-app.j2), so this must run under vault agent -exec to
+    # get real DB credentials injected into the process env — see
+    # playbooks/tasks/vault-agent.yml.
     - name: Run database migrations
-      command: php artisan migrate --force
+      command: >-
+        {{ 'vault agent -config=/etc/vault-agent/agent-migrate.hcl'
+           if vault_agent_enabled else 'php artisan migrate --force' }}
       args:
         chdir: /home/taufiq/Animal-Shelter-Workshop
       become_user: taufiq
@@ -340,7 +385,9 @@
         HOME: /home/taufiq
 
     - name: Seed databases (first deployment only)
-      command: php artisan db:seed --force
+      command: >-
+        {{ 'vault agent -config=/etc/vault-agent/agent-seed.hcl'
+           if vault_agent_enabled else 'php artisan db:seed --force' }}
       args:
         chdir: /home/taufiq/Animal-Shelter-Workshop
       become_user: taufiq
@@ -357,13 +404,26 @@
         mode: "0640"
       when: not provisioned_flag.stat.exists
 
-    - name: Cache configuration, routes, views, and events for production
+    # Skipped when vault_agent_enabled — config:cache resolves every env()
+    # call in config/*.php (including the secrets env-app.j2 now leaves
+    # blank) into a literal value baked into bootstrap/cache/config.php.
+    # Caching it would put the exact plaintext back on disk that Vault
+    # Agent exists to keep off it, regardless of where the value first came
+    # from. Runtime cost of not caching config is negligible at this app's
+    # traffic level. See playbooks/tasks/vault-agent.yml.
+    - name: Cache application config for production
+      command: php artisan config:cache
+      args:
+        chdir: /home/taufiq/Animal-Shelter-Workshop
+      become_user: taufiq
+      when: not vault_agent_enabled
+
+    - name: Cache routes, views, and events for production
       command: "php artisan {{ item }}"
       args:
         chdir: /home/taufiq/Animal-Shelter-Workshop
       become_user: taufiq
       loop:
-        - config:cache
         - route:cache
         - view:cache
         - event:cache

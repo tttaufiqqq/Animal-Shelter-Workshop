@@ -1,0 +1,150 @@
+# Toggle: group_vars/all.yml's vault_agent_enabled. true wraps php-fpm and the
+# secret-reading CLI commands (migrate/seed) under `vault agent -exec`, and
+# skips config:cache (which would otherwise bake the same secrets back into
+# bootstrap/cache/config.php, defeating the point). false rolls all of that
+# back to the plain env-app.j2 + config:cache flow that ran before this file
+# existed — see oracle-db-learning-proxmox/docs/11-vault-approle-app-integration/
+# for the full design and why php-fpm-only wrapping was rejected as incomplete.
+
+- name: Vault Agent — enable path
+  when: vault_agent_enabled
+  block:
+    - name: Install HashiCorp apt signing key
+      shell: wget -qO- https://apt.releases.hashicorp.com/gpg | gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
+      args:
+        creates: /usr/share/keyrings/hashicorp-archive-keyring.gpg
+
+    - name: Add HashiCorp apt repository
+      apt_repository:
+        repo: "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com {{ ansible_distribution_release }} main"
+        filename: hashicorp
+        state: present
+
+    - name: Install vault client
+      apt:
+        name: vault
+        state: present
+        update_cache: true
+
+    # 0770, not 0750 — taufiq (group) needs to *write* the migrate/seed sink
+    # token files here (become_user: taufiq runs those, not root). 0750 only
+    # gave the group read+traverse, which failed live: "permission denied"
+    # opening migrate-token.tmp.
+    - name: Create /etc/vault-agent
+      file:
+        path: /etc/vault-agent
+        state: directory
+        owner: root
+        group: taufiq
+        mode: "0770"
+
+    # role_id is not secret on its own (Vault's own docs: safe to log/record),
+    # but kept alongside secret_id at the same permissions for simplicity.
+    - name: Deploy AppRole role_id
+      copy:
+        content: "{{ lookup('env', 'VAULT_AGENT_ROLE_ID') }}"
+        dest: /etc/vault-agent/role_id
+        owner: root
+        group: taufiq
+        mode: "0640"
+
+    - name: Deploy AppRole secret_id
+      copy:
+        content: "{{ lookup('env', 'VAULT_AGENT_SECRET_ID') }}"
+        dest: /etc/vault-agent/secret_id
+        owner: root
+        group: taufiq
+        mode: "0640"
+      no_log: true
+
+    # Three rendered copies, not one shared file — this Vault version has no
+    # CLI `-exec` flag, so the command has to live in each config's own `exec`
+    # stanza, and php-fpm's must never be clobbered by a one-shot migrate/seed
+    # run overwriting the same path. See templates/vault-agent.hcl.j2.
+    - name: Deploy Vault Agent config for php-fpm
+      template:
+        src: ../templates/vault-agent.hcl.j2
+        dest: /etc/vault-agent/agent-fpm.hcl
+        owner: root
+        group: taufiq
+        mode: "0640"
+      vars:
+        vault_agent_exec_command:
+          - /usr/sbin/php-fpm8.3
+          - --nodaemonize
+          - --fpm-config
+          - /etc/php/8.3/fpm/php-fpm.conf
+        # php-fpm's master process runs as root (no User= in the unit), and
+        # systemd's RuntimeDirectory=vault-agent (in the override) creates
+        # this tmpfs dir root-owned before ExecStart — matches.
+        vault_agent_sink_path: /run/vault-agent/token
+      register: agent_fpm_config_deployed
+
+    # migrate/seed run as become_user: taufiq, not root — /run/vault-agent is
+    # root-owned (created for php-fpm above), so they get their own sink path
+    # under /etc/vault-agent (root:taufiq, 0750 — taufiq's group membership
+    # already grants write there). Hit this live: "permission denied" trying
+    # to write /run/vault-agent/token.tmp as taufiq.
+    - name: Deploy Vault Agent config for migrate
+      template:
+        src: ../templates/vault-agent.hcl.j2
+        dest: /etc/vault-agent/agent-migrate.hcl
+        owner: root
+        group: taufiq
+        mode: "0640"
+      vars:
+        vault_agent_exec_command:
+          - php
+          - artisan
+          - migrate
+          - --force
+        vault_agent_sink_path: /etc/vault-agent/migrate-token
+
+    - name: Deploy Vault Agent config for seed
+      template:
+        src: ../templates/vault-agent.hcl.j2
+        dest: /etc/vault-agent/agent-seed.hcl
+        owner: root
+        group: taufiq
+        mode: "0640"
+      vars:
+        vault_agent_exec_command:
+          - php
+          - artisan
+          - db:seed
+          - --force
+        vault_agent_sink_path: /etc/vault-agent/seed-token
+
+    - name: Create php8.3-fpm systemd override directory
+      file:
+        path: /etc/systemd/system/php8.3-fpm.service.d
+        state: directory
+
+    - name: Deploy php8.3-fpm Vault Agent systemd override
+      copy:
+        src: ../templates/php-fpm-vault-agent-override.conf
+        dest: /etc/systemd/system/php8.3-fpm.service.d/vault-agent-override.conf
+      register: agent_override_deployed
+
+    - name: Reload systemd and restart php8.3-fpm under Vault Agent supervision
+      systemd:
+        name: php8.3-fpm
+        daemon_reload: true
+        state: restarted
+      when: agent_override_deployed.changed or agent_fpm_config_deployed.changed
+
+- name: Vault Agent — disable/rollback path
+  when: not vault_agent_enabled
+  block:
+    - name: Remove php8.3-fpm Vault Agent systemd override (rollback)
+      file:
+        path: /etc/systemd/system/php8.3-fpm.service.d/vault-agent-override.conf
+        state: absent
+      register: agent_override_removed
+
+    - name: Reload systemd and restart php8.3-fpm under normal supervision (rollback)
+      systemd:
+        name: php8.3-fpm
+        daemon_reload: true
+        state: restarted
+      when: agent_override_removed.changed

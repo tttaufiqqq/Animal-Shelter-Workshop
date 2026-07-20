@@ -1,0 +1,120 @@
+{# This Vault v2.0.3 install has no CLI `-exec` flag (confirmed live —
+   "flag provided but not defined: -exec" crashed php-fpm's first supervised
+   start; php-fpm.service.d/vault-agent-override.conf was removed and the
+   process recovered from .env.bak before this template existed). The exec
+   command has to live in the config file's own `exec` stanza instead, so one
+   rendered copy of this template exists per distinct command — see
+   playbooks/tasks/vault-agent.yml, which renders agent-fpm.hcl,
+   agent-migrate.hcl, and agent-seed.hcl from it. Only the env_template block
+   below is wrapped in {% raw %} — Vault's own template syntax
+   (`{{ .Data.data.x }}`) uses the same {{ }} delimiters Jinja does, but
+   vault{}/auto_auth{}/sink{} are plain HCL with no {{ }} of their own, so the
+   sink path can be a real Jinja variable. It must be — php-fpm's persistent
+   config uses systemd's RuntimeDirectory (/run/vault-agent, root-owned,
+   correct for php-fpm which also runs as root), but migrate/seed run as
+   become_user: taufiq and can't write into a root-owned /run dir (hit this
+   live: "permission denied" on /run/vault-agent/token.tmp), so they need
+   their own sink path taufiq actually owns. #}
+vault {
+  address = "http://100.112.41.113:8200"
+}
+
+# Auto-auth via the asw-app-server-agent AppRole (bound to the same read-only
+# asw-deploy policy as the CLI deploy role, but with a periodic token instead
+# of a 15m/30m one — this agent is long-running, the deploy role isn't). See
+# oracle-db-learning-proxmox/docs/11-vault-approle-app-integration/.
+auto_auth {
+  method "approle" {
+    mount_path = "auth/approle"
+    config = {
+      role_id_file_path                   = "/etc/vault-agent/role_id"
+      secret_id_file_path                 = "/etc/vault-agent/secret_id"
+      remove_secret_id_file_after_reading = false
+    }
+  }
+
+  sink "file" {
+    config = {
+      path = "{{ vault_agent_sink_path }}"
+    }
+  }
+}
+
+{% raw %}
+env_template "APP_KEY" {
+  contents = "{{ with secret \"secret/data/animal-shelter-workshop\" }}{{ .Data.data.app_key }}{{ end }}"
+}
+
+env_template "DB1_PASSWORD" {
+  contents = "{{ with secret \"secret/data/animal-shelter-workshop\" }}{{ .Data.data.db_password }}{{ end }}"
+}
+
+env_template "DB2_PASSWORD" {
+  contents = "{{ with secret \"secret/data/animal-shelter-workshop\" }}{{ .Data.data.db_password }}{{ end }}"
+}
+
+env_template "DB3_PASSWORD" {
+  contents = "{{ with secret \"secret/data/animal-shelter-workshop\" }}{{ .Data.data.db_password }}{{ end }}"
+}
+
+env_template "DB4_PASSWORD" {
+  contents = "{{ with secret \"secret/data/animal-shelter-workshop\" }}{{ .Data.data.db_password }}{{ end }}"
+}
+
+env_template "DB5_PASSWORD" {
+  contents = "{{ with secret \"secret/data/animal-shelter-workshop\" }}{{ .Data.data.db_password }}{{ end }}"
+}
+
+env_template "CLOUDINARY_URL" {
+  contents = "{{ with secret \"secret/data/animal-shelter-workshop\" }}{{ .Data.data.cloudinary_url }}{{ end }}"
+}
+
+env_template "CLOUDINARY_CLOUD_NAME" {
+  contents = "{{ with secret \"secret/data/animal-shelter-workshop\" }}{{ .Data.data.cloudinary_cloud_name }}{{ end }}"
+}
+
+env_template "CLOUDINARY_API_KEY" {
+  contents = "{{ with secret \"secret/data/animal-shelter-workshop\" }}{{ .Data.data.cloudinary_api_key }}{{ end }}"
+}
+
+env_template "CLOUDINARY_API_SECRET" {
+  contents = "{{ with secret \"secret/data/animal-shelter-workshop\" }}{{ .Data.data.cloudinary_api_secret }}{{ end }}"
+}
+
+env_template "TOYYIBPAY_KEY" {
+  contents = "{{ with secret \"secret/data/animal-shelter-workshop\" }}{{ .Data.data.toyyibpay_key }}{{ end }}"
+}
+
+env_template "TOYYIBPAY_CATEGORY" {
+  contents = "{{ with secret \"secret/data/animal-shelter-workshop\" }}{{ .Data.data.toyyibpay_category }}{{ end }}"
+}
+
+env_template "MAIL_HOST" {
+  contents = "{{ with secret \"secret/data/animal-shelter-workshop\" }}{{ .Data.data.mail_host }}{{ end }}"
+}
+
+env_template "MAIL_PORT" {
+  contents = "{{ with secret \"secret/data/animal-shelter-workshop\" }}{{ .Data.data.mail_port }}{{ end }}"
+}
+
+env_template "MAIL_USERNAME" {
+  contents = "{{ with secret \"secret/data/animal-shelter-workshop\" }}{{ .Data.data.mail_username }}{{ end }}"
+}
+
+env_template "MAIL_PASSWORD" {
+  contents = "{{ with secret \"secret/data/animal-shelter-workshop\" }}{{ .Data.data.mail_password }}{{ end }}"
+}
+
+env_template "MAIL_SCHEME" {
+  contents = "{{ with secret \"secret/data/animal-shelter-workshop\" }}{{ .Data.data.mail_scheme }}{{ end }}"
+}
+
+env_template "MAIL_FROM_ADDRESS" {
+  contents = "{{ with secret \"secret/data/animal-shelter-workshop\" }}{{ .Data.data.mail_from_address }}{{ end }}"
+}
+{% endraw %}
+
+exec {
+  command = [{% for arg in vault_agent_exec_command %}{{ '"' }}{{ arg }}{{ '"' }}{% if not loop.last %}, {% endif %}{% endfor %}]
+  restart_on_secret_changes = "always"
+}
