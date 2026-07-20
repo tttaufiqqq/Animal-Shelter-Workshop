@@ -5,4 +5,13 @@ Description=Animal Shelter Workshop - Laravel scheduler (single schedule:run pas
 Type=oneshot
 User=taufiq
 WorkingDirectory=/home/taufiq/Animal-Shelter-Workshop
-ExecStart=/usr/bin/php artisan schedule:run
+# Wrapped under vault agent when vault_agent_enabled — .env's DB passwords are
+# blank in that mode (see env-app.j2), so a bare `php artisan schedule:run`
+# here would silently run every scheduled task (db:refresh-status every
+# minute, taufiq:refresh-stats, and critically the nightly db:backup) with no
+# real DB credentials at all. Found live: db:refresh-status was reporting
+# "0/5 online" every minute, meaning db:backup had almost certainly been
+# failing silently since Vault Agent went live — see
+# playbooks/tasks/vault-agent.yml for the agent-scheduler.hcl config this
+# wraps with.
+ExecStart={{ 'vault agent -config=/etc/vault-agent/agent-scheduler.hcl' if vault_agent_enabled else '/usr/bin/php artisan schedule:run' }}

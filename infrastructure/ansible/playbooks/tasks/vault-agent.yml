@@ -115,6 +115,27 @@
           - --force
         vault_agent_sink_path: /etc/vault-agent/seed-token
 
+    # The scheduler (laravel-scheduler.service, systemd Type=oneshot, runs
+    # every minute) was missed entirely in the original design — it ran a
+    # bare `php artisan schedule:run`, so every scheduled task (db:refresh-status
+    # every minute, taufiq:refresh-stats, and critically the nightly db:backup)
+    # was silently running with .env's blanked DB passwords. Caught live:
+    # `php artisan db:refresh-status` reported "0/5 online" even though the
+    # web-facing app (wrapped separately, above) had all 5 connected fine.
+    - name: Deploy Vault Agent config for scheduler
+      template:
+        src: ../templates/vault-agent.hcl.j2
+        dest: /etc/vault-agent/agent-scheduler.hcl
+        owner: root
+        group: taufiq
+        mode: "0640"
+      vars:
+        vault_agent_exec_command:
+          - php
+          - artisan
+          - schedule:run
+        vault_agent_sink_path: /etc/vault-agent/scheduler-token
+
     # php-fpm's pool defaults to clear_env=yes, which wipes the environment
     # for worker processes even though vault agent injects secrets fine into
     # the master — hit this live: php-fpm came up healthy, but every request
