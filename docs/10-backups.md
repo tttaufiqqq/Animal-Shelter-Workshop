@@ -184,38 +184,74 @@ php artisan db:restore <run> [--into-scratch] [--force]
 
 ### One-time setup: provisioning the scratch databases
 
-`--into-scratch` needs a `workshop_2_restore_test` database to already exist on all 5 servers, granted
-to the app's live DB credential (`workshop_2_prod` as of the 2026-07-20 prod/dev split — see
-CLAUDE.md's Database Connection Mapping; this was `workshop_2` before that) — **the app's regular DB
-user deliberately does not have the privilege to create arbitrary new databases itself.** This is
-exactly the same one-time-setup shape as CLAUDE.md's Pre-Migration Checklist, just for a 6th
+`RestoreDatabases::SCRATCH_SUFFIX` appends `_restore_test` to whatever the *live* database name
+currently is — so the scratch name always tracks the real one automatically. As of the 2026-07-20
+prod/dev split (CLAUDE.md's Database Connection Mapping) that's **`workshop_2_prod_restore_test`**,
+not `workshop_2_restore_test` — this changed the moment the live database was renamed, and every one
+of the 5 servers needs it, granted to the app's live DB credential (`workshop_2_prod`) — **the app's
+regular DB user deliberately does not have the privilege to create arbitrary new databases itself.**
+This is exactly the same one-time-setup shape as CLAUDE.md's Pre-Migration Checklist, just for a 6th
 database name:
 
 ```bash
 # linux-mariadb (100.78.124.25), linux-mariadb-2 (100.97.35.29), linux-mysql
 # (100.115.237.93), and linux-mysql-2 (100.123.221.89) — as root on each:
 mysql -u root -p -e "
-  CREATE DATABASE IF NOT EXISTS workshop_2_restore_test CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-  GRANT ALL PRIVILEGES ON workshop_2_restore_test.* TO 'workshop_2_prod'@'%';
+  CREATE DATABASE IF NOT EXISTS workshop_2_prod_restore_test CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+  GRANT ALL PRIVILEGES ON workshop_2_prod_restore_test.* TO 'workshop_2_prod'@'%';
   FLUSH PRIVILEGES;
 "
 
 # PostgreSQL (workshop-postgres, 100.113.234.24) — as the postgres superuser:
-psql -U postgres -c "CREATE DATABASE workshop_2_restore_test;"
-psql -U postgres -c "GRANT ALL PRIVILEGES ON DATABASE workshop_2_restore_test TO workshop_2_prod;"
-psql -U postgres -d workshop_2_restore_test -c "GRANT ALL PRIVILEGES ON SCHEMA public TO workshop_2_prod;"
+psql -U postgres -c "CREATE DATABASE workshop_2_prod_restore_test;"
+psql -U postgres -c "GRANT ALL PRIVILEGES ON DATABASE workshop_2_prod_restore_test TO workshop_2_prod;"
+psql -U postgres -d workshop_2_prod_restore_test -c "GRANT ALL PRIVILEGES ON SCHEMA public TO workshop_2_prod;"
 ```
 
-Because MySQL/MariaDB's `GRANT ... ON workshop_2_restore_test.*` is scoped to that one database name, it
-already covers CREATE/DROP DATABASE for that specific name — `DatabaseRestorer::resetMysqlScratch()`
-still does a real `DROP DATABASE IF EXISTS` + `CREATE DATABASE` before each restore. PostgreSQL has no
-equivalent scoped grant (`CREATEDB` is all-or-nothing, global to the role), so
-`resetPostgresScratch()` is a deliberate no-op — the pre-provisioned database is reset by
-`pg_restore --clean --if-exists` itself as part of restoring (the dump was also taken with `pg_dump
---clean --if-exists`, so every object is dropped and recreated on the way in regardless).
+Two more grants are needed beyond the ones above — both found live, running a real end-to-end drill
+after the credential rename, not designed upfront:
 
-Run this once per environment (a fresh homelab rebuild, a new server). This was done for the live
-homelab on 2026-07-19 — see the restore drill result below.
+- **Dumping routines** (`mysqldump --routines`) needs a way to see a routine's body when the
+  connecting user isn't its `DEFINER` (every routine's `DEFINER` is still whatever user created it
+  originally — renaming the app's credential doesn't retroactively change that). MySQL 8
+  (`linux-mysql`, `linux-mysql-2`) uses the `SHOW_ROUTINE` dynamic privilege; MariaDB
+  (`linux-mariadb`, `linux-mariadb-2`) doesn't implement that privilege at all and needs the classic
+  `SELECT` on `mysql.proc` instead:
+  ```sql
+  -- MySQL 8 hosts:
+  GRANT SHOW_ROUTINE ON *.* TO 'workshop_2_prod'@'%';
+  -- MariaDB hosts:
+  GRANT SELECT ON mysql.proc TO 'workshop_2_prod'@'%';
+  ```
+- **Restoring** a dump that contains `DEFINER=` clauses (every trigger/procedure/view) for a
+  *different* user than the one connecting fails with `Access denied; you need (at least one of) the
+  SUPER, SET USER privilege(s)`, unless granted:
+  ```sql
+  -- MariaDB hosts:
+  GRANT SUPER ON *.* TO 'workshop_2_prod'@'%';
+  -- MySQL 8 hosts:
+  GRANT SET_USER_ID ON *.* TO 'workshop_2_prod'@'%';
+  ```
+  This is a real, ongoing consequence of renaming the connecting credential without also recreating
+  every trigger/procedure/view under the new `DEFINER` — accepted here rather than doing that
+  larger, riskier rewrite, since this is a homelab with no real data at stake. In an actual
+  production system, backup/restore would more likely use its own dedicated, more-privileged
+  credential distinct from the app's regular runtime one, rather than escalating that credential.
+
+On PostgreSQL specifically, one more step is needed **every time the scratch database is
+created from a template/copy of a renamed database** (not needed for a from-scratch provision):
+`CREATE DATABASE ... WITH TEMPLATE` (and, it turns out, a plain rename/copy of an existing database)
+preserves each *table's* individual owner from the source — a database-level `GRANT ALL PRIVILEGES
+ON DATABASE` does not cascade to already-existing tables within it. Fix with:
+```sql
+\c workshop_2_prod_restore_test
+REASSIGN OWNED BY <old_role> TO workshop_2_prod;
+```
+
+Run the base provisioning once per environment (a fresh homelab rebuild, a new server). This was
+done for the live homelab on 2026-07-19, then re-done under the new `workshop_2_prod` naming and
+verified with a real, full 5-server `--into-scratch` drill on 2026-07-20 (restore succeeded on all 5,
+followed by a clean logical foreign key audit) — see the restore drill result below.
 
 ### The restore drill
 
@@ -226,13 +262,29 @@ code) without touching production data:
 php artisan db:restore 20260720_020000 --into-scratch --force
 ```
 
-This restores into `workshop_2_restore_test` on each physical server, then re-runs the integrity audit
-against those scratch copies. Confirm the orphan counts match what the original run's manifest
-recorded — if the drill shows *more* orphans than the manifest did, something about the restore itself
-introduced a problem, not the data.
+This restores into `workshop_2_prod_restore_test` (the current live database name + suffix — see the
+provisioning section above for why that name changed) on each physical server, then re-runs the
+integrity audit against those scratch copies. Confirm the orphan counts match what the original
+run's manifest recorded — if the drill shows *more* orphans than the manifest did, something about
+the restore itself introduced a problem, not the data.
 
-**Last drilled:** 2026-07-19, against real run `20260719_180705` on the live homelab (app-server +
-linux-mariadb + msi + linux-postgres) — full pass:
+**Last drilled:** 2026-07-20, against a fresh real run (`20260720_080021`) on all 5 current servers
+(app-server + linux-mariadb + linux-mariadb-2 + linux-mysql + linux-mysql-2 + linux-postgres) — full
+pass, run for real after the `workshop_2_prod` rename specifically to confirm the whole pipeline
+still worked end-to-end under the new credential, not just the individual grants:
+
+- `db:backup` produced all 5 files after fixing the `SHOW_ROUTINE`/`mysql.proc` grants above (first
+  attempt failed: `workshop_2_prod has insufficient privileges to SHOW CREATE PROCEDURE`).
+- `db:restore ... --into-scratch --force` failed twice more before succeeding: once because 3 of the
+  5 scratch databases had never actually been provisioned at all (only `linux-mariadb` and
+  `linux-postgres` ever had one, from the 2026-07-19 drill below — provisioned the missing 3), and
+  once on the `SUPER`/`SET_USER_ID` grant above (`DEFINER` mismatch restoring triggers/procedures).
+  With all of that in place: restored cleanly on all 5 engines, followed by a clean logical foreign
+  key audit (0 orphans).
+
+**Previously drilled:** 2026-07-19, against real run `20260719_180705` on the live homelab as it
+existed then (app-server + linux-mariadb + msi + linux-postgres — `msi` is no longer part of this
+project's DB topology, see CLAUDE.md) — full pass:
 
 - `db:backup` produced all 3 files; `gunzip -t` and `pg_restore --list` confirmed both are valid,
   non-corrupt archives (Postgres dump: 163 TOC entries); `zgrep -c 'CREATE.*PROCEDURE'` on the MariaDB
