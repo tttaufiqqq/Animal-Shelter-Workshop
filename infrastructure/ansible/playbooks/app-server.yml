@@ -146,6 +146,32 @@
         - /home/taufiq/Animal-Shelter-Workshop/storage
         - /home/taufiq/Animal-Shelter-Workshop/bootstrap/cache
 
+    # Without setgid, a file created by "taufiq" (e.g. a manual `php artisan`
+    # command run over SSH) inherits taufiq's primary group instead of
+    # www-data, so php-fpm (running as www-data) can't write to it. This
+    # bit forces every new file/dir under storage/ and bootstrap/cache to
+    # inherit the www-data group regardless of which user creates it.
+    - name: Force www-data group inheritance on storage and cache (setgid)
+      shell: find {{ item }} -type d -exec chmod g+s {} \;
+      loop:
+        - /home/taufiq/Animal-Shelter-Workshop/storage
+        - /home/taufiq/Animal-Shelter-Workshop/bootstrap/cache
+      changed_when: false
+
+    # Catches a permission/ownership regression (e.g. the setgid task above
+    # being skipped, or a manual chown undoing it) at deploy time instead of
+    # via a live 500 the next time Laravel tries to log something. Runs as
+    # www-data specifically because that's the user that actually needs
+    # write access — php-fpm, not taufiq or root.
+    - name: Verify www-data can write to storage/logs
+      become_user: www-data
+      shell: |
+        set -e
+        marker=/home/taufiq/Animal-Shelter-Workshop/storage/logs/.deploy-write-check
+        echo "deploy write check $(date -Iseconds)" >> "$marker"
+        rm -f "$marker"
+      changed_when: false
+
     # php artisan db:backup writes nightly dumps here — the whole reason for
     # centralizing on app-server, since dumps then survive losing any single
     # DB VM. Mode 0700: these files contain full database contents.
