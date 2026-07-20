@@ -24,12 +24,17 @@
     # only if direct HTTPS (bypassing the tunnel) is restored later.
     use_certbot: false
 
+  # Tags: "provision" = one-time/rare host setup (packages, UFW, TLS, Vault
+  # Agent install, scheduler unit) — never run by CD. "deploy" = what CD runs
+  # on every push (code, dependencies, secrets render, migrations, caches).
+  # See docs/12-cd.md for why the split exists and how CD invokes each.
   tasks:
     - name: Add ondrej/php PPA (PHP 8.3 for Ubuntu)
       apt_repository:
         repo: ppa:ondrej/php
         state: present
         update_cache: true
+      tags: [provision]
 
     - name: Install PHP 8.3 and required extensions
       apt:
@@ -49,6 +54,7 @@
           - php8.3-intl
           - php8.3-redis
         state: present
+      tags: [provision]
 
     # The PDO extensions above let PHP query the 3 remote databases, but
     # php artisan db:backup shells out to the native dump/restore binaries
@@ -60,11 +66,13 @@
           - mysql-client
           - postgresql-client
         state: present
+      tags: [provision]
 
     - name: Install Nginx
       apt:
         name: nginx
         state: present
+      tags: [provision]
 
     # Ansible's become_user (used below to run as www-data) needs setfacl to
     # hand an unprivileged user access to its temp files; without it, Ansible
@@ -75,6 +83,7 @@
       apt:
         name: acl
         state: present
+      tags: [provision]
 
     - name: Install Node.js 20 LTS
       shell: |
@@ -82,6 +91,7 @@
         apt-get install -y nodejs
       args:
         creates: /usr/bin/node
+      tags: [provision]
 
     - name: Install Composer
       shell: |
@@ -90,29 +100,34 @@
         chmod +x /usr/local/bin/composer
       args:
         creates: /usr/local/bin/composer
+      tags: [provision]
 
     - name: Start and enable Nginx
       service:
         name: nginx
         state: started
         enabled: true
+      tags: [provision]
 
     - name: Start and enable PHP-FPM
       service:
         name: php8.3-fpm
         state: started
         enabled: true
+      tags: [provision]
 
     # ── Firewall ──────────────────────────────────────────────────────────────
     - name: UFW — default deny incoming
       community.general.ufw:
         default: deny
         direction: incoming
+      tags: [provision]
 
     - name: UFW — default allow outgoing
       community.general.ufw:
         default: allow
         direction: outgoing
+      tags: [provision]
 
     - name: UFW — SSH from admin machine via Tailscale only
       community.general.ufw:
@@ -123,6 +138,18 @@
         to_port: "22"
         proto: tcp
         comment: "SSH from msi admin machine"
+      tags: [provision]
+
+    - name: UFW — SSH from linux-gh-runner (CD) via Tailscale only
+      community.general.ufw:
+        rule: allow
+        interface: tailscale0
+        direction: in
+        from_ip: "100.72.6.40"
+        to_port: "22"
+        proto: tcp
+        comment: "SSH from linux-gh-runner (CD)"
+      tags: [provision]
 
     - name: UFW — HTTP public
       community.general.ufw:
@@ -130,6 +157,7 @@
         to_port: "80"
         proto: tcp
         comment: "HTTP public"
+      tags: [provision]
 
     - name: UFW — HTTPS public
       community.general.ufw:
@@ -137,20 +165,27 @@
         to_port: "443"
         proto: tcp
         comment: "HTTPS public"
+      tags: [provision]
 
     - name: UFW — enable
       community.general.ufw:
         state: enabled
+      tags: [provision]
 
     # ── Application deployment ────────────────────────────────────────────────
+    # version defaults to main for a manual/full run, but CD always passes
+    # -e app_git_version=<tested SHA> so the fleet deploys the exact commit
+    # that passed CI, not whatever main happens to be at deploy time.
     - name: Clone/update application repository
       git:
         repo: https://github.com/tttaufiqqq/Animal-Shelter-Workshop.git
         dest: /home/taufiq/Animal-Shelter-Workshop
-        version: main
+        version: "{{ app_git_version | default('main') }}"
         force: false
         update: true
       become_user: taufiq
+      register: app_repo
+      tags: [deploy]
 
     - name: Set web root ownership
       file:
@@ -158,6 +193,7 @@
         owner: taufiq
         group: www-data
         recurse: true
+      tags: [deploy]
 
     # Symbolic mode, not "0775" — numeric mode + recurse applies identically to
     # files and directories, which was flipping every tracked file under
@@ -177,6 +213,7 @@
       loop:
         - /home/taufiq/Animal-Shelter-Workshop/storage
         - /home/taufiq/Animal-Shelter-Workshop/bootstrap/cache
+      tags: [deploy]
 
     # Without setgid, a file created by "taufiq" (e.g. a manual `php artisan`
     # command run over SSH) inherits taufiq's primary group instead of
@@ -189,6 +226,7 @@
         - /home/taufiq/Animal-Shelter-Workshop/storage
         - /home/taufiq/Animal-Shelter-Workshop/bootstrap/cache
       changed_when: false
+      tags: [deploy]
 
     # Catches a permission/ownership regression (e.g. the setgid task above
     # being skipped, or a manual chown undoing it) at deploy time instead of
@@ -203,6 +241,7 @@
         echo "deploy write check $(date -Iseconds)" >> "$marker"
         rm -f "$marker"
       changed_when: false
+      tags: [deploy]
 
     # php artisan db:backup writes nightly dumps here — the whole reason for
     # centralizing on app-server, since dumps then survive losing any single
@@ -219,6 +258,7 @@
         owner: taufiq
         group: www-data
         mode: "02750"
+      tags: [deploy]
 
     - name: Install Composer dependencies
       composer:
@@ -226,6 +266,7 @@
         arguments: "--no-dev --optimize-autoloader --no-interaction"
         working_dir: /home/taufiq/Animal-Shelter-Workshop
       become_user: taufiq
+      tags: [deploy]
 
     # force: true — .env is now fully re-renderable from Vault (asw_secrets)
     # on every deploy, APP_KEY included, so it's no longer a first-deploy-only
@@ -239,26 +280,55 @@
         group: www-data
         mode: "0640"
         force: true
+      tags: [deploy]
 
     # Gated entirely by vault_agent_enabled (group_vars/all.yml) — installs and
     # (un)wires Vault Agent so php-fpm and the migrate/seed tasks below get
     # secrets injected live instead of from the (now blanked) .env fields
     # above. See playbooks/tasks/vault-agent.yml and oracle-db-learning-proxmox/
-    # docs/11-vault-approle-app-integration/.
+    # docs/11-vault-approle-app-integration/. Tagged provision (not deploy) —
+    # CD never (re)installs or reconfigures Vault Agent; it relies on the
+    # configs a provision run already left in /etc/vault-agent. `apply:` is
+    # required here because include_tasks is a dynamic include — a bare
+    # `tags:` on the include controls whether the include itself runs, but
+    # doesn't by itself propagate into the included file's tasks.
     - name: Configure Vault Agent (or roll it back)
-      include_tasks: tasks/vault-agent.yml
+      include_tasks:
+        file: tasks/vault-agent.yml
+        apply:
+          tags: [provision]
+      tags: [provision]
 
-    - name: Build frontend assets
-      command: npm ci && npm run build
+    # when: app_repo.changed — only rebuild when the checkout actually moved.
+    # Previously guarded by `creates: public/build/manifest.json`, which made
+    # this a one-time-ever step: once that file existed, every subsequent
+    # deploy silently kept serving stale frontend assets forever. Split into
+    # two tasks because `command:` does not invoke a shell, so `npm ci && npm
+    # run build` was passing `&&` as a literal argv token to npm, not chaining
+    # two commands — it happened to still "work" only because the guard above
+    # meant this had only ever executed once, with npm's own arg-parsing
+    # papering over it.
+    - name: Install npm dependencies
+      command: npm ci
       args:
         chdir: /home/taufiq/Animal-Shelter-Workshop
-        creates: /home/taufiq/Animal-Shelter-Workshop/public/build/manifest.json
       become_user: taufiq
+      when: app_repo.changed
+      tags: [deploy]
+
+    - name: Build frontend assets
+      command: npm run build
+      args:
+        chdir: /home/taufiq/Animal-Shelter-Workshop
+      become_user: taufiq
+      when: app_repo.changed
+      tags: [deploy]
 
     # ── TLS / HTTPS ──────────────────────────────────────────────────────────
     # This whole block only runs when use_certbot is set — see the vars
     # comment above. app_domain is still required unconditionally: it names
-    # the Nginx server_block regardless of who terminates TLS.
+    # the Nginx server_block regardless of who terminates TLS. Tagged
+    # provision — Nginx/TLS config doesn't change per code deploy.
     - name: Fail early if TLS variables are not provided
       assert:
         that:
@@ -273,23 +343,27 @@
           DNS A record for app_domain must already point at this server, and
           inbound :443 must be reachable (UFW already allows it).
       when: use_certbot
+      tags: [provision]
 
     - name: Install certbot
       apt:
         name: certbot
         state: present
       when: use_certbot
+      tags: [provision]
 
     - name: Check whether a certificate already exists for app_domain
       stat:
         path: "/etc/letsencrypt/live/{{ app_domain }}/fullchain.pem"
       register: tls_cert_stat
+      tags: [provision]
 
     - name: Deploy the shared Nginx location block (php-fpm, try_files, etc.)
       template:
         src: ../templates/nginx-locations.conf.j2
         dest: /etc/nginx/snippets/animal-shelter-locations.conf
       notify: Reload Nginx
+      tags: [provision]
 
     - name: Deploy Nginx site config (HTTP-only bootstrap until a cert exists)
       template:
@@ -298,6 +372,7 @@
       vars:
         tls_cert_exists: "{{ tls_cert_stat.stat.exists }}"
       notify: Reload Nginx
+      tags: [provision]
 
     - name: Enable Nginx site
       file:
@@ -305,12 +380,14 @@
         dest: /etc/nginx/sites-enabled/animal-shelter
         state: link
       notify: Reload Nginx
+      tags: [provision]
 
     - name: Remove default Nginx site
       file:
         path: /etc/nginx/sites-enabled/default
         state: absent
       notify: Reload Nginx
+      tags: [provision]
 
     - name: Flush handlers so Nginx is already serving :80 before requesting a
         certificate (certbot's webroot challenge needs a live server)
@@ -323,6 +400,7 @@
         certbot certonly --webroot -w /home/taufiq/Animal-Shelter-Workshop/public
         -d {{ app_domain }} -m {{ certbot_email }} --agree-tos --non-interactive
       when: use_certbot and not tls_cert_stat.stat.exists
+      tags: [provision]
 
     - name: Re-deploy Nginx site config now that a certificate exists
         (first run only — adds the real :443 block and the :80 -> :443 redirect)
@@ -333,6 +411,7 @@
         tls_cert_exists: true
       when: use_certbot and not tls_cert_stat.stat.exists
       notify: Reload Nginx
+      tags: [provision]
 
     - name: Flush handlers to apply the post-certificate Nginx reload
       meta: flush_handlers
@@ -343,6 +422,7 @@
         enabled: true
         state: started
       when: use_certbot
+      tags: [provision]
 
     - name: Reload Nginx automatically after certificate renewal
       copy:
@@ -352,14 +432,21 @@
           systemctl reload nginx
         mode: "0755"
       when: use_certbot
+      tags: [provision]
 
     - name: Flush handlers before migrations
       meta: flush_handlers
 
+    # Tagged provision, alongside Seed/Mark-provisioned below — a CD
+    # (--tags deploy) run must never seed, so the flag that gates seeding is
+    # deliberately kept out of the deploy path entirely, not just the seed
+    # task itself. Defense in depth against the "seed once" assumption ever
+    # being wrong.
     - name: Check whether this server has already been provisioned
       stat:
         path: /home/taufiq/Animal-Shelter-Workshop/storage/.provisioned
       register: provisioned_flag
+      tags: [provision]
 
     - name: Clear cached config before migrating (a stale cached config could
         point migrations at the wrong database)
@@ -367,6 +454,7 @@
       args:
         chdir: /home/taufiq/Animal-Shelter-Workshop
       become_user: taufiq
+      tags: [deploy]
 
     # Idempotent — safe to run on every deploy. NEVER use db:fresh-all here:
     # it drops every table on all 5 databases and would destroy production data
@@ -383,6 +471,7 @@
       become_user: taufiq
       environment:
         HOME: /home/taufiq
+      tags: [deploy]
 
     - name: Seed databases (first deployment only)
       command: >-
@@ -394,6 +483,7 @@
       environment:
         HOME: /home/taufiq
       when: not provisioned_flag.stat.exists
+      tags: [provision]
 
     - name: Mark server as provisioned so future deploys never reseed
       file:
@@ -403,6 +493,7 @@
         group: www-data
         mode: "0640"
       when: not provisioned_flag.stat.exists
+      tags: [provision]
 
     # Skipped when vault_agent_enabled — config:cache resolves every env()
     # call in config/*.php (including the secrets env-app.j2 now leaves
@@ -417,6 +508,7 @@
         chdir: /home/taufiq/Animal-Shelter-Workshop
       become_user: taufiq
       when: not vault_agent_enabled
+      tags: [deploy]
 
     - name: Cache routes, views, and events for production
       command: "php artisan {{ item }}"
@@ -427,6 +519,7 @@
         - route:cache
         - view:cache
         - event:cache
+      tags: [deploy]
 
     - name: Link the public storage directory
       command: php artisan storage:link
@@ -434,6 +527,7 @@
         chdir: /home/taufiq/Animal-Shelter-Workshop
         creates: /home/taufiq/Animal-Shelter-Workshop/public/storage
       become_user: taufiq
+      tags: [deploy]
 
     # ── Scheduler ──────────────────────────────────────────────────────────────
     # QUEUE_CONNECTION is `sync` (see templates/env-app.j2) — db:backup's mail
@@ -441,16 +535,20 @@
     # worker service is needed here either. Only the scheduler (routes/console.php:
     # db:refresh-status every minute, taufiq:refresh-stats every 5 minutes,
     # db:backup nightly at 02:00 — see docs/10-backups.md) needs a runtime.
+    # Tagged provision — the systemd unit itself doesn't change per code
+    # deploy; only the app code the timer invokes does.
     - name: Deploy Laravel scheduler systemd service
       template:
         src: ../templates/laravel-scheduler.service.j2
         dest: /etc/systemd/system/laravel-scheduler.service
+      tags: [provision]
 
     - name: Deploy Laravel scheduler systemd timer
       template:
         src: ../templates/laravel-scheduler.timer.j2
         dest: /etc/systemd/system/laravel-scheduler.timer
       notify: Reload systemd units
+      tags: [provision]
 
     - name: Flush handlers before enabling the scheduler timer
       meta: flush_handlers
@@ -461,6 +559,7 @@
         enabled: true
         state: started
         daemon_reload: true
+      tags: [provision]
 
   handlers:
     - name: Reload Nginx

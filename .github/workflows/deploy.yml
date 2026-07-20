@@ -1,0 +1,368 @@
+name: Deploy
+
+# Auto-fires after Tests (.github/workflows/tests.yml) succeeds on main — see
+# docs/12-cd.md for the full design. workflow_dispatch exists only as an
+# escape hatch (forced re-run / manual rollback), never as a required step.
+on:
+  workflow_run:
+    workflows: [Tests]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Commit SHA or branch to deploy'
+        default: main
+      force_full:
+        description: 'Run full playbooks (provision + deploy) regardless of changed paths'
+        type: boolean
+        default: false
+
+# The fleet these jobs converge is real shared infrastructure, not per-run
+# containers — two deploys at once would stomp on each other the same way
+# tests.yml's concurrency group protects the 5 shared test databases.
+concurrency:
+  group: deploy-fleet
+  cancel-in-progress: false
+
+jobs:
+  # workflow_run also fires for PR test runs — this guard is what keeps a PR
+  # from ever deploying. Only a successful *push to main* (or an explicit
+  # manual dispatch) reaches the jobs below.
+  plan:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_branch == 'main' &&
+       github.event.workflow_run.event == 'push')
+    runs-on: [self-hosted, linux, homelab, tailnet]
+    timeout-minutes: 10
+    outputs:
+      target_sha: ${{ steps.route.outputs.target_sha }}
+      last_good_sha: ${{ steps.route.outputs.last_good_sha }}
+      infra_app: ${{ steps.route.outputs.infra_app }}
+      infra_db: ${{ steps.route.outputs.infra_db }}
+    steps:
+      - name: Checkout target commit
+        uses: actions/checkout@v4
+        with:
+          # On workflow_run, checkout otherwise defaults to the default
+          # branch tip, not the commit that was actually tested.
+          ref: ${{ github.event.workflow_run.head_sha || inputs.ref }}
+          fetch-depth: 0
+
+      - name: Read CD secrets from Vault
+        run: |
+          set -euo pipefail
+          set -a; source ~/actions-runner/.env; set +a
+          BECOME_PASS=$(vault kv get -field=become_password secret/asw-cd)
+          SSH_KEY=$(vault kv get -field=ssh_private_key secret/asw-cd)
+          ROLE_ID=$(vault kv get -field=vault_role_id secret/asw-cd)
+          SECRET_ID=$(vault kv get -field=vault_secret_id secret/asw-cd)
+          AGENT_ROLE_ID=$(vault kv get -field=vault_agent_role_id secret/asw-cd)
+          AGENT_SECRET_ID=$(vault kv get -field=vault_agent_secret_id secret/asw-cd)
+          for v in "$BECOME_PASS" "$ROLE_ID" "$SECRET_ID" "$AGENT_ROLE_ID" "$AGENT_SECRET_ID"; do
+            echo "::add-mask::$v"
+          done
+          mkdir -p "$RUNNER_TEMP/cd"
+          printf '%s\n' "$SSH_KEY" > "$RUNNER_TEMP/cd/cd_key"
+          chmod 600 "$RUNNER_TEMP/cd/cd_key"
+          {
+            echo "ANSIBLE_BECOME_PASS=$BECOME_PASS"
+            echo "VAULT_ROLE_ID=$ROLE_ID"
+            echo "VAULT_SECRET_ID=$SECRET_ID"
+            echo "VAULT_AGENT_ROLE_ID=$AGENT_ROLE_ID"
+            echo "VAULT_AGENT_SECRET_ID=$AGENT_SECRET_ID"
+          } >> "$GITHUB_ENV"
+
+      # Diffs against what is actually LIVE on app-server (not against the
+      # previous push) — this is what makes a batch of several pushes, or a
+      # retry after a failed deploy, route correctly. force_full bypasses the
+      # diff entirely and widens both flags, for a deliberate manual full run.
+      - name: Determine target commit and path-based routing
+        id: route
+        working-directory: infrastructure/ansible
+        run: |
+          set -euo pipefail
+          TARGET_SHA=$(git rev-parse HEAD)
+          LAST_GOOD_SHA=$(ssh -o BatchMode=yes -o StrictHostKeyChecking=no -o ConnectTimeout=10 \
+            -i "$RUNNER_TEMP/cd/cd_key" taufiq@100.100.123.90 \
+            'cat /home/taufiq/Animal-Shelter-Workshop/storage/.last-good-deploy 2>/dev/null || true')
+
+          INFRA_APP=false
+          INFRA_DB=false
+
+          if [ "${{ inputs.force_full }}" = "true" ]; then
+            echo "force_full requested — running full playbooks."
+            INFRA_APP=true
+            INFRA_DB=true
+          elif [ -z "$LAST_GOOD_SHA" ]; then
+            echo "No .last-good-deploy marker on app-server — treating as first-ever CD deploy."
+            INFRA_APP=true
+            INFRA_DB=true
+          elif ! CHANGED=$(git diff --name-only "$LAST_GOOD_SHA" "$TARGET_SHA" 2>&1); then
+            echo "git diff against last-good SHA ($LAST_GOOD_SHA) failed — forcing full playbooks as a safe default."
+            echo "$CHANGED"
+            INFRA_APP=true
+            INFRA_DB=true
+          else
+            echo "Changed files since last good deploy ($LAST_GOOD_SHA -> $TARGET_SHA):"
+            echo "$CHANGED"
+            if echo "$CHANGED" | grep -qE '^infrastructure/ansible/(playbooks/app-server\.yml|playbooks/tasks/|templates/|group_vars/|inventory-ip\.yml)'; then
+              INFRA_APP=true
+            fi
+            if echo "$CHANGED" | grep -qE '^infrastructure/ansible/(playbooks/linux-.*\.yml|group_vars/)'; then
+              INFRA_DB=true
+            fi
+          fi
+
+          echo "target_sha=$TARGET_SHA" >> "$GITHUB_OUTPUT"
+          echo "last_good_sha=$LAST_GOOD_SHA" >> "$GITHUB_OUTPUT"
+          echo "infra_app=$INFRA_APP" >> "$GITHUB_OUTPUT"
+          echo "infra_db=$INFRA_DB" >> "$GITHUB_OUTPUT"
+
+      - name: Clean up temp SSH key
+        if: always()
+        run: shred -u "$RUNNER_TEMP/cd/cd_key" 2>/dev/null || rm -f "$RUNNER_TEMP/cd/cd_key"
+
+  # Runs the 5 DB playbooks only when infra_db routing says a linux-*.yml
+  # playbook (or a shared group_var) actually changed. No rollback here —
+  # there's no sane automatic reversal of an apt install or a UFW change on a
+  # live DB host. This job fails loud and halts the pipeline before
+  # app-server is touched: "fully automated" means "automatically halts"
+  # here, not "automatically undoes". See docs/12-cd.md.
+  deploy-db:
+    needs: plan
+    if: needs.plan.outputs.infra_db == 'true'
+    runs-on: [self-hosted, linux, homelab, tailnet]
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.plan.outputs.target_sha }}
+
+      - name: Read CD secrets from Vault
+        run: |
+          set -euo pipefail
+          set -a; source ~/actions-runner/.env; set +a
+          BECOME_PASS=$(vault kv get -field=become_password secret/asw-cd)
+          SSH_KEY=$(vault kv get -field=ssh_private_key secret/asw-cd)
+          ROLE_ID=$(vault kv get -field=vault_role_id secret/asw-cd)
+          SECRET_ID=$(vault kv get -field=vault_secret_id secret/asw-cd)
+          for v in "$BECOME_PASS" "$ROLE_ID" "$SECRET_ID"; do
+            echo "::add-mask::$v"
+          done
+          mkdir -p "$RUNNER_TEMP/cd"
+          printf '%s\n' "$SSH_KEY" > "$RUNNER_TEMP/cd/cd_key"
+          chmod 600 "$RUNNER_TEMP/cd/cd_key"
+          {
+            echo "ANSIBLE_BECOME_PASS=$BECOME_PASS"
+            echo "VAULT_ROLE_ID=$ROLE_ID"
+            echo "VAULT_SECRET_ID=$SECRET_ID"
+          } >> "$GITHUB_ENV"
+
+      # --limit databases (inventory-ip.yml's group of the 3 mysql/mariadb/
+      # postgres groups) — site.yml's app-server play just skips with "no
+      # hosts matched", so this only ever touches the 5 DB hosts.
+      - name: Provision the 5 database servers
+        working-directory: infrastructure/ansible
+        run: |
+          ansible-playbook -i inventory-ip.yml --private-key "$RUNNER_TEMP/cd/cd_key" \
+            --limit databases \
+            playbooks/site.yml
+
+      - name: Clean up temp SSH key
+        if: always()
+        run: shred -u "$RUNNER_TEMP/cd/cd_key" 2>/dev/null || rm -f "$RUNNER_TEMP/cd/cd_key"
+
+  # always() + explicit result checks: runs whether deploy-db ran and
+  # succeeded, or was skipped outright (infra_db was false) — but never when
+  # deploy-db actually failed.
+  deploy-app:
+    needs: [plan, deploy-db]
+    if: >-
+      always() && needs.plan.result == 'success' &&
+      (needs.deploy-db.result == 'success' || needs.deploy-db.result == 'skipped')
+    runs-on: [self-hosted, linux, homelab, tailnet]
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.plan.outputs.target_sha }}
+
+      - name: Read CD secrets from Vault
+        run: |
+          set -euo pipefail
+          set -a; source ~/actions-runner/.env; set +a
+          BECOME_PASS=$(vault kv get -field=become_password secret/asw-cd)
+          SSH_KEY=$(vault kv get -field=ssh_private_key secret/asw-cd)
+          ROLE_ID=$(vault kv get -field=vault_role_id secret/asw-cd)
+          SECRET_ID=$(vault kv get -field=vault_secret_id secret/asw-cd)
+          AGENT_ROLE_ID=$(vault kv get -field=vault_agent_role_id secret/asw-cd)
+          AGENT_SECRET_ID=$(vault kv get -field=vault_agent_secret_id secret/asw-cd)
+          for v in "$BECOME_PASS" "$ROLE_ID" "$SECRET_ID" "$AGENT_ROLE_ID" "$AGENT_SECRET_ID"; do
+            echo "::add-mask::$v"
+          done
+          mkdir -p "$RUNNER_TEMP/cd"
+          printf '%s\n' "$SSH_KEY" > "$RUNNER_TEMP/cd/cd_key"
+          chmod 600 "$RUNNER_TEMP/cd/cd_key"
+          {
+            echo "ANSIBLE_BECOME_PASS=$BECOME_PASS"
+            echo "VAULT_ROLE_ID=$ROLE_ID"
+            echo "VAULT_SECRET_ID=$SECRET_ID"
+            echo "VAULT_AGENT_ROLE_ID=$AGENT_ROLE_ID"
+            echo "VAULT_AGENT_SECRET_ID=$AGENT_SECRET_ID"
+          } >> "$GITHUB_ENV"
+
+      # Full playbook (provision + deploy) when infra_app routing says
+      # app-server.yml/its templates/tasks changed; otherwise --tags deploy
+      # only — see docs/12-cd.md for the tag split.
+      - name: Deploy app-server
+        working-directory: infrastructure/ansible
+        run: |
+          set -euo pipefail
+          TAGS_ARG=""
+          if [ "${{ needs.plan.outputs.infra_app }}" != "true" ]; then
+            TAGS_ARG="--tags deploy"
+          fi
+          ansible-playbook -i inventory-ip.yml --private-key "$RUNNER_TEMP/cd/cd_key" \
+            --limit app-server $TAGS_ARG \
+            playbooks/app-server.yml \
+            -e app_domain=animal-shelter-workshop.tttaufiqqq.com \
+            -e app_git_version=${{ needs.plan.outputs.target_sha }}
+
+      - name: Smoke test — HTTP
+        run: |
+          set -euo pipefail
+          direct_code=$(curl -fsS -o /dev/null -w '%{http_code}' http://100.100.123.90/)
+          echo "app-server direct: $direct_code"
+          [ "$direct_code" = "200" ]
+          public_code=$(curl -fsS -o /dev/null -w '%{http_code}' https://animal-shelter-workshop.tttaufiqqq.com/ || echo curl_failed)
+          echo "public tunnel domain: $public_code"
+          [ "$public_code" = "200" ]
+
+      # db:refresh-status (app/Console/Commands/RefreshDatabaseStatus.php)
+      # always returns Command::SUCCESS, even when every one of the 5 DB
+      # connections is down — this is exactly the check that caught the
+      # Vault Agent scheduler regression before, so it must assert on the
+      # printed "N/5 online" string, never on the command's exit code.
+      - name: Smoke test — app health (migrate:status + db:refresh-status + about)
+        run: |
+          set -euo pipefail
+          OUTPUT=$(ssh -o BatchMode=yes -o StrictHostKeyChecking=no -o ConnectTimeout=10 \
+            -i "$RUNNER_TEMP/cd/cd_key" taufiq@100.100.123.90 \
+            'sudo -u taufiq vault agent -config=/etc/vault-agent/agent-verify.hcl' 2>&1)
+          echo "$OUTPUT"
+          echo "$OUTPUT" | grep -q '5/5 online'
+
+      - name: Promote — record this SHA as last known good
+        run: |
+          ssh -o BatchMode=yes -o StrictHostKeyChecking=no -o ConnectTimeout=10 \
+            -i "$RUNNER_TEMP/cd/cd_key" taufiq@100.100.123.90 \
+            "echo ${{ needs.plan.outputs.target_sha }} > /home/taufiq/Animal-Shelter-Workshop/storage/.last-good-deploy"
+
+      - name: Clean up temp SSH key
+        if: always()
+        run: shred -u "$RUNNER_TEMP/cd/cd_key" 2>/dev/null || rm -f "$RUNNER_TEMP/cd/cd_key"
+
+  # Only reachable when deploy-app itself failed (not merely skipped because
+  # deploy-db failed first — in that case app-server was never touched, so
+  # there is nothing to roll back).
+  rollback:
+    needs: [plan, deploy-app]
+    if: failure() && needs.plan.outputs.last_good_sha != ''
+    runs-on: [self-hosted, linux, homelab, tailnet]
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.plan.outputs.last_good_sha }}
+
+      - name: Read CD secrets from Vault
+        run: |
+          set -euo pipefail
+          set -a; source ~/actions-runner/.env; set +a
+          BECOME_PASS=$(vault kv get -field=become_password secret/asw-cd)
+          SSH_KEY=$(vault kv get -field=ssh_private_key secret/asw-cd)
+          ROLE_ID=$(vault kv get -field=vault_role_id secret/asw-cd)
+          SECRET_ID=$(vault kv get -field=vault_secret_id secret/asw-cd)
+          AGENT_ROLE_ID=$(vault kv get -field=vault_agent_role_id secret/asw-cd)
+          AGENT_SECRET_ID=$(vault kv get -field=vault_agent_secret_id secret/asw-cd)
+          for v in "$BECOME_PASS" "$ROLE_ID" "$SECRET_ID" "$AGENT_ROLE_ID" "$AGENT_SECRET_ID"; do
+            echo "::add-mask::$v"
+          done
+          mkdir -p "$RUNNER_TEMP/cd"
+          printf '%s\n' "$SSH_KEY" > "$RUNNER_TEMP/cd/cd_key"
+          chmod 600 "$RUNNER_TEMP/cd/cd_key"
+          {
+            echo "ANSIBLE_BECOME_PASS=$BECOME_PASS"
+            echo "VAULT_ROLE_ID=$ROLE_ID"
+            echo "VAULT_SECRET_ID=$SECRET_ID"
+            echo "VAULT_AGENT_ROLE_ID=$AGENT_ROLE_ID"
+            echo "VAULT_AGENT_SECRET_ID=$AGENT_SECRET_ID"
+          } >> "$GITHUB_ENV"
+
+      # --tags deploy only — rollback never touches provisioning, same as any
+      # normal deploy. Code-only: Laravel migrations are forward-only, so this
+      # cannot and does not attempt to reverse a schema change.
+      - name: Redeploy last known-good commit
+        working-directory: infrastructure/ansible
+        run: |
+          ansible-playbook -i inventory-ip.yml --private-key "$RUNNER_TEMP/cd/cd_key" \
+            --limit app-server --tags deploy \
+            playbooks/app-server.yml \
+            -e app_domain=animal-shelter-workshop.tttaufiqqq.com \
+            -e app_git_version=${{ needs.plan.outputs.last_good_sha }}
+
+      - name: Re-run smoke tests against the rolled-back commit
+        run: |
+          set -euo pipefail
+          code=$(curl -fsS -o /dev/null -w '%{http_code}' http://100.100.123.90/)
+          [ "$code" = "200" ]
+          OUTPUT=$(ssh -o BatchMode=yes -o StrictHostKeyChecking=no -o ConnectTimeout=10 \
+            -i "$RUNNER_TEMP/cd/cd_key" taufiq@100.100.123.90 \
+            'sudo -u taufiq vault agent -config=/etc/vault-agent/agent-verify.hcl' 2>&1)
+          echo "$OUTPUT"
+          echo "$OUTPUT" | grep -q '5/5 online'
+
+      - name: Record rollback in job summary
+        if: always()
+        run: |
+          {
+            echo "## Deploy failed — rolled back to \`${{ needs.plan.outputs.last_good_sha }}\`"
+            echo ""
+            echo "Failed commit: \`${{ needs.plan.outputs.target_sha }}\`"
+            echo ""
+            echo "**Migration caveat:** rollback restores code only. Laravel migrations"
+            echo "are forward-only and MySQL/MariaDB DDL is non-transactional — if the"
+            echo "failed deploy got as far as \`php artisan migrate\`, the schema may now"
+            echo "be ahead of (or inconsistent with) the rolled-back code. Automatic"
+            echo "\`migrate:rollback\` is deliberately not attempted here — it risks"
+            echo "destroying data on a schema whose true state isn't known. Run"
+            echo "\`php artisan migrate:status\` on app-server manually before trusting"
+            echo "this rollback fully."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Clean up temp SSH key
+        if: always()
+        run: shred -u "$RUNNER_TEMP/cd/cd_key" 2>/dev/null || rm -f "$RUNNER_TEMP/cd/cd_key"
+
+  # Only reachable when deploy-app failed on what the plan job identified as
+  # the first-ever CD deploy (no .last-good-deploy marker existed to roll
+  # back to). Surfaces that clearly instead of silently doing nothing.
+  no-rollback-target:
+    needs: [plan, deploy-app]
+    if: failure() && needs.plan.outputs.last_good_sha == ''
+    runs-on: [self-hosted, linux, homelab, tailnet]
+    timeout-minutes: 5
+    steps:
+      - name: No known-good commit to roll back to
+        run: |
+          {
+            echo "## Deploy failed — no rollback target"
+            echo ""
+            echo "This looks like the first-ever CD deploy (no \`.last-good-deploy\`"
+            echo "marker existed on app-server), so there is no previous known-good"
+            echo "commit to automatically roll back to. app-server may be left in a"
+            echo "partially-deployed state. Manual intervention required."
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit 1

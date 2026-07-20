@@ -22,6 +22,18 @@
         state: present
         update_cache: true
 
+    # Ansible's become_user (used below to run as postgres) needs setfacl to
+    # hand an unprivileged user access to its temp files; without it, Ansible
+    # falls back to a non-Linux chmod ACL dialect that fails outright on
+    # Ubuntu — same bug already documented and fixed for app-server's
+    # become_user: www-data (see app-server.yml), just never ported here.
+    # Found live: "Create workshop_2 database" crashed with
+    # "chmod: invalid mode: 'A+user:postgres:rx:allow'" during CD bootstrap.
+    - name: Install acl (required for become_user privilege de-escalation)
+      apt:
+        name: acl
+        state: present
+
     - name: Start and enable PostgreSQL
       service:
         name: postgresql
@@ -121,6 +133,16 @@
         to_port: "22"
         proto: tcp
         comment: "SSH from msi admin machine"
+
+    - name: UFW — SSH from linux-gh-runner (CD) via Tailscale only
+      community.general.ufw:
+        rule: allow
+        interface: tailscale0
+        direction: in
+        from_ip: "100.72.6.40"
+        to_port: "22"
+        proto: tcp
+        comment: "SSH from linux-gh-runner (CD)"
 
     - name: UFW — PostgreSQL from app-server via Tailscale only
       community.general.ufw:

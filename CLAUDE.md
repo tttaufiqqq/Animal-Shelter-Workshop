@@ -115,6 +115,10 @@ psql -U postgres -d workshop_2_dev -c "GRANT ALL PRIVILEGES ON SCHEMA public TO 
 
 ### Running Migrations
 
+Migrations on app-server now run automatically on every push to `main`, via
+`.github/workflows/deploy.yml` (see `docs/12-cd.md`) — no manual step needed for normal deploys. The
+commands below are for local/dev work or manual intervention only.
+
 ```bash
 # On app-server — run all migrations
 php artisan migrate

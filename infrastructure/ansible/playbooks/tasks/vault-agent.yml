@@ -136,6 +136,26 @@
           - schedule:run
         vault_agent_sink_path: /etc/vault-agent/scheduler-token
 
+    # One-shot config for CD's post-deploy health check (docs/12-cd.md) — the
+    # deploy workflow needs to run migrate:status/db:refresh-status with real
+    # DB credentials, same problem the migrate/seed configs above solve.
+    # Read-only, so it gets its own sink rather than reusing migrate's/seed's
+    # (which are user-scoped but not meant to be shared across unrelated
+    # one-shot invocations that could race on the same token file).
+    - name: Deploy Vault Agent config for CD health verification
+      template:
+        src: ../templates/vault-agent.hcl.j2
+        dest: /etc/vault-agent/agent-verify.hcl
+        owner: root
+        group: taufiq
+        mode: "0640"
+      vars:
+        vault_agent_exec_command:
+          - /bin/bash
+          - -lc
+          - cd /home/taufiq/Animal-Shelter-Workshop && php artisan migrate:status && php artisan db:refresh-status && php artisan about --only=environment
+        vault_agent_sink_path: /etc/vault-agent/verify-token
+
     # php-fpm's pool defaults to clear_env=yes, which wipes the environment
     # for worker processes even though vault agent injects secrets fine into
     # the master — hit this live: php-fpm came up healthy, but every request

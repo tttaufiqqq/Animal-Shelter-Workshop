@@ -171,6 +171,8 @@ surviving reboots unattended — see:
   verification, retention, and the restore runbook
 - [`docs/11-ci.md`](docs/11-ci.md) — the self-hosted GitHub Actions runner, why it's self-hosted, and
   a real upstream Action bug found running it for the first time
+- [`docs/12-cd.md`](docs/12-cd.md) — automatic deploy to the fleet on green tests: path-based
+  routing, the provision/deploy tag split, and automatic rollback on failure
 - `CLAUDE.md` — live server IPs, admin credentials, and the pre-migration checklist for provisioning
   the `workshop_2_prod`/`workshop_2_dev` databases/users on all 5 DB servers (3 engine types: MySQL,
   MariaDB, PostgreSQL)
@@ -283,7 +285,7 @@ php artisan test --filter=TestName
 | **Payment Gateway**     | ToyyibPay Integration                     |
 | **Maps & Geolocation**  | Leaflet.js with clustering                |
 | **Testing**             | Pest PHP 4 + Playwright (real distributed DBs, not mocks — see [`docs/08-testing.md`](docs/08-testing.md)) |
-| **CI/CD**               | GitHub Actions, self-hosted homelab runner (see [`docs/11-ci.md`](docs/11-ci.md)) |
+| **CI/CD**               | GitHub Actions, self-hosted homelab runner — CI in [`docs/11-ci.md`](docs/11-ci.md), automatic deploy-on-green in [`docs/12-cd.md`](docs/12-cd.md) |
 | **Code Quality**        | Laravel Pint (PHP CS Fixer)               |
 | **Infrastructure**      | Terraform + Ansible ([`docs/07-terraform.md`](docs/07-terraform.md), [`docs/06-ansible.md`](docs/06-ansible.md)) |
 

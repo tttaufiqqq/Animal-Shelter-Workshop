@@ -1,0 +1,48 @@
+# IP-based inventory for control nodes that can't resolve Tailscale MagicDNS
+# hostnames — e.g. linux-gh-runner, whose DNS is pinned to 8.8.8.8 (see the
+# homelab repo's docs/09-github-actions-runner/actions-runner-setup.md,
+# Issue 5). Same host/group structure as inventory.yml, but with Tailscale
+# IPs and an explicit ansible_user per host (see CLAUDE.md's Server Topology
+# table and ~/.ssh/config for where these values come from — SSH usernames
+# differ per host and don't match ansible.cfg's global remote_user).
+#
+# Safe to commit (unlike the old .scratch-inventory-ip-override.yml): these
+# IPs are already published in CLAUDE.md's topology table.
+
+all:
+  children:
+    app:
+      hosts:
+        app-server:
+          ansible_host: 100.100.123.90
+          ansible_user: taufiq
+
+    mysql_hosts:
+      hosts:
+        linux-mysql:
+          ansible_host: 100.115.237.93
+          ansible_user: workshop-mysql
+        linux-mysql-2:
+          ansible_host: 100.123.221.89
+          ansible_user: linux-mysql-2
+
+    mariadb_hosts:
+      hosts:
+        linux-mariadb:
+          ansible_host: 100.78.124.25
+          ansible_user: workshop-2
+        linux-mariadb-2:
+          ansible_host: 100.97.35.29
+          ansible_user: linux-mariadb-2
+
+    postgres_hosts:
+      hosts:
+        linux-postgres:
+          ansible_host: 100.113.234.24
+          ansible_user: workshop-postgres
+
+    databases:
+      children:
+        mysql_hosts:
+        mariadb_hosts:
+        postgres_hosts:

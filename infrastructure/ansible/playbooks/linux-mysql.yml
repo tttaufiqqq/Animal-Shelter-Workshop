@@ -52,7 +52,8 @@
         encoding: utf8mb4
         collation: utf8mb4_unicode_ci
         state: present
-        login_unix_socket: /var/run/mysqld/mysqld.sock
+        login_user: root
+        login_password: "{{ mysql_root_password }}"
 
     - name: Create workshop_2 user (allow from any host)
       community.mysql.mysql_user:
@@ -61,7 +62,8 @@
         host: "%"
         priv: "{{ db_name }}.*:ALL"
         state: present
-        login_unix_socket: /var/run/mysqld/mysqld.sock
+        login_user: root
+        login_password: "{{ mysql_root_password }}"
 
     # ── Firewall ──────────────────────────────────────────────────────────────
     - name: UFW — default deny incoming
@@ -83,6 +85,16 @@
         to_port: "22"
         proto: tcp
         comment: "SSH from msi admin machine"
+
+    - name: UFW — SSH from linux-gh-runner (CD) via Tailscale only
+      community.general.ufw:
+        rule: allow
+        interface: tailscale0
+        direction: in
+        from_ip: "100.72.6.40"
+        to_port: "22"
+        proto: tcp
+        comment: "SSH from linux-gh-runner (CD)"
 
     - name: UFW — MySQL from app-server via Tailscale only
       community.general.ufw:
