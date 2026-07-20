@@ -18,7 +18,9 @@ The state of what exists is tracked in `terraform.tfstate` — Terraform always 
 **Ansible** solves the configuration problem.
 After Terraform creates the VMs and they join Tailscale, Ansible SSHes into each one and installs
 the right software: MySQL on linux-mysql, MariaDB on linux-mariadb, PostgreSQL on linux-postgres,
-PHP + Nginx + Composer on app-server. It also creates the `workshop_2` database and user on each DB server,
+PHP + Nginx + Composer on app-server. It also creates the `workshop_2_prod` database and user on
+each DB server (a `workshop_2_dev` database/user also exists on every server for local development,
+but that one isn't Ansible-managed — see CLAUDE.md's Database Connection Mapping),
 sets the correct permissions, and configures remote access — exactly as defined in the playbooks.
 Running the same playbook twice produces the same result (idempotent).
 
@@ -125,9 +127,11 @@ linux-mysql:
 
 | Playbook | Host | Installs / Does |
 |---|---|---|
-| `linux-mysql.yml` | linux-mysql | MySQL 8.0, creates workshop_2 DB + user, enables remote + triggers, UFW |
-| `linux-mariadb.yml` | linux-mariadb | MariaDB, creates workshop_2 DB + user, enables remote, UFW |
-| `linux-postgres.yml` | linux-postgres | PostgreSQL, creates workshop_2 DB + user, pg_hba + schema grants, UFW |
+| `linux-mysql.yml` | linux-mysql | MySQL 8.0, creates workshop_2_prod DB + user, enables remote + triggers, UFW |
+| `linux-mysql-2.yml` | linux-mysql-2 | MySQL 8.0, creates workshop_2_prod DB + user, enables remote + triggers, UFW |
+| `linux-mariadb.yml` | linux-mariadb | MariaDB, creates workshop_2_prod DB + user, enables remote, UFW |
+| `linux-mariadb-2.yml` | linux-mariadb-2 | MariaDB, creates workshop_2_prod DB + user, enables remote, UFW |
+| `linux-postgres.yml` | linux-postgres | PostgreSQL, creates workshop_2_prod DB + user, pg_hba + schema grants, UFW |
 | `app-server.yml` | app-server | PHP 8.3 + extensions, Nginx, Node 20, Composer, UFW; clones repo to `/home/taufiq/Animal-Shelter-Workshop`, deploys `.env` from Vault (`asw_secrets`, re-rendered every run), builds frontend assets, runs `migrate --force` + a first-deploy-only `db:seed` — **never** `db:fresh-all` (see `docs/09-production-hardening.md`) |
 | `site.yml` | all | Runs the 4 above in order |
 
@@ -135,13 +139,13 @@ linux-mysql:
 
 ```bash
 # MySQL
-ssh workshop@linux-mysql "mysql -u workshop_2 -pworkshop_2 -e 'SHOW DATABASES;'"
+ssh workshop@linux-mysql "mysql -u workshop_2_prod -pworkshop_2_prod -e 'SHOW DATABASES;'"
 
 # MariaDB
-ssh workshop@linux-mariadb "mysql -u workshop_2 -pworkshop_2 -e 'SHOW DATABASES;'"
+ssh workshop@linux-mariadb "mysql -u workshop_2_prod -pworkshop_2_prod -e 'SHOW DATABASES;'"
 
 # PostgreSQL
-ssh workshop@linux-postgres "psql -U workshop_2 -d workshop_2 -c '\l'"
+ssh workshop@linux-postgres "psql -U workshop_2_prod -d workshop_2_prod -c '\l'"
 
 # PHP on app-server
 ssh workshop@app-server "php -v && nginx -v && composer --version"

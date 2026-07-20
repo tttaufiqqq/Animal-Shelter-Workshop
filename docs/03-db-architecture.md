@@ -47,21 +47,27 @@ interface. No SSH tunnels are used. SSH keys are pre-configured on all machines.
 
 ## Connection Map
 
-| Laravel connection | Module owner | DB engine | Host (Tailscale) | Database |
-|---|---|---|---|---|
-| `reporting` | Eilya — Stray Reporting | MariaDB | 100.78.124.25 | workshop_2 |
-| `booking` | Danish — Booking & Adoption | MariaDB | 100.97.35.29 | workshop_2 |
-| `shelter` | Atiqah — Shelter Management | MySQL | 100.115.237.93 | workshop_2 |
-| `animals` | Shafiqah — Animal & Medical | MySQL | 100.123.221.89 | workshop_2 |
-| `users` | Taufiq — User Management | PostgreSQL | 100.113.234.24 | workshop_2 |
+| Laravel connection | Module owner | DB engine | Host (Tailscale) | Prod database | Dev database |
+|---|---|---|---|---|---|
+| `reporting` | Eilya — Stray Reporting | MariaDB | 100.78.124.25 | workshop_2_prod | workshop_2_dev |
+| `booking` | Danish — Booking & Adoption | MariaDB | 100.97.35.29 | workshop_2_prod | workshop_2_dev |
+| `shelter` | Atiqah — Shelter Management | MySQL | 100.115.237.93 | workshop_2_prod | workshop_2_dev |
+| `animals` | Shafiqah — Animal & Medical | MySQL | 100.123.221.89 | workshop_2_prod | workshop_2_dev |
+| `users` | Taufiq — User Management | PostgreSQL | 100.113.234.24 | workshop_2_prod | workshop_2_dev |
 
 No native FK crosses either split pair — `reporting`↔`booking` or `shelter`↔`animals` (see
 `docs/04-foreign-keys.md`) — which is what made splitting each pair onto separate physical
 machines possible without any application code changes. Both pairs previously shared one
 physical server each; each connection now has its own dedicated host.
 
-All connections use credentials `workshop_2 / workshop_2`. Config lives in
-`config/database.php` under the five named keys above.
+Each server carries two databases (a DBA-style prod/dev split, added 2026-07-20): `app-server`
+connects to `workshop_2_prod` (credentials `workshop_2_prod` / `workshop_2_prod`, delivered via
+Vault — see `docs/09-production-hardening.md`), and local development connects to `workshop_2_dev`
+(credentials `workshop_2_dev` / `workshop_2_dev`, via a plain `.env` file — no Vault for local dev,
+by design). Both live on the same 5 physical servers as each other; dev migrations/seeders never
+touch prod data. Config lives in `config/database.php` under the five named keys above — only the
+env values (`DBn_DATABASE`/`DBn_USERNAME`/`DBn_PASSWORD`) differ between prod and dev, not the
+connection names. Full detail: CLAUDE.md's Database Connection Mapping.
 
 ---
 
