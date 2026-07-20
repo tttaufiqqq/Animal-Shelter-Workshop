@@ -115,6 +115,18 @@
           - --force
         vault_agent_sink_path: /etc/vault-agent/seed-token
 
+    # php-fpm's pool defaults to clear_env=yes, which wipes the environment
+    # for worker processes even though vault agent injects secrets fine into
+    # the master — hit this live: php-fpm came up healthy, but every request
+    # 500'd with "No application encryption key has been specified" because
+    # getenv('APP_KEY') saw nothing in the (cleared) worker environment.
+    - name: Let php-fpm workers inherit the Vault Agent-injected environment
+      lineinfile:
+        path: /etc/php/8.3/fpm/pool.d/www.conf
+        regexp: "^;?clear_env\\s*="
+        line: "clear_env = no"
+      register: clear_env_configured
+
     - name: Create php8.3-fpm systemd override directory
       file:
         path: /etc/systemd/system/php8.3-fpm.service.d
@@ -131,7 +143,7 @@
         name: php8.3-fpm
         daemon_reload: true
         state: restarted
-      when: agent_override_deployed.changed or agent_fpm_config_deployed.changed
+      when: agent_override_deployed.changed or agent_fpm_config_deployed.changed or clear_env_configured.changed
 
 - name: Vault Agent — disable/rollback path
   when: not vault_agent_enabled

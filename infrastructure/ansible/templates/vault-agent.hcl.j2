@@ -45,24 +45,36 @@ env_template "APP_KEY" {
   contents = "{{ with secret \"secret/data/animal-shelter-workshop\" }}{{ .Data.data.app_key }}{{ end }}"
 }
 
+# DB1-5_PASSWORD all render the exact same secret field (db_password) — one
+# app-level credential shared by all 5 connections, see env-app.j2. Confirmed
+# live: with byte-identical `contents` strings, Vault Agent only delivered
+# the value to ONE of the 5 (the last-declared, DB5_PASSWORD) — the other 4
+# showed up as `(unset)` in the actual worker process (checked directly via
+# a temporary debug script hit over HTTP), even though config/database.php,
+# connectivity, and the credential itself were all otherwise fine. Vault
+# Agent appears to dedupe env_template rendering by the literal contents
+# string. Fix: an inert per-variable Go-template comment
+# ({{/* DBn_PASSWORD */}}, renders as nothing) makes each template's source
+# text unique without changing the rendered value, which is enough to stop
+# the dedup from colliding them.
 env_template "DB1_PASSWORD" {
-  contents = "{{ with secret \"secret/data/animal-shelter-workshop\" }}{{ .Data.data.db_password }}{{ end }}"
+  contents = "{{ with secret \"secret/data/animal-shelter-workshop\" }}{{ .Data.data.db_password }}{{ end }}{{/* DB1_PASSWORD */}}"
 }
 
 env_template "DB2_PASSWORD" {
-  contents = "{{ with secret \"secret/data/animal-shelter-workshop\" }}{{ .Data.data.db_password }}{{ end }}"
+  contents = "{{ with secret \"secret/data/animal-shelter-workshop\" }}{{ .Data.data.db_password }}{{ end }}{{/* DB2_PASSWORD */}}"
 }
 
 env_template "DB3_PASSWORD" {
-  contents = "{{ with secret \"secret/data/animal-shelter-workshop\" }}{{ .Data.data.db_password }}{{ end }}"
+  contents = "{{ with secret \"secret/data/animal-shelter-workshop\" }}{{ .Data.data.db_password }}{{ end }}{{/* DB3_PASSWORD */}}"
 }
 
 env_template "DB4_PASSWORD" {
-  contents = "{{ with secret \"secret/data/animal-shelter-workshop\" }}{{ .Data.data.db_password }}{{ end }}"
+  contents = "{{ with secret \"secret/data/animal-shelter-workshop\" }}{{ .Data.data.db_password }}{{ end }}{{/* DB4_PASSWORD */}}"
 }
 
 env_template "DB5_PASSWORD" {
-  contents = "{{ with secret \"secret/data/animal-shelter-workshop\" }}{{ .Data.data.db_password }}{{ end }}"
+  contents = "{{ with secret \"secret/data/animal-shelter-workshop\" }}{{ .Data.data.db_password }}{{ end }}{{/* DB5_PASSWORD */}}"
 }
 
 env_template "CLOUDINARY_URL" {
