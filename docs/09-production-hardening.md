@@ -124,8 +124,10 @@ cross-database consistency check, despite the app having 12 undeclared logical f
 3 servers (`docs/04-foreign-keys.md`).
 
 It has been replaced with a single coordinated backup orchestrated from app-server
-(`php artisan db:backup`) that dumps all 3 physical databases, verifies the 12 logical foreign keys
-still resolve, checksums and centrally retains the result, and alerts on failure. **See
+(`php artisan db:backup`) that dumps all 5 physical databases (one per connection as of the
+2026-07-20 1-database-1-physical-machine split — see CLAUDE.md's Server Topology table), verifies
+the 12 logical foreign keys still resolve, checksums and centrally retains the result, and alerts
+on failure. **See
 `docs/10-backups.md` for the current architecture, retention policy, and restore runbook** — the
 per-host scripts and systemd units referenced above no longer exist.
 

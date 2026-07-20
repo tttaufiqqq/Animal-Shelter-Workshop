@@ -9,7 +9,7 @@ use Throwable;
  * Checks the 12 logical (application-enforced, not DB-enforced) foreign keys
  * documented in docs/04-foreign-keys.md. Native FKs are already engine-checked
  * on their own connection and don't need this — these are the ones that only
- * a coordinated backup/restore across 3 servers can silently break.
+ * a coordinated backup/restore across 5 servers can silently break.
  *
  * docs/04-foreign-keys.md's "Orphan Risk" section documents that stale
  * cross-DB references are possible with no automatic cleanup; this is the

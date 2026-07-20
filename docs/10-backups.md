@@ -336,7 +336,7 @@ only alerting surface that actually works.
 |---|---|
 | Orchestrator command | `app/Console/Commands/BackupDatabases.php` |
 | Restore command | `app/Console/Commands/RestoreDatabases.php` |
-| Target grouping (5 connections → 3 physical DBs) | `app/Services/Backup/BackupTargetResolver.php` |
+| Target grouping (5 connections → 5 physical DBs) | `app/Services/Backup/BackupTargetResolver.php` |
 | Dump execution | `app/Services/Backup/DatabaseDumper.php` |
 | Restore execution | `app/Services/Backup/DatabaseRestorer.php` |
 | manifest.json read/write | `app/Services/Backup/BackupManifest.php` |
