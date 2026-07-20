@@ -275,9 +275,9 @@ sudo nano /etc/postgresql/16/main/pg_hba.conf
 Ensure only app-server can connect remotely:
 
 ```
-# TYPE  DATABASE  USER        ADDRESS              METHOD
-local   all       all                              peer
-host    all       workshop_2  100.100.123.90/32    scram-sha-256
+# TYPE  DATABASE  USER             ADDRESS              METHOD
+local   all       all                                   peer
+host    all       workshop_2_prod  100.100.123.90/32    scram-sha-256
 ```
 
 Remove or comment out any broad rules like `host all all 0.0.0.0/0 md5`.
@@ -410,12 +410,13 @@ Configure in Proxmox UI: select each VM → **Options** → **Start/Shutdown ord
 Run these checks from app-server after all hardening is applied:
 
 ```bash
-# All five DBs should respond
-mysql -h 100.78.124.25 -u workshop_2 -pworkshop_2 -e "SELECT 'MariaDB (reporting) ok';"
-mysql -h 100.97.35.29 -u workshop_2 -pworkshop_2 -e "SELECT 'MariaDB (booking) ok';"
-mysql -h 100.115.237.93 -u workshop_2 -pworkshop_2 -e "SELECT 'MySQL (shelter) ok';"
-mysql -h 100.123.221.89 -u workshop_2 -pworkshop_2 -e "SELECT 'MySQL (animals) ok';"
-PGPASSWORD=workshop_2 psql -h 100.113.234.24 -U workshop_2 -d workshop_2 -c "SELECT 'PostgreSQL ok';"
+# All five DBs should respond (workshop_2_prod — see CLAUDE.md's Database
+# Connection Mapping for the workshop_2_prod/workshop_2_dev split)
+mysql -h 100.78.124.25 -u workshop_2_prod -pworkshop_2_prod -e "SELECT 'MariaDB (reporting) ok';"
+mysql -h 100.97.35.29 -u workshop_2_prod -pworkshop_2_prod -e "SELECT 'MariaDB (booking) ok';"
+mysql -h 100.115.237.93 -u workshop_2_prod -pworkshop_2_prod -e "SELECT 'MySQL (shelter) ok';"
+mysql -h 100.123.221.89 -u workshop_2_prod -pworkshop_2_prod -e "SELECT 'MySQL (animals) ok';"
+PGPASSWORD=workshop_2_prod psql -h 100.113.234.24 -U workshop_2_prod -d workshop_2_prod -c "SELECT 'PostgreSQL ok';"
 
 # App should still serve HTTP
 curl -s -o /dev/null -w "%{http_code}" http://localhost/

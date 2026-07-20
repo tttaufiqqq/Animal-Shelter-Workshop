@@ -169,7 +169,7 @@ php artisan db:restore <run> [--into-scratch] [--force]
   ▼
 [4] --into-scratch ?
   │     yes → reset the pre-provisioned *_restore_test databases (never the live ones)
-  │     no  → restore straight into the live workshop_2 databases
+  │     no  → restore straight into the live workshop_2_prod databases
   ▼
 [5] DatabaseRestorer: mysql / pg_restore --clean --if-exists, per target
   ▼
@@ -185,23 +185,25 @@ php artisan db:restore <run> [--into-scratch] [--force]
 ### One-time setup: provisioning the scratch databases
 
 `--into-scratch` needs a `workshop_2_restore_test` database to already exist on all 5 servers, granted
-to the app's normal `workshop_2` credential — **the app's regular DB user deliberately does not have
-the privilege to create arbitrary new databases itself.** This is exactly the same one-time-setup shape
-as CLAUDE.md's Pre-Migration Checklist, just for a 6th database name:
+to the app's live DB credential (`workshop_2_prod` as of the 2026-07-20 prod/dev split — see
+CLAUDE.md's Database Connection Mapping; this was `workshop_2` before that) — **the app's regular DB
+user deliberately does not have the privilege to create arbitrary new databases itself.** This is
+exactly the same one-time-setup shape as CLAUDE.md's Pre-Migration Checklist, just for a 6th
+database name:
 
 ```bash
 # linux-mariadb (100.78.124.25), linux-mariadb-2 (100.97.35.29), linux-mysql
 # (100.115.237.93), and linux-mysql-2 (100.123.221.89) — as root on each:
 mysql -u root -p -e "
   CREATE DATABASE IF NOT EXISTS workshop_2_restore_test CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-  GRANT ALL PRIVILEGES ON workshop_2_restore_test.* TO 'workshop_2'@'%';
+  GRANT ALL PRIVILEGES ON workshop_2_restore_test.* TO 'workshop_2_prod'@'%';
   FLUSH PRIVILEGES;
 "
 
 # PostgreSQL (workshop-postgres, 100.113.234.24) — as the postgres superuser:
 psql -U postgres -c "CREATE DATABASE workshop_2_restore_test;"
-psql -U postgres -c "GRANT ALL PRIVILEGES ON DATABASE workshop_2_restore_test TO workshop_2;"
-psql -U postgres -d workshop_2_restore_test -c "GRANT ALL PRIVILEGES ON SCHEMA public TO workshop_2;"
+psql -U postgres -c "GRANT ALL PRIVILEGES ON DATABASE workshop_2_restore_test TO workshop_2_prod;"
+psql -U postgres -d workshop_2_restore_test -c "GRANT ALL PRIVILEGES ON SCHEMA public TO workshop_2_prod;"
 ```
 
 Because MySQL/MariaDB's `GRANT ... ON workshop_2_restore_test.*` is scoped to that one database name, it

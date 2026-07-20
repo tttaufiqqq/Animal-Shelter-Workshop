@@ -371,7 +371,16 @@ all service class files were renamed to match:
 
 ---
 
-## Database User Setup (All Three DB Servers)
+## ~~Database User Setup (All Three DB Servers)~~ — superseded
+
+**This section is stale and describes a setup that no longer exists — don't follow it.** It predates
+both the shelter/animals + reporting/booking host splits (now 5 DB servers, not 3; `msi` isn't a DB
+host at all anymore) and the later `workshop_2_prod`/`workshop_2_dev` credential split. Kept only as
+a historical record of the very first `workshop_2` user setup done during the Tailscale migration.
+**Current, accurate instructions: CLAUDE.md's "Pre-Migration Checklist."**
+
+<details>
+<summary>Original content (superseded, do not use)</summary>
 
 Each database server requires a dedicated `workshop_2` user with appropriate
 privileges. Do this **before** running migrations.
@@ -415,6 +424,8 @@ GRANT ALL PRIVILEGES ON SCHEMA public TO workshop_2;
 GRANT CREATE ON DATABASE workshop_2 TO workshop_2;
 ```
 
+</details>
+
 ---
 
 ## Test Accounts
@@ -439,7 +450,19 @@ account is `password`.
 
 ---
 
-## Deployment Steps (app-server)
+## ~~Deployment Steps (app-server)~~ — superseded, and step 9 below is actively dangerous
+
+**Do not follow this section — step 9 (`db:fresh-all --seed` on every deploy) drops every table on
+all databases on every run.** That behavior was deliberately removed (see
+`docs/09-production-hardening.md`'s "Deploy pipeline no longer destroys data"). This whole section
+also predates the real deploy path/user (`/var/www/animal-shelter` as `workshop` — the actual box
+uses `/home/taufiq/Animal-Shelter-Workshop` as `taufiq`), `key:generate --force` running every
+deploy (removed once `APP_KEY` moved into Vault), and the current Vault Agent secrets flow. Kept
+only as a historical record of the very first Ansible deploy design. **Current, accurate
+instructions: `docs/06-ansible.md` and `docs/09-production-hardening.md`.**
+
+<details>
+<summary>Original content (superseded, do not use — see warning above)</summary>
 
 App-server deployment is fully automated by Ansible. Run from the WSL control node:
 
@@ -448,7 +471,7 @@ cd infrastructure/ansible
 ansible-playbook playbooks/app-server.yml
 ```
 
-This handles everything in order:
+This handled everything in order:
 1. Installs PHP 8.3 (all extensions), Nginx, Node 20, Composer
 2. Clones the repo to `/var/www/animal-shelter` as user `workshop`
 3. Sets ownership `workshop:www-data` and 775 on `storage/` and `bootstrap/cache/`
@@ -459,7 +482,7 @@ This handles everything in order:
 8. Deploys Nginx config to `/etc/nginx/sites-available/animal-shelter`, enables it
 9. Runs `php artisan db:fresh-all --seed`
 
-The app lives at `/var/www/animal-shelter`. Nginx serves from `/var/www/animal-shelter/public`.
+The app lived at `/var/www/animal-shelter`. Nginx served from `/var/www/animal-shelter/public`.
 
 For manual access or debugging:
 
@@ -476,6 +499,8 @@ php artisan migrate --force
 # View logs
 tail -f storage/logs/laravel.log
 ```
+
+</details>
 
 ---
 

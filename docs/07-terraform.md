@@ -137,7 +137,9 @@ terraform apply
 2. Clone VM 9000 four times (full clone, not linked)
 3. Resize each disk to 20GB
 4. Attach cloud-init config and set DHCP networking
-5. Boot all 4 VMs — cloud-init runs on first boot, creates `workshop` user, joins Tailscale
+5. Boot all 4 VMs — cloud-init runs on first boot, creates a `workshop` user, joins Tailscale
+   (in practice, some of these VMs' SSH username has since diverged from the cloud-init default —
+   `~/.ssh/config` is the actual source of truth for what to connect as today, not this doc)
 
 ---
 
@@ -197,8 +199,11 @@ Fix: `sudo snap install terraform --classic`
 # Confirm VMs appear on Tailscale
 tailscale status
 
-# Wait ~60s for cloud-init, then test SSH
-ssh workshop@linux-mysql "echo ok"
+# Wait ~60s for cloud-init, then test SSH — check ~/.ssh/config for the real
+# per-host username first (confirmed live: "workshop" fails on linux-mysql,
+# linux-mariadb, and linux-postgres today — the actual usernames are
+# workshop-mysql / workshop-2 / workshop-postgres respectively)
+ssh linux-mysql "echo ok"
 
 # Then run Ansible to install software
 cd infrastructure/ansible

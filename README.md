@@ -172,7 +172,8 @@ surviving reboots unattended — see:
 - [`docs/11-ci.md`](docs/11-ci.md) — the self-hosted GitHub Actions runner, why it's self-hosted, and
   a real upstream Action bug found running it for the first time
 - `CLAUDE.md` — live server IPs, admin credentials, and the pre-migration checklist for provisioning
-  the `workshop_2` database/user on all three engines
+  the `workshop_2_prod`/`workshop_2_dev` databases/users on all 5 DB servers (3 engine types: MySQL,
+  MariaDB, PostgreSQL)
 
 ---
 
