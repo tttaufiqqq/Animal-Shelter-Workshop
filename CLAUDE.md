@@ -5,10 +5,18 @@
 | Machine | Tailscale IP | Role | DB Engine |
 |---|---|---|---|
 | app-server | 100.100.123.90 | Laravel application host | — |
-| workshop-2 | 100.78.124.25 | reporting + booking connections | MariaDB |
-| msi (local) | 100.68.235.121 | shelter + animals connections | MySQL |
-| workshop-mysql | 100.115.237.93 | Proxmox MySQL VM | MySQL 8.0 |
+| workshop-2 | 100.78.124.25 | reporting connection (Proxmox VM) | MariaDB |
+| linux-mariadb-2 | 100.97.35.29 | booking connection (Proxmox CT) | MariaDB |
+| linux-mysql | 100.115.237.93 | shelter connection (Proxmox VM) | MySQL 8.0 |
+| linux-mysql-2 | 100.123.221.89 | animals connection (Proxmox CT) | MySQL 8.0 |
 | workshop-postgres | 100.113.234.24 | users connection | PostgreSQL |
+
+Every one of the 5 connections now has its own dedicated physical machine —
+1-database-1-physical-machine, no exceptions. `shelter`/`animals` were split off `msi` on
+2026-07-20; `reporting`/`booking` (which previously shared `workshop-2`) were split the same
+day, `booking` moving to a new CT. `msi` (this machine) no longer hosts any DB connection for
+this project — it remains the Ansible/WSL control node and local dev environment, not part of
+the Proxmox-managed fleet.
 
 SSH access is via Tailscale IP directly — SSH keys are pre-configured, no password needed.
 
@@ -19,9 +27,9 @@ Example: `ssh taufiq@100.78.124.25`
 | Connection name | Module | Server | Driver | Database | Username | Password |
 |---|---|---|---|---|---|---|
 | reporting | Stray Reporting | workshop-2 (100.78.124.25) | mariadb | workshop_2 | workshop_2 | workshop_2 |
-| booking | Booking Adoption | workshop-2 (100.78.124.25) | mariadb | workshop_2 | workshop_2 | workshop_2 |
-| shelter | Shelter Management | msi (100.68.235.121) | mysql | workshop_2 | workshop_2 | workshop_2 |
-| animals | Stray Animal | msi (100.68.235.121) | mysql | workshop_2 | workshop_2 | workshop_2 |
+| booking | Booking Adoption | linux-mariadb-2 (100.97.35.29) | mariadb | workshop_2 | workshop_2 | workshop_2 |
+| shelter | Shelter Management | linux-mysql (100.115.237.93) | mysql | workshop_2 | workshop_2 | workshop_2 |
+| animals | Stray Animal | linux-mysql-2 (100.123.221.89) | mysql | workshop_2 | workshop_2 | workshop_2 |
 | users | Users Management | workshop-postgres (100.113.234.24) | pgsql | workshop_2 | workshop_2 | workshop_2 |
 
 ### Database Ownership by Connection
@@ -34,7 +42,11 @@ Example: `ssh taufiq@100.78.124.25`
 
 ### Pre-Migration Checklist
 
-Create the `workshop_2` database and user on all 3 DB servers before running migrations.
+Create the `workshop_2` database and user on all 5 DB servers before running migrations.
+All 4 non-`workshop-2` hosts are provisioned automatically by
+`infrastructure/ansible/playbooks/linux-mysql.yml` / `linux-mysql-2.yml` /
+`linux-mariadb-2.yml` (see `docs/06-ansible.md`) — the snippets below are what those playbooks
+actually run, useful for a from-scratch rebuild without Ansible.
 
 ```bash
 # --- workshop-2 (MariaDB, 100.78.124.25) ---
@@ -45,15 +57,31 @@ mysql -u root -p -e "
   FLUSH PRIVILEGES;
 "
 
-# --- msi/local (MySQL, 100.68.235.121) — local root, password: 'password' ---
-mysql -u root -ppassword -e "
+# --- linux-mariadb-2 (MariaDB, 100.97.35.29) — root password: 'qwertY@1612' ---
+mysql -u root -p'qwertY@1612' -e "
   CREATE DATABASE IF NOT EXISTS workshop_2 CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
   CREATE USER IF NOT EXISTS 'workshop_2'@'%' IDENTIFIED BY 'workshop_2';
   GRANT ALL PRIVILEGES ON workshop_2.* TO 'workshop_2'@'%';
   FLUSH PRIVILEGES;
 "
-# Binary logging is ON on msi — required for trigger creation by non-SUPER user:
-mysql -u root -ppassword -e "SET PERSIST log_bin_trust_function_creators = 1;"
+
+# --- linux-mysql (MySQL 8.0, 100.115.237.93) — root password: 'Password123!' ---
+mysql -u root -pPassword123! -e "
+  CREATE DATABASE IF NOT EXISTS workshop_2 CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+  CREATE USER IF NOT EXISTS 'workshop_2'@'%' IDENTIFIED BY 'workshop_2';
+  GRANT ALL PRIVILEGES ON workshop_2.* TO 'workshop_2'@'%';
+  FLUSH PRIVILEGES;
+"
+mysql -u root -pPassword123! -e "SET PERSIST log_bin_trust_function_creators = 1;"
+
+# --- linux-mysql-2 (MySQL 8.0, 100.123.221.89) — root password: 'qwertY@1612' ---
+mysql -u root -p'qwertY@1612' -e "
+  CREATE DATABASE IF NOT EXISTS workshop_2 CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+  CREATE USER IF NOT EXISTS 'workshop_2'@'%' IDENTIFIED BY 'workshop_2';
+  GRANT ALL PRIVILEGES ON workshop_2.* TO 'workshop_2'@'%';
+  FLUSH PRIVILEGES;
+"
+mysql -u root -p'qwertY@1612' -e "SET PERSIST log_bin_trust_function_creators = 1;"
 
 # --- workshop-postgres (PostgreSQL, 100.113.234.24) ---
 psql -U postgres -c "CREATE DATABASE workshop_2;"
@@ -61,16 +89,6 @@ psql -U postgres -c "CREATE USER workshop_2 WITH PASSWORD 'workshop_2';"
 psql -U postgres -c "GRANT ALL PRIVILEGES ON DATABASE workshop_2 TO workshop_2;"
 psql -U postgres -d workshop_2 -c "GRANT ALL PRIVILEGES ON SCHEMA public TO workshop_2;"
 # Note: PostgreSQL 15+ no longer grants CREATE on public schema by default
-```
-
-```bash
-# --- workshop-mysql (MySQL 8.0, 100.115.237.93) — root password: 'Password123!' ---
-mysql -u root -pPassword123! -e "
-  CREATE DATABASE IF NOT EXISTS workshop_2 CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-  CREATE USER IF NOT EXISTS 'workshop_2'@'%' IDENTIFIED BY 'workshop_2';
-  GRANT ALL PRIVILEGES ON workshop_2.* TO 'workshop_2'@'%';
-  FLUSH PRIVILEGES;
-"
 ```
 
 ### Running Migrations

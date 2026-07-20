@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document covers hardening all four machines in the distributed architecture
+This document covers hardening all six machines in the distributed architecture
 to ensure services survive VM shutdowns, Proxmox power cuts, and unplanned
 restarts without manual intervention. It also restricts each database server to
 only accept connections on its Tailscale interface from the application server.
@@ -17,9 +17,15 @@ blocks unauthorized access. If one layer is misconfigured, the others still hold
 |---|---|---|---|---|
 | 100.100.123.90 | app-server | Ubuntu 24.04 (Proxmox VM) | — (Laravel) | — |
 | 100.78.124.25 | linux-mariadb | Ubuntu 24.04 (Proxmox VM) | MariaDB 10.11 | 3306 |
+| 100.97.35.29 | linux-mariadb-2 | Ubuntu 24.04 (Proxmox CT) | MariaDB 10.11 | 3306 |
 | 100.113.234.24 | linux-postgres | Ubuntu (Proxmox VM) | PostgreSQL 16 | 5432 |
-| 100.115.237.93 | linux-mysql | Ubuntu (Proxmox VM) | MySQL 8.0 | 3306 |
-| 100.68.235.121 | msi | Windows 11 (physical) | MySQL 9.5 | 3306 |
+| 100.115.237.93 | linux-mysql | Ubuntu 24.04 (Proxmox VM) | MySQL 8.0 | 3306 |
+| 100.123.221.89 | linux-mysql-2 | Ubuntu 24.04 (Proxmox CT) | MySQL 8.0 | 3306 |
+
+`msi` (Windows 11, physical) previously hosted `shelter`+`animals` on a local MySQL 9.5
+instance — migrated off onto `linux-mysql`/`linux-mysql-2` on 2026-07-20 (see
+`docs/03-db-architecture.md`), so it's no longer part of this table. `linux-mariadb` previously
+also hosted `booking` alongside `reporting` — split onto `linux-mariadb-2` the same day.
 
 ### Hardening Goals
 
@@ -118,9 +124,13 @@ In Proxmox web UI:
 
 ---
 
-## 2. MariaDB (Ubuntu 24.04)
+## 2. MariaDB — linux-mariadb / `reporting` (Ubuntu 24.04)
 
-SSH into the MariaDB server (100.78.124.25) and run all of the following.
+SSH into the MariaDB server (100.78.124.25) and run all of the following. This section covers
+`linux-mariadb` specifically — it predates this project's Ansible provisioning and was hardened
+by hand. `linux-mariadb-2` (the `booking` connection's host, split off 2026-07-20) was
+Ansible-provisioned from the start and follows the same shape as `linux-mysql`/`linux-mysql-2`
+instead — see §4.
 
 ### 2.1 Bind to Tailscale IP Only
 
@@ -325,97 +335,46 @@ In Proxmox web UI:
 
 ---
 
-## 4. MySQL (Windows 11 — Physical Machine)
+## 4. MySQL/MariaDB — linux-mysql, linux-mysql-2, linux-mariadb-2 (Ubuntu — Proxmox VM/CT)
 
-msi is a physical Windows machine, not a Proxmox VM. Power-cut resilience is
-handled by Windows service management rather than Proxmox. The firewall approach
-uses Windows Firewall instead of UFW.
+All three hosts are provisioned by `infrastructure/ansible/playbooks/linux-mysql.yml` /
+`linux-mysql-2.yml` / `linux-mariadb-2.yml`, which apply the same hardening shape as
+MariaDB/PostgreSQL above, with one deliberate difference: `bind-address` is left at `0.0.0.0`
+rather than the host's own Tailscale IP, so the UFW rule below is the only network-layer
+restriction, not a second independent layer. (Unlike `linux-mariadb`/PostgreSQL, which predate
+this project's more careful hardening pass, all three of these were provisioned via Ansible from
+the start — see `docs/06-ansible.md` — so re-running the relevant playbook is how you'd tighten
+`bind-address` to match the other two if that gap is closed later.)
 
-### 4.1 Windows Service — Auto-start (Already Configured)
+### 4.1 Auto-start on Boot
 
-**Why:** Windows services can be set to `Manual`, `Automatic`, or `Disabled`.
-`Automatic` means Windows starts the service during boot without any user login
-required. The `MySQL95` service is already set to `Automatic`, so MySQL restarts
-on its own after a power cut or Windows reboot.
+Handled by the playbook: `systemctl enable mysql`/`mariadb` runs as part of provisioning on all
+three hosts.
 
-Verify via PowerShell (run as Administrator):
+### 4.2 OS Firewall (UFW)
 
-```powershell
-Get-Service -Name 'MySQL95' | Select-Object Name, Status, StartType
-# Expected: StartType = Automatic
+```bash
+sudo ufw default deny incoming
+sudo ufw default allow outgoing
+
+# SSH only from the admin machine (msi), only on the Tailscale interface.
+sudo ufw allow in on tailscale0 from 100.68.235.121 to any port 22 proto tcp comment 'SSH from msi admin machine'
+
+# MySQL/MariaDB only from app-server, only on the Tailscale interface.
+sudo ufw allow in on tailscale0 from 100.100.123.90 to any port 3306 proto tcp comment 'DB from app-server'
+
+sudo ufw --force enable
+sudo ufw status verbose
 ```
 
-### 4.2 Bind to Tailscale IP Only
+### 4.3 Verify
 
-**Why:** MySQL on Windows binds to all interfaces by default. On a Windows machine
-connected to both a local network and Tailscale, this means port 3306 is reachable
-from the LAN — anyone on the same network segment could attempt brute-forcing MySQL
-credentials. Setting `bind-address` to the Tailscale IP (`100.68.235.121`) removes
-this exposure completely. The LAN interface will show no open port 3306.
+```bash
+ss -tlnp | grep 3306
+# Expected: 0.0.0.0:3306 (bind-address is not Tailscale-restricted here — see note above;
+# the UFW rule is what actually blocks non-app-server peers)
 
-Open `C:\ProgramData\MySQL\MySQL Server 9.5\my.ini` as Administrator (right-click
-→ Open with → Notepad, run as administrator).
-
-Under `[mysqld]`, after the `port=3306` line, add:
-
-```ini
-# Bind only to Tailscale IP — prevents exposure on LAN/public interfaces.
-# Only the encrypted WireGuard tunnel interface is accessible.
-bind-address=100.68.235.121
-```
-
-Restart the MySQL service (PowerShell as Administrator):
-
-```powershell
-Restart-Service -Name 'MySQL95'
-```
-
-Verify:
-
-```powershell
-mysql -u root -ppassword -e "SHOW VARIABLES LIKE 'bind_address';"
-# Expected: bind_address = 100.68.235.121
-```
-
-### 4.3 Windows Firewall — Restrict Port 3306
-
-**Why:** Even with `bind-address` set to the Tailscale IP, adding a Windows
-Firewall rule provides the same independent second layer as UFW does on Linux.
-The approach uses a deny-all rule for port 3306, then adds specific allow rules
-on top. Windows Firewall evaluates allow rules before block rules, so the specific
-allows take precedence for matching source IPs while everything else is blocked.
-
-The localhost allow rule is needed because local administrative tools (MySQL
-Workbench, `mysql` CLI) connect via `127.0.0.1`.
-
-Run in PowerShell as Administrator:
-
-```powershell
-# Block all inbound MySQL connections by default
-netsh advfirewall firewall add rule `
-  name="MySQL Block All" `
-  protocol=TCP dir=in localport=3306 `
-  action=block
-
-# Allow only from app-server Tailscale IP
-netsh advfirewall firewall add rule `
-  name="MySQL Allow app-server" `
-  protocol=TCP dir=in localport=3306 `
-  remoteip=100.100.123.90 `
-  action=allow
-
-# Allow localhost for local admin access (MySQL Workbench, CLI)
-netsh advfirewall firewall add rule `
-  name="MySQL Allow localhost" `
-  protocol=TCP dir=in localport=3306 `
-  remoteip=127.0.0.1 `
-  action=allow
-```
-
-Verify:
-
-```powershell
-netsh advfirewall firewall show rule name="MySQL Allow app-server"
+sudo ufw status verbose
 ```
 
 ---
@@ -431,11 +390,14 @@ eliminates this race condition.
 
 | DBMS | Start at Boot | Startup Order | Startup Delay |
 |---|---|---|---|
-| MariaDB (100.78.124.25) | Yes | 1 | 0s |
-| PostgreSQL (100.113.234.24) | Yes | 2 | 0s |
-| Laravel app (100.100.123.90) | Yes | 3 | 30s |
+| MariaDB — linux-mariadb (100.78.124.25) | Yes | 1 | 0s |
+| MariaDB — linux-mariadb-2 (100.97.35.29) | Yes | 1 | 0s |
+| PostgreSQL (100.113.234.24) | Yes | 1 | 0s |
+| MySQL — linux-mysql (100.115.237.93) | Yes | 1 | 0s |
+| MySQL — linux-mysql-2 (100.123.221.89) | Yes | 1 | 0s |
+| Laravel app (100.100.123.90) | Yes | 2 | 30s |
 
-The 30-second delay on app-server is a conservative buffer. MariaDB and PostgreSQL
+The 30-second delay on app-server is a conservative buffer. The DB hosts
 typically initialize in under 10 seconds, but the buffer accounts for slow disk I/O
 after a hard shutdown (e.g. journal recovery on ext4/btrfs).
 
@@ -448,9 +410,11 @@ Configure in Proxmox UI: select each VM → **Options** → **Start/Shutdown ord
 Run these checks from app-server after all hardening is applied:
 
 ```bash
-# All three DBs should respond
-mysql -h 100.78.124.25 -u workshop_2 -pworkshop_2 -e "SELECT 'MariaDB ok';"
-mysql -h 100.68.235.121 -u workshop_2 -pworkshop_2 -e "SELECT 'MySQL ok';"
+# All five DBs should respond
+mysql -h 100.78.124.25 -u workshop_2 -pworkshop_2 -e "SELECT 'MariaDB (reporting) ok';"
+mysql -h 100.97.35.29 -u workshop_2 -pworkshop_2 -e "SELECT 'MariaDB (booking) ok';"
+mysql -h 100.115.237.93 -u workshop_2 -pworkshop_2 -e "SELECT 'MySQL (shelter) ok';"
+mysql -h 100.123.221.89 -u workshop_2 -pworkshop_2 -e "SELECT 'MySQL (animals) ok';"
 PGPASSWORD=workshop_2 psql -h 100.113.234.24 -U workshop_2 -d workshop_2 -c "SELECT 'PostgreSQL ok';"
 
 # App should still serve HTTP
@@ -471,12 +435,10 @@ workshop-2's MariaDB port). It should time out or be refused.
 
 | Hardening Measure | Threat Mitigated |
 |---|---|
-| `bind-address` = Tailscale IP | DB port invisible on LAN/public interfaces; only reachable inside the encrypted WireGuard mesh |
-| UFW / Windows Firewall allow-list | Second independent enforcement layer; blocks all Tailscale peers except app-server from reaching DB ports |
+| `bind-address` = Tailscale IP (MariaDB, PostgreSQL) | DB port invisible on LAN/public interfaces; only reachable inside the encrypted WireGuard mesh |
+| UFW allow-list (all 5 DB hosts) | Blocks all Tailscale peers except app-server from reaching DB ports — the only network-layer restriction on `linux-mysql`/`linux-mysql-2`/`linux-mariadb-2`, since their `bind-address` is `0.0.0.0` (see §4) |
 | `pg_hba.conf` restricted to `100.100.123.90/32` | Third PostgreSQL-layer check; rejects auth attempts from any IP not explicitly listed, even if they pass the firewall |
 | `scram-sha-256` in pg_hba.conf | Prevents offline cracking of captured authentication challenges (unlike `md5`) |
-| `systemctl enable` on all DB services | Services restart automatically after a VM reboot or power cut, no manual login required |
-| Proxmox "Start at boot" on all VMs | VMs restart automatically when the Proxmox node itself recovers from a power cut |
+| `systemctl enable` on all DB services | Services restart automatically after a VM/CT reboot or power cut, no manual login required |
+| Proxmox "Start at boot" on all VMs/CTs | VMs/CTs restart automatically when the Proxmox node itself recovers from a power cut |
 | Proxmox startup order (DBs before app, 30s delay) | Eliminates race condition where app-server connects before DB engines finish initializing |
-| MySQL `Automatic` Windows service | MySQL restarts on Windows boot without user login, same as `systemctl enable` on Linux |
-| Windows Firewall block-all + allow-specific | Provides the same layered protection as UFW for the Windows-hosted MySQL instance |

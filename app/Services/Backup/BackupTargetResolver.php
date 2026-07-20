@@ -42,10 +42,23 @@ class BackupTargetResolver
      */
     private function withNames(array $grouped): array
     {
+        // Two physical databases can share a driver (e.g. shelter's linux-mysql
+        // and animals' linux-mysql-2 are both `mysql`) — naming by driver alone
+        // would collide and silently drop one target. Disambiguate with the
+        // group's first connection name whenever a driver appears more than once.
+        $countByDriver = [];
+        foreach ($grouped as $target) {
+            $countByDriver[$target['driver']] = ($countByDriver[$target['driver']] ?? 0) + 1;
+        }
+
         $named = [];
 
         foreach ($grouped as $target) {
-            $named["{$target['driver']}-workshop2"] = $target;
+            $name = $countByDriver[$target['driver']] > 1
+                ? "{$target['driver']}-{$target['connections'][0]}-workshop2"
+                : "{$target['driver']}-workshop2";
+
+            $named[$name] = $target;
         }
 
         return $named;

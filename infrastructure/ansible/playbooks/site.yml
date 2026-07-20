@@ -4,6 +4,8 @@
 # Usage: ansible-playbook playbooks/site.yml
 
 - import_playbook: linux-mysql.yml
+- import_playbook: linux-mysql-2.yml
 - import_playbook: linux-mariadb.yml
+- import_playbook: linux-mariadb-2.yml
 - import_playbook: linux-postgres.yml
 - import_playbook: app-server.yml

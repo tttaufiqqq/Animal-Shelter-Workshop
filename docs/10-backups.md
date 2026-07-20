@@ -21,48 +21,57 @@ The old scripts and systemd units (`templates/backup-{mysql,postgres}.sh.j2`,
 ## Architecture
 
 ```
-                              Tailscale network
-    ┌───────────────────────────────────────────────────────────────────┐
-    │                                                                   │
-    │   app-server (100.100.123.90)                                    │
-    │   ┌───────────────────────────────────────────────────────────┐  │
-    │   │  php artisan db:backup        (scheduled nightly, 02:00)  │  │
-    │   │                                                           │  │
-    │   │  storage/app/backups/<UTC-run-id>/                        │  │
-    │   │    ├─ mariadb-workshop2.sql.gz                            │  │
-    │   │    ├─ mysql-workshop2.sql.gz                              │  │
-    │   │    ├─ pgsql-workshop2.dump                                │  │
-    │   │    └─ manifest.json                                      │  │
-    │   └───────────────────────────────────────────────────────────┘  │
-    │             │                    │                    │           │
-    │        mysqldump             mysqldump             pg_dump        │
-    │             │                    │                    │           │
-    └─────────────┼────────────────────┼────────────────────┼───────────┘
-                  │                    │                    │
-      ┌───────────▼─────────┐ ┌────────▼──────────┐ ┌───────▼─────────────┐
-      │ workshop-2           │ │ msi (laptop)       │ │ workshop-postgres    │
-      │ 100.78.124.25         │ │ 100.68.235.121     │ │ 100.113.234.24       │
-      │ MariaDB               │ │ MySQL              │ │ PostgreSQL           │
-      │ reporting + booking   │ │ shelter + animals  │ │ users                │
-      └───────────────────────┘ └────────────────────┘ └──────────────────────┘
+                                          Tailscale network
+    ┌───────────────────────────────────────────────────────────────────────────────────────┐
+    │                                                                                        │
+    │   app-server (100.100.123.90)                                                         │
+    │   ┌────────────────────────────────────────────────────────────────────────────────┐  │
+    │   │  php artisan db:backup        (scheduled nightly, 02:00)                       │  │
+    │   │                                                                                │  │
+    │   │  storage/app/backups/<UTC-run-id>/                                             │  │
+    │   │    ├─ mariadb-reporting-workshop2.sql.gz                                       │  │
+    │   │    ├─ mariadb-booking-workshop2.sql.gz                                         │  │
+    │   │    ├─ mysql-shelter-workshop2.sql.gz                                           │  │
+    │   │    ├─ mysql-animals-workshop2.sql.gz                                           │  │
+    │   │    ├─ pgsql-workshop2.dump                                                     │  │
+    │   │    └─ manifest.json                                                           │  │
+    │   └────────────────────────────────────────────────────────────────────────────────┘  │
+    │        │              │                  │                  │              │           │
+    │   mysqldump      mysqldump          mysqldump           mysqldump      pg_dump         │
+    │        │              │                  │                  │              │           │
+    └────────┼──────────────┼──────────────────┼──────────────────┼──────────────┼───────────┘
+             │              │                  │                  │              │
+   ┌─────────▼────────┐ ┌───▼────────────┐ ┌───▼───────────┐ ┌────▼──────────┐ ┌─▼─────────────────┐
+   │ workshop-2        │ │ linux-mariadb-2│ │ linux-mysql   │ │ linux-mysql-2 │ │ workshop-postgres  │
+   │ 100.78.124.25      │ │ 100.97.35.29   │ │ 100.115.237.93│ │ 100.123.221.89│ │ 100.113.234.24     │
+   │ MariaDB            │ │ MariaDB        │ │ MySQL         │ │ MySQL         │ │ PostgreSQL         │
+   │ reporting          │ │ booking        │ │ shelter       │ │ animals       │ │ users              │
+   └────────────────────┘ └────────────────┘ └───────────────┘ └───────────────┘ └────────────────────┘
 ```
 
-**Why app-server dumps remotely instead of each DB host dumping locally:** it's the only design that
-covers `msi` at all, and it produces one coordinated snapshot window instead of three independent
-ones — both requirements from the original ask. It also means backups land on a 4th machine, so
-losing any one DB VM doesn't take its own backups down with it.
+**Why app-server dumps remotely instead of each DB host dumping locally:** it produces one
+coordinated snapshot window across every physical database instead of independent ones, and
+means backups land on a machine other than any single DB host, so losing any one DB VM/CT
+doesn't take its own backups down with it.
 
-### Why 3 dumps, not 5
+### Why 5 dumps, not 5 — one per connection
 
-The app has 5 Laravel connections but only 3 physical databases — `reporting`+`booking` share the
-MariaDB server, `shelter`+`animals` share the MySQL server (`docs/03-db-architecture.md`).
-`App\Services\Backup\BackupTargetResolver` groups connections by `(driver, host, port, database)` so
-each physical database is dumped exactly once, not once per Laravel connection pointed at it.
+Every Laravel connection now has its own dedicated physical host (1-database-1-physical-machine,
+`docs/03-db-architecture.md`) since the `reporting`/`booking` split on 2026-07-20 followed the
+`shelter`/`animals` split earlier the same day. `App\Services\Backup\BackupTargetResolver` groups
+connections by `(driver, host, port, database)` so each physical database is dumped exactly once
+— now a 1:1 mapping to connections, since no two connections share a host anymore. The naming
+step still disambiguates targets that share a driver (`mariadb-reporting-workshop2` /
+`mariadb-booking-workshop2`, `mysql-shelter-workshop2` / `mysql-animals-workshop2`) rather than
+colliding on a shared name — the fix that was needed the moment any driver had more than one
+target, first hit by the `shelter`/`animals` split.
 
-| Target file prefix | Physical host | Engine | Laravel connections it covers |
+| Target file prefix | Physical host | Engine | Laravel connection it covers |
 |---|---|---|---|
-| `mariadb-workshop2` | 100.78.124.25 | MariaDB | `reporting`, `booking` |
-| `mysql-workshop2` | 100.68.235.121 (msi) | MySQL | `shelter`, `animals` |
+| `mariadb-reporting-workshop2` | 100.78.124.25 (linux-mariadb) | MariaDB | `reporting` |
+| `mariadb-booking-workshop2` | 100.97.35.29 (linux-mariadb-2) | MariaDB | `booking` |
+| `mysql-shelter-workshop2` | 100.115.237.93 (linux-mysql) | MySQL | `shelter` |
+| `mysql-animals-workshop2` | 100.123.221.89 (linux-mysql-2) | MySQL | `animals` |
 | `pgsql-workshop2` | 100.113.234.24 | PostgreSQL | `users` |
 
 ## Nightly flow
@@ -75,7 +84,8 @@ routes/console.php: Schedule::command('db:backup')->dailyAt('02:00')
   │     any connection offline?  ──yes──▶  ABORT. No run directory is created.
   │     no                                  Mail sent, Cache + log record 'failed'.
   ▼
-[2] RESOLVE TARGETS — BackupTargetResolver collapses 5 connections → 3 targets
+[2] RESOLVE TARGETS — BackupTargetResolver maps 5 connections → 5 targets (1:1, since every
+    connection has its own host now)
   ▼
 [3] DUMP each target  (DatabaseDumper)
   │     mysqldump --single-transaction --routines --triggers --events | gzip
@@ -174,13 +184,14 @@ php artisan db:restore <run> [--into-scratch] [--force]
 
 ### One-time setup: provisioning the scratch databases
 
-`--into-scratch` needs a `workshop_2_restore_test` database to already exist on all 3 servers, granted
+`--into-scratch` needs a `workshop_2_restore_test` database to already exist on all 5 servers, granted
 to the app's normal `workshop_2` credential — **the app's regular DB user deliberately does not have
 the privilege to create arbitrary new databases itself.** This is exactly the same one-time-setup shape
-as CLAUDE.md's Pre-Migration Checklist, just for a 4th database name:
+as CLAUDE.md's Pre-Migration Checklist, just for a 6th database name:
 
 ```bash
-# MariaDB (workshop-2, 100.78.124.25) and MySQL (msi, 100.68.235.121) — as root:
+# linux-mariadb (100.78.124.25), linux-mariadb-2 (100.97.35.29), linux-mysql
+# (100.115.237.93), and linux-mysql-2 (100.123.221.89) — as root on each:
 mysql -u root -p -e "
   CREATE DATABASE IF NOT EXISTS workshop_2_restore_test CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
   GRANT ALL PRIVILEGES ON workshop_2_restore_test.* TO 'workshop_2'@'%';

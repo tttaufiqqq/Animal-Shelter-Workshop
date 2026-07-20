@@ -1,0 +1,94 @@
+- name: Provision linux-mariadb-2 (MariaDB)
+  hosts: linux-mariadb-2
+  become: true
+
+  vars:
+    db_name: workshop_2
+    db_user: workshop_2
+    # Sourced from Vault (group_vars/all.yml's asw_secrets) — same shared
+    # credential used by every DB playbook in this repo.
+    db_password: "{{ asw_secrets.db_password }}"
+    mariadb_config: /etc/mysql/mariadb.conf.d/50-server.cnf
+
+  tasks:
+    - name: Install MariaDB and Python MySQL client
+      apt:
+        name:
+          - mariadb-server
+          - python3-pymysql
+        state: present
+        update_cache: true
+
+    - name: Start and enable MariaDB
+      service:
+        name: mariadb
+        state: started
+        enabled: true
+
+    - name: Allow remote connections
+      lineinfile:
+        path: "{{ mariadb_config }}"
+        regexp: '^bind-address'
+        line: "bind-address = 0.0.0.0"
+      notify: Restart MariaDB
+
+    - name: Flush handlers so config is applied before DB tasks
+      meta: flush_handlers
+
+    - name: Create workshop_2 database
+      community.mysql.mysql_db:
+        name: "{{ db_name }}"
+        encoding: utf8mb4
+        collation: utf8mb4_unicode_ci
+        state: present
+        login_unix_socket: /var/run/mysqld/mysqld.sock
+
+    - name: Create workshop_2 user (allow from any host)
+      community.mysql.mysql_user:
+        name: "{{ db_user }}"
+        password: "{{ db_password }}"
+        host: "%"
+        priv: "{{ db_name }}.*:ALL"
+        state: present
+        login_unix_socket: /var/run/mysqld/mysqld.sock
+
+    # ── Firewall ──────────────────────────────────────────────────────────────
+    - name: UFW — default deny incoming
+      community.general.ufw:
+        default: deny
+        direction: incoming
+
+    - name: UFW — default allow outgoing
+      community.general.ufw:
+        default: allow
+        direction: outgoing
+
+    - name: UFW — SSH from admin machine via Tailscale only
+      community.general.ufw:
+        rule: allow
+        interface: tailscale0
+        direction: in
+        from_ip: "100.68.235.121"
+        to_port: "22"
+        proto: tcp
+        comment: "SSH from msi admin machine"
+
+    - name: UFW — MariaDB from app-server via Tailscale only
+      community.general.ufw:
+        rule: allow
+        interface: tailscale0
+        direction: in
+        from_ip: "100.100.123.90"
+        to_port: "3306"
+        proto: tcp
+        comment: "MariaDB from app-server"
+
+    - name: UFW — enable
+      community.general.ufw:
+        state: enabled
+
+  handlers:
+    - name: Restart MariaDB
+      service:
+        name: mariadb
+        state: restarted

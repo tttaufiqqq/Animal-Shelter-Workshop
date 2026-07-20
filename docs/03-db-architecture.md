@@ -2,18 +2,27 @@
 
 ## Overview
 
-This application uses a **heterogeneous distributed database** spread across three physical
+This application uses a **heterogeneous distributed database** spread across five physical
 servers connected via a Tailscale VPN mesh. There is no shared database server — each module
-owns its data on an independent machine with a different DB engine. The Laravel application
-running on `app-server` opens five named connections and routes queries explicitly per module.
+owns its data on an independent machine with a different DB engine, and (since 2026-07-20) every
+one of the five connections has its own dedicated physical machine — no machine hosts more than
+one connection. The Laravel application running on `app-server` opens five named connections and
+routes queries explicitly per module.
 
-`app-server`, `workshop-2` (MariaDB), and `workshop-postgres` are not dedicated to this project —
-they're VMs on a shared personal Proxmox homelab that also runs Oracle, MySQL, SQL Server, and
-MongoDB instances for other learning projects. The host inventory, how each VM was provisioned,
-and the Tailscale/DNS mesh all three ride on are documented from the infrastructure side in
+`app-server`, `workshop-2`, `linux-mariadb-2`, `linux-mysql`, `linux-mysql-2`, and
+`workshop-postgres` are not dedicated to this project — they're VMs/CTs on a shared personal
+Proxmox homelab that also runs Oracle, SQL Server, and MongoDB instances for other learning
+projects. The host inventory, how each was provisioned, and the Tailscale/DNS mesh they all ride
+on are documented from the infrastructure side in
 [taufiq's homelab repo](https://github.com/tttaufiqqq/oracle-db-linux-proxmox) — this doc only
-covers the application's view of those same three machines. `msi` is a separate physical laptop,
-not part of that homelab's Proxmox inventory.
+covers the application's view of those same machines. Two connection pairs used to share a
+physical host and were split apart on 2026-07-20: `shelter`+`animals` shared MySQL on `msi` (a
+separate physical laptop, not part of that homelab's Proxmox inventory), and `reporting`+
+`booking` shared MariaDB on `workshop-2`. See the homelab repo's migration docs —
+[`docs/12-mysql-shelter-animals-split/`](https://github.com/tttaufiqqq/oracle-db-learning-proxmox/blob/main/docs/12-mysql-shelter-animals-split/mysql-shelter-animals-split.md)
+and
+[`docs/13-mariadb-reporting-booking-split/`](https://github.com/tttaufiqqq/oracle-db-learning-proxmox/blob/main/docs/13-mariadb-reporting-booking-split/mariadb-reporting-booking-split.md)
+— for why and how.
 
 ---
 
@@ -24,12 +33,14 @@ app-server (100.100.123.90)   <-- Laravel application host
      |
      |-- [Tailscale VPN] --+
                            |
-         workshop-2 (100.78.124.25)      MariaDB 10.x
-         msi       (100.68.235.121)      MySQL 8.x
+         workshop-2 (100.78.124.25)        MariaDB 10.x
+         linux-mariadb-2 (100.97.35.29)    MariaDB 10.x
+         linux-mysql (100.115.237.93)      MySQL 8.0
+         linux-mysql-2 (100.123.221.89)    MySQL 8.0
          workshop-postgres (100.113.234.24)  PostgreSQL 15
 ```
 
-All three DB servers expose their native port (3306 / 5432) directly on the Tailscale
+All five DB servers expose their native port (3306 / 5432) directly on the Tailscale
 interface. No SSH tunnels are used. SSH keys are pre-configured on all machines.
 
 ---
@@ -39,18 +50,15 @@ interface. No SSH tunnels are used. SSH keys are pre-configured on all machines.
 | Laravel connection | Module owner | DB engine | Host (Tailscale) | Database |
 |---|---|---|---|---|
 | `reporting` | Eilya — Stray Reporting | MariaDB | 100.78.124.25 | workshop_2 |
-| `booking` | Danish — Booking & Adoption | MariaDB | 100.78.124.25 | workshop_2 |
-| `shelter` | Atiqah — Shelter Management | MySQL | 100.68.235.121 | workshop_2 |
-| `animals` | Shafiqah — Animal & Medical | MySQL | 100.68.235.121 | workshop_2 |
+| `booking` | Danish — Booking & Adoption | MariaDB | 100.97.35.29 | workshop_2 |
+| `shelter` | Atiqah — Shelter Management | MySQL | 100.115.237.93 | workshop_2 |
+| `animals` | Shafiqah — Animal & Medical | MySQL | 100.123.221.89 | workshop_2 |
 | `users` | Taufiq — User Management | PostgreSQL | 100.113.234.24 | workshop_2 |
 
-`reporting` and `booking` share the same physical MariaDB server and the same database
-(`workshop_2`), but they are separate Laravel connections with independent credentials and
-PDO handles. This means no cross-schema JOINs are possible between them at the SQL level —
-they must be resolved in application code like any other cross-DB pair.
-
-`shelter` and `animals` share the same physical MySQL server and database name for the same
-reason.
+No native FK crosses either split pair — `reporting`↔`booking` or `shelter`↔`animals` (see
+`docs/04-foreign-keys.md`) — which is what made splitting each pair onto separate physical
+machines possible without any application code changes. Both pairs previously shared one
+physical server each; each connection now has its own dedicated host.
 
 All connections use credentials `workshop_2 / workshop_2`. Config lives in
 `config/database.php` under the five named keys above.
@@ -67,7 +75,7 @@ All connections use credentials `workshop_2 / workshop_2`. Config lives in
 | `rescue` | Rescue operations assigned from reports |
 | `image` | Images attached to reports, animals, or clinics |
 
-### `booking` connection (MariaDB — workshop-2)
+### `booking` connection (MariaDB — linux-mariadb-2)
 
 | Table | Purpose |
 |---|---|
@@ -78,7 +86,7 @@ All connections use credentials `workshop_2 / workshop_2`. Config lives in
 | `visit_list_animal` | Pivot table (also called a junction or bridge table) — animals on a visit list |
 | `animal_booking` | Pivot table — animals attached to a booking appointment |
 
-### `shelter` connection (MySQL — msi)
+### `shelter` connection (MySQL — linux-mysql)
 
 | Table | Purpose |
 |---|---|
@@ -87,7 +95,7 @@ All connections use credentials `workshop_2 / workshop_2`. Config lives in
 | `category` | Inventory item categories |
 | `inventory` | Inventory items (food, medicine, supplies) |
 
-### `animals` connection (MySQL — msi)
+### `animals` connection (MySQL — linux-mysql-2)
 
 | Table | Purpose |
 |---|---|
@@ -123,7 +131,9 @@ All connections use credentials `workshop_2 / workshop_2`. Config lives in
 
 - Stored procedures
 - Triggers with same syntax as MariaDB
-- `log_bin_trust_function_creators = 1` required on msi for trigger creation by non-SUPER user
+- `log_bin_trust_function_creators = 1` required on both `linux-mysql` and `linux-mysql-2` for
+  trigger creation by a non-SUPER user — set automatically by
+  `infrastructure/ansible/playbooks/linux-mysql.yml` / `linux-mysql-2.yml`
 
 ### PostgreSQL (`users`)
 

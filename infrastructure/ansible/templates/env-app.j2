@@ -33,28 +33,29 @@ DB1_DATABASE=workshop_2
 DB1_USERNAME=workshop_2
 DB1_PASSWORD={{ asw_secrets.db_password }}
 
-# atiqah — msi (MySQL, Shelter Management). Raw Tailscale IP, not a hostname:
-# msi is taufiq's personal Windows machine, not one of the Terraform/Ansible
-# VM fleet, so it has no linux-* Tailscale hostname. This was previously
-# "linux-mysql" here — a pre-existing bug, never actually deployed: that host
-# (100.115.237.93) has no workshop_2 database at all, confirmed live via
-# `SELECT COUNT(*) FROM animal` (102 rows on msi, "Unknown database" on
-# linux-mysql). Matches CLAUDE.md's connection table and the live .env.
-DB2_HOST=100.68.235.121
+# atiqah — linux-mysql (MySQL, Shelter Management). Migrated off msi
+# (100.68.235.121) onto its own dedicated Proxmox VM — see
+# docs/03-db-architecture.md.
+DB2_HOST=linux-mysql
 DB2_PORT=3306
 DB2_DATABASE=workshop_2
 DB2_USERNAME=workshop_2
 DB2_PASSWORD={{ asw_secrets.db_password }}
 
-# shafiqah — msi (MySQL, Stray Animal). Same host as DB2 — see comment above.
-DB3_HOST=100.68.235.121
+# shafiqah — linux-mysql-2 (MySQL, Stray Animal). Migrated off msi onto its
+# own dedicated Proxmox CT, separate from DB2's host — see
+# docs/03-db-architecture.md.
+DB3_HOST=linux-mysql-2
 DB3_PORT=3306
 DB3_DATABASE=workshop_2
 DB3_USERNAME=workshop_2
 DB3_PASSWORD={{ asw_secrets.db_password }}
 
-# danish — linux-mariadb (MariaDB, Booking & Adoption)
-DB4_HOST=linux-mariadb
+# danish — linux-mariadb-2 (MariaDB, Booking & Adoption). Split off
+# linux-mariadb onto its own dedicated Proxmox CT (2026-07-20) — reporting
+# and booking previously shared one physical MariaDB server — see
+# docs/03-db-architecture.md.
+DB4_HOST=linux-mariadb-2
 DB4_PORT=3306
 DB4_DATABASE=workshop_2
 DB4_USERNAME=workshop_2

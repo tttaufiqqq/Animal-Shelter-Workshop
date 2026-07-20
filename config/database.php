@@ -54,14 +54,14 @@ return [
             ],
         ],
 
-        // atiqah — msi/local machine (MySQL, 100.68.235.121)
+        // atiqah — linux-mysql server (MySQL, 100.115.237.93)
         'shelter' => [
             'driver' => 'mysql',
-            'host' => env('DB2_HOST', '100.68.235.121'),
+            'host' => env('DB2_HOST', '100.115.237.93'),
             'port' => env('DB2_PORT', 3306),
             'database' => env('DB2_DATABASE', 'workshop_2'),
             'username' => env('DB2_USERNAME', 'root'),
-            'password' => env('DB2_PASSWORD', 'password'),
+            'password' => env('DB2_PASSWORD', ''),
             'charset' => 'utf8mb4',
             'collation' => 'utf8mb4_unicode_ci',
             'timezone' => '+08:00', // see 'reporting' connection comment above
@@ -71,14 +71,14 @@ return [
             ],
         ],
 
-        // shafiqah — msi/local machine (MySQL, 100.68.235.121)
+        // shafiqah — linux-mysql-2 server (MySQL, 100.123.221.89)
         'animals' => [
             'driver' => 'mysql',
-            'host' => env('DB3_HOST', '100.68.235.121'),
+            'host' => env('DB3_HOST', '100.123.221.89'),
             'port' => env('DB3_PORT', 3306),
             'database' => env('DB3_DATABASE', 'workshop_2'),
             'username' => env('DB3_USERNAME', 'root'),
-            'password' => env('DB3_PASSWORD', 'password'),
+            'password' => env('DB3_PASSWORD', ''),
             'charset' => 'utf8mb4',
             'collation' => 'utf8mb4_unicode_ci',
             'timezone' => '+08:00', // see 'reporting' connection comment above
@@ -88,10 +88,10 @@ return [
             ],
         ],
 
-        // danish — workshop-2 server (MariaDB, 100.78.124.25) — replaced SQL Server
+        // danish — linux-mariadb-2 server (MariaDB, 100.97.35.29) — replaced SQL Server
         'booking' => [
             'driver' => 'mariadb',
-            'host' => env('DB4_HOST', '100.78.124.25'),
+            'host' => env('DB4_HOST', '100.97.35.29'),
             'port' => env('DB4_PORT', 3306),
             'database' => env('DB4_DATABASE', 'workshop_2'),
             'username' => env('DB4_USERNAME', 'root'),
