@@ -131,6 +131,28 @@ on failure. **See
 `docs/10-backups.md` for the current architecture, retention policy, and restore runbook** — the
 per-host scripts and systemd units referenced above no longer exist.
 
+### Stored procedure/trigger privileges broken by the prod/dev split, fixed same day
+
+Reported live: "Failed to delete report" / "Failed to assign caretaker" on the `reporting`
+connection, citing `execute command denied to user 'workshop_2'@'%'` — confusing, since the app
+correctly connects as `workshop_2_prod`. Root cause: `workshop_2_prod` was populated by
+dump-restoring the old shared `workshop_2` database (see CLAUDE.md's Server Topology table), which
+preserves every stored procedure/trigger's original `DEFINER=workshop_2@%` clause. Under
+`SQL SECURITY DEFINER` (MariaDB/MySQL's default), a routine's privilege checks run against the
+*definer's* account, not the caller's — and `workshop_2` has zero privileges on `workshop_2_prod`
+(its grants are deliberately scoped to the test databases only), so **nobody** could call these
+routines, not even `root`. This affected all 121 stored procedures/triggers across all 4
+MySQL/MariaDB hosts (`reporting`, `booking`, `shelter`, `animals`) — a full outage of the entire
+stored-procedure layer, not just the two actions reported. `users` (PostgreSQL) was unaffected —
+its functions were already correctly owned and don't use `SECURITY DEFINER`.
+
+Fixed live via SQL, no app code or Ansible changes needed: procedures/functions switched to
+`SQL SECURITY INVOKER` (runs with the caller's privileges instead of a fixed definer — immune to
+this exact bug recurring on any future credential rename); triggers (which have no
+`SQL SECURITY INVOKER` option) recreated with `DEFINER=workshop_2_prod@%`. Full root-cause detail,
+the exact commands run, and verification:
+[`oracle-db-learning-proxmox/docs/16-stored-routine-definer-privilege-split/`](https://github.com/tttaufiqqq/oracle-db-learning-proxmox/blob/main/docs/16-stored-routine-definer-privilege-split/stored-routine-definer-privilege-split.md).
+
 ### Animal delete now blocks on real adoption/booking references
 
 `ManagesAnimals::destroy()` called the delete procedure with no check for referencing rows on the
