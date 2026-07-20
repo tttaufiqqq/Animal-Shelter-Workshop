@@ -3,13 +3,17 @@
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
 
+// Stock Breeze's PUT /password -> Auth\PasswordController->update() was removed
+// as dead scaffolding (see routes/auth.php) — the real password-update route is
+// PUT /profile/password -> ProfileController::updateProfilePassword (routes/web.php).
+
 test('password can be updated', function () {
     $user = User::factory()->create();
 
     $response = $this
         ->actingAs($user)
         ->from('/profile')
-        ->put('/password', [
+        ->put('/profile/password', [
             'current_password' => 'password',
             'password' => 'new-password',
             'password_confirmation' => 'new-password',
@@ -28,7 +32,7 @@ test('correct password must be provided to update password', function () {
     $response = $this
         ->actingAs($user)
         ->from('/profile')
-        ->put('/password', [
+        ->put('/profile/password', [
             'current_password' => 'wrong-password',
             'password' => 'new-password',
             'password_confirmation' => 'new-password',

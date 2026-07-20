@@ -5,11 +5,13 @@ namespace App\Services\Backup;
 use App\Services\DatabaseConnectionChecker;
 
 /**
- * The 5 Laravel connections (reporting, booking, shelter, animals, users) map
- * to only 3 physical databases — reporting+booking share the MariaDB server,
- * shelter+animals share the MySQL server (see docs/03-db-architecture.md).
- * Dumping per Laravel connection would take 5 uncoordinated snapshots of the
- * same 3 databases; this collapses them to the 3 that actually exist.
+ * Groups the 5 Laravel connections (reporting, booking, shelter, animals,
+ * users) by their physical driver+host+port+database, so that if two
+ * connections ever again share one physical database (as reporting+booking
+ * and shelter+animals did before the 2026-07-20 1-database-1-physical-machine
+ * split — see CLAUDE.md's Server Topology table), backups collapse to one
+ * dump per physical database instead of taking uncoordinated duplicate
+ * snapshots of the same data.
  */
 class BackupTargetResolver
 {

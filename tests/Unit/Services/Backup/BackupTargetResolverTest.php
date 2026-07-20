@@ -3,33 +3,40 @@
 use App\Services\Backup\BackupTargetResolver;
 
 /**
- * The app has 5 Laravel connections but only 3 physical databases —
- * reporting+booking share the MariaDB server, shelter+animals share the
- * MySQL server (docs/03-db-architecture.md). If this grouping ever breaks,
- * db:backup would silently dump the same physical database twice under two
- * names instead of collapsing it — these tests pin the grouping so that
- * regresses loudly instead.
+ * Each of the 5 Laravel connections now lives on its own physical machine —
+ * shelter/animals and reporting/booking were split off their former shared
+ * hosts on 2026-07-20 (see CLAUDE.md's Server Topology table). The resolver
+ * groups by driver+host+port+database, so with 5 distinct hosts that now
+ * naturally yields 5 targets, one per connection — these tests pin that so a
+ * future re-merge of hosts doesn't silently start collapsing backups again
+ * without anyone noticing.
  */
-it('collapses the 5 Laravel connections into 3 physical database targets', function () {
+it('keeps all 5 Laravel connections as 5 distinct physical database targets', function () {
     $targets = (new BackupTargetResolver())->targets();
 
-    expect($targets)->toHaveCount(3);
+    expect($targets)->toHaveCount(5);
 });
 
-it('groups reporting and booking together on the MariaDB target', function () {
+it('keeps reporting and booking on separate MariaDB targets', function () {
     $targets = (new BackupTargetResolver())->targets();
-    $mariadb = collect($targets)->first(fn ($t) => $t['driver'] === 'mariadb');
+    $mariadbConnections = collect($targets)
+        ->filter(fn ($t) => $t['driver'] === 'mariadb')
+        ->pluck('connections')
+        ->flatten()
+        ->all();
 
-    expect($mariadb)->not->toBeNull()
-        ->and($mariadb['connections'])->toEqualCanonicalizing(['reporting', 'booking']);
+    expect($mariadbConnections)->toEqualCanonicalizing(['reporting', 'booking']);
 });
 
-it('groups shelter and animals together on the MySQL target', function () {
+it('keeps shelter and animals on separate MySQL targets', function () {
     $targets = (new BackupTargetResolver())->targets();
-    $mysql = collect($targets)->first(fn ($t) => $t['driver'] === 'mysql');
+    $mysqlConnections = collect($targets)
+        ->filter(fn ($t) => $t['driver'] === 'mysql')
+        ->pluck('connections')
+        ->flatten()
+        ->all();
 
-    expect($mysql)->not->toBeNull()
-        ->and($mysql['connections'])->toEqualCanonicalizing(['shelter', 'animals']);
+    expect($mysqlConnections)->toEqualCanonicalizing(['shelter', 'animals']);
 });
 
 it('keeps users on its own PostgreSQL target', function () {
