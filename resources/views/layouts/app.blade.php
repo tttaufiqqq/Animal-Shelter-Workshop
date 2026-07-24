@@ -25,6 +25,8 @@
     @livewireStyles
 </head>
 <body>
+    <x-global-toast />
+
     @include('navbar')
 
     <!-- Limited Connectivity Warning Banner -->

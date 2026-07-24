@@ -77,13 +77,33 @@
 
                 showToast('Submitting your report...', 'info');
 
+                const uploadTimeout = new AbortController();
+                const timeoutId = setTimeout(() => uploadTimeout.abort(), 45000);
+
                 try {
                     const formData = new FormData(form);
                     const response = await fetch(form.action, {
                         method: 'POST',
                         body: formData,
-                        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                        signal: uploadTimeout.signal
                     });
+                    clearTimeout(timeoutId);
+
+                    if (response.status === 413) {
+                        const msg = 'Your photos are too large to upload. Please use up to 5 images, each under 5MB, and try again.';
+                        showGlobalToast(msg, 'error');
+                        showReportModalAlert('error', msg);
+                        return;
+                    }
+
+                    const isJson = (response.headers.get('content-type') || '').includes('application/json');
+                    if (!isJson) {
+                        const msg = `Server error (${response.status}). Please try again in a moment.`;
+                        showGlobalToast(msg, 'error');
+                        showReportModalAlert('error', msg);
+                        return;
+                    }
 
                     const data = await response.json();
 
@@ -119,9 +139,13 @@
                         showToast('Please fix the errors and try again', 'error');
                     }
                 } catch (error) {
+                    clearTimeout(timeoutId);
                     console.error('Error:', error);
-                    showReportModalAlert('error', 'Network error. Please check your connection and try again.');
-                    showToast('Network error. Please try again.', 'error');
+                    const msg = error.name === 'AbortError'
+                        ? 'The upload took too long and was cancelled. Please check your connection or try smaller images.'
+                        : 'Network error. Please check your connection and try again.';
+                    showGlobalToast(msg, 'error');
+                    showReportModalAlert('error', msg);
                 } finally {
                     submitBtn.disabled = false;
                     cancelBtn.disabled = false;
