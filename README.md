@@ -173,6 +173,10 @@ surviving reboots unattended — see:
   a real upstream Action bug found running it for the first time
 - [`docs/12-cd.md`](docs/12-cd.md) — automatic deploy to the fleet on green tests: path-based
   routing, the provision/deploy tag split, and automatic rollback on failure
+- [`docs/13-report-upload-413.md`](docs/13-report-upload-413.md) — report submission stuck on
+  "Submitting Report..." forever; nginx's default 1MB body limit (never raised to match the form's
+  own 5-image/5MB validation rule) was silently 413'ing uploads instantly, the frontend just never
+  showed the error
 - `CLAUDE.md` — live server IPs, admin credentials, and the pre-migration checklist for provisioning
   the `workshop_2_prod`/`workshop_2_dev` databases/users on all 5 DB servers (3 engine types: MySQL,
   MariaDB, PostgreSQL)

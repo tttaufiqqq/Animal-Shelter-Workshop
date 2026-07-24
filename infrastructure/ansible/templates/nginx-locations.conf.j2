@@ -2,6 +2,11 @@ index index.php;
 
 charset utf-8;
 
+# Matches the report form's own validation: up to 5 images, 5MB each, plus
+# form field overhead. Nginx's default (1MB) silently 413'd real submissions
+# — see docs/13-report-upload-413.md.
+client_max_body_size 30M;
+
 location / {
     try_files $uri $uri/ /index.php?$query_string;
 }

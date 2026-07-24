@@ -116,6 +116,26 @@
         enabled: true
       tags: [provision]
 
+    # Package defaults (upload_max_filesize=2M, post_max_size=8M) are both
+    # below the report form's own 5MB-per-image validation rule, so nginx
+    # raising client_max_body_size alone isn't enough — PHP itself was still
+    # silently truncating/rejecting uploads. See docs/13-report-upload-413.md.
+    - name: PHP-FPM — raise upload_max_filesize to match the app's own 5MB limit
+      ansible.builtin.lineinfile:
+        path: /etc/php/8.3/fpm/php.ini
+        regexp: '^upload_max_filesize\s*='
+        line: 'upload_max_filesize = 8M'
+      notify: Restart PHP-FPM
+      tags: [provision]
+
+    - name: PHP-FPM — raise post_max_size for up to 5 images per submission
+      ansible.builtin.lineinfile:
+        path: /etc/php/8.3/fpm/php.ini
+        regexp: '^post_max_size\s*='
+        line: 'post_max_size = 30M'
+      notify: Restart PHP-FPM
+      tags: [provision]
+
     # ── Firewall ──────────────────────────────────────────────────────────────
     - name: UFW — default deny incoming
       community.general.ufw:
@@ -566,6 +586,11 @@
       service:
         name: nginx
         state: reloaded
+
+    - name: Restart PHP-FPM
+      service:
+        name: php8.3-fpm
+        state: restarted
 
     - name: Reload systemd units
       systemd:
