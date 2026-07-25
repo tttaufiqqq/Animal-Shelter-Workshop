@@ -26,10 +26,6 @@ trait ManagesMatching
             Log::info('Starting match calculation', ['user_id' => $user->id]);
 
             $forceRefresh = request()->has('force_refresh');
-            if ($forceRefresh) {
-                Log::info('Force refresh requested - clearing database cache');
-                app(\App\Services\DatabaseConnectionChecker::class)->clearCache();
-            }
 
             if (!$this->isDatabaseAvailable('users')) {
                 return response()->json(['success' => false, 'message' => 'User database is currently offline. Please try again later.'], 503);

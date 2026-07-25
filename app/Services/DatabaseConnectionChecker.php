@@ -4,7 +4,6 @@ namespace App\Services;
 
 use App\Services\Concerns\DatabaseConnection\ChecksConnections;
 use App\Services\Concerns\DatabaseConnection\FiltersConnections;
-use App\Services\Concerns\DatabaseConnection\ManagesConnectionCache;
 
 class DatabaseConnectionChecker
 {
@@ -37,6 +36,5 @@ class DatabaseConnectionChecker
     ];
 
     use ChecksConnections,
-        FiltersConnections,
-        ManagesConnectionCache;
+        FiltersConnections;
 }

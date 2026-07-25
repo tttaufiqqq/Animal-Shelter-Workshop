@@ -16,7 +16,7 @@ trait FiltersConnections
 
     public function getCliOutput(): string
     {
-        $status = $this->checkAll(false);
+        $status = $this->checkAll();
         $output = [];
 
         $output[] = "\n╔════════════════════════════════════════════════════════════════════════════╗";

@@ -255,7 +255,6 @@ Every seeded account below uses the password `password`:
 ```bash
 # Database
 php artisan db:fresh-all --seed     # wipe + reseed all 5 databases (see warning above)
-php artisan db:clear-status-cache   # clear the "is this DB reachable" cache
 php artisan migrate                 # apply new migrations only
 
 # Development server (all services at once)

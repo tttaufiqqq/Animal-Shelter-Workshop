@@ -16,7 +16,7 @@ Route::get('/refresh-csrf', function () {
 
 // Real-time database status API endpoint
 Route::get('/api/database-status', function (DatabaseConnectionChecker $checker) {
-    $status = $checker->checkAll(true); // Use cache
+    $status = $checker->checkAll();
     $connected = array_filter($status, fn($db) => $db['connected']);
     $disconnected = array_filter($status, fn($db) => !$db['connected']);
 

@@ -12,6 +12,19 @@ use Symfony\Component\HttpFoundation\Response;
 class PreventDatabaseTimeout
 {
     /**
+     * POST routes that touch the 'users' (taufiq/pgsql) connection before any
+     * controller code runs -- Laravel's own 'unique' validation rule and the
+     * Password broker both query it directly, bypassing DatabaseErrorHandler's
+     * safeQuery() guard entirely. Pre-checking here (fast, cached fsockopen
+     * probe via DatabaseConnectionChecker) stops those requests from blocking
+     * a PHP-FPM worker on a raw PDO connect attempt that can hang far longer
+     * than intended when the host is unreachable (e.g. powered off).
+     *
+     * @var string[]
+     */
+    private const USERS_DB_ROUTES = ['login', 'register', 'forgot-password', 'reset-password'];
+
+    /**
      * Handle an incoming request.
      *
      * @param  \Closure(\Illuminate\Http\Request): (\Symfony\Component\HttpFoundation\Response)  $next
@@ -29,18 +42,19 @@ class PreventDatabaseTimeout
             @set_time_limit(60);
         }
 
-        // Check if this is a login request
-        if ($request->is('login') && $request->isMethod('POST')) {
-            // Pre-check if taufiq database (users) is online
+        // Pre-check the 'users' database before login, registration, or
+        // either password-reset step -- all four hit it directly before
+        // reaching controller code.
+        if ($request->isMethod('POST') && $request->is(...self::USERS_DB_ROUTES)) {
             $checker = app(DatabaseConnectionChecker::class);
 
             if (!$checker->isConnected('users')) {
-                Log::warning('Login attempt while user database (taufiq) is offline');
+                Log::warning("Blocked {$request->path()} request while user database (taufiq) is offline");
 
                 return redirect()->back()
-                    ->withInput($request->only('email'))
+                    ->withInput($request->except(['password', 'password_confirmation']))
                     ->withErrors([
-                        'email' => 'Unable to authenticate. The user database is currently offline. Please try again later or contact your administrator.',
+                        'email' => 'Unable to process your request. The user database is currently offline. Please try again later or contact your administrator.',
                     ]);
             }
         }

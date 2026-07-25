@@ -4,7 +4,6 @@ namespace App\Console\Commands;
 
 use App\Services\DatabaseConnectionChecker;
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 
 class RefreshDatabaseStatus extends Command
@@ -21,7 +20,7 @@ class RefreshDatabaseStatus extends Command
      *
      * @var string
      */
-    protected $description = 'Refresh database connection status cache (runs via scheduler)';
+    protected $description = 'Check and log the live status of every distributed database connection (runs via scheduler)';
 
     /**
      * Execute the console command.
@@ -31,77 +30,25 @@ class RefreshDatabaseStatus extends Command
         $checker = app(DatabaseConnectionChecker::class);
         $silent = $this->option('silent');
 
-        // Get previous status from cache
-        $cacheKey = 'db_connection_status';
-        $previousStatus = null;
+        $currentStatus = $checker->checkAll();
+        $disconnected = array_filter($currentStatus, fn($db) => !$db['connected']);
 
-        try {
-            $previousStatus = Cache::get($cacheKey);
-        } catch (\Exception $e) {
-            // Try file cache
-            try {
-                $previousStatus = Cache::store('file')->get($cacheKey);
-            } catch (\Exception $e2) {
-                // No previous status available
-            }
-        }
-
-        // Force fresh check and update cache
-        $currentStatus = $checker->checkAll(false);
-
-        // Detect changes if we have previous status
-        if ($previousStatus) {
-            $changes = $this->detectChanges($previousStatus, $currentStatus);
-
-            if (!empty($changes)) {
-                // Log significant changes
-                Log::info('Database connection status changed', [
-                    'changes' => $changes,
-                    'timestamp' => now()->toDateTimeString(),
-                ]);
-
-                if (!$silent) {
-                    $this->warn('Database status changes detected:');
-                    foreach ($changes as $change) {
-                        $this->line($change);
-                    }
-                }
-            }
+        if (!empty($disconnected)) {
+            Log::warning('Database connection check: some databases offline', [
+                'offline' => array_map(fn($db) => "{$db['connection']} ({$db['module']})", $disconnected),
+                'timestamp' => now()->toDateTimeString(),
+            ]);
         }
 
         if (!$silent) {
             $connected = array_filter($currentStatus, fn($db) => $db['connected']);
             $this->info(sprintf(
-                'Database status refreshed: %d/%d online',
+                'Database status: %d/%d online',
                 count($connected),
                 count($currentStatus)
             ));
         }
 
         return Command::SUCCESS;
-    }
-
-    /**
-     * Detect changes between two status arrays
-     *
-     * @param array $previous
-     * @param array $current
-     * @return array
-     */
-    private function detectChanges(array $previous, array $current): array
-    {
-        $changes = [];
-
-        foreach ($current as $connection => $info) {
-            $wasConnected = $previous[$connection]['connected'] ?? false;
-            $isConnected = $info['connected'];
-
-            if ($wasConnected !== $isConnected) {
-                $status = $isConnected ? 'CAME ONLINE' : 'WENT OFFLINE';
-                $changes[] = "{$connection} ({$info['module']}) {$status}";
-            }
-        }
-
-        return $changes;
     }
 }

@@ -20,7 +20,7 @@ class MonitorDatabaseConnections extends Command
      *
      * @var string
      */
-    protected $description = 'Continuously monitor database connections and update cache when status changes';
+    protected $description = 'Continuously monitor database connections and report status changes';
 
     /**
      * Execute the console command.
@@ -30,19 +30,18 @@ class MonitorDatabaseConnections extends Command
         $checker = app(DatabaseConnectionChecker::class);
 
         $this->info('Starting database connection monitoring...');
-        $this->info('This will check connections every 30 seconds and update cache when changes are detected.');
+        $this->info('This will check connections every 30 seconds.');
         $this->newLine();
 
         // Get initial status
-        $previousStatus = $checker->checkAll(false);
+        $previousStatus = $checker->checkAll();
         $this->displayStatus($previousStatus);
 
         while (true) {
             // Wait 30 seconds
             sleep(30);
 
-            // Check current status (bypass cache)
-            $currentStatus = $checker->checkAll(false);
+            $currentStatus = $checker->checkAll();
 
             // Detect changes
             $changes = $this->detectChanges($previousStatus, $currentStatus);
@@ -53,17 +52,6 @@ class MonitorDatabaseConnections extends Command
 
                 foreach ($changes as $change) {
                     $this->line($change);
-                }
-
-                // Clear session cache to force refresh on next request
-                if (session()->has('db_connection_status')) {
-                    session()->forget([
-                        'db_connection_status',
-                        'db_connected',
-                        'db_disconnected',
-                        'db_connection_status_checked',
-                        'db_connection_status_expiry',
-                    ]);
                 }
 
                 $this->newLine();

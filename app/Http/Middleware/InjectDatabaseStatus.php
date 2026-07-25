@@ -32,41 +32,10 @@ class InjectDatabaseStatus
      */
     public function handle(Request $request, Closure $next): Response
     {
-        // Smart caching: check more frequently when databases are offline
-        $sessionKey = 'db_connection_status_checked';
-        $expiryKey = 'db_connection_status_expiry';
+        $dbStatus = $this->checker->checkAll();
+        $connected = array_filter($dbStatus, fn($db) => $db['connected']);
+        $disconnected = array_filter($dbStatus, fn($db) => !$db['connected']);
 
-        $shouldCheck = !session()->has($sessionKey)
-                    || session($expiryKey, 0) < time()
-                    || $request->query('refresh_db_status') === '1';
-
-        if ($shouldCheck) {
-            // Check database connections with cache
-            $dbStatus = $this->checker->checkAll(true); // Use cache if available
-            $connected = array_filter($dbStatus, fn($db) => $db['connected']);
-            $disconnected = array_filter($dbStatus, fn($db) => !$db['connected']);
-
-            // Smart cache duration:
-            // - All online: 5 minutes (stable state, check periodically for real-time updates)
-            // - Any offline: 15 seconds (check frequently for real-time recovery detection)
-            $cacheDuration = count($disconnected) > 0 ? 15 : 300;
-
-            // Store in session with smart expiry
-            session([
-                'db_connection_status' => $dbStatus,
-                'db_connected' => $connected,
-                'db_disconnected' => $disconnected,
-                $sessionKey => true,
-                $expiryKey => time() + $cacheDuration,
-            ]);
-        }
-
-        // Get from session
-        $dbStatus = session('db_connection_status', []);
-        $connected = session('db_connected', []);
-        $disconnected = session('db_disconnected', []);
-
-        // Share with all views
         View::share('dbConnectionStatus', $dbStatus);
         View::share('dbConnected', $connected);
         View::share('dbDisconnected', $disconnected);

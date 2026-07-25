@@ -12,7 +12,7 @@ class CheckDatabaseConnections extends Command
      *
      * @var string
      */
-    protected $signature = 'db:check-connections {--fresh : Force fresh check without cache}';
+    protected $signature = 'db:check-connections';
 
     /**
      * The console command description.
@@ -42,12 +42,6 @@ class CheckDatabaseConnections extends Command
      */
     public function handle(): int
     {
-        $useFresh = $this->option('fresh');
-
-        if ($useFresh) {
-            $this->checker->clearCache();
-        }
-
         // Display the connection status
         $this->line($this->checker->getCliOutput());
 
