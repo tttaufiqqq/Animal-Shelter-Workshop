@@ -124,6 +124,14 @@ env_template "MAIL_SCHEME" {
 env_template "MAIL_FROM_ADDRESS" {
   contents = "{{ with secret \"secret/data/animal-shelter-workshop\" }}{{ .Data.data.mail_from_address }}{{ end }}"
 }
+
+env_template "AZURE_BACKUP_SAS_TOKEN" {
+  contents = "{{ with secret \"secret/data/animal-shelter-workshop\" }}{{ .Data.data.azure_backup_sas_token }}{{ end }}"
+}
+
+env_template "AZURE_BACKUP_CONTAINER_URL" {
+  contents = "{{ with secret \"secret/data/animal-shelter-workshop\" }}{{ .Data.data.azure_backup_container_url }}{{ end }}"
+}
 {% endraw %}
 
 exec {

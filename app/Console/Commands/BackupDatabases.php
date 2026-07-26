@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Mail\DatabaseBackupFailed;
+use App\Services\Backup\AzureBackupSync;
 use App\Services\Backup\BackupManifest;
 use App\Services\Backup\BackupRetention;
 use App\Services\Backup\BackupTargetResolver;
@@ -29,6 +30,7 @@ class BackupDatabases extends Command
         private BackupManifest $manifest,
         private LogicalForeignKeyAudit $audit,
         private BackupRetention $retention,
+        private AzureBackupSync $azureSync,
     ) {
         parent::__construct();
     }
@@ -81,6 +83,20 @@ class BackupDatabases extends Command
 
         $this->manifest->write($runDir, $manifestData);
         Cache::forever(self::STATUS_CACHE_KEY, $manifestData);
+
+        // Offsite copy (Stage 8 of the devops practice plan). A sync failure
+        // must never fail this command or block pruning below — the local
+        // backup is already complete, checksummed, and valid regardless of
+        // whether the offsite copy succeeded.
+        if ($this->azureSync->configured()) {
+            try {
+                $this->azureSync->sync($runDir, $runId);
+                $this->info('Synced to Azure Blob Storage.');
+            } catch (Throwable $e) {
+                Log::warning("Azure backup sync failed for {$runId}: " . $e->getMessage());
+                $this->warn('Azure sync failed (local backup is still valid): ' . $e->getMessage());
+            }
+        }
 
         $prune = $this->retention->prune($backupsRoot);
         if (!empty($prune['deleted'])) {

@@ -130,3 +130,10 @@ MAIL_PASSWORD={{ secret(asw_secrets.mail_password) }}
 MAIL_SCHEME={{ secret(asw_secrets.mail_scheme | default('')) }}
 MAIL_FROM_ADDRESS={{ secret(asw_secrets.mail_from_address | default('noreply@' + app_domain)) }}
 MAIL_FROM_NAME="{{ mail_from_name | default(app_name | default('Animal Shelter Workshop')) }}"
+
+# Azure Blob container for offsite backup copies (Stage 8 of the devops
+# practice plan) — sourced from Vault (asw_secrets), same pattern as
+# Cloudinary/mail above. Container is scoped read/write/list/create only, no
+# delete — see the SAS token's own permission set.
+AZURE_BACKUP_SAS_TOKEN={{ secret(asw_secrets.azure_backup_sas_token) }}
+AZURE_BACKUP_CONTAINER_URL={{ secret(asw_secrets.azure_backup_container_url) }}
