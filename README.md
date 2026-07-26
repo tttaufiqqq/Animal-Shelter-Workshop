@@ -10,6 +10,19 @@
   Supervised by Ts. Fathin Nabilla
 </p>
 
+<p align="center">
+  <b>Group 21</b><br>
+  Semester 1 · Session 2025/2026
+</p>
+
+<p align="center">
+  <img src="docs/images/team-photo.png" alt="Team" width="600"/>
+</p>
+
+<p align="center">
+  Taufiq · Shafiqah · Eilya · Atiqah · Danish
+</p>
+
 ---
 
 ## 📖 What this project actually is
@@ -170,7 +183,9 @@ surviving reboots unattended — see:
 - [`docs/10-backups.md`](docs/10-backups.md) — coordinated cross-database backups, integrity
   verification, retention, and the restore runbook
 - [`docs/11-ci.md`](docs/11-ci.md) — the self-hosted GitHub Actions runner, why it's self-hosted, and
-  a real upstream Action bug found running it for the first time
+  a real upstream Action bug found running it for the first time; skips entirely for docs-only
+  changes (`**.md`, `docs/**`) via `paths-ignore`, so a README/docs edit never touches the shared
+  test databases or triggers a deploy
 - [`docs/12-cd.md`](docs/12-cd.md) — automatic deploy to the fleet on green tests: path-based
   routing, the provision/deploy tag split, and automatic rollback on failure
 - [`docs/13-report-upload-413.md`](docs/13-report-upload-413.md) — report submission stuck on

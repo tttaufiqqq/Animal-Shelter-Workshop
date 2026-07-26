@@ -3,8 +3,14 @@ name: Tests
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
   pull_request:
     branches: [main]
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
 
 # The 5 databases this resets are real, shared MariaDB/MySQL/PostgreSQL
 # servers, not per-run containers — two runs resetting them at once would
