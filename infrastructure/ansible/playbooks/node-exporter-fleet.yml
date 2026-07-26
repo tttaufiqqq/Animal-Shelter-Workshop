@@ -1,0 +1,10 @@
+---
+# Stage 6 (Observability) — installs node_exporter on every fleet
+# VM/CT so Prometheus (linux-observability) has something to scrape.
+# Deliberately excludes opnsense (FreeBSD, not Ansible-managed here) and
+# the Proxmox host itself (not a guest) — see plans/devops-practice-plan.md.
+- name: Install node_exporter across the fleet
+  hosts: monitoring_targets
+  become: true
+  roles:
+    - node_exporter

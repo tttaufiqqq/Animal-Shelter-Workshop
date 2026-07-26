@@ -1,0 +1,33 @@
+---
+# node_exporter, restricted to the tailscale0 interface only — every
+# fleet host is Tailscale-reachable already, and Prometheus (on
+# linux-observability) scrapes over Tailscale, so there's no reason to
+# expose :9100 on the LAN/VLAN interface at all.
+
+- name: Install prometheus-node-exporter
+  apt:
+    name: prometheus-node-exporter
+    state: present
+    update_cache: true
+
+- name: Ensure node_exporter is enabled and running
+  service:
+    name: prometheus-node-exporter
+    state: started
+    enabled: true
+
+- name: Check ufw is installed
+  command: which ufw
+  register: ufw_present
+  changed_when: false
+  failed_when: false
+
+- name: UFW — node_exporter from Tailscale only
+  community.general.ufw:
+    rule: allow
+    interface: tailscale0
+    direction: in
+    to_port: "9100"
+    proto: tcp
+    comment: "node_exporter from Tailscale (Stage 6 observability)"
+  when: ufw_present.rc == 0

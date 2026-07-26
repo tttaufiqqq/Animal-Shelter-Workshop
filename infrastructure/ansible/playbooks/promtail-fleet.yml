@@ -1,0 +1,9 @@
+---
+# Stage 6 (Observability) — installs Promtail on every fleet VM/CT,
+# shipping journalctl output to Loki on linux-observability. Same
+# exclusions as node-exporter-fleet.yml (no opnsense, no Proxmox host).
+- name: Install Promtail across the fleet
+  hosts: monitoring_targets
+  become: true
+  roles:
+    - promtail

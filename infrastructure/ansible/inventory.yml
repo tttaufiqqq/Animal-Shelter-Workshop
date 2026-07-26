@@ -56,9 +56,36 @@ all:
         linux-mongodb:
           ansible_host: linux-mongodb
 
+    linux_k3s:
+      hosts:
+        linux-k3s:
+          ansible_host: linux-k3s
+
+    # Stage 6 — Observability CT (Prometheus/Grafana/Loki/Alertmanager).
+    linux_observability:
+      hosts:
+        linux-observability:
+          ansible_host: linux-observability
+
     homelab_hosts:
       children:
         linux_vault:
         linux_gh_runner:
         linux_mini_io:
         linux_mongodb:
+        linux_k3s:
+        linux_observability:
+
+    # Every host node_exporter/Promtail get installed on for Stage 6 —
+    # the whole fleet except opnsense (BSD, not Ansible-managed) and the
+    # Proxmox host itself (not a guest).
+    monitoring_targets:
+      children:
+        app:
+        databases:
+        linux_vault:
+        linux_gh_runner:
+        linux_mini_io:
+        linux_mongodb:
+        linux_k3s:
+        linux_observability:

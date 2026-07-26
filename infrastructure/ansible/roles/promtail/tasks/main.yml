@@ -1,0 +1,54 @@
+---
+# Ships journalctl output to Loki on linux-observability. Promtail isn't in
+# Ubuntu's own repos — needs Grafana Labs' apt repo, same as Loki/Grafana.
+
+- name: Install Grafana apt repo dependencies
+  apt:
+    name: [apt-transport-https, software-properties-common, wget, gpg]
+    state: present
+
+- name: Install Grafana apt signing key
+  shell: wget -q -O - https://apt.grafana.com/gpg.key | gpg --dearmor -o /etc/apt/keyrings/grafana.gpg
+  args:
+    creates: /etc/apt/keyrings/grafana.gpg
+
+- name: Add Grafana apt repository
+  apt_repository:
+    repo: "deb [signed-by=/etc/apt/keyrings/grafana.gpg] https://apt.grafana.com stable main"
+    filename: grafana
+    state: present
+
+- name: Install Promtail
+  apt:
+    name: promtail
+    state: present
+    update_cache: true
+
+- name: Add promtail user to systemd-journal group (read journal access)
+  user:
+    name: promtail
+    groups: systemd-journal
+    append: true
+
+- name: Render promtail config
+  template:
+    src: ../templates/promtail-config.yaml.j2
+    dest: /etc/promtail/config.yml
+    owner: promtail
+    group: nogroup
+    mode: "0644"
+  notify: Restart promtail
+
+- name: Ensure promtail positions dir exists
+  file:
+    path: /var/lib/promtail
+    state: directory
+    owner: promtail
+    group: nogroup
+    mode: "0750"
+
+- name: Ensure promtail is enabled and running
+  service:
+    name: promtail
+    state: started
+    enabled: true
