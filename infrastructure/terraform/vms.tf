@@ -1,28 +1,35 @@
 locals {
+  # vlan matches the production VM (101/104/105/106) on the same role -
+  # vmbr0 is VLAN-aware (vlan_filtering 1) and untagged traffic lands on a
+  # VLAN with no DHCP/routing, so a VM without the right tag never gets an IP.
   vms = {
     "app-server" = {
       vmid   = 201
       cores  = 2
       memory = 2048
       disk   = 20
+      vlan   = 40
     }
     "linux-mysql" = {
       vmid   = 204
       cores  = 2
       memory = 2048
       disk   = 20
+      vlan   = 20
     }
     "linux-mariadb" = {
       vmid   = 205
       cores  = 2
       memory = 2048
       disk   = 20
+      vlan   = 20
     }
     "linux-postgres" = {
       vmid   = 206
       cores  = 2
       memory = 2048
       disk   = 20
+      vlan   = 20
     }
   }
 }
@@ -78,8 +85,9 @@ resource "proxmox_virtual_environment_vm" "vms" {
   }
 
   network_device {
-    bridge = "vmbr0"
-    model  = "virtio"
+    bridge  = "vmbr0"
+    model   = "virtio"
+    vlan_id = each.value.vlan
   }
 
   # Inject cloud-init

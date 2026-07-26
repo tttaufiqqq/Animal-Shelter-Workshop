@@ -12,6 +12,17 @@ users:
     ssh_authorized_keys:
       - ${ssh_public_key}
     sudo: ALL=(ALL) NOPASSWD:ALL
+  # app-server.yml's deploy tasks assume this user already exists
+  # (become_user: taufiq, /home/taufiq/Animal-Shelter-Workshop) — hand-
+  # configured boxes already have it, a fresh Terraform VM didn't until now.
+  - name: taufiq
+    gecos: Taufiq
+    groups: sudo
+    shell: /bin/bash
+    lock_passwd: true
+    ssh_authorized_keys:
+      - ${ssh_public_key}
+    sudo: ALL=(ALL) NOPASSWD:ALL
 
 package_update: true
 package_upgrade: false
