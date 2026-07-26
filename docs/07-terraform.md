@@ -174,6 +174,36 @@ terraform apply
 
 ---
 
+## CI drift check (`.github/workflows/terraform-drift.yml`, Stage 3)
+
+`terraform plan` also runs automatically — daily at 03:00 UTC, plus manual `workflow_dispatch` — on
+`linux-gh-runner`, and posts its output to the run's job summary. It never runs `apply`: creating or
+destroying real VMs/CTs unattended was judged too destructive to automate, so this job is
+deliberately read-only. Its purpose is just to make drift visible without someone remembering to run
+`terraform plan` locally and check.
+
+This needs its own credentials on the runner, separate from everything deploy.yml uses:
+
+- **`TF_VAULT_TOKEN`** — a distinct Vault token in `~/actions-runner/.env` (alongside the existing
+  `VAULT_TOKEN`), scoped to a dedicated `asw-terraform-cd` policy that can only read
+  `secret/asw-terraform-cd`. This path holds everything a `terraform plan` needs: all of
+  `terraform.tfvars`' fields (including the Proxmox hypervisor's own root SSH password and API
+  token) plus the MinIO backend's `terraform-asw` credentials. Kept in its own path/policy/token,
+  never merged into `secret/asw-cd`, so a compromised app-deploy step can never read
+  hypervisor-root-level credentials, and vice versa.
+- **`vault-tf-token-renew.timer`** (`roles`-adjacent, defined in `playbooks/linux-gh-runner.yml`) —
+  renews `TF_VAULT_TOKEN` daily, mirroring the existing `vault-token-renew.timer` pattern but pointed
+  at the separate token.
+- The workflow exports everything as `TF_VAR_<name>` env vars (Terraform's own convention for
+  variable overrides) plus `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` for the MinIO backend — no
+  `terraform.tfvars` file is ever written on the runner.
+
+`terraform plan -detailed-exitcode` distinguishes "no drift" (0) from "plan errored" (1) from "changes
+present" (2) — only exit code 1 fails the job. Exit code 2 (drift/pending changes found) is reported
+in the summary, not treated as a CI failure, since the point is to surface it, not block on it.
+
+---
+
 ## Lessons learned during setup
 
 ### Storage: `local` vs `local-lvm`

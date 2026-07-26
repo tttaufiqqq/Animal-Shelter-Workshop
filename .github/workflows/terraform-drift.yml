@@ -1,0 +1,103 @@
+name: Terraform Drift Check
+
+# Read-only visibility into whether real Proxmox infrastructure has drifted
+# from what's declared in infrastructure/terraform — never auto-applies.
+# Stage 3 of the devops practice plan: auto-apply is too destructive to run
+# unattended (it can create/destroy real VMs/CTs), but a plan-only check on
+# a schedule means drift doesn't sit invisible until someone happens to run
+# `terraform plan` locally and remembers to look.
+on:
+  schedule:
+    - cron: '0 3 * * *' # 03:00 UTC daily
+  workflow_dispatch: {}
+
+concurrency:
+  group: terraform-drift
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    runs-on: [self-hosted, linux, homelab, tailnet]
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      # TF_VAULT_TOKEN is a separate token from deploy.yml's VAULT_TOKEN,
+      # scoped to its own asw-terraform-cd policy (read-only, one KV path).
+      # These are Proxmox-hypervisor-root-level credentials — kept out of
+      # secret/asw-cd entirely so a compromised app-deploy step can't reach
+      # them, and vice versa.
+      - name: Read Terraform secrets from Vault
+        run: |
+          set -euo pipefail
+          set -a; source ~/actions-runner/.env; set +a
+          export VAULT_TOKEN="$TF_VAULT_TOKEN"
+
+          PROXMOX_ENDPOINT=$(vault kv get -field=proxmox_endpoint secret/asw-terraform-cd)
+          PROXMOX_API_TOKEN=$(vault kv get -field=proxmox_api_token secret/asw-terraform-cd)
+          PROXMOX_SSH_USER=$(vault kv get -field=proxmox_ssh_user secret/asw-terraform-cd)
+          PROXMOX_SSH_PASSWORD=$(vault kv get -field=proxmox_ssh_password secret/asw-terraform-cd)
+          PROXMOX_NODE=$(vault kv get -field=proxmox_node secret/asw-terraform-cd)
+          VM_TEMPLATE_ID=$(vault kv get -field=vm_template_id secret/asw-terraform-cd)
+          STORAGE_POOL=$(vault kv get -field=storage_pool secret/asw-terraform-cd)
+          SSH_PUBLIC_KEY=$(vault kv get -field=ssh_public_key secret/asw-terraform-cd)
+          TAILSCALE_AUTH_KEY=$(vault kv get -field=tailscale_auth_key secret/asw-terraform-cd)
+          AWS_KEY_ID=$(vault kv get -field=aws_access_key_id secret/asw-terraform-cd)
+          AWS_SECRET=$(vault kv get -field=aws_secret_access_key secret/asw-terraform-cd)
+
+          for v in "$PROXMOX_API_TOKEN" "$PROXMOX_SSH_PASSWORD" "$TAILSCALE_AUTH_KEY" "$AWS_KEY_ID" "$AWS_SECRET"; do
+            echo "::add-mask::$v"
+          done
+
+          {
+            echo "TF_VAR_proxmox_endpoint=$PROXMOX_ENDPOINT"
+            echo "TF_VAR_proxmox_api_token=$PROXMOX_API_TOKEN"
+            echo "TF_VAR_proxmox_ssh_user=$PROXMOX_SSH_USER"
+            echo "TF_VAR_proxmox_ssh_password=$PROXMOX_SSH_PASSWORD"
+            echo "TF_VAR_proxmox_node=$PROXMOX_NODE"
+            echo "TF_VAR_vm_template_id=$VM_TEMPLATE_ID"
+            echo "TF_VAR_storage_pool=$STORAGE_POOL"
+            echo "TF_VAR_ssh_public_key=$SSH_PUBLIC_KEY"
+            echo "TF_VAR_tailscale_auth_key=$TAILSCALE_AUTH_KEY"
+            echo "AWS_ACCESS_KEY_ID=$AWS_KEY_ID"
+            echo "AWS_SECRET_ACCESS_KEY=$AWS_SECRET"
+          } >> "$GITHUB_ENV"
+
+      - name: Terraform init
+        working-directory: infrastructure/terraform
+        run: terraform init -input=false
+
+      # -detailed-exitcode: 0 = no drift, 1 = plan errored, 2 = drift found.
+      # Never -auto-approve/-apply — this job only ever reads and reports.
+      - name: Terraform plan
+        id: plan
+        working-directory: infrastructure/terraform
+        run: |
+          set +e
+          terraform plan -input=false -detailed-exitcode -no-color 2>&1 | tee plan_output.txt
+          echo "exitcode=${PIPESTATUS[0]}" >> "$GITHUB_OUTPUT"
+
+      - name: Post drift report to job summary
+        if: always()
+        working-directory: infrastructure/terraform
+        run: |
+          {
+            echo "## Terraform drift check — $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            echo ""
+            case "${{ steps.plan.outputs.exitcode }}" in
+              0) echo "No drift detected — real infrastructure matches what's declared." ;;
+              2) echo "**Drift detected** — real infrastructure differs from what's declared. Plan output below." ;;
+              *) echo "\`terraform plan\` itself failed to run — see output below." ;;
+            esac
+            echo ""
+            echo '```'
+            cat plan_output.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # Only a real plan error fails the job (exit 1) — drift being present
+      # (exit 2) is reported, not treated as a CI failure, since drift is
+      # expected to happen and get noticed here, not block anything.
+      - name: Fail only if terraform plan itself errored
+        if: steps.plan.outputs.exitcode == '1'
+        run: exit 1

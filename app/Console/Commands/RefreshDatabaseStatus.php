@@ -13,7 +13,7 @@ class RefreshDatabaseStatus extends Command
      *
      * @var string
      */
-    protected $signature = 'db:refresh-status {--silent : Run without output}';
+    protected $signature = 'db:refresh-status {--silent : Run without output} {--fail-on-down : Exit non-zero and list each offline connection (CD health checks only — the scheduler must never fail on this)}';
 
     /**
      * The console command description.
@@ -47,6 +47,14 @@ class RefreshDatabaseStatus extends Command
                 count($connected),
                 count($currentStatus)
             ));
+        }
+
+        if ($this->option('fail-on-down') && !empty($disconnected)) {
+            foreach ($disconnected as $db) {
+                $this->error("  DOWN: {$db['connection']} ({$db['module']})");
+            }
+
+            return Command::FAILURE;
         }
 
         return Command::SUCCESS;

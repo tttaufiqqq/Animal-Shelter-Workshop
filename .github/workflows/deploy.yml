@@ -107,10 +107,20 @@ jobs:
           else
             echo "Changed files since last good deploy ($LAST_GOOD_SHA -> $TARGET_SHA):"
             echo "$CHANGED"
-            if echo "$CHANGED" | grep -qE '^infrastructure/ansible/(playbooks/app-server\.yml|playbooks/tasks/|templates/|group_vars/|inventory-ip\.yml)'; then
+            # roles/ matches both — added after Stage 2's roles refactor
+            # (playbooks/tasks/vault-agent.yml and inline DB tasks moved into
+            # roles/{vault_agent,mysql_family,postgres_db,db_firewall,
+            # legacy_backup_cleanup}/). Before this, a roles-only change
+            # matched neither regex below and would silently never route to
+            # either job — found while adding Stage 3's backup/smoke-test
+            # changes to roles/vault_agent. Can't cheaply tell which target a
+            # given role affects, so a roles/ change conservatively widens
+            # both, same "when in doubt, do the full thing" philosophy as the
+            # git-diff-failure branch above.
+            if echo "$CHANGED" | grep -qE '^infrastructure/ansible/(playbooks/app-server\.yml|playbooks/tasks/|templates/|group_vars/|inventory-ip\.yml|roles/)'; then
               INFRA_APP=true
             fi
-            if echo "$CHANGED" | grep -qE '^infrastructure/ansible/(playbooks/linux-.*\.yml|group_vars/)'; then
+            if echo "$CHANGED" | grep -qE '^infrastructure/ansible/(playbooks/linux-.*\.yml|group_vars/|roles/)'; then
               INFRA_DB=true
             fi
           fi
@@ -159,6 +169,21 @@ jobs:
             echo "VAULT_ROLE_ID=$ROLE_ID"
             echo "VAULT_SECRET_ID=$SECRET_ID"
           } >> "$GITHUB_ENV"
+
+      # Fresh, coordinated backup right before this job touches any of the 5
+      # live DB hosts — reuses php artisan db:backup (docs/10-backups.md:
+      # preflight + mysqldump/pg_dump + checksum + Azure sync), run on
+      # app-server via its own one-shot Vault Agent config (agent-backup.hcl,
+      # roles/vault_agent). Fails loud on purpose: db:backup only returns
+      # non-zero when a connection was offline before it started or a dump
+      # itself failed, and provisioning the DB hosts without a fresh backup
+      # in hand defeats the point of this step.
+      - name: Pre-deploy database backup
+        run: |
+          set -euo pipefail
+          ssh -o BatchMode=yes -o StrictHostKeyChecking=no -o ConnectTimeout=10 \
+            -i "$RUNNER_TEMP/cd/cd_key" taufiq@100.100.123.90 \
+            'sudo -u taufiq vault agent -config=/etc/vault-agent/agent-backup.hcl'
 
       # --limit databases (inventory-ip.yml's group of the 3 mysql/mariadb/
       # postgres groups) — site.yml's app-server play just skips with "no
@@ -240,23 +265,30 @@ jobs:
           echo "public tunnel domain: $public_code"
           [ "$public_code" = "200" ]
 
-      # db:refresh-status (app/Console/Commands/RefreshDatabaseStatus.php)
-      # always returns Command::SUCCESS, even when every one of the 5 DB
-      # connections is down — this is exactly the check that caught the
-      # Vault Agent scheduler regression before, so it must assert on the
-      # printed "N/5 online" string, never on the command's exit code.
+      # db:refresh-status's own default behavior (used by the scheduler, see
+      # roles/vault_agent) always returns Command::SUCCESS even when every DB
+      # is down — this is exactly the check that caught the Vault Agent
+      # scheduler regression before. But agent-verify.hcl (rendered by
+      # roles/vault_agent) runs it with --fail-on-down specifically for this
+      # health check, so a single connection going down now stops the &&
+      # chain and the ssh command itself exits non-zero — assert on that
+      # exit code, not just the exit code of `ssh` wrapping a command
+      # substitution (which `set -e` alone won't catch). The "5/5 online"
+      # substring check stays as a second, independent signal.
       - name: Smoke test — app health (migrate:status + db:refresh-status + about)
         run: |
-          set -euo pipefail
+          set -uo pipefail
+          set +e
           OUTPUT=$(ssh -o BatchMode=yes -o StrictHostKeyChecking=no -o ConnectTimeout=10 \
             -i "$RUNNER_TEMP/cd/cd_key" taufiq@100.100.123.90 \
             'sudo -u taufiq vault agent -config=/etc/vault-agent/agent-verify.hcl' 2>&1)
+          RC=$?
+          set -e
           echo "$OUTPUT"
-          # Not `echo "$OUTPUT" | grep -q ...` — grep -q exits the instant it
-          # finds a match, before echo finishes writing the rest of this
-          # (long) output; under pipefail that SIGPIPEs echo and fails the
-          # step even when the health check actually passed. Pure bash
-          # substring match instead: no subprocess, no pipe, no race.
+          if [ "$RC" -ne 0 ]; then
+            echo "Health check failed (exit $RC) — see per-connection DOWN lines above."
+            exit 1
+          fi
           [[ "$OUTPUT" == *"5/5 online"* ]]
 
       - name: Promote — record this SHA as last known good
@@ -323,15 +355,17 @@ jobs:
           set -euo pipefail
           code=$(curl -fsS -o /dev/null -w '%{http_code}' http://100.100.123.90/)
           [ "$code" = "200" ]
+          set +e
           OUTPUT=$(ssh -o BatchMode=yes -o StrictHostKeyChecking=no -o ConnectTimeout=10 \
             -i "$RUNNER_TEMP/cd/cd_key" taufiq@100.100.123.90 \
             'sudo -u taufiq vault agent -config=/etc/vault-agent/agent-verify.hcl' 2>&1)
+          RC=$?
+          set -e
           echo "$OUTPUT"
-          # Not `echo "$OUTPUT" | grep -q ...` — grep -q exits the instant it
-          # finds a match, before echo finishes writing the rest of this
-          # (long) output; under pipefail that SIGPIPEs echo and fails the
-          # step even when the health check actually passed. Pure bash
-          # substring match instead: no subprocess, no pipe, no race.
+          if [ "$RC" -ne 0 ]; then
+            echo "Health check failed (exit $RC) after rollback — see per-connection DOWN lines above."
+            exit 1
+          fi
           [[ "$OUTPUT" == *"5/5 online"* ]]
 
       - name: Record rollback in job summary

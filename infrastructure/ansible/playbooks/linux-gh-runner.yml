@@ -43,9 +43,11 @@
         filename: hashicorp
         state: present
 
-    - name: Install vault client
+    - name: Install vault and terraform clients
       apt:
-        name: vault
+        name:
+          - vault
+          - terraform
         state: present
         update_cache: true
 
@@ -106,6 +108,55 @@
     - name: Enable and start the Vault token renewal timer
       systemd:
         name: vault-token-renew.timer
+        enabled: true
+        state: started
+
+    # ── Terraform drift-check token renewal timer (Stage 3) ──
+    # Separate token/timer from the one above on purpose: TF_VAULT_TOKEN is
+    # scoped to its own asw-terraform-cd policy (read-only on that one KV
+    # path, holding Proxmox hypervisor-root-level credentials), kept apart
+    # from VAULT_TOKEN's asw-cd scope (app-deploy secrets) so a compromised
+    # workflow step reading one can never reach the other's secrets. `vault
+    # token renew` renews whatever VAULT_TOKEN is in its environment, so this
+    # unit overrides it to TF_VAULT_TOKEN from the same .env file rather than
+    # reusing vault-token-renew.service's EnvironmentFile-only invocation.
+    - name: Deploy vault-tf-token-renew.service
+      copy:
+        dest: /etc/systemd/system/vault-tf-token-renew.service
+        mode: "0644"
+        content: |
+          [Unit]
+          Description=Renew linux-gh-runner's Terraform drift-check Vault token
+
+          [Service]
+          Type=oneshot
+          EnvironmentFile=/home/linux-gh-runner/actions-runner/.env
+          ExecStart=/bin/bash -c 'VAULT_TOKEN=$TF_VAULT_TOKEN vault token renew'
+      notify: Reload systemd units
+
+    - name: Deploy vault-tf-token-renew.timer
+      copy:
+        dest: /etc/systemd/system/vault-tf-token-renew.timer
+        mode: "0644"
+        content: |
+          [Unit]
+          Description=Periodic renewal of linux-gh-runner's Terraform drift-check Vault token (768h max TTL)
+
+          [Timer]
+          OnBootSec=5min
+          OnUnitActiveSec=1d
+          Persistent=true
+
+          [Install]
+          WantedBy=timers.target
+      notify: Reload systemd units
+
+    - name: Flush handlers so the timer unit is current before enabling it
+      meta: flush_handlers
+
+    - name: Enable and start the Terraform drift-check Vault token renewal timer
+      systemd:
+        name: vault-tf-token-renew.timer
         enabled: true
         state: started
 

@@ -143,6 +143,11 @@
     # Read-only, so it gets its own sink rather than reusing migrate's/seed's
     # (which are user-scoped but not meant to be shared across unrelated
     # one-shot invocations that could race on the same token file).
+    #
+    # --fail-on-down here (never on the scheduler's plain db:refresh-status
+    # above): a single connection going down now stops this && chain and
+    # exits non-zero, instead of hiding behind the aggregate "5/5 online"
+    # string. deploy.yml's health-check step asserts on this exit code.
     - name: Deploy Vault Agent config for CD health verification
       template:
         src: vault-agent.hcl.j2
@@ -154,8 +159,30 @@
         vault_agent_exec_command:
           - /bin/bash
           - -lc
-          - cd /home/taufiq/Animal-Shelter-Workshop && php artisan migrate:status && php artisan db:refresh-status && php artisan about --only=environment
+          - cd /home/taufiq/Animal-Shelter-Workshop && php artisan migrate:status && php artisan db:refresh-status --fail-on-down && php artisan about --only=environment
         vault_agent_sink_path: /etc/vault-agent/verify-token
+
+    # One-shot config for CD's pre-deploy database backup (docs/12-cd.md /
+    # docs/10-backups.md) — deploy-db needs a fresh, coordinated backup
+    # immediately before it touches the 5 live DB hosts, not just last
+    # night's scheduled one. Reuses the existing db:backup command (preflight
+    # + mysqldump/pg_dump + checksum + Azure sync) rather than reinventing
+    # per-host dumps — this repo already tried and retired that approach,
+    # see docs/10-backups.md's opening section. Own sink, same reasoning as
+    # agent-verify above.
+    - name: Deploy Vault Agent config for pre-deploy database backup
+      template:
+        src: vault-agent.hcl.j2
+        dest: /etc/vault-agent/agent-backup.hcl
+        owner: root
+        group: taufiq
+        mode: "0640"
+      vars:
+        vault_agent_exec_command:
+          - /bin/bash
+          - -lc
+          - cd /home/taufiq/Animal-Shelter-Workshop && php artisan db:backup
+        vault_agent_sink_path: /etc/vault-agent/backup-token
 
     # php-fpm's pool defaults to clear_env=yes, which wipes the environment
     # for worker processes even though vault agent injects secrets fine into
