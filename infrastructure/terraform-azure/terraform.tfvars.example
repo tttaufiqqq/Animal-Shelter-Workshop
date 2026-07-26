@@ -1,0 +1,7 @@
+# Copy this file to terraform.tfvars and fill in your values.
+# terraform.tfvars is gitignored — never commit it.
+
+subscription_id = "your-azure-subscription-id"   # az account show --query id -o tsv
+
+ssh_public_key        = "ssh-ed25519 AAAAC3Nza... your-public-key"
+allowed_ssh_source_ip = "1.2.3.4"                # your current public IP, curl ifconfig.me
