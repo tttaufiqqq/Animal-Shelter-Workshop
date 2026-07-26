@@ -6,7 +6,7 @@
 
 <p align="center">
   <b>Developed for BITU3923 Workshop II at UTeM</b><br>
-  A Distributed Database Application built with Laravel 11<br>
+  A Heterogeneous Distributed Database Application built with Laravel 11<br>
   Supervised by Ts. Fathin Nabilla
 </p>
 
