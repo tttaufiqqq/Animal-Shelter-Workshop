@@ -29,6 +29,27 @@
         state: started
         enabled: true
 
+    # A fresh `apt install mariadb-server` leaves root@localhost on the
+    # unix_socket plugin (no password, OS-user-matched login only) — every
+    # task below authenticates with login_password, which unix_socket
+    # ignores. Every real run so far targeted an already hand-configured
+    # box where this had been switched over manually; a genuinely fresh
+    # install needs it done here first. unix_socket auth only ever works
+    # over an actual AF_UNIX connection (login_unix_socket) — once this
+    # succeeds the plugin switches to mysql_native_password and the same
+    # socket attempt starts failing on every later re-run, so it's allowed
+    # to fail here; if root auth is genuinely broken the next task (which
+    # needs login_password) will fail loudly instead.
+    - name: Bootstrap MariaDB root to password auth (fresh installs default to unix_socket)
+      community.mysql.mysql_user:
+        name: root
+        host: localhost
+        plugin: mysql_native_password
+        password: "{{ mysql_root_password }}"
+        login_unix_socket: /var/run/mysqld/mysqld.sock
+        state: present
+      failed_when: false
+
     - name: Allow remote connections
       lineinfile:
         path: "{{ mariadb_config }}"

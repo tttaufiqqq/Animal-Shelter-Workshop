@@ -207,6 +207,18 @@
       register: app_repo
       tags: [deploy]
 
+    # cloud-init's default home dir mode is 0750 (owner rwx, group taufiq
+    # rx, other none) — www-data is neither, so it can't even traverse into
+    # /home/taufiq, regardless of how Animal-Shelter-Workshop/ itself below
+    # is configured. Every real run so far targeted a hand-configured box
+    # where this had already been loosened manually. o+x only adds
+    # traverse, not read — www-data still can't list taufiq's home dir.
+    - name: Allow www-data to traverse into /home/taufiq
+      file:
+        path: /home/taufiq
+        mode: "o+x"
+      tags: [provision]
+
     - name: Set web root ownership
       file:
         path: /home/taufiq/Animal-Shelter-Workshop

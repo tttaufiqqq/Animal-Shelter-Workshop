@@ -15,3 +15,9 @@ vault-approle*
 # couldn't resolve Tailscale MagicDNS hostnames) — machine-specific, not the
 # intended inventory mechanism, never commit
 .scratch-inventory-ip-override.yml
+
+# Same reasoning, but for the Stage 1 Terraform test VMs (201/204/205/206) -
+# their Tailscale names differ from the inventory hostnames the playbooks
+# target (e.g. "linux-mysql-1" due to a hostname collision with production),
+# so ansible_host needs pointing at the test VMs' actual Tailscale IPs
+.scratch-inventory-stage1-test.yml
