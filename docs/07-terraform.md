@@ -69,6 +69,29 @@ Tailscale admin → Settings → Keys → Generate auth key
 
 Paste the `tskey-auth-...` value into `terraform.tfvars`.
 
+### 5. MinIO state backend credentials
+
+State lives on the homelab's self-hosted MinIO (`linux-mini-io`), not a
+local `.tfstate` file — see `main.tf`'s `backend "s3"` block. A
+bucket-scoped MinIO user (`terraform-asw`, policy restricted to the
+`animal-shelter-workshop-tfstate` bucket only — not the MinIO root
+account) needs to already exist; if it doesn't, on `linux-mini-io`:
+
+```bash
+mc mb local/animal-shelter-workshop-tfstate
+mc admin user add local terraform-asw '<generate-a-secret>'
+mc admin policy create local terraform-asw-tfstate /path/to/policy.json
+mc admin policy attach local terraform-asw-tfstate --user terraform-asw
+```
+
+Then export the credentials before any `terraform init`/`plan`/`apply` —
+the backend block deliberately has no credentials in it:
+
+```bash
+export AWS_ACCESS_KEY_ID=terraform-asw
+export AWS_SECRET_ACCESS_KEY=<the secret from mc admin user add>
+```
+
 ---
 
 ## WSL setup (one-time)
@@ -119,8 +142,16 @@ Key points:
 
 ## Running Terraform
 
+`linux-mini-io` (the MinIO VM state now lives on) isn't always running —
+it's not part of the always-on core fleet. Check `qm status 109` on
+Proxmox first; `qm start 109` if it's stopped, or every command below
+fails to reach the backend at all.
+
 ```bash
 cd infrastructure/terraform
+
+export AWS_ACCESS_KEY_ID=terraform-asw
+export AWS_SECRET_ACCESS_KEY=<the terraform-asw MinIO secret>
 
 # Download provider (bpg/proxmox v0.111.0)
 terraform init
