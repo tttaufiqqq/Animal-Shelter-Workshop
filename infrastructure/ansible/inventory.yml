@@ -33,3 +33,32 @@ all:
         mysql_hosts:
         mariadb_hosts:
         postgres_hosts:
+
+    # Homelab-level CTs/VMs this repo's Ansible also manages (Stage 2) —
+    # not part of the app stack itself, unlike everything above.
+    linux_vault:
+      hosts:
+        linux-vault:
+          ansible_host: linux-vault
+
+    linux_gh_runner:
+      hosts:
+        linux-gh-runner:
+          ansible_host: linux-gh-runner
+
+    linux_mini_io:
+      hosts:
+        linux-mini-io:
+          ansible_host: linux-mini-io
+
+    linux_mongodb:
+      hosts:
+        linux-mongodb:
+          ansible_host: linux-mongodb
+
+    homelab_hosts:
+      children:
+        linux_vault:
+        linux_gh_runner:
+        linux_mini_io:
+        linux_mongodb:

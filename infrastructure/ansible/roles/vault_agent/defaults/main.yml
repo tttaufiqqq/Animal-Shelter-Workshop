@@ -1,0 +1,4 @@
+---
+# Normally set by group_vars/all.yml; this is only a fallback if the role is
+# ever used somewhere that doesn't define it.
+vault_agent_enabled: true

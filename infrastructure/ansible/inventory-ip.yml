@@ -46,3 +46,37 @@ all:
         mysql_hosts:
         mariadb_hosts:
         postgres_hosts:
+
+    # Homelab-level CTs/VMs this repo's Ansible also manages (Stage 2) — see
+    # proxmox-homelab-taufiq/docs/{07-vault,09-github-actions-runner,05-minio,
+    # 06-mongodb}/ for how each was originally set up by hand.
+    linux_vault:
+      hosts:
+        linux-vault:
+          ansible_host: 100.112.41.113
+          ansible_user: linux-vault
+
+    linux_gh_runner:
+      hosts:
+        linux-gh-runner:
+          ansible_host: 100.72.6.40
+          ansible_user: linux-gh-runner
+
+    linux_mini_io:
+      hosts:
+        linux-mini-io:
+          ansible_host: 100.73.172.85
+          ansible_user: linux-mini-io
+
+    linux_mongodb:
+      hosts:
+        linux-mongodb:
+          ansible_host: 100.82.200.94
+          ansible_user: linux-mongodb
+
+    homelab_hosts:
+      children:
+        linux_vault:
+        linux_gh_runner:
+        linux_mini_io:
+        linux_mongodb:

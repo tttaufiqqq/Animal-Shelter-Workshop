@@ -325,8 +325,8 @@
     # `tags:` on the include controls whether the include itself runs, but
     # doesn't by itself propagate into the included file's tasks.
     - name: Configure Vault Agent (or roll it back)
-      include_tasks:
-        file: tasks/vault-agent.yml
+      include_role:
+        name: vault_agent
         apply:
           tags: [provision]
       tags: [provision]

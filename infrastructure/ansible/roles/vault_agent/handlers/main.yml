@@ -1,0 +1,12 @@
+---
+- name: Restart php-fpm under Vault Agent supervision
+  systemd:
+    name: php8.3-fpm
+    daemon_reload: true
+    state: restarted
+
+- name: Restart php-fpm under normal supervision (rollback)
+  systemd:
+    name: php8.3-fpm
+    daemon_reload: true
+    state: restarted

@@ -1,0 +1,29 @@
+---
+- name: Verify
+  hosts: all
+  become: true
+  vars:
+    db_name: molecule_test_db
+    db_user: molecule_test_user
+  tasks:
+    # Debian/Ubuntu's postgresql.service is a thin wrapper that's "active
+    # (exited)" once it hands off to the real, version-pinned instance unit
+    # (postgresql@16-main.service, etc.) — port 5432 + an actual query below
+    # are the meaningful proof the role worked, not that wrapper unit's state.
+    - name: Assert PostgreSQL is listening on 5432
+      ansible.builtin.wait_for:
+        port: 5432
+        host: 127.0.0.1
+        timeout: 5
+
+    - name: Assert the test database and user actually work end-to-end
+      become_user: postgres
+      community.postgresql.postgresql_query:
+        db: "{{ db_name }}"
+        query: "SELECT 1 AS ok"
+      register: pg_check
+
+    - name: Assert the query returned the expected row
+      assert:
+        that: pg_check.query_result[0].ok == 1
+        fail_msg: "Could not query the database postgres_db is supposed to create"

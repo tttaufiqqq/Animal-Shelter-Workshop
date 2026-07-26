@@ -1,0 +1,44 @@
+---
+- name: UFW — default deny incoming
+  community.general.ufw:
+    default: deny
+    direction: incoming
+
+- name: UFW — default allow outgoing
+  community.general.ufw:
+    default: allow
+    direction: outgoing
+
+- name: UFW — SSH from admin machine via Tailscale only
+  community.general.ufw:
+    rule: allow
+    interface: tailscale0
+    direction: in
+    from_ip: "{{ admin_machine_tailscale_ip }}"
+    to_port: "22"
+    proto: tcp
+    comment: "SSH from msi admin machine"
+
+- name: UFW — SSH from linux-gh-runner (CD) via Tailscale only
+  community.general.ufw:
+    rule: allow
+    interface: tailscale0
+    direction: in
+    from_ip: "{{ gh_runner_tailscale_ip }}"
+    to_port: "22"
+    proto: tcp
+    comment: "SSH from linux-gh-runner (CD)"
+
+- name: "UFW — {{ db_firewall_service_name }} from app-server via Tailscale only"
+  community.general.ufw:
+    rule: allow
+    interface: tailscale0
+    direction: in
+    from_ip: "{{ app_server_tailscale_ip }}"
+    to_port: "{{ db_firewall_port }}"
+    proto: tcp
+    comment: "{{ db_firewall_service_name }} from app-server"
+
+- name: UFW — enable
+  community.general.ufw:
+    state: enabled

@@ -1,0 +1,121 @@
+# Brings linux-mongodb (Proxmox CT 108) under Ansible management — see
+# proxmox-homelab-taufiq/docs/06-mongodb/mongodb-setup.md for the original
+# by-hand setup this describes.
+#
+# Deliberately NOT managed here, on purpose:
+#   - User creation/passwords (`linux-mongodb`/`development` DB users) — real,
+#     already-deployed credentials; the setup doc itself flags they're shared
+#     plaintext and due for rotation, which is a credential-rotation task, not
+#     a repeatable "converge to this state" one.
+- name: Provision linux-mongodb (MongoDB) — structural state only
+  hosts: linux_mongodb
+  become: true
+
+  vars:
+    # 0.0.0.0, not an enumerated IP list — matches every other DB engine in
+    # this repo (bind-address 0.0.0.0 for MySQL/MariaDB, listen_addresses '*'
+    # for PostgreSQL) and avoids exactly the failure mode found live here:
+    # the old static LAN IP (192.168.0.108) went stale when this network
+    # migrated to VLAN-tagged DHCP, leaving mongod bound to an address that
+    # no longer exists on any interface (exit code 48, EXIT_NET_ERROR) —
+    # broken since well before this playbook existed. Tailscale/UFW are the
+    # real security boundary, same as everywhere else in this repo.
+    mongo_bind_ips: "0.0.0.0"
+
+  tasks:
+    - name: Install gnupg and curl (needed to add the MongoDB repo)
+      apt:
+        name: [gnupg, curl]
+        state: present
+        update_cache: true
+
+    - name: Install MongoDB apt signing key
+      shell: curl -fsSL https://pgp.mongodb.com/server-8.0.asc | gpg --dearmor -o /usr/share/keyrings/mongodb-server-8.0.gpg
+      args:
+        creates: /usr/share/keyrings/mongodb-server-8.0.gpg
+
+    - name: Add MongoDB apt repository
+      apt_repository:
+        repo: "deb [signed-by=/usr/share/keyrings/mongodb-server-8.0.gpg] https://repo.mongodb.org/apt/ubuntu noble/mongodb-org/8.0 multiverse"
+        filename: mongodb-org-8.0
+        state: present
+
+    - name: Install mongodb-org
+      apt:
+        name: mongodb-org
+        state: present
+        update_cache: true
+
+    - name: Ensure net.bindIp includes LAN and Tailscale addresses
+      lineinfile:
+        path: /etc/mongod.conf
+        regexp: '^\s*bindIp:'
+        line: "  bindIp: {{ mongo_bind_ips }}"
+      notify: Restart mongod
+
+    - name: Ensure security.authorization is enabled
+      lineinfile:
+        path: /etc/mongod.conf
+        regexp: '^security:'
+        line: "security:"
+      notify: Restart mongod
+
+    - name: "Ensure authorization: enabled is set under security"
+      lineinfile:
+        path: /etc/mongod.conf
+        regexp: '^\s*authorization:'
+        line: "  authorization: enabled"
+        insertafter: '^security:'
+      notify: Restart mongod
+
+    - name: Enable and start mongod
+      service:
+        name: mongod
+        state: started
+        enabled: true
+
+    # ── Firewall ──────────────────────────────────────────────────────────────
+    - name: UFW — default deny incoming
+      community.general.ufw:
+        default: deny
+        direction: incoming
+
+    - name: UFW — default allow outgoing
+      community.general.ufw:
+        default: allow
+        direction: outgoing
+
+    - name: UFW — SSH
+      community.general.ufw:
+        rule: allow
+        to_port: "22"
+        proto: tcp
+        comment: "SSH"
+
+    - name: UFW — MongoDB from LAN
+      community.general.ufw:
+        rule: allow
+        direction: in
+        src: 192.168.0.0/24
+        to_port: "27017"
+        proto: tcp
+        comment: "MongoDB from LAN"
+
+    - name: UFW — MongoDB from Tailscale
+      community.general.ufw:
+        rule: allow
+        interface: tailscale0
+        direction: in
+        to_port: "27017"
+        proto: tcp
+        comment: "MongoDB from Tailscale"
+
+    - name: UFW — enable
+      community.general.ufw:
+        state: enabled
+
+  handlers:
+    - name: Restart mongod
+      service:
+        name: mongod
+        state: restarted

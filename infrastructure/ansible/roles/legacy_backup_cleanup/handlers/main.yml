@@ -1,0 +1,4 @@
+---
+- name: Reload systemd (backup)
+  systemd:
+    daemon_reload: true

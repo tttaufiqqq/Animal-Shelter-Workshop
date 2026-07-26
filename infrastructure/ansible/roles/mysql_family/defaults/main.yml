@@ -1,0 +1,5 @@
+---
+# Per-playbook overrides — see tasks/main.yml comments for what each means.
+mysql_family_bootstrap_root_auth: false
+mysql_family_extra_config_lines: []
+mysql_family_priv_extra: ""

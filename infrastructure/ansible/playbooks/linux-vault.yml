@@ -1,0 +1,125 @@
+# Brings linux-vault (Proxmox CT 110) under Ansible management — see
+# proxmox-homelab-taufiq/docs/07-vault/vault-setup.md for the original by-hand
+# setup this describes.
+#
+# Deliberately NOT managed here, on purpose:
+#   - vault.hcl's content, `vault operator init`/`unseal`, and the
+#     vault-unseal.service script (embeds the real unseal keys). This vault
+#     is live and unsealed *right now*, serving every secret this whole repo's
+#     Ansible run depends on (asw_secrets, mysql_root_password). A config
+#     change that triggers `systemctl restart vault` reseals it, and the
+#     unseal keys live in Bitwarden only — nowhere this playbook (or the
+#     person running it) can reach them. So: no `copy`/`template` task touches
+#     vault.hcl, and nothing here notifies a vault restart. Only run this
+#     playbook with --check, never for real, until/unless the unseal-key
+#     question is solved differently (e.g. Vault's own auto-unseal via a KMS,
+#     which this lab doesn't use).
+#   - GitHub Actions/CD's `secret/asw-cd` policy and the `gh-runner` policy —
+#     one-time `vault policy write`/`vault kv put` operations, not repeatable
+#     package/service/firewall state.
+- name: Provision linux-vault (HashiCorp Vault) — structural state only
+  hosts: linux-vault
+  become: true
+
+  tasks:
+    - name: Install dependencies
+      apt:
+        name: [gpg, wget, curl]
+        state: present
+        update_cache: true
+
+    - name: Install HashiCorp apt signing key
+      shell: wget -qO- https://apt.releases.hashicorp.com/gpg | gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
+      args:
+        creates: /usr/share/keyrings/hashicorp-archive-keyring.gpg
+
+    - name: Add HashiCorp apt repository
+      apt_repository:
+        repo: "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com {{ ansible_distribution_release }} main"
+        filename: hashicorp
+        state: present
+
+    - name: Install vault client/server package
+      apt:
+        name: vault
+        state: present
+        update_cache: true
+
+    # state: started only starts an already-stopped service, it never
+    # restarts a running one — safe, no reseal risk.
+    - name: Ensure vault service is enabled and running
+      service:
+        name: vault
+        state: started
+        enabled: true
+
+    - name: Ensure vault-unseal.service (auto-unseal on boot) stays enabled
+      service:
+        name: vault-unseal
+        enabled: true
+      ignore_errors: true
+
+    # ── Firewall ──────────────────────────────────────────────────────────────
+    - name: UFW — default deny incoming
+      community.general.ufw:
+        default: deny
+        direction: incoming
+
+    - name: UFW — default allow outgoing
+      community.general.ufw:
+        default: allow
+        direction: outgoing
+
+    - name: UFW — SSH from LAN
+      community.general.ufw:
+        rule: allow
+        direction: in
+        src: 192.168.0.0/24
+        to_port: "22"
+        proto: tcp
+        comment: "SSH from LAN"
+
+    - name: UFW — SSH from Tailscale
+      community.general.ufw:
+        rule: allow
+        interface: tailscale0
+        direction: in
+        to_port: "22"
+        proto: tcp
+        comment: "SSH from Tailscale"
+
+    - name: UFW — Vault API/UI from LAN
+      community.general.ufw:
+        rule: allow
+        direction: in
+        src: 192.168.0.0/24
+        to_port: "8200"
+        proto: tcp
+        comment: "Vault API/UI from LAN"
+
+    - name: UFW — Vault API/UI from Tailscale
+      community.general.ufw:
+        rule: allow
+        interface: tailscale0
+        direction: in
+        to_port: "8200"
+        proto: tcp
+        comment: "Vault API/UI from Tailscale"
+
+    - name: UFW — enable
+      community.general.ufw:
+        state: enabled
+
+    # ── SSH hardening ────────────────────────────────────────────────────────
+    - name: Disable SSH password authentication
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^#?PasswordAuthentication'
+        line: "PasswordAuthentication no"
+      notify: Restart sshd
+
+  handlers:
+    - name: Restart sshd
+      service:
+        name: ssh
+        state: restarted

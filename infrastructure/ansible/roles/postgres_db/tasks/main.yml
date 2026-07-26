@@ -1,0 +1,103 @@
+---
+- name: Install PostgreSQL and Python psycopg2
+  apt:
+    name:
+      - postgresql
+      - python3-psycopg2
+    state: present
+    update_cache: true
+
+# Ansible's become_user (used below to run as postgres) needs setfacl to hand
+# an unprivileged user access to its temp files; without it, Ansible falls
+# back to a non-Linux chmod ACL dialect that fails outright on Ubuntu — same
+# bug already documented and fixed for app-server's become_user: www-data.
+- name: Install acl (required for become_user privilege de-escalation)
+  apt:
+    name: acl
+    state: present
+
+- name: Start and enable PostgreSQL
+  service:
+    name: postgresql
+    state: started
+    enabled: true
+
+- name: Get PostgreSQL version
+  command: psql --version
+  register: pg_version_raw
+  changed_when: false
+
+- name: Parse PostgreSQL major version
+  set_fact:
+    pg_version:
+      stdout: "{{ pg_version_raw.stdout | regex_search('(\\d+)', '\\1') | first }}"
+
+# Allow connections from all IPs (Tailscale network is the security boundary)
+- name: Set listen_addresses to all
+  lineinfile:
+    path: /etc/postgresql/{{ pg_version.stdout }}/main/postgresql.conf
+    regexp: "^#?listen_addresses"
+    line: "listen_addresses = '*'"
+  notify: Restart PostgreSQL
+
+# A connection left idle inside an open transaction (e.g. a killed app
+# process that never rolled back) holds its locks forever otherwise — this
+# is exactly what blocked new connections for ~2 hours during this project's
+# own hardening pass. Auto-terminate after 5 minutes idle.
+- name: Set idle_in_transaction_session_timeout to 5 minutes
+  lineinfile:
+    path: /etc/postgresql/{{ pg_version.stdout }}/main/postgresql.conf
+    regexp: "^#?idle_in_transaction_session_timeout"
+    line: "idle_in_transaction_session_timeout = 5min"
+  notify: Restart PostgreSQL
+
+- name: Allow MD5 auth from all IPs in pg_hba.conf
+  lineinfile:
+    path: /etc/postgresql/{{ pg_version.stdout }}/main/pg_hba.conf
+    line: "host    all    all    0.0.0.0/0    md5"
+    insertafter: EOF
+  notify: Restart PostgreSQL
+
+- name: Flush handlers
+  meta: flush_handlers
+
+# template: template0, not the implicit template1 default — found via this
+# role's Molecule scenario: a freshly initdb'd cluster without locales
+# generated (e.g. a minimal container image) leaves template1 at SQL_ASCII,
+# which conflicts with the UTF8 this task asks for. template0 is always a
+# pristine, encoding-compatible base regardless of what template1 ended up
+# as, per Postgres's own hint for this exact error.
+- name: "Create {{ db_name }} database"
+  community.postgresql.postgresql_db:
+    name: "{{ db_name }}"
+    encoding: UTF8
+    template: template0
+    state: present
+  become_user: postgres
+
+- name: "Create {{ db_user }} user"
+  community.postgresql.postgresql_user:
+    name: "{{ db_user }}"
+    password: "{{ db_password }}"
+    state: present
+  become_user: postgres
+
+- name: Grant all privileges on database to db_user
+  community.postgresql.postgresql_privs:
+    database: "{{ db_name }}"
+    roles: "{{ db_user }}"
+    type: database
+    privs: ALL
+    state: present
+  become_user: postgres
+
+# PostgreSQL 15+ no longer grants CREATE on public schema by default
+- name: Grant CREATE on public schema (PostgreSQL 15+)
+  community.postgresql.postgresql_privs:
+    database: "{{ db_name }}"
+    roles: "{{ db_user }}"
+    type: schema
+    objs: public
+    privs: ALL
+    state: present
+  become_user: postgres

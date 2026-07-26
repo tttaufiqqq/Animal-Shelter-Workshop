@@ -1,0 +1,148 @@
+# Brings linux-gh-runner (Proxmox CT 111) under Ansible management — see
+# proxmox-homelab-taufiq/docs/09-github-actions-runner/actions-runner-setup.md
+# for the original by-hand setup this describes.
+#
+# Deliberately NOT managed here, on purpose:
+#   - The GitHub Actions runner registration itself (`config.sh --token ...`)
+#     — registration tokens are single-use and expire in ~1 hour, so there's
+#     nothing idempotent to declare; re-running config.sh isn't safe to do
+#     unconditionally on every play.
+#   - `~/actions-runner/.env` (the scoped Vault token) and the `gh-runner`/
+#     `secret/asw-cd` Vault policies — one-time `vault token create`/
+#     `vault policy write` operations, already live and working; rotating
+#     them isn't a repeatable "converge to this state" operation.
+- name: Provision linux-gh-runner (CI/CD self-hosted runner) — structural state only
+  hosts: linux-gh-runner
+  become: true
+
+  vars:
+    dns_nameserver: 8.8.8.8
+
+  tasks:
+    - name: Install baseline tooling
+      apt:
+        name:
+          - git
+          - mysql-client
+          - postgresql-client
+          - jq
+          - gpg
+          - ansible
+          - sshpass
+        state: present
+        update_cache: true
+
+    - name: Install HashiCorp apt signing key
+      shell: wget -qO- https://apt.releases.hashicorp.com/gpg | gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
+      args:
+        creates: /usr/share/keyrings/hashicorp-archive-keyring.gpg
+
+    - name: Add HashiCorp apt repository
+      apt_repository:
+        repo: "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com {{ ansible_distribution_release }} main"
+        filename: hashicorp
+        state: present
+
+    - name: Install vault client
+      apt:
+        name: vault
+        state: present
+        update_cache: true
+
+    - name: Install Ansible Galaxy collections used by Animal-Shelter-Workshop's own playbooks
+      community.general.ansible_galaxy_install:
+        type: collection
+        name: "{{ item }}"
+      loop:
+        - community.mysql
+        - community.postgresql
+        - community.general
+        - community.hashi_vault
+
+    - name: Install Python client libraries the above collections' modules need
+      ansible.builtin.pip:
+        name:
+          - pymysql
+          - psycopg2-binary
+          - hvac
+        executable: pip3
+        extra_args: --break-system-packages
+
+    # ── Vault token renewal timer (unit definitions only — no secret content) ──
+    - name: Deploy vault-token-renew.service
+      copy:
+        dest: /etc/systemd/system/vault-token-renew.service
+        mode: "0644"
+        content: |
+          [Unit]
+          Description=Renew linux-gh-runner's scoped Vault token
+
+          [Service]
+          Type=oneshot
+          EnvironmentFile=/home/linux-gh-runner/actions-runner/.env
+          ExecStart=/usr/bin/vault token renew
+      notify: Reload systemd units
+
+    - name: Deploy vault-token-renew.timer
+      copy:
+        dest: /etc/systemd/system/vault-token-renew.timer
+        mode: "0644"
+        content: |
+          [Unit]
+          Description=Periodic renewal of linux-gh-runner's Vault token (768h max TTL)
+
+          [Timer]
+          OnBootSec=5min
+          OnUnitActiveSec=1d
+          Persistent=true
+
+          [Install]
+          WantedBy=timers.target
+      notify: Reload systemd units
+
+    - name: Flush handlers so the timer unit is current before enabling it
+      meta: flush_handlers
+
+    - name: Enable and start the Vault token renewal timer
+      systemd:
+        name: vault-token-renew.timer
+        enabled: true
+        state: started
+
+    # ── Firewall ──────────────────────────────────────────────────────────────
+    - name: UFW — default deny incoming
+      community.general.ufw:
+        default: deny
+        direction: incoming
+
+    - name: UFW — default allow outgoing
+      community.general.ufw:
+        default: allow
+        direction: outgoing
+
+    - name: UFW — SSH from LAN
+      community.general.ufw:
+        rule: allow
+        direction: in
+        src: 192.168.0.0/24
+        to_port: "22"
+        proto: tcp
+        comment: "SSH from LAN"
+
+    - name: UFW — SSH from Tailscale
+      community.general.ufw:
+        rule: allow
+        interface: tailscale0
+        direction: in
+        to_port: "22"
+        proto: tcp
+        comment: "SSH from Tailscale"
+
+    - name: UFW — enable
+      community.general.ufw:
+        state: enabled
+
+  handlers:
+    - name: Reload systemd units
+      systemd:
+        daemon_reload: true

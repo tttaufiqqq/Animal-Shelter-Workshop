@@ -1,0 +1,126 @@
+# Brings linux-mini-io (Proxmox VM 109) under Ansible management — see
+# proxmox-homelab-taufiq/docs/05-minio/minio-setup.md for the original by-hand
+# setup this describes.
+#
+# Deliberately NOT managed here, on purpose:
+#   - The data disk partition/format/fstab mount. It's already mounted and
+#     holds real Terraform state + GLM product images; a mismatched fstab
+#     entry (wrong UUID/options) risks an unmount or reformat on next boot,
+#     for zero benefit over leaving already-working storage alone.
+#   - `/etc/default/minio`'s contents — MINIO_ROOT_PASSWORD is a real,
+#     already-deployed secret this host currently serves Terraform state and
+#     the GLM app's bucket with. Re-templating it risks either exposing the
+#     value in a var file/git or, if the value doesn't match exactly,
+#     rewriting real credentials other systems depend on right now.
+- name: Provision linux-mini-io (self-hosted MinIO) — structural state only
+  hosts: linux_mini_io
+  become: true
+
+  tasks:
+    - name: Install MinIO server binary (no-op if already present)
+      get_url:
+        url: https://dl.min.io/server/minio/release/linux-amd64/minio
+        dest: /usr/local/bin/minio
+        mode: "0755"
+      register: minio_binary
+      failed_when: false
+
+    - name: Install MinIO client (mc) binary (no-op if already present)
+      get_url:
+        url: https://dl.min.io/client/mc/release/linux-amd64/mc
+        dest: /usr/local/bin/mc
+        mode: "0755"
+      register: mc_binary
+      failed_when: false
+
+    # state: started only starts an already-stopped service, never restarts
+    # a running one.
+    - name: Ensure minio service is enabled and running
+      service:
+        name: minio
+        state: started
+        enabled: true
+
+    - name: Install fail2ban (brute-force protection)
+      apt:
+        name: fail2ban
+        state: present
+        update_cache: true
+
+    - name: Install unattended-upgrades (automatic security updates)
+      apt:
+        name: unattended-upgrades
+        state: present
+
+    - name: Set timezone
+      community.general.timezone:
+        name: Asia/Kuala_Lumpur
+
+    # ── Firewall ──────────────────────────────────────────────────────────────
+    - name: UFW — default deny incoming
+      community.general.ufw:
+        default: deny
+        direction: incoming
+
+    - name: UFW — default allow outgoing
+      community.general.ufw:
+        default: allow
+        direction: outgoing
+
+    - name: UFW — SSH
+      community.general.ufw:
+        rule: allow
+        name: OpenSSH
+
+    - name: UFW — MinIO S3 API
+      community.general.ufw:
+        rule: allow
+        to_port: "9000"
+        proto: tcp
+        comment: "MinIO S3 API"
+
+    - name: UFW — MinIO console
+      community.general.ufw:
+        rule: allow
+        to_port: "9001"
+        proto: tcp
+        comment: "MinIO console"
+
+    - name: UFW — enable
+      community.general.ufw:
+        state: enabled
+
+    # ── SSH hardening ────────────────────────────────────────────────────────
+    - name: Disable root SSH login
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^#?PermitRootLogin'
+        line: "PermitRootLogin no"
+      notify: Restart sshd
+
+    - name: Set MaxAuthTries
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^#?MaxAuthTries'
+        line: "MaxAuthTries 3"
+      notify: Restart sshd
+
+    - name: Set ClientAliveInterval
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^#?ClientAliveInterval'
+        line: "ClientAliveInterval 300"
+      notify: Restart sshd
+
+    - name: Set ClientAliveCountMax
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^#?ClientAliveCountMax'
+        line: "ClientAliveCountMax 2"
+      notify: Restart sshd
+
+  handlers:
+    - name: Restart sshd
+      service:
+        name: ssh
+        state: restarted

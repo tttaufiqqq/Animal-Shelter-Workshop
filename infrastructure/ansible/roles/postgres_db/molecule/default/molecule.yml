@@ -1,0 +1,18 @@
+---
+# No Docker/Podman available on this control node, so this scenario uses the
+# delegated driver against a real, disposable LXC container on the Proxmox
+# host (create.yml/destroy.yml drive it via `pct` over SSH) — the same
+# scratch-container pattern already used to dry-run the Stage 1 Terraform
+# container import, just reused here for role testing instead of --check.
+driver:
+  name: default
+platforms:
+  - name: molecule-postgres-test
+provisioner:
+  name: ansible
+  playbooks:
+    create: create.yml
+    converge: converge.yml
+    destroy: destroy.yml
+verifier:
+  name: ansible

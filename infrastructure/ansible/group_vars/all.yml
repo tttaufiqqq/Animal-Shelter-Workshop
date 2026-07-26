@@ -20,17 +20,17 @@ asw_secrets: "{{ lookup('community.hashi_vault.vault_kv2_get',
 
 # MySQL/MariaDB root credential for the 4 linux-{mysql,mysql-2,mariadb,mariadb-2}.yml
 # playbooks' mysql_db/mysql_user tasks. Unified across all 5 DB servers on
-# 2026-07-20 (see CLAUDE.md's Server Topology note) and documented there in
-# plaintext already — this is homelab/experiment infrastructure with one
-# shared admin credential by deliberate choice, not routed through Vault like
-# asw_secrets.db_password (the app-level credential) above. login_user/
+# 2026-07-20 (see CLAUDE.md's Server Topology note). Was plaintext here until
+# Stage 2 closed that one named exception — now the same asw_secrets lookup
+# above (one Vault read per play, same asw-deploy AppRole, same
+# 'animal-shelter-workshop' KV path) just carries this field too. login_user/
 # login_password, not login_unix_socket: setting this password via ALTER USER
 # switches MySQL/MariaDB root's auth plugin from unix_socket/auth_socket to
 # mysql_native_password, so socket auth (which doesn't check a password at
 # all) stopped working on all 4 hosts the moment the password was unified —
 # found live when the bootstrap run for CD failed with "Access denied for
 # user 'root'@'localhost' (using password: NO)".
-mysql_root_password: "qwertY@1612"
+mysql_root_password: "{{ asw_secrets.mysql_root_password }}"
 
 # Toggle for playbooks/tasks/vault-agent.yml. true: php-fpm and the
 # secret-reading CLI commands (migrate/seed) run under `vault agent -exec`,

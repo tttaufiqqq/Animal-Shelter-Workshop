@@ -1,0 +1,27 @@
+---
+- name: Destroy
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    molecule_ct_id: 199
+    proxmox_ssh_target: "root@100.97.8.93"
+
+  tasks:
+    - name: Log the container out of Tailscale before destroying it (best effort)
+      ansible.builtin.shell: >
+        ssh {{ proxmox_ssh_target }}
+        "pct exec {{ molecule_ct_id }} -- tailscale logout 2>/dev/null; true"
+      changed_when: false
+      ignore_errors: true
+
+    - name: Stop and destroy the scratch container
+      ansible.builtin.shell: >
+        ssh {{ proxmox_ssh_target }}
+        "pct stop {{ molecule_ct_id }} 2>/dev/null; pct destroy {{ molecule_ct_id }} 2>/dev/null; true"
+      changed_when: false
+
+    - name: Reset Molecule's instance bookkeeping
+      copy:
+        content: "{}"
+        dest: "{{ molecule_instance_config }}"

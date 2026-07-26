@@ -1,0 +1,10 @@
+---
+- name: Converge
+  hosts: all
+  become: true
+  vars:
+    db_name: molecule_test_db
+    db_user: molecule_test_user
+    db_password: "molecule-test-password"
+  roles:
+    - role: postgres_db

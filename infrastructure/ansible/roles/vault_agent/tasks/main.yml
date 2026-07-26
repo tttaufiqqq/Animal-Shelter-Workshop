@@ -1,8 +1,9 @@
+---
 # Toggle: group_vars/all.yml's vault_agent_enabled. true wraps php-fpm and the
 # secret-reading CLI commands (migrate/seed) under `vault agent -exec`, and
 # skips config:cache (which would otherwise bake the same secrets back into
 # bootstrap/cache/config.php, defeating the point). false rolls all of that
-# back to the plain env-app.j2 + config:cache flow that ran before this file
+# back to the plain env-app.j2 + config:cache flow that ran before this role
 # existed — see oracle-db-learning-proxmox/docs/11-vault-approle-app-integration/
 # for the full design and why php-fpm-only wrapping was rejected as incomplete.
 
@@ -63,7 +64,7 @@
     # run overwriting the same path. See templates/vault-agent.hcl.j2.
     - name: Deploy Vault Agent config for php-fpm
       template:
-        src: ../templates/vault-agent.hcl.j2
+        src: vault-agent.hcl.j2
         dest: /etc/vault-agent/agent-fpm.hcl
         owner: root
         group: taufiq
@@ -78,7 +79,7 @@
         # systemd's RuntimeDirectory=vault-agent (in the override) creates
         # this tmpfs dir root-owned before ExecStart — matches.
         vault_agent_sink_path: /run/vault-agent/token
-      register: agent_fpm_config_deployed
+      notify: Restart php-fpm under Vault Agent supervision
 
     # migrate/seed run as become_user: taufiq, not root — /run/vault-agent is
     # root-owned (created for php-fpm above), so they get their own sink path
@@ -87,7 +88,7 @@
     # to write /run/vault-agent/token.tmp as taufiq.
     - name: Deploy Vault Agent config for migrate
       template:
-        src: ../templates/vault-agent.hcl.j2
+        src: vault-agent.hcl.j2
         dest: /etc/vault-agent/agent-migrate.hcl
         owner: root
         group: taufiq
@@ -102,7 +103,7 @@
 
     - name: Deploy Vault Agent config for seed
       template:
-        src: ../templates/vault-agent.hcl.j2
+        src: vault-agent.hcl.j2
         dest: /etc/vault-agent/agent-seed.hcl
         owner: root
         group: taufiq
@@ -124,7 +125,7 @@
     # web-facing app (wrapped separately, above) had all 5 connected fine.
     - name: Deploy Vault Agent config for scheduler
       template:
-        src: ../templates/vault-agent.hcl.j2
+        src: vault-agent.hcl.j2
         dest: /etc/vault-agent/agent-scheduler.hcl
         owner: root
         group: taufiq
@@ -144,7 +145,7 @@
     # one-shot invocations that could race on the same token file).
     - name: Deploy Vault Agent config for CD health verification
       template:
-        src: ../templates/vault-agent.hcl.j2
+        src: vault-agent.hcl.j2
         dest: /etc/vault-agent/agent-verify.hcl
         owner: root
         group: taufiq
@@ -166,7 +167,7 @@
         path: /etc/php/8.3/fpm/pool.d/www.conf
         regexp: "^;?clear_env\\s*="
         line: "clear_env = no"
-      register: clear_env_configured
+      notify: Restart php-fpm under Vault Agent supervision
 
     - name: Create php8.3-fpm systemd override directory
       file:
@@ -175,16 +176,9 @@
 
     - name: Deploy php8.3-fpm Vault Agent systemd override
       copy:
-        src: ../templates/php-fpm-vault-agent-override.conf
+        src: php-fpm-vault-agent-override.conf
         dest: /etc/systemd/system/php8.3-fpm.service.d/vault-agent-override.conf
-      register: agent_override_deployed
-
-    - name: Reload systemd and restart php8.3-fpm under Vault Agent supervision
-      systemd:
-        name: php8.3-fpm
-        daemon_reload: true
-        state: restarted
-      when: agent_override_deployed.changed or agent_fpm_config_deployed.changed or clear_env_configured.changed
+      notify: Restart php-fpm under Vault Agent supervision
 
 - name: Vault Agent — disable/rollback path
   when: not vault_agent_enabled
@@ -193,11 +187,4 @@
       file:
         path: /etc/systemd/system/php8.3-fpm.service.d/vault-agent-override.conf
         state: absent
-      register: agent_override_removed
-
-    - name: Reload systemd and restart php8.3-fpm under normal supervision (rollback)
-      systemd:
-        name: php8.3-fpm
-        daemon_reload: true
-        state: restarted
-      when: agent_override_removed.changed
+      notify: Restart php-fpm under normal supervision (rollback)

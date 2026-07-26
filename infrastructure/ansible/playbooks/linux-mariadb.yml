@@ -12,168 +12,21 @@
     # Sourced from Vault (group_vars/all.yml's asw_secrets) — was hardcoded
     # here and in env-app.j2 as two copies of the same literal, free to drift.
     db_password: "{{ asw_secrets.db_password }}"
-    mariadb_config: /etc/mysql/mariadb.conf.d/50-server.cnf
 
-  tasks:
-    - name: Install MariaDB and Python MySQL client
-      apt:
-        name:
-          - mariadb-server
-          - python3-pymysql
-        state: present
-        update_cache: true
+    mysql_family_engine: mariadb
+    mysql_family_package: mariadb-server
+    mysql_family_service: mariadb
+    mysql_family_config_path: /etc/mysql/mariadb.conf.d/50-server.cnf
+    mysql_family_bootstrap_root_auth: true
+    mysql_family_extra_config_lines: []
+    # MariaDB has no SHOW_ROUTINE dynamic privilege (that's MySQL 8 only),
+    # hence the classic SELECT-on-mysql.proc escape hatch instead.
+    mysql_family_priv_extra: "mysql.proc:SELECT"
 
-    - name: Start and enable MariaDB
-      service:
-        name: mariadb
-        state: started
-        enabled: true
-
-    # A fresh `apt install mariadb-server` leaves root@localhost on the
-    # unix_socket plugin (no password, OS-user-matched login only) — every
-    # task below authenticates with login_password, which unix_socket
-    # ignores. Every real run so far targeted an already hand-configured
-    # box where this had been switched over manually; a genuinely fresh
-    # install needs it done here first. unix_socket auth only ever works
-    # over an actual AF_UNIX connection (login_unix_socket) — once this
-    # succeeds the plugin switches to mysql_native_password and the same
-    # socket attempt starts failing on every later re-run, so it's allowed
-    # to fail here; if root auth is genuinely broken the next task (which
-    # needs login_password) will fail loudly instead.
-    - name: Bootstrap MariaDB root to password auth (fresh installs default to unix_socket)
-      community.mysql.mysql_user:
-        name: root
-        host: localhost
-        plugin: mysql_native_password
-        password: "{{ mysql_root_password }}"
-        login_unix_socket: /var/run/mysqld/mysqld.sock
-        state: present
-      failed_when: false
-
-    - name: Allow remote connections
-      lineinfile:
-        path: "{{ mariadb_config }}"
-        regexp: '^bind-address'
-        line: "bind-address = 0.0.0.0"
-      notify: Restart MariaDB
-
-    - name: Flush handlers so config is applied before DB tasks
-      meta: flush_handlers
-
-    - name: Create workshop_2 database
-      community.mysql.mysql_db:
-        name: "{{ db_name }}"
-        encoding: utf8mb4
-        collation: utf8mb4_unicode_ci
-        state: present
-        login_user: root
-        login_password: "{{ mysql_root_password }}"
-
-    # mysql.proc:SELECT is what lets mysqldump --routines read a routine's
-    # body when the connecting user isn't its DEFINER (every routine here is
-    # still DEFINER=workshop_2, the pre-split shared credential — see
-    # docs/16-stored-routine-definer-privilege-split.md). MariaDB has no
-    # SHOW_ROUTINE dynamic privilege (that's MySQL 8 only), hence the
-    # classic SELECT-on-mysql.proc escape hatch instead. Must live in this
-    # SAME priv string, not a separate task/grant: mysql_user's default
-    # append_privs:false revokes anything not listed here on every run,
-    # which is exactly how this grant went missing between the 2026-07-20
-    # manual fix and 2026-07-26 (applied by hand outside Ansible, silently
-    # wiped by the next re-provision).
-    - name: Create workshop_2 user (allow from any host)
-      community.mysql.mysql_user:
-        name: "{{ db_user }}"
-        password: "{{ db_password }}"
-        host: "%"
-        priv: "{{ db_name }}.*:ALL/mysql.proc:SELECT"
-        state: present
-        login_user: root
-        login_password: "{{ mysql_root_password }}"
-
-    # ── Firewall ──────────────────────────────────────────────────────────────
-    - name: UFW — default deny incoming
-      community.general.ufw:
-        default: deny
-        direction: incoming
-
-    - name: UFW — default allow outgoing
-      community.general.ufw:
-        default: allow
-        direction: outgoing
-
-    - name: UFW — SSH from admin machine via Tailscale only
-      community.general.ufw:
-        rule: allow
-        interface: tailscale0
-        direction: in
-        from_ip: "100.68.235.121"
-        to_port: "22"
-        proto: tcp
-        comment: "SSH from msi admin machine"
-
-    - name: UFW — SSH from linux-gh-runner (CD) via Tailscale only
-      community.general.ufw:
-        rule: allow
-        interface: tailscale0
-        direction: in
-        from_ip: "100.72.6.40"
-        to_port: "22"
-        proto: tcp
-        comment: "SSH from linux-gh-runner (CD)"
-
-    - name: UFW — MariaDB from app-server via Tailscale only
-      community.general.ufw:
-        rule: allow
-        interface: tailscale0
-        direction: in
-        from_ip: "100.100.123.90"
-        to_port: "3306"
-        proto: tcp
-        comment: "MariaDB from app-server"
-
-    - name: UFW — enable
-      community.general.ufw:
-        state: enabled
-
-    # ── Backups ──────────────────────────────────────────────────────────────
-    # Per-host backup timers retired in favor of one coordinated backup run
-    # from app-server (php artisan db:backup) — see docs/10-backups.md for why:
-    # per-host dumps never left this VM, never covered msi, and had no
-    # cross-database integrity check. These tasks stop and remove the old
-    # unit on already-provisioned hosts; they don't reinstall it.
-    - name: Stop and disable the retired per-host backup timer
-      systemd:
-        name: workshop-db-backup.timer
-        state: stopped
-        enabled: false
-      ignore_errors: true
-
-    - name: Remove the retired backup systemd timer unit
-      file:
-        path: /etc/systemd/system/workshop-db-backup.timer
-        state: absent
-      notify: Reload systemd (backup)
-
-    - name: Remove the retired backup systemd service unit
-      file:
-        path: /etc/systemd/system/workshop-db-backup.service
-        state: absent
-      notify: Reload systemd (backup)
-
-    - name: Remove the retired backup script
-      file:
-        path: /usr/local/bin/backup-workshop-db.sh
-        state: absent
-
-    # /var/backups/workshop_2 is left in place — delete manually once the
-    # centralized backup on app-server is confirmed working.
-
-  handlers:
-    - name: Restart MariaDB
-      service:
-        name: mariadb
-        state: restarted
-
-    - name: Reload systemd (backup)
-      systemd:
-        daemon_reload: true
+  roles:
+    - role: mysql_family
+    - role: db_firewall
+      vars:
+        db_firewall_port: 3306
+        db_firewall_service_name: MariaDB
+    - role: legacy_backup_cleanup
