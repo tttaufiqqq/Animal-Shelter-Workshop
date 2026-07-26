@@ -1,0 +1,22 @@
+# Non-secret app config, split out of deployment.yaml's inline env list.
+# DB config here is still the Stage 4 placeholder (sqlite, no real
+# connections) — wiring the real 5-connection setup into k3s is explicitly
+# a later, harder step per the plan, not this one.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: asw-app-config
+data:
+  APP_NAME: ASW
+  APP_ENV: local
+  APP_DEBUG: "true"
+  DB_CONNECTION: sqlite
+  DB_DATABASE: database/database.sqlite
+  SESSION_DRIVER: file
+  CACHE_STORE: file
+  QUEUE_CONNECTION: sync
+  FILESYSTEM_DISK: local
+  MAIL_MAILER: log
+  BROADCAST_CONNECTION: log
+  LOG_CHANNEL: stack
+  LOG_LEVEL: debug

@@ -1,0 +1,38 @@
+# Same vhost as docker/nginx/default.conf (Stage 4), adapted for the
+# app+nginx sidecar pattern: fastcgi_pass targets localhost since both
+# containers share one Pod's network namespace, not a Compose service name.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: asw-nginx-config
+data:
+  default.conf: |
+    server {
+        listen 80;
+        index index.php;
+        root /var/www/html/public;
+
+        charset utf-8;
+
+        client_max_body_size 30M;
+
+        location / {
+            try_files $uri $uri/ /index.php?$query_string;
+        }
+
+        location = /favicon.ico { access_log off; log_not_found off; }
+        location = /robots.txt  { access_log off; log_not_found off; }
+
+        error_page 404 /index.php;
+
+        location ~ \.php$ {
+            fastcgi_pass 127.0.0.1:9000;
+            fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
+            include fastcgi_params;
+            fastcgi_hide_header X-Powered-By;
+        }
+
+        location ~ /\.(?!well-known).* {
+            deny all;
+        }
+    }

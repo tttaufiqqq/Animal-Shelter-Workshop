@@ -1,0 +1,56 @@
+# Stage 5 (k3s) — same 2-container shape as Stage 4's docker-compose.yml
+# (app + webserver), minus the local `db` service; DB config stays deferred
+# to the ConfigMap/Secret step. initContainer replaces Docker's "auto-copy
+# image content into an empty named volume on first use" behavior, which
+# k8s emptyDir volumes don't do on their own — without it, nginx's mount
+# would shadow the Vite build baked into the image at /var/www/html/public.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: asw-app
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: asw
+  template:
+    metadata:
+      labels:
+        app: asw
+    spec:
+      initContainers:
+        - name: copy-public-assets
+          image: docker.io/tttaufiqqq/animal-shelter-workshop:v1.0.0
+          command: ["sh", "-c", "cp -r /var/www/html/public/. /shared/"]
+          volumeMounts:
+            - name: public-assets
+              mountPath: /shared
+      containers:
+        - name: app
+          image: docker.io/tttaufiqqq/animal-shelter-workshop:v1.0.0
+          ports:
+            - containerPort: 9000
+          envFrom:
+            - configMapRef:
+                name: asw-app-config
+            - secretRef:
+                name: asw-app-secret
+          volumeMounts:
+            - name: public-assets
+              mountPath: /var/www/html/public
+        - name: nginx
+          image: nginx:alpine
+          ports:
+            - containerPort: 80
+          volumeMounts:
+            - name: public-assets
+              mountPath: /var/www/html/public
+              readOnly: true
+            - name: nginx-config
+              mountPath: /etc/nginx/conf.d
+      volumes:
+        - name: public-assets
+          emptyDir: {}
+        - name: nginx-config
+          configMap:
+            name: asw-nginx-config
