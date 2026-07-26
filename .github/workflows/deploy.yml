@@ -252,7 +252,12 @@ jobs:
             -i "$RUNNER_TEMP/cd/cd_key" taufiq@100.100.123.90 \
             'sudo -u taufiq vault agent -config=/etc/vault-agent/agent-verify.hcl' 2>&1)
           echo "$OUTPUT"
-          echo "$OUTPUT" | grep -q '5/5 online'
+          # Not `echo "$OUTPUT" | grep -q ...` — grep -q exits the instant it
+          # finds a match, before echo finishes writing the rest of this
+          # (long) output; under pipefail that SIGPIPEs echo and fails the
+          # step even when the health check actually passed. Pure bash
+          # substring match instead: no subprocess, no pipe, no race.
+          [[ "$OUTPUT" == *"5/5 online"* ]]
 
       - name: Promote — record this SHA as last known good
         run: |
@@ -322,7 +327,12 @@ jobs:
             -i "$RUNNER_TEMP/cd/cd_key" taufiq@100.100.123.90 \
             'sudo -u taufiq vault agent -config=/etc/vault-agent/agent-verify.hcl' 2>&1)
           echo "$OUTPUT"
-          echo "$OUTPUT" | grep -q '5/5 online'
+          # Not `echo "$OUTPUT" | grep -q ...` — grep -q exits the instant it
+          # finds a match, before echo finishes writing the rest of this
+          # (long) output; under pipefail that SIGPIPEs echo and fails the
+          # step even when the health check actually passed. Pure bash
+          # substring match instead: no subprocess, no pipe, no race.
+          [[ "$OUTPUT" == *"5/5 online"* ]]
 
       - name: Record rollback in job summary
         if: always()
