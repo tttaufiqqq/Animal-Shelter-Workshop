@@ -66,13 +66,17 @@
 
    <!-- Mobile Menu Button -->
    <div class="md:hidden">
-    <button class="text-white hover:text-purple-100 focus:outline-none">
+    <button @click.stop="mobileMenuOpen = !mobileMenuOpen" class="text-white hover:text-purple-100 focus:outline-none">
      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+      <path :class="{ 'hidden': mobileMenuOpen }" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
        d="M4 6h16M4 12h16M4 18h16"></path>
+      <path :class="{ 'hidden': ! mobileMenuOpen }" class="hidden" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+       d="M6 18L18 6M6 6l12 12"></path>
      </svg>
     </button>
    </div>
   </div>
  </div>
+
+ @include('navbar.mobile-nav')
 </nav>
