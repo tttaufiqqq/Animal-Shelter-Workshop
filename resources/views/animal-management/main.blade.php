@@ -172,9 +172,14 @@
                         @role('public user|caretaker|adopter')
                         {{-- Right: Visit List Button --}}
                         <button onclick="openVisitModal()"
-                                class="bg-white bg-opacity-20 hover:bg-white hover:text-purple-700 text-white px-6 py-4 rounded-2xl transition-all duration-300 flex items-center gap-3 shadow-lg backdrop-blur-sm hover:shadow-xl transform hover:scale-105">
-                            <div class="bg-white bg-opacity-30 p-2 rounded-lg">
+                                class="relative bg-white bg-opacity-20 hover:bg-white hover:text-purple-700 text-white px-6 py-4 rounded-2xl transition-all duration-300 flex items-center gap-3 shadow-lg backdrop-blur-sm hover:shadow-xl transform hover:scale-105">
+                            <div class="relative bg-white bg-opacity-30 p-2 rounded-lg">
                                 <i class="fas fa-clipboard-list text-2xl"></i>
+                                @if($animalList->isNotEmpty())
+                                    <span class="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center shadow-md">
+                                        {{ $animalList->count() }}
+                                    </span>
+                                @endif
                             </div>
                             <div class="text-left">
                                 <div class="font-bold text-lg">Visit List</div>

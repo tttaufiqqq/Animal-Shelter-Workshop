@@ -76,9 +76,14 @@
 
                 @role('caretaker|public user|adopter')
                 <button onclick="openVisitModal()"
-                        class="group bg-white/10 hover:bg-white/20 text-white px-4 py-3 rounded-xl transition-all duration-300 flex items-center gap-2 shadow-lg hover:shadow-xl backdrop-blur border border-white/20">
+                        class="group relative bg-white/10 hover:bg-white/20 text-white px-4 py-3 rounded-xl transition-all duration-300 flex items-center gap-2 shadow-lg hover:shadow-xl backdrop-blur border border-white/20">
                     <i class="fas fa-list text-lg group-hover:scale-110 transition-transform"></i>
                     <span class="hidden sm:inline font-semibold">Visit List</span>
+                    @if(($animalList ?? collect())->isNotEmpty())
+                        <span class="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center shadow-md">
+                            {{ $animalList->count() }}
+                        </span>
+                    @endif
                 </button>
                 @endrole
             </div>
