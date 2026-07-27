@@ -2,11 +2,20 @@
 
 ## Overview
 
-Terraform manages the entire live Proxmox fleet now — both the disposable test loop below
-(created fresh via `bpg/proxmox`, cloned from a Ubuntu 24.04 cloud-init template, joins Tailscale
-on first boot) and the real production VMs/CTs (adopted via `terraform import`, never created
-fresh — see the second table below). Only `opnsense` (the network's actual gateway) and the
-stopped legacy VMs (102/103/107, plus template 9000) are deliberately left outside Terraform.
+This Terraform config is scoped to Animal-Shelter-Workshop only, per
+`devops-practice-plan.md`'s own stated scope in the homelab meta-repo — the disposable test loop
+below (created fresh via `bpg/proxmox`, cloned from a Ubuntu 24.04 cloud-init template, joins
+Tailscale on first boot) and the real production VMs/CTs this app actually needs (adopted via
+`terraform import`, never created fresh — see the second table below): its 5 DB connections,
+`app-server`, `linux-vault` (secrets), and `linux-gh-runner` (CI/CD).
+
+Genuinely shared homelab infrastructure — `linux-mini-io`, `linux-k3s`, `linux-mongodb`, and
+`linux-observability` — used to be imported here too, but none of those are ASW-specific
+(`linux-observability` monitors the whole 12-host fleet, `linux-mini-io` also backs
+`Library-System-EDP`, etc.). Moved to the homelab meta-repo's own Terraform instead — see
+`docs/20-homelab-terraform/homelab-terraform-split.md` there. `opnsense` (the network's actual
+gateway) and the stopped legacy VMs (102/103/107, plus template 9000) remain deliberately outside
+Terraform everywhere.
 
 ### Test loop (`vms.tf`, disposable, `test-` prefixed)
 
@@ -31,16 +40,15 @@ stopped legacy VMs (102/103/107, plus template 9000) are deliberately left outsi
 | 104 | linux-mysql | `shelter` connection, MySQL 8.0 | VM |
 | 105 | linux-mariadb | `reporting` connection, MariaDB | VM |
 | 106 | linux-postgres | `users` connection, PostgreSQL | VM |
-| 109 | linux-mini-io | MinIO — hosts this very Terraform state's S3 backend | VM |
 | 112 | linux-mysql-2 | `animals` connection, MySQL 8.0 | CT |
 | 113 | linux-mariadb-2 | `booking` connection, MariaDB | CT |
-| 100 | linux-k3s | Stage 5 k3s node | CT |
-| 108 | linux-mongodb | MongoDB | CT |
-| 110 | linux-vault | Vault | CT |
-| 111 | linux-gh-runner | CI runner | CT |
-| 114 | linux-observability | Prometheus/Grafana/Loki/Alertmanager | CT |
+| 110 | linux-vault | Vault (this app's secrets) | CT |
+| 111 | linux-gh-runner | CI/CD for this app | CT |
 
 Full drift/gotcha writeup for this batch: `docs/19-devops-practice/12` in the homelab meta-repo.
+(`linux-mini-io`, `linux-k3s`, `linux-mongodb`, `linux-observability` were part of that same
+import batch but have since moved to the homelab meta-repo's own Terraform — see
+`docs/20-homelab-terraform/homelab-terraform-split.md` there.)
 
 ---
 
