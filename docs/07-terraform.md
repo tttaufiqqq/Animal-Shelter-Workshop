@@ -2,20 +2,45 @@
 
 ## Overview
 
-Terraform provisions 4 VMs on a single Proxmox node using the `bpg/proxmox` provider.
-Each VM is cloned from a Ubuntu 24.04 cloud-init template and automatically joins Tailscale on first boot.
+Terraform manages the entire live Proxmox fleet now — both the disposable test loop below
+(created fresh via `bpg/proxmox`, cloned from a Ubuntu 24.04 cloud-init template, joins Tailscale
+on first boot) and the real production VMs/CTs (adopted via `terraform import`, never created
+fresh — see the second table below). Only `opnsense` (the network's actual gateway) and the
+stopped legacy VMs (102/103/107, plus template 9000) are deliberately left outside Terraform.
 
-### VMs managed by Terraform
+### Test loop (`vms.tf`, disposable, `test-` prefixed)
 
 | VM ID | Name | Role |
 |---|---|---|
-| 201 | app-server | Laravel app (PHP + Nginx + Composer) |
-| 204 | linux-mysql | MySQL 8.0 |
-| 205 | linux-mariadb | MariaDB |
-| 206 | linux-postgres | PostgreSQL |
+| 201 | test-app-server | Laravel app (PHP + Nginx + Composer) |
+| 204 | test-mysql | MySQL 8.0 |
+| 205 | test-mariadb | MariaDB |
+| 206 | test-postgres | PostgreSQL |
 
 > IDs start at 201 (not 101) because 101–107 are pre-existing manual VMs kept as backups.
-> VM names match the Ansible inventory and Tailscale MagicDNS hostnames exactly — no prefix.
+> These are proof-of-loop resources, torn down after each proof (see
+> `docs/19-devops-practice/01` in the homelab meta-repo) — nothing here is meant to stay running.
+> Keys are `test-`-prefixed specifically so `terraform state list` never reads ambiguously
+> against the real production resources below, which share the same underlying roles.
+
+### Real production fleet (`production-vms.tf` + `containers.tf`, adopted via `terraform import`)
+
+| VM/CT ID | Name | Role | Type |
+|---|---|---|---|
+| 101 | app-server | Laravel app | VM |
+| 104 | linux-mysql | `shelter` connection, MySQL 8.0 | VM |
+| 105 | linux-mariadb | `reporting` connection, MariaDB | VM |
+| 106 | linux-postgres | `users` connection, PostgreSQL | VM |
+| 109 | linux-mini-io | MinIO — hosts this very Terraform state's S3 backend | VM |
+| 112 | linux-mysql-2 | `animals` connection, MySQL 8.0 | CT |
+| 113 | linux-mariadb-2 | `booking` connection, MariaDB | CT |
+| 100 | linux-k3s | Stage 5 k3s node | CT |
+| 108 | linux-mongodb | MongoDB | CT |
+| 110 | linux-vault | Vault | CT |
+| 111 | linux-gh-runner | CI runner | CT |
+| 114 | linux-observability | Prometheus/Grafana/Loki/Alertmanager | CT |
+
+Full drift/gotcha writeup for this batch: `docs/19-devops-practice/12` in the homelab meta-repo.
 
 ---
 
@@ -251,6 +276,34 @@ which is whatever is at `~/.ssh/id_ed25519` on the WSL control node.
 The HashiCorp apt repo (`apt.releases.hashicorp.com`) does not have packages for Ubuntu 25.04
 (codename `resolute`). Running the standard HashiCorp install script fails silently.
 Fix: `sudo snap install terraform --classic`
+
+### Importing the real production VMs/CTs: three `proxmox_virtual_environment_vm` defaults that silently diverge from reality
+
+Found while adopting `app-server`/`linux-mysql`/`linux-mariadb`/`linux-postgres`/`linux-mini-io`
+into `production-vms.tf` (full writeup: `docs/19-devops-practice/12` in the homelab meta-repo).
+Unlike the CT resource (`containers.tf`), the VM resource has its own set of attributes that
+default away from an imported host's real state unless declared explicitly:
+
+- `on_boot` and `started` both default to `true` when undeclared — none of the 4 DB/app VMs
+  actually have `onboot` set in real life, so leaving these undeclared would have had Terraform
+  try to enable auto-start on every one of them on the very first `apply`.
+- `scsi_hardware` defaults to `"virtio-scsi-pci"`; every real host here actually uses
+  `"virtio-scsi-single"`.
+- `cdrom` can never be read back on import (same category as the CT resource's
+  `operating_system.template_file_id` — Proxmox just doesn't persist it in a form the provider's
+  read populates into state), so it **always** shows as an add on the first `plan` after import,
+  regardless of whether it matches reality. Declaring it explicitly with `interface = "ide2"`
+  (the real one — the provider's own default is `"ide3"`, which doesn't match and would leave a
+  second, unrelated cdrom device rather than manage the real one) makes that one-time apply a
+  genuine no-op against the API, not a real change — confirmed via `qm config` byte-identical
+  before/after on every host.
+
+### A stopped container/VM must be imported with `started = false`
+
+`linux-k3s` (CT 100) and `linux-mongodb` (CT 108) were genuinely powered off at import time.
+Both `containers.tf` and `production-vms.tf`'s `started` attribute must match the real current
+power state, not just assume `true` — otherwise the very first `apply` boots a host that was
+deliberately left off.
 
 ---
 

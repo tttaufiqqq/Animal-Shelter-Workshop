@@ -274,10 +274,16 @@ the now-meaningless `email_verified_at` cast on `User`.
   `/home/taufiq/Animal-Shelter-Workshop` and `become_user: taufiq` throughout, matching the box as it
   actually exists (confirmed via nginx's real `root` directive) rather than the `/var/www/animal-shelter`
   / `workshop` layout that was never actually deployed. Decision taken: update Ansible to match reality,
-  not migrate the live site. One new gap this creates: a *fresh* Terraform-provisioned app-server VM
-  only gets a `workshop` OS user from cloud-init (see `docs/06-ansible.md`), not `taufiq` — this
-  playbook would now fail against a truly from-scratch VM until a `taufiq` user exists. Flagged, not
-  fixed, since every real run so far has targeted the existing hand-configured box.
+  not migrate the live site.
+- ~~One new gap this creates: a *fresh* Terraform-provisioned app-server VM only gets a `workshop` OS
+  user from cloud-init, not `taufiq`, and every real Ansible run so far has targeted the existing
+  hand-configured box, not one Terraform actually created~~ — **resolved, on two fronts.** The
+  `taufiq` user gap was closed in `cloud-init.yml.tftpl` (see `docs/07-terraform.md`), and the
+  "targeted the hand-configured box" framing itself no longer applies: `app-server` (VM 101) and the
+  rest of the real production fleet are now adopted into Terraform state directly via `terraform
+  import` (see `docs/07-terraform.md`'s "VMs/CTs managed by Terraform" table), not just proven once
+  against a disposable, torn-down test set. The distinction that mattered here — Terraform-created vs.
+  hand-configured — is gone; the real box itself is what Terraform manages now.
 - ~~SMTP credentials still needed~~ — **done, and now in Vault.** Resend is the provider
   (`smtp.resend.com`, username `resend`), domain `mail.tttaufiqqq.com` verified (SPF/DKIM/DMARC). The
   real API key was originally applied by hand directly to app-server's live `.env`, existing in no
