@@ -17,6 +17,8 @@ Genuinely shared homelab infrastructure — `linux-mini-io`, `linux-k3s`, `linux
 gateway) and the stopped legacy VMs (102/103/107, plus template 9000) remain deliberately outside
 Terraform everywhere.
 
+![Terraform, Proxmox, and Ansible pipeline: Terraform defines each machine's spec and sends API calls to Proxmox, Proxmox creates the VMs/CTs, then once a machine boots and joins Tailscale, Ansible SSHes in to install the DBMS, PHP, and dependencies](images/terraform-proxmox-ansible-pipeline.png)
+
 ### Test loop (`vms.tf`, disposable, `test-` prefixed)
 
 | VM ID | Name | Role |
