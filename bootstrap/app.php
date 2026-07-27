@@ -19,7 +19,9 @@ return Application::configure(basePath: dirname(__DIR__))
             '127.0.0.1',
         ]);
 
-        $middleware->web(append: [
+        $middleware->web(prepend: [
+            \App\Http\Middleware\PreventBfcache::class,
+        ], append: [
             \App\Http\Middleware\PreventDatabaseTimeout::class,
             \App\Http\Middleware\InjectDatabaseStatus::class,
             \App\Http\Middleware\HandleDatabaseFailures::class,

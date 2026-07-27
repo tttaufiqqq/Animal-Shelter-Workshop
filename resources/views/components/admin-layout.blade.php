@@ -17,10 +17,7 @@
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
 
-    <!-- Alpine.js -->
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
-
-    <!-- Livewire Styles -->
+    <!-- Livewire Styles (also injects Alpine.js — do not load Alpine separately, it causes "multiple instances" conflicts) -->
     @livewireStyles
 
     <style>
@@ -82,7 +79,7 @@
         <x-admin.sidebar />
 
         <!-- Main Content Area -->
-        <div class="flex-1 flex flex-col min-h-screen lg:ml-64">
+        <div class="flex-1 flex flex-col min-h-screen min-w-0 lg:ml-64">
             <!-- Topbar -->
             <x-admin.topbar
                 :title="$title ?? 'Dashboard'"
