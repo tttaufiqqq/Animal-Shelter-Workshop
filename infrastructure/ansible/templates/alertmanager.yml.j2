@@ -18,9 +18,24 @@ receivers:
         parse_mode: "HTML"
         message: |-
 {% raw %}
-          {{ range .Alerts }}
-          <b>{{ .Labels.alertname }}</b> — {{ .Status }}
-          Instance: {{ .Labels.instance }}
-          {{ .Annotations.summary }}
-          {{ end }}
+          {{- range .Alerts }}
+          {{ if eq .Status "firing" }}🔥 <b>FIRING</b>{{ else }}✅ <b>RESOLVED</b>{{ end }} — {{ .Labels.alertname }}
+          {{- if eq .Labels.severity "critical" }}
+          🚨 Severity: critical
+          {{- else if eq .Labels.severity "warning" }}
+          ⚠️ Severity: warning
+          {{- else }}
+          🔔 Severity: {{ .Labels.severity }}
+          {{- end }}
+
+          • Instance: {{ .Labels.instance }}
+          {{- if eq .Status "firing" }}
+          • Since: {{ .StartsAt.Format "15:04:05" }}
+          {{- else }}
+          • Duration: {{ .EndsAt.Sub .StartsAt }}
+          {{- end }}
+          • Summary: {{ .Annotations.summary }}
+
+          ———————————
+          {{- end }}
 {% endraw %}
