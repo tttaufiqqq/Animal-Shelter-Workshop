@@ -70,9 +70,16 @@ resource "proxmox_virtual_environment_vm" "this" {
     }
   }
 
-  # Don't re-run cloud-init on every apply
   lifecycle {
-    ignore_changes = [initialization]
+    ignore_changes = [
+      # Don't re-run cloud-init on every apply
+      initialization,
+      # A full clone doesn't actually track file_format the way a fresh
+      # disk creation does — Proxmox always reports the cloned disk back
+      # as "raw" regardless of what's declared here, so this shows a
+      # perpetual (harmless) diff on every plan unless ignored.
+      disk[0].file_format,
+    ]
   }
 
   depends_on = [proxmox_virtual_environment_file.cloud_init]

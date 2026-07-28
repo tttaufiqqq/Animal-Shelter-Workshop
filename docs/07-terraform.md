@@ -21,12 +21,20 @@ Terraform everywhere.
 
 ### Test loop (`vms.tf`, disposable, `test-` prefixed)
 
-| VM ID | Name | Role |
-|---|---|---|
-| 201 | test-app-server | Laravel app (PHP + Nginx + Composer) |
-| 204 | test-mysql | MySQL 8.0 |
-| 205 | test-mariadb | MariaDB |
-| 206 | test-postgres | PostgreSQL |
+| VM/CT ID | Name | Role | Type |
+|---|---|---|---|
+| 201 | test-app-server | Laravel app (PHP + Nginx + Composer) | VM |
+| 204 | test-mysql | MySQL 8.0 | VM |
+| 205 | test-mariadb | MariaDB | VM |
+| 206 | test-postgres | PostgreSQL | VM |
+| 207 | test-mysql-2 | MySQL 8.0 — proves Terraform can *create* a CT, not just adopt one | CT |
+| 208 | test-mariadb-2 | MariaDB — same purpose as above | CT |
+
+The 2 CTs are sized small (512MB/1 core) since they only need to prove creation works, not carry
+real load. Unlike the VMs, a fresh CT needs a manual bridge before Tailscale works at all (the TUN
+device workaround + installing/joining Tailscale by hand via `pct exec` — no cloud-init equivalent
+exists for CTs). Full story, including the full end-to-end proof through to a real Ansible
+handoff: `docs/19-devops-practice/13` in the homelab meta-repo.
 
 > IDs start at 201 (not 101) because 101–107 are pre-existing manual VMs kept as backups.
 > These are proof-of-loop resources, torn down after each proof (see
@@ -314,6 +322,26 @@ default away from an imported host's real state unless declared explicitly:
 Both `containers.tf` and `production-vms.tf`'s `started` attribute must match the real current
 power state, not just assume `true` — otherwise the very first `apply` boots a host that was
 deliberately left off.
+
+### Applying VMs and CTs together can hit a Proxmox lock timeout
+
+Applying the 4 test VMs and 2 test CTs in one `terraform apply` command errored on both CT
+starts: `can't lock file '/run/lock/lxc/pve-config-<id>.lock' - got timeout`. The containers were
+actually created and running fine underneath — only the API's status polling hit lock
+contention, since 4 concurrent VM clones are I/O-heavy enough on a 4-core host to starve the CT
+start tasks' lock acquisition. Terraform marked both CTs "tainted" as a result (its default
+reaction to any resource error), which would destroy and recreate perfectly healthy containers
+for nothing — `terraform untaint` instead of blindly re-applying. The real fix: apply VMs and CTs
+as two separate `terraform apply` commands, not by tuning `-parallelism` down (that would slow
+the VMs' own parallelism too, and they never actually collided with each other).
+
+### Cloned VM disks don't track `file_format`
+
+Every VM created via `modules/proxmox-vm` shows `disk.file_format: "raw" -> "qcow2"` as a plan
+diff that persists identically even after applying it — Proxmox's clone operation doesn't
+preserve that attribute the way a fresh disk creation does. Same category as the CT's
+`operating_system.template_file_id` issue above. Fixed with `disk[0].file_format` added to the
+module's `lifecycle.ignore_changes`, not by repeatedly applying.
 
 ---
 

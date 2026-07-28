@@ -21,3 +21,7 @@ vault-approle*
 # target (e.g. "linux-mysql-1" due to a hostname collision with production),
 # so ansible_host needs pointing at the test VMs' actual Tailscale IPs
 .scratch-inventory-stage1-test.yml
+
+# Same reasoning again, extended to cover the full test loop (4 VMs + the
+# 2 test CTs added later) for the terraform-to-ansible automation script
+.scratch-inventory-test-loop.yml
