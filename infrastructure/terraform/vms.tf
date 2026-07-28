@@ -146,7 +146,12 @@ resource "proxmox_virtual_environment_container" "test_mysql_2" {
   }
 
   lifecycle {
-    ignore_changes = [operating_system]
+    # operating_system: not persisted by Proxmox after creation, same as the
+    # adopted CTs in containers.tf.
+    # initialization.user_account: write-once at creation, can't be read
+    # back OR updated in-place — any diff on it forces a full destroy +
+    # recreate, so it must be ignored after the container already exists.
+    ignore_changes = [operating_system, initialization[0].user_account]
   }
 
   timeout_create = 1800
@@ -215,7 +220,12 @@ resource "proxmox_virtual_environment_container" "test_mariadb_2" {
   }
 
   lifecycle {
-    ignore_changes = [operating_system]
+    # operating_system: not persisted by Proxmox after creation, same as the
+    # adopted CTs in containers.tf.
+    # initialization.user_account: write-once at creation, can't be read
+    # back OR updated in-place — any diff on it forces a full destroy +
+    # recreate, so it must be ignored after the container already exists.
+    ignore_changes = [operating_system, initialization[0].user_account]
   }
 
   timeout_create = 1800
