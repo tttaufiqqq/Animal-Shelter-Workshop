@@ -70,7 +70,21 @@ def resolve_current_ip(status: dict, prefix: str):
         peers.append(status["Self"])
 
     exact_pattern = re.compile(rf"^{re.escape(prefix)}(-\d+)?$")
-    candidates = [p for p in peers if exact_pattern.match(p.get("HostName", ""))]
+    candidates = []
+    for p in peers:
+        hostname = p.get("HostName", "")
+        if not exact_pattern.match(hostname):
+            continue
+        # "test-mysql-2" matches "test-mysql"'s own "-N" collision-suffix
+        # pattern, but it's a genuinely different, intentionally-named host
+        # (the CT), not a Tailscale rename of test-mysql. Any hostname that
+        # IS itself one of the other reserved target prefixes belongs to
+        # that target, never to this one, even though it looks like a
+        # valid "-N" suffix. This is exactly the bug that sent Ansible to
+        # the wrong host (a CT with only root, not the VM's workshop user).
+        if hostname != prefix and hostname in TARGETS.values():
+            continue
+        candidates.append(p)
 
     if not candidates:
         return None, None, False
@@ -92,6 +106,29 @@ def resolve_current_ip(status: dict, prefix: str):
           f"most recently seen ({p['HostName']}, offline). May not be "
           f"booted yet.", file=sys.stderr)
     return p["TailscaleIPs"][0], p["HostName"], False
+
+
+def find_all_matching_device_ids(status: dict):
+    """Every Tailscale device ID that's ever been created for this test
+    loop, current AND stale "-N" suffixed leftovers alike — used for full
+    cleanup, unlike resolve_current_ip() which only wants the one CURRENT
+    device. Matches the same base prefixes as TARGETS, but every "-N"
+    variant, not just the online one, since destroy is exactly the moment
+    to clear out the accumulated stale devices instead of leaving them for
+    the next create to collide with again."""
+    peers = list(status.get("Peer", {}).values())
+    if "Self" in status:
+        peers.append(status["Self"])
+
+    base_prefixes = set(TARGETS.values())
+    ids = []
+    for prefix in base_prefixes:
+        pattern = re.compile(rf"^{re.escape(prefix)}(-\d+)?$")
+        for p in peers:
+            hostname = p.get("HostName", "")
+            if pattern.match(hostname) and p.get("ID"):
+                ids.append((p["ID"], hostname))
+    return ids
 
 
 def patch_inventory(path: str, resolved: dict):
@@ -133,7 +170,17 @@ def main():
     parser.add_argument("--inventory", help="Path to the inventory YAML to patch")
     parser.add_argument("--check-only", action="store_true",
                          help="Only check whether every target is ONLINE; write nothing")
+    parser.add_argument("--list-all-device-ids", action="store_true",
+                         help="Print every Tailscale device ID (current AND stale "
+                              "-N leftovers) matching any test-loop hostname, "
+                              "one 'id hostname' pair per line - for cleanup")
     args = parser.parse_args()
+
+    if args.list_all_device_ids:
+        status = get_tailscale_status()
+        for device_id, hostname in find_all_matching_device_ids(status):
+            print(f"{device_id} {hostname}")
+        return
 
     if not args.check_only and not args.inventory:
         parser.error("--inventory is required unless --check-only is given")

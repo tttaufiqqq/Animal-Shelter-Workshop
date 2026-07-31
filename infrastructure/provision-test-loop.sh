@@ -53,7 +53,12 @@ fail() {
   log "FATAL: $*"
   log "Current state for diagnosis:"
   { ssh "$PROXMOX_SSH" "qm list; pct list"; } 2>&1 | tee -a "$LOG_FILE" || true
-  (cd "$TF_DIR" && terraform state list) 2>&1 | tee -a "$LOG_FILE" || true
+  # terraform init is platform-specific (.terraform/providers/ caches a
+  # binary for whichever OS last ran init there) - re-init quietly first so
+  # this diagnostic doesn't itself fail with an unrelated provider error if
+  # the last init happened from a different platform (e.g. Windows git-bash
+  # vs this WSL run).
+  (cd "$TF_DIR" && terraform init -input=false >/dev/null 2>&1; terraform state list) 2>&1 | tee -a "$LOG_FILE" || true
   log "Full log: $LOG_FILE"
   exit 1
 }
