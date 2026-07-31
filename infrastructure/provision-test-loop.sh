@@ -49,6 +49,36 @@ VAULT_SSH="linux-vault@100.112.41.113"
 
 log() { echo "[$(date '+%H:%M:%S')] $*" | tee -a "$LOG_FILE"; }
 
+# Real percentage progress isn't honest here - neither terraform apply nor a
+# long ssh/pct wait exposes a completion fraction, only a stream of
+# per-resource lines (or, during a Proxmox clone/boot, nothing at all for
+# minutes). A spinner + elapsed timer is the honest substitute: proof the
+# stage is still alive, without pretending to know how far through it is.
+# (ansible-playbook is deliberately NOT wrapped in this - it already streams
+# per-task PLAY/TASK output live, which is better feedback than a spinner.)
+SPIN='⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'
+run_with_spinner() {
+  local desc="$1"; shift
+  local start elapsed i=0 rc total
+  start=$(date +%s)
+  "$@" >> "$LOG_FILE" 2>&1 &
+  local pid=$!
+  while kill -0 "$pid" 2>/dev/null; do
+    elapsed=$(( $(date +%s) - start ))
+    printf "\r[%s] %s %s (%ds elapsed)" "$(date '+%H:%M:%S')" "${SPIN:i++%${#SPIN}:1}" "$desc" "$elapsed"
+    sleep 0.2
+  done
+  wait "$pid"; rc=$?
+  total=$(( $(date +%s) - start ))
+  printf "\r\033[K"
+  if [[ $rc -eq 0 ]]; then
+    log "$desc — done (${total}s)"
+  else
+    log "$desc — FAILED after ${total}s (exit $rc)"
+  fi
+  return $rc
+}
+
 fail() {
   log "FATAL: $*"
   log "Current state for diagnosis:"
@@ -91,21 +121,22 @@ command -v python3 >/dev/null || fail "python3 not found in this WSL environment
 
 # ---- 1. Terraform: the 4 VMs ------------------------------------------------
 log "Applying the 4 VMs..."
-(
+apply_vms() {
   cd "$TF_DIR"
-  terraform init -input=false >> "$LOG_FILE" 2>&1
-  terraform apply -auto-approve -target="module.vm" >> "$LOG_FILE" 2>&1
-) || fail "terraform apply (VMs) failed — see $LOG_FILE"
+  terraform init -input=false
+  terraform apply -auto-approve -target="module.vm"
+}
+run_with_spinner "terraform apply (4 VMs)" apply_vms || fail "terraform apply (VMs) failed — see $LOG_FILE"
 
 # ---- 2. Terraform: the 2 CTs, staged separately -----------------------------
 log "Applying the 2 CTs (separate command — this is the lock-timeout fix)..."
-(
+apply_cts() {
   cd "$TF_DIR"
   terraform apply -auto-approve \
     -target="proxmox_virtual_environment_container.test_mysql_2" \
-    -target="proxmox_virtual_environment_container.test_mariadb_2" \
-    >> "$LOG_FILE" 2>&1
-) || fail "terraform apply (CTs) failed — see $LOG_FILE"
+    -target="proxmox_virtual_environment_container.test_mariadb_2"
+}
+run_with_spinner "terraform apply (2 CTs)" apply_cts || fail "terraform apply (CTs) failed — see $LOG_FILE"
 
 # ---- 3 & 4. CT-only bridge: TUN device + reboot, then install/join Tailscale,
 # both idempotent — safe to re-run against an already-fixed CT.
@@ -125,7 +156,10 @@ for ct_id in "${CT_IDS[@]}"; do
   " >> "$LOG_FILE" 2>&1 || fail "TUN device fix failed for CT $ct_id"
 
   log "CT $ct_id: waiting for it to come back up..."
-  until ssh "$PROXMOX_SSH" "pct exec ${ct_id} -- true" 2>/dev/null; do sleep 3; done
+  wait_for_ct_boot() {
+    until ssh "$PROXMOX_SSH" "pct exec ${ct_id} -- true" 2>/dev/null; do sleep 3; done
+  }
+  run_with_spinner "CT $ct_id boot wait" wait_for_ct_boot
 
   log "CT $ct_id: installing + joining Tailscale..."
   ssh "$PROXMOX_SSH" "pct exec ${ct_id} -- bash -c 'apt-get update -qq && apt-get install -y -qq curl'" >> "$LOG_FILE" 2>&1
