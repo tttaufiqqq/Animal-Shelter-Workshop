@@ -34,7 +34,7 @@ The 2 CTs are sized small (512MB/1 core) since they only need to prove creation 
 real load. Unlike the VMs, a fresh CT needs a manual bridge before Tailscale works at all (the TUN
 device workaround + installing/joining Tailscale by hand via `pct exec` — no cloud-init equivalent
 exists for CTs). Full story, including the full end-to-end proof through to a real Ansible
-handoff: `docs/19-devops-practice/13` in the homelab meta-repo.
+handoff: `docs/19-devops-practice/12` in the homelab meta-repo.
 
 > IDs start at 201 (not 101) because 101–107 are pre-existing manual VMs kept as backups.
 > These are proof-of-loop resources, torn down after each proof (see
@@ -55,7 +55,7 @@ handoff: `docs/19-devops-practice/13` in the homelab meta-repo.
 | 110 | linux-vault | Vault (this app's secrets) | CT |
 | 111 | linux-gh-runner | CI/CD for this app | CT |
 
-Full drift/gotcha writeup for this batch: `docs/19-devops-practice/12` in the homelab meta-repo.
+Full drift/gotcha writeup for this batch: `docs/19-devops-practice/11` in the homelab meta-repo.
 (`linux-mini-io`, `linux-k3s`, `linux-mongodb`, `linux-observability` were part of that same
 import batch but have since moved to the homelab meta-repo's own Terraform — see
 `docs/20-homelab-terraform/homelab-terraform-split.md` there.)
@@ -298,7 +298,7 @@ Fix: `sudo snap install terraform --classic`
 ### Importing the real production VMs/CTs: three `proxmox_virtual_environment_vm` defaults that silently diverge from reality
 
 Found while adopting `app-server`/`linux-mysql`/`linux-mariadb`/`linux-postgres`/`linux-mini-io`
-into `production-vms.tf` (full writeup: `docs/19-devops-practice/12` in the homelab meta-repo).
+into `production-vms.tf` (full writeup: `docs/19-devops-practice/11` in the homelab meta-repo).
 Unlike the CT resource (`containers.tf`), the VM resource has its own set of attributes that
 default away from an imported host's real state unless declared explicitly:
 

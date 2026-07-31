@@ -62,3 +62,7 @@ Thumbs.db
 # Claude Code project instructions — was tracked before, untracked
 # 2026-07-26; stays local-only going forward, never pushed to GitHub
 CLAUDE.md
+
+# Python bytecode cache — resolve_tailscale_ips.py's compiled artifacts
+__pycache__/
+*.pyc
