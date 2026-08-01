@@ -9,8 +9,8 @@ one of the five connections has its own dedicated physical machine — no machin
 one connection. The Laravel application running on `app-server` opens five named connections and
 routes queries explicitly per module.
 
-`app-server`, `workshop-2`, `linux-mariadb-2`, `linux-mysql`, `linux-mysql-2`, and
-`workshop-postgres` are not dedicated to this project — they're VMs/CTs on a shared personal
+`app-server`, `linux-mariadb`, `linux-mariadb-2`, `linux-mysql`, `linux-mysql-2`, and
+`linux-postgres` are not dedicated to this project — they're VMs/CTs on a shared personal
 Proxmox homelab that also runs Oracle, SQL Server, and MongoDB instances for other learning
 projects. The host inventory, how each was provisioned, and the Tailscale/DNS mesh they all ride
 on are documented from the infrastructure side in
@@ -33,11 +33,11 @@ app-server (100.100.123.90)   <-- Laravel application host
      |
      |-- [Tailscale VPN] --+
                            |
-         workshop-2 (100.78.124.25)        MariaDB 10.x
+         linux-mariadb (100.112.107.1)     MariaDB 10.x
          linux-mariadb-2 (100.97.35.29)    MariaDB 10.x
-         linux-mysql (100.115.237.93)      MySQL 8.0
+         linux-mysql (100.78.80.42)        MySQL 8.0
          linux-mysql-2 (100.123.221.89)    MySQL 8.0
-         workshop-postgres (100.113.234.24)  PostgreSQL 15
+         linux-postgres (100.72.187.124)   PostgreSQL 15
 ```
 
 All five DB servers expose their native port (3306 / 5432) directly on the Tailscale
@@ -49,11 +49,11 @@ interface. No SSH tunnels are used. SSH keys are pre-configured on all machines.
 
 | Laravel connection | Module owner | DB engine | Host (Tailscale) | Prod database | Dev database |
 |---|---|---|---|---|---|
-| `reporting` | Eilya — Stray Reporting | MariaDB | 100.78.124.25 | workshop_2_prod | workshop_2_dev |
+| `reporting` | Eilya — Stray Reporting | MariaDB | 100.112.107.1 | workshop_2_prod | workshop_2_dev |
 | `booking` | Danish — Booking & Adoption | MariaDB | 100.97.35.29 | workshop_2_prod | workshop_2_dev |
-| `shelter` | Atiqah — Shelter Management | MySQL | 100.115.237.93 | workshop_2_prod | workshop_2_dev |
+| `shelter` | Atiqah — Shelter Management | MySQL | 100.78.80.42 | workshop_2_prod | workshop_2_dev |
 | `animals` | Shafiqah — Animal & Medical | MySQL | 100.123.221.89 | workshop_2_prod | workshop_2_dev |
-| `users` | Taufiq — User Management | PostgreSQL | 100.113.234.24 | workshop_2_prod | workshop_2_dev |
+| `users` | Taufiq — User Management | PostgreSQL | 100.72.187.124 | workshop_2_prod | workshop_2_dev |
 
 No native FK crosses either split pair — `reporting`↔`booking` or `shelter`↔`animals` (see
 `docs/04-foreign-keys.md`) — which is what made splitting each pair onto separate physical
@@ -73,7 +73,7 @@ connection names. Full detail: CLAUDE.md's Database Connection Mapping.
 
 ## Table Ownership
 
-### `reporting` connection (MariaDB — workshop-2)
+### `reporting` connection (MariaDB — linux-mariadb)
 
 | Table | Purpose |
 |---|---|
@@ -112,7 +112,7 @@ connection names. Full detail: CLAUDE.md's Database Connection Mapping.
 | `medical` | Medical treatment records for animals |
 | `vaccination` | Vaccination records for animals |
 
-### `users` connection (PostgreSQL — workshop-postgres)
+### `users` connection (PostgreSQL — linux-postgres)
 
 | Table | Purpose |
 |---|---|

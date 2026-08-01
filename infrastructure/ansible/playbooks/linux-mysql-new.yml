@@ -1,0 +1,35 @@
+- name: Provision linux-mysql-new (MySQL 8.0) — VM 104 -> CT 115 migration
+  hosts: linux-mysql-new
+  become: true
+
+  vars:
+    # workshop_2_prod, not workshop_2 — DBA-style prod/dev split: this server
+    # also carries a workshop_2_dev database (dev environment's local .env,
+    # not managed by this playbook) alongside the prod one this playbook
+    # provisions. See CLAUDE.md's Database Connection Mapping.
+    db_name: workshop_2_prod
+    db_user: workshop_2_prod
+    # Sourced from Vault (group_vars/all.yml's asw_secrets) — same shared
+    # credential used by every DB playbook in this repo.
+    db_password: "{{ asw_secrets.db_password }}"
+
+    mysql_family_engine: mysql
+    mysql_family_package: mysql-server
+    mysql_family_service: mysql
+    mysql_family_config_path: /etc/mysql/mysql.conf.d/mysqld.cnf
+    # Fresh CT, root still on socket auth like the original linux-mysql once
+    # was — needs the same bootstrap flow.
+    mysql_family_bootstrap_root_auth: true
+    mysql_family_extra_config_lines:
+      - "log_bin_trust_function_creators = 1"  # needed for trigger creation
+    mysql_family_priv_extra: "*.*:SHOW_ROUTINE"
+
+  roles:
+    - role: mysql_family
+    - role: db_firewall
+      vars:
+        db_firewall_port: 3306
+        db_firewall_service_name: MySQL
+    # No legacy_backup_cleanup — per the migration plan, backups are already
+    # centralized through the app's own db:backup Artisan command, not a
+    # per-host timer, same as the -2 pair.

@@ -158,6 +158,232 @@ resource "proxmox_virtual_environment_container" "linux_mariadb_2" {
   timeout_update = 1800
 }
 
+# linux-mysql-new (CT 115) — VM 104 → CT migration, per
+# proxmox-homelab-taufiq/plans/04-asw-db-vms-to-ct-migration-plan.md.
+# Shape copied from linux_mysql_2 above, but cores/disk match VM 104's real
+# specs (1 core, 22G disk) rather than the -2 pair's (2 cores, 20G) — this is
+# a straight VM replacement, not a second app-DB instance. Hostname is
+# "linux-mysql" so Tailscale MagicDNS can reclaim the existing DB2_HOST name
+# once the old VM logs out (see the plan's cutover step) — no .env edit needed.
+# Old VM 104 stays up (do not destroy) as a rollback net until this CT is
+# verified and cut over.
+resource "proxmox_virtual_environment_container" "linux_mysql_new" {
+  node_name     = var.proxmox_node
+  vm_id         = 115
+  unprivileged  = true
+  started       = true
+  start_on_boot = false
+
+  cpu {
+    cores = 1
+  }
+
+  memory {
+    dedicated = 2048
+    swap      = 512
+  }
+
+  disk {
+    datastore_id = "local"
+    size         = 22
+  }
+
+  network_interface {
+    name    = "eth0"
+    bridge  = "vmbr0"
+    vlan_id = 20
+  }
+
+  initialization {
+    hostname = "linux-mysql"
+
+    dns {
+      domain  = "local"
+      servers = ["8.8.8.8"]
+    }
+
+    ip_config {
+      ipv4 {
+        address = "dhcp"
+      }
+    }
+  }
+
+  console {
+    enabled   = true
+    tty_count = 2
+    type      = "tty"
+  }
+
+  features {
+    nesting = true
+  }
+
+  operating_system {
+    template_file_id = "local:vztmpl/ubuntu-24.04-standard_24.04-2_amd64.tar.zst"
+    type              = "ubuntu"
+  }
+
+  lifecycle {
+    ignore_changes = [operating_system]
+  }
+
+  timeout_clone  = 1800
+  timeout_create = 1800
+  timeout_delete = 60
+  timeout_update = 1800
+}
+
+# linux-mariadb-new (CT 116) — VM 105 → CT migration, per
+# proxmox-homelab-taufiq/plans/04-asw-db-vms-to-ct-migration-plan.md. Same
+# reasoning as linux-mysql-new above: shape copied from linux_mariadb_2, but
+# cores/disk match VM 105's real specs (1 core, 22G disk). Hostname
+# "linux-mariadb" so Tailscale MagicDNS can reclaim the existing DB1_HOST
+# name once the old VM logs out. Old VM 105 stays up (do not destroy) as a
+# rollback net until this CT is verified and cut over.
+resource "proxmox_virtual_environment_container" "linux_mariadb_new" {
+  node_name     = var.proxmox_node
+  vm_id         = 116
+  unprivileged  = true
+  started       = true
+  start_on_boot = false
+
+  cpu {
+    cores = 1
+  }
+
+  memory {
+    dedicated = 2048
+    swap      = 512
+  }
+
+  disk {
+    datastore_id = "local"
+    size         = 22
+  }
+
+  network_interface {
+    name    = "eth0"
+    bridge  = "vmbr0"
+    vlan_id = 20
+  }
+
+  initialization {
+    hostname = "linux-mariadb"
+
+    dns {
+      domain  = "local"
+      servers = ["8.8.8.8"]
+    }
+
+    ip_config {
+      ipv4 {
+        address = "dhcp"
+      }
+    }
+  }
+
+  console {
+    enabled   = true
+    tty_count = 2
+    type      = "tty"
+  }
+
+  features {
+    nesting = true
+  }
+
+  operating_system {
+    template_file_id = "local:vztmpl/ubuntu-24.04-standard_24.04-2_amd64.tar.zst"
+    type              = "ubuntu"
+  }
+
+  lifecycle {
+    ignore_changes = [operating_system]
+  }
+
+  timeout_clone  = 1800
+  timeout_create = 1800
+  timeout_delete = 60
+  timeout_update = 1800
+}
+
+# linux-postgres-new (CT 117) — VM 106 → CT migration, per
+# proxmox-homelab-taufiq/plans/04-asw-db-vms-to-ct-migration-plan.md. No
+# existing "-2" CT precedent for Postgres in this fleet (unlike mysql/
+# mariadb), so this shape is copied from linux_mysql_new/linux_mariadb_new
+# above instead — same generic unprivileged Ubuntu 24.04 CT shape, cores/
+# disk matched to VM 106's real specs (1 core, 22G disk). Hostname
+# "linux-postgres" so Tailscale MagicDNS can reclaim the existing DB5_HOST
+# name once the old VM logs out. Old VM 106 stays up (do not destroy) as a
+# rollback net until this CT is verified and cut over.
+resource "proxmox_virtual_environment_container" "linux_postgres_new" {
+  node_name     = var.proxmox_node
+  vm_id         = 117
+  unprivileged  = true
+  started       = true
+  start_on_boot = false
+
+  cpu {
+    cores = 1
+  }
+
+  memory {
+    dedicated = 2048
+    swap      = 512
+  }
+
+  disk {
+    datastore_id = "local"
+    size         = 22
+  }
+
+  network_interface {
+    name    = "eth0"
+    bridge  = "vmbr0"
+    vlan_id = 20
+  }
+
+  initialization {
+    hostname = "linux-postgres"
+
+    dns {
+      domain  = "local"
+      servers = ["8.8.8.8"]
+    }
+
+    ip_config {
+      ipv4 {
+        address = "dhcp"
+      }
+    }
+  }
+
+  console {
+    enabled   = true
+    tty_count = 2
+    type      = "tty"
+  }
+
+  features {
+    nesting = true
+  }
+
+  operating_system {
+    template_file_id = "local:vztmpl/ubuntu-24.04-standard_24.04-2_amd64.tar.zst"
+    type              = "ubuntu"
+  }
+
+  lifecycle {
+    ignore_changes = [operating_system]
+  }
+
+  timeout_clone  = 1800
+  timeout_create = 1800
+  timeout_delete = 60
+  timeout_update = 1800
+}
+
 # linux-gh-runner (CT 111) — the CI runner. Running, but not critical if
 # briefly restarted (only needed during an actual CI/CD run). No `onboot`
 # set in real life, matching `start_on_boot = false` below.

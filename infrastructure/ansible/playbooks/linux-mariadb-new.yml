@@ -1,0 +1,36 @@
+- name: Provision linux-mariadb-new (MariaDB) — VM 105 -> CT 116 migration
+  hosts: linux-mariadb-new
+  become: true
+
+  vars:
+    # workshop_2_prod, not workshop_2 — DBA-style prod/dev split: this server
+    # also carries a workshop_2_dev database (dev environment's local .env,
+    # not managed by this playbook) alongside the prod one this playbook
+    # provisions. See CLAUDE.md's Database Connection Mapping.
+    db_name: workshop_2_prod
+    db_user: workshop_2_prod
+    # Sourced from Vault (group_vars/all.yml's asw_secrets) — same shared
+    # credential used by every DB playbook in this repo.
+    db_password: "{{ asw_secrets.db_password }}"
+
+    mysql_family_engine: mariadb
+    mysql_family_package: mariadb-server
+    mysql_family_service: mariadb
+    mysql_family_config_path: /etc/mysql/mariadb.conf.d/50-server.cnf
+    # Fresh CT, root still on socket auth like the original linux-mariadb
+    # once was — needs the same bootstrap flow.
+    mysql_family_bootstrap_root_auth: true
+    mysql_family_extra_config_lines: []
+    # MariaDB has no SHOW_ROUTINE dynamic privilege (that's MySQL 8 only),
+    # hence the classic SELECT-on-mysql.proc escape hatch instead.
+    mysql_family_priv_extra: "mysql.proc:SELECT"
+
+  roles:
+    - role: mysql_family
+    - role: db_firewall
+      vars:
+        db_firewall_port: 3306
+        db_firewall_service_name: MariaDB
+    # No legacy_backup_cleanup — per the migration plan, backups are already
+    # centralized through the app's own db:backup Artisan command, not a
+    # per-host timer, same as the -2 pair.
