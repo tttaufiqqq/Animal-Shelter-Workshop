@@ -1,0 +1,35 @@
+# k3s multi-node split (plans/06-k3s-multi-node-gitops-automation-plan):
+# nginx is now its own Deployment, pinned to node 2 (linux-k3s-2) via
+# nodeSelector, separate from asw-app's php-fpm on node 1. Static assets
+# come baked into this image (Dockerfile's `nginx` stage), not from a
+# shared Pod volume — nginx talks to php-fpm over the network via
+# asw-app-internal's ClusterIP instead of localhost (see
+# nginx-configmap.yaml's fastcgi_pass).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: asw-nginx
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: asw-nginx
+  template:
+    metadata:
+      labels:
+        app: asw-nginx
+    spec:
+      nodeSelector:
+        kubernetes.io/hostname: linux-k3s-2
+      containers:
+        - name: nginx
+          image: docker.io/tttaufiqqq/animal-shelter-workshop-nginx:v1.0.0
+          ports:
+            - containerPort: 80
+          volumeMounts:
+            - name: nginx-config
+              mountPath: /etc/nginx/conf.d
+      volumes:
+        - name: nginx-config
+          configMap:
+            name: asw-nginx-config

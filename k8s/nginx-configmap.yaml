@@ -1,6 +1,8 @@
-# Same vhost as docker/nginx/default.conf (Stage 4), adapted for the
-# app+nginx sidecar pattern: fastcgi_pass targets localhost since both
-# containers share one Pod's network namespace, not a Compose service name.
+# Same vhost as docker/nginx/default.conf (Stage 4). Originally targeted
+# localhost (app+nginx sidecar, shared Pod network namespace); after the
+# k3s multi-node split (plans/06-k3s-multi-node-gitops-automation-plan)
+# app and nginx are separate Deployments on separate nodes, so
+# fastcgi_pass targets asw-app-internal's ClusterIP Service instead.
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -26,7 +28,7 @@ data:
         error_page 404 /index.php;
 
         location ~ \.php$ {
-            fastcgi_pass 127.0.0.1:9000;
+            fastcgi_pass asw-app-internal.default.svc.cluster.local:9000;
             fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
             include fastcgi_params;
             fastcgi_hide_header X-Powered-By;

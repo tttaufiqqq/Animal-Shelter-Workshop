@@ -87,3 +87,13 @@ USER www-data
 
 EXPOSE 9000
 CMD ["php-fpm"]
+
+# ---- Stage 4: nginx (k8s asw-nginx image, static assets only) ----
+# k3s multi-node split (plans/06-k3s-multi-node-gitops-automation-plan):
+# app (php-fpm) and nginx now run as separate Deployments on separate
+# nodes, so they can no longer share a Pod-local emptyDir for the built
+# public/ assets. Baking them into nginx's own image here replaces that
+# initContainer+emptyDir handoff — reuses the same `frontend` stage's
+# output the runtime image already depends on, no separate build logic.
+FROM nginx:alpine AS nginx
+COPY --from=frontend /app/public /var/www/html/public

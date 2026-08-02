@@ -1,9 +1,10 @@
-# Stage 5 (k3s) — same 2-container shape as Stage 4's docker-compose.yml
-# (app + webserver), minus the local `db` service. initContainer replaces
-# Docker's "auto-copy image content into an empty named volume on first
-# use" behavior, which k8s emptyDir volumes don't do on their own — without
-# it, nginx's mount would shadow the Vite build baked into the image at
-# /var/www/html/public.
+# k3s multi-node split (plans/06-k3s-multi-node-gitops-automation-plan):
+# app (php-fpm) and nginx are now separate Deployments on separate nodes,
+# each with its own image — no more same-Pod sidecar, no more
+# initContainer/emptyDir asset handoff (nginx gets public/ baked into its
+# own image at build time instead, see Dockerfile's `nginx` stage and
+# nginx-deployment.yaml). nodeSelector pins this Deployment to node 1
+# (linux-k3s) so the split is real, not just left to the scheduler.
 #
 # DB1-5_PASSWORD and APP_KEY are real production secrets, injected live by
 # the Vault Agent Injector (already installed on this cluster, see
@@ -22,11 +23,11 @@ spec:
   replicas: 3
   selector:
     matchLabels:
-      app: asw
+      app: asw-app
   template:
     metadata:
       labels:
-        app: asw
+        app: asw-app
       annotations:
         vault.hashicorp.com/agent-inject: "true"
         vault.hashicorp.com/role: "asw-app"
@@ -42,13 +43,8 @@ spec:
           {{- end }}
     spec:
       serviceAccountName: asw-app
-      initContainers:
-        - name: copy-public-assets
-          image: docker.io/tttaufiqqq/animal-shelter-workshop:v1.0.0
-          command: ["sh", "-c", "cp -r /var/www/html/public/. /shared/"]
-          volumeMounts:
-            - name: public-assets
-              mountPath: /shared
+      nodeSelector:
+        kubernetes.io/hostname: linux-k3s
       containers:
         - name: app
           image: docker.io/tttaufiqqq/animal-shelter-workshop:v1.0.0
@@ -62,22 +58,3 @@ spec:
                 name: asw-app-config
             - secretRef:
                 name: asw-app-secret
-          volumeMounts:
-            - name: public-assets
-              mountPath: /var/www/html/public
-        - name: nginx
-          image: nginx:alpine
-          ports:
-            - containerPort: 80
-          volumeMounts:
-            - name: public-assets
-              mountPath: /var/www/html/public
-              readOnly: true
-            - name: nginx-config
-              mountPath: /etc/nginx/conf.d
-      volumes:
-        - name: public-assets
-          emptyDir: {}
-        - name: nginx-config
-          configMap:
-            name: asw-nginx-config
