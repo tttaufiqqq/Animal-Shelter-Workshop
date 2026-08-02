@@ -57,7 +57,7 @@ spec:
         kubernetes.io/hostname: linux-k3s
       containers:
         - name: app
-          image: docker.io/tttaufiqqq/animal-shelter-workshop:ac8b2bc2e5a376ccfc0bb7f66168db46abfa712e
+          image: docker.io/tttaufiqqq/animal-shelter-workshop:744a209c9d9c8c97b9720bd26d57a101f99b3d00
           command: ["sh", "-c"]
           args:
             - ". /vault/secrets/db.env && exec php-fpm"
