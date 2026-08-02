@@ -60,6 +60,24 @@
     proto: tcp
     comment: "{{ db_firewall_service_name }} from linux-k3s"
 
+# tests.yml connects linux-gh-runner directly to these 5 hosts' real DB
+# ports (workshop_2_test databases) to run the backend/browser test suites.
+# This only ever worked before because Tailscale's netfilter management was
+# silently bypassing ufw entirely (see the netfilter-mode=off task above) —
+# fixed in a prior session, which correctly closed that hole but also
+# revealed gh-runner never had an explicit DB-port rule of its own, only
+# SSH. Same explicit-allowlist treatment as app-server/linux-k3s above, not
+# a broad relaxation.
+- name: "UFW — {{ db_firewall_service_name }} from linux-gh-runner (CI tests) via Tailscale only"
+  community.general.ufw:
+    rule: allow
+    interface: tailscale0
+    direction: in
+    from_ip: "{{ gh_runner_tailscale_ip }}"
+    to_port: "{{ db_firewall_port }}"
+    proto: tcp
+    comment: "{{ db_firewall_service_name }} from linux-gh-runner (CI tests)"
+
 - name: UFW — enable
   community.general.ufw:
     state: enabled
