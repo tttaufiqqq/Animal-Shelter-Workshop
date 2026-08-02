@@ -1,0 +1,46 @@
+# plans/07-k3s-production-cutover-plan Stage 3 finding: SESSION_DRIVER=file
+# across asw-app's 3 stateless replicas (no session affinity on
+# asw-app-internal) meant a user's GET and following POST could land on
+# different pods, breaking CSRF ~2/3 of the time under real traffic —
+# confirmed live against the production domain. Redis gives every asw-app
+# pod a shared session/cache store instead. No nodeSelector — a ClusterIP
+# Service is reachable from any node regardless of where the pod lands
+# (same reasoning as plan 07 Stage 1's ArgoCD placement call), and this is
+# a small enough workload the scheduler can place it wherever fits.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: asw-redis
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: asw-redis
+  template:
+    metadata:
+      labels:
+        app: asw-redis
+    spec:
+      containers:
+        - name: redis
+          image: redis:7-alpine
+          ports:
+            - containerPort: 6379
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              memory: 128Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: asw-redis
+spec:
+  type: ClusterIP
+  selector:
+    app: asw-redis
+  ports:
+    - port: 6379
+      targetPort: 6379

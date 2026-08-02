@@ -43,8 +43,17 @@ data:
   DB5_DATABASE: workshop_2_prod
   DB5_USERNAME: workshop_2_prod
 
-  SESSION_DRIVER: file
-  CACHE_STORE: file
+  # Redis (k8s/redis-deployment.yaml), not file — asw-app runs 3 stateless
+  # replicas behind a Service with sessionAffinity: None, so a file-backed
+  # session/cache store isn't actually shared between them. Confirmed live:
+  # a user's GET (writes the CSRF token to one pod's disk) and their POST
+  # (validated against a different pod's disk) landed on different pods
+  # ~2/3 of the time, breaking every form submission with a 419. See
+  # plans/07-k3s-production-cutover-plan Stage 3.
+  SESSION_DRIVER: redis
+  CACHE_STORE: redis
+  REDIS_HOST: asw-redis
+  REDIS_PORT: "6379"
   QUEUE_CONNECTION: sync
   FILESYSTEM_DISK: cloudinary
   MAIL_MAILER: smtp
