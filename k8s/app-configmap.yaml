@@ -55,3 +55,9 @@ data:
   BROADCAST_CONNECTION: log
   LOG_CHANNEL: stack
   LOG_LEVEL: warning
+
+  # ToyyibPay sandbox — config/toyyibpay.php defaults TOYYIBPAY_BASE_URL to
+  # the *live* gateway (https://toyyibpay.com) when unset, so this must be
+  # explicit. Never point this at the live gateway — this project has no
+  # real users or money moving through it (docs/09-production-hardening.md).
+  TOYYIBPAY_BASE_URL: https://dev.toyyibpay.com

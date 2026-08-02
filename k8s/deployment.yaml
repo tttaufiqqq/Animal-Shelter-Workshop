@@ -41,6 +41,11 @@ spec:
       annotations:
         vault.hashicorp.com/agent-inject: "true"
         vault.hashicorp.com/role: "asw-app"
+        # One Vault read already returns every asw_secrets field — db.env
+        # only ever covered DB passwords + APP_KEY (plan 05 scope). Extended
+        # here (plan 07 Stage 2) to cover the rest: Cloudinary, mail,
+        # ToyyibPay, Azure backup. Same file, same template, just more
+        # fields — not a new Vault policy.
         vault.hashicorp.com/agent-inject-secret-db.env: "secret/data/animal-shelter-workshop"
         vault.hashicorp.com/agent-inject-template-db.env: |
           {{- with secret "secret/data/animal-shelter-workshop" -}}
@@ -50,6 +55,15 @@ spec:
           export DB3_PASSWORD="{{ .Data.data.db_password }}"
           export DB4_PASSWORD="{{ .Data.data.db_password }}"
           export DB5_PASSWORD="{{ .Data.data.db_password }}"
+          export CLOUDINARY_URL="{{ .Data.data.cloudinary_url }}"
+          export CLOUDINARY_CLOUD_NAME="{{ .Data.data.cloudinary_cloud_name }}"
+          export CLOUDINARY_API_KEY="{{ .Data.data.cloudinary_api_key }}"
+          export CLOUDINARY_API_SECRET="{{ .Data.data.cloudinary_api_secret }}"
+          export TOYYIBPAY_KEY="{{ .Data.data.toyyibpay_key }}"
+          export TOYYIBPAY_CATEGORY="{{ .Data.data.toyyibpay_category }}"
+          export MAIL_PASSWORD="{{ .Data.data.mail_password }}"
+          export AZURE_BACKUP_SAS_TOKEN="{{ .Data.data.azure_backup_sas_token }}"
+          export AZURE_BACKUP_CONTAINER_URL="{{ .Data.data.azure_backup_container_url }}"
           {{- end }}
     spec:
       serviceAccountName: asw-app
