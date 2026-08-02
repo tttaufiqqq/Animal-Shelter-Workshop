@@ -134,6 +134,84 @@ jobs:
         if: always()
         run: shred -u "$RUNNER_TEMP/cd/cd_key" 2>/dev/null || rm -f "$RUNNER_TEMP/cd/cd_key"
 
+  # k3s multi-node GitOps automation (proxmox-homelab-taufiq plan 06 Stage
+  # 4): builds both asw-app images (app/php-fpm, nginx — see Dockerfile's
+  # `runtime`/`nginx` targets and plans/06's Stage 2 split), tags with the
+  # commit SHA (never `latest` — ArgoCD needs an actual diff in git to sync
+  # anything), pushes to Docker Hub, then commits the tag bump straight back
+  # into k8s/deployment.yaml + k8s/nginx-deployment.yaml. This is a
+  # completely separate deploy target from deploy-db/deploy-app below (k3s,
+  # not app-server/the DB VMs) — runs in parallel with them, not gated by
+  # infra_app/infra_db routing, since a plain app-code push is the common
+  # case this exists for.
+  #
+  # The `[skip ci]` in the bump commit message is what keeps this from
+  # looping forever: GitHub Actions natively skips push-triggered workflow
+  # runs (tests.yml here) for any commit whose message contains it, so the
+  # bump commit never re-triggers Tests -> Deploy -> this job again.
+  build-and-push-k3s-images:
+    needs: plan
+    if: needs.plan.result == 'success'
+    runs-on: [self-hosted, linux, homelab, tailnet]
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.plan.outputs.target_sha }}
+
+      - name: Read Docker Hub credentials from Vault
+        run: |
+          set -euo pipefail
+          set -a; source ~/actions-runner/.env; set +a
+          DOCKERHUB_USERNAME=$(vault kv get -field=dockerhub_username secret/asw-cd)
+          DOCKERHUB_TOKEN=$(vault kv get -field=dockerhub_token secret/asw-cd)
+          echo "::add-mask::$DOCKERHUB_TOKEN"
+          {
+            echo "DOCKERHUB_USERNAME=$DOCKERHUB_USERNAME"
+            echo "DOCKERHUB_TOKEN=$DOCKERHUB_TOKEN"
+          } >> "$GITHUB_ENV"
+
+      - name: docker login
+        run: echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
+
+      - name: Build + push app and nginx images
+        run: |
+          set -euo pipefail
+          SHA="${{ needs.plan.outputs.target_sha }}"
+          docker build --target runtime -t docker.io/tttaufiqqq/animal-shelter-workshop:"$SHA" .
+          docker build --target nginx -t docker.io/tttaufiqqq/animal-shelter-workshop-nginx:"$SHA" .
+          docker push docker.io/tttaufiqqq/animal-shelter-workshop:"$SHA"
+          docker push docker.io/tttaufiqqq/animal-shelter-workshop-nginx:"$SHA"
+
+      - name: Bump image tags in k8s manifests
+        id: bump
+        run: |
+          set -euo pipefail
+          SHA="${{ needs.plan.outputs.target_sha }}"
+          sed -i "s|image: docker.io/tttaufiqqq/animal-shelter-workshop:.*|image: docker.io/tttaufiqqq/animal-shelter-workshop:${SHA}|" k8s/deployment.yaml
+          sed -i "s|image: docker.io/tttaufiqqq/animal-shelter-workshop-nginx:.*|image: docker.io/tttaufiqqq/animal-shelter-workshop-nginx:${SHA}|" k8s/nginx-deployment.yaml
+          if git diff --quiet k8s/deployment.yaml k8s/nginx-deployment.yaml; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Commit + push tag bump
+        if: steps.bump.outputs.changed == 'true'
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add k8s/deployment.yaml k8s/nginx-deployment.yaml
+          git commit -m "chore(k8s): bump asw-app/asw-nginx image tags to ${{ needs.plan.outputs.target_sha }} [skip ci]"
+          git push origin HEAD:main
+
+      - name: docker logout
+        if: always()
+        run: docker logout || true
+
   # Runs the 5 DB playbooks only when infra_db routing says a linux-*.yml
   # playbook (or a shared group_var) actually changed. No rollback here —
   # there's no sane automatic reversal of an apt install or a UFW change on a
