@@ -1,0 +1,38 @@
+# k3s multi-node split (plans/06-k3s-multi-node-gitops-automation-plan)
+# Stage 5: cloudflared runs inside the cluster now, own Cloudflare Tunnel
+# (separate from app-server's — tunnel "k3s-asw-nginx"), pointed at
+# asw-nginx's ClusterIP. Scheduled onto node 2 alongside asw-nginx per
+# Stage 2's split. Tunnel token is a real secret, injected live by the
+# Vault Agent Injector from secret/animal-shelter-workshop
+# (cloudflare_tunnel_token field) via a dedicated cloudflared
+# ServiceAccount/Kubernetes-auth role — same pattern as asw-app's db.env,
+# never hardcoded, never in a committed k8s Secret.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cloudflared
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cloudflared
+  template:
+    metadata:
+      labels:
+        app: cloudflared
+      annotations:
+        vault.hashicorp.com/agent-inject: "true"
+        vault.hashicorp.com/role: "cloudflared"
+        vault.hashicorp.com/agent-inject-secret-token: "secret/data/animal-shelter-workshop"
+        vault.hashicorp.com/agent-inject-template-token: |
+          {{- with secret "secret/data/animal-shelter-workshop" -}}
+          {{ .Data.data.cloudflare_tunnel_token }}
+          {{- end }}
+    spec:
+      serviceAccountName: cloudflared
+      nodeSelector:
+        kubernetes.io/hostname: linux-k3s-2
+      containers:
+        - name: cloudflared
+          image: cloudflare/cloudflared:2026.7.2
+          command: ["cloudflared", "--no-autoupdate", "tunnel", "run", "--token-file", "/vault/secrets/token"]
