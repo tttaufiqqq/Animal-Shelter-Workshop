@@ -51,6 +51,12 @@ data:
   # ~2/3 of the time, breaking every form submission with a 419. See
   # plans/07-k3s-production-cutover-plan Stage 3.
   SESSION_DRIVER: redis
+  # config/session.php defaults SESSION_CONNECTION to 'users' (a leftover
+  # meant for the database session driver, matching DB_CONNECTION's name)
+  # rather than 'default' — with the redis driver that resolves to a
+  # nonexistent Redis connection named "users" and every session read/write
+  # throws. Must be set explicitly.
+  SESSION_CONNECTION: "default"
   CACHE_STORE: redis
   REDIS_HOST: asw-redis
   REDIS_PORT: "6379"
