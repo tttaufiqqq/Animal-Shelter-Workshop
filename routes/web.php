@@ -1,5 +1,6 @@
 <?php
 
+// plan 06 Stage 6 full-loop proof: git push -> tests -> CI build/push/bump -> ArgoCD sync -> new pod live, zero manual steps.
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\StrayReportingManagementController;
 use App\Http\Controllers\AnimalManagementController;
