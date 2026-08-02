@@ -1,22 +1,57 @@
 # Non-secret app config, split out of deployment.yaml's inline env list.
-# DB config here is still the Stage 4 placeholder (sqlite, no real
-# connections) — wiring the real 5-connection setup into k3s is explicitly
-# a later, harder step per the plan, not this one.
+# DB1-5 host/port/database/username are real production values (not secret
+# on their own) — only DB1-5_PASSWORD is secret, injected live from Vault
+# by the Agent Injector (see deployment.yaml's annotations), never here.
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: asw-app-config
 data:
   APP_NAME: ASW
-  APP_ENV: local
-  APP_DEBUG: "true"
+  APP_ENV: production
+  APP_DEBUG: "false"
   DB_CONNECTION: sqlite
   DB_DATABASE: database/database.sqlite
+
+  # eilya — reporting (mariadb, migrated VM->CT 2026-08-01/02)
+  DB1_HOST: "100.112.107.1"
+  DB1_PORT: "3306"
+  DB1_DATABASE: workshop_2_prod
+  DB1_USERNAME: workshop_2_prod
+
+  # atiqah — shelter (mysql, migrated VM->CT 2026-08-01/02)
+  DB2_HOST: "100.78.80.42"
+  DB2_PORT: "3306"
+  DB2_DATABASE: workshop_2_prod
+  DB2_USERNAME: workshop_2_prod
+
+  # shafiqah — animals (mysql-2, untouched by the migration)
+  DB3_HOST: "100.123.221.89"
+  DB3_PORT: "3306"
+  DB3_DATABASE: workshop_2_prod
+  DB3_USERNAME: workshop_2_prod
+
+  # danish — booking (mariadb-2, untouched by the migration)
+  DB4_HOST: "100.97.35.29"
+  DB4_PORT: "3306"
+  DB4_DATABASE: workshop_2_prod
+  DB4_USERNAME: workshop_2_prod
+
+  # taufiq — users (postgres, migrated VM->CT 2026-08-01/02)
+  DB5_HOST: "100.72.187.124"
+  DB5_PORT: "5432"
+  DB5_DATABASE: workshop_2_prod
+  DB5_USERNAME: workshop_2_prod
+
   SESSION_DRIVER: file
   CACHE_STORE: file
   QUEUE_CONNECTION: sync
-  FILESYSTEM_DISK: local
-  MAIL_MAILER: log
+  FILESYSTEM_DISK: cloudinary
+  MAIL_MAILER: smtp
+  MAIL_HOST: smtp.resend.com
+  MAIL_PORT: "587"
+  MAIL_USERNAME: resend
+  MAIL_FROM_ADDRESS: noreply@mail.tttaufiqqq.com
   BROADCAST_CONNECTION: log
   LOG_CHANNEL: stack
-  LOG_LEVEL: debug
+  LOG_LEVEL: warning

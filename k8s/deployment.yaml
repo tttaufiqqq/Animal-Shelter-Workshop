@@ -1,9 +1,19 @@
 # Stage 5 (k3s) — same 2-container shape as Stage 4's docker-compose.yml
-# (app + webserver), minus the local `db` service; DB config stays deferred
-# to the ConfigMap/Secret step. initContainer replaces Docker's "auto-copy
-# image content into an empty named volume on first use" behavior, which
-# k8s emptyDir volumes don't do on their own — without it, nginx's mount
-# would shadow the Vite build baked into the image at /var/www/html/public.
+# (app + webserver), minus the local `db` service. initContainer replaces
+# Docker's "auto-copy image content into an empty named volume on first
+# use" behavior, which k8s emptyDir volumes don't do on their own — without
+# it, nginx's mount would shadow the Vite build baked into the image at
+# /var/www/html/public.
+#
+# DB1-5_PASSWORD and APP_KEY are real production secrets, injected live by
+# the Vault Agent Injector (already installed on this cluster, see
+# docs/19-devops-practice/05) from secret/animal-shelter-workshop — the
+# same path/policy (asw-deploy) the Ansible AppRole deploy already reads,
+# now also readable by this Deployment's own asw-app ServiceAccount via a
+# dedicated Kubernetes-auth role. Never hardcoded, never in the
+# ConfigMap/Secret. The app container's command is overridden to source
+# the injected file before exec'ing php-fpm, since the Injector only
+# writes to a shared file, not directly into another container's env.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -17,7 +27,21 @@ spec:
     metadata:
       labels:
         app: asw
+      annotations:
+        vault.hashicorp.com/agent-inject: "true"
+        vault.hashicorp.com/role: "asw-app"
+        vault.hashicorp.com/agent-inject-secret-db.env: "secret/data/animal-shelter-workshop"
+        vault.hashicorp.com/agent-inject-template-db.env: |
+          {{- with secret "secret/data/animal-shelter-workshop" -}}
+          export APP_KEY="{{ .Data.data.app_key }}"
+          export DB1_PASSWORD="{{ .Data.data.db_password }}"
+          export DB2_PASSWORD="{{ .Data.data.db_password }}"
+          export DB3_PASSWORD="{{ .Data.data.db_password }}"
+          export DB4_PASSWORD="{{ .Data.data.db_password }}"
+          export DB5_PASSWORD="{{ .Data.data.db_password }}"
+          {{- end }}
     spec:
+      serviceAccountName: asw-app
       initContainers:
         - name: copy-public-assets
           image: docker.io/tttaufiqqq/animal-shelter-workshop:v1.0.0
@@ -28,6 +52,9 @@ spec:
       containers:
         - name: app
           image: docker.io/tttaufiqqq/animal-shelter-workshop:v1.0.0
+          command: ["sh", "-c"]
+          args:
+            - ". /vault/secrets/db.env && exec php-fpm"
           ports:
             - containerPort: 9000
           envFrom:
