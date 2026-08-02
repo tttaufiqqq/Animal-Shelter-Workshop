@@ -21,6 +21,16 @@ metadata:
   name: asw-app
 spec:
   replicas: 3
+  # node 1 (linux-k3s) is a single-core CT — the default RollingUpdate
+  # (maxSurge=25%) tries to schedule a 4th pod before retiring an old one,
+  # which can never fit (3 replicas + the Vault injector sidecar already
+  # use ~95% of the node's 1 CPU). maxSurge: 0 forces retire-then-create
+  # instead, which fits.
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 1
   selector:
     matchLabels:
       app: asw-app
