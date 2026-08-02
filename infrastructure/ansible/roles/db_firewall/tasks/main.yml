@@ -1,4 +1,15 @@
 ---
+# Tailscale's default netfilter management inserts its own `ts-input` chain
+# at the top of iptables INPUT, which unconditionally ACCEPTs all traffic
+# arriving on tailscale0 before ufw's chains ever run — silently turning
+# every `from_ip`-scoped rule below into a no-op for anyone on the tailnet,
+# not just the intended source. Turning netfilter management off (these
+# hosts advertise no subnet routes, so nothing else depends on it) hands
+# tailscale0 back to ufw like any other interface.
+- name: Tailscale — disable netfilter management so ufw actually governs tailscale0
+  ansible.builtin.command: tailscale set --netfilter-mode=off
+  changed_when: false
+
 - name: UFW — default deny incoming
   community.general.ufw:
     default: deny
@@ -38,6 +49,16 @@
     to_port: "{{ db_firewall_port }}"
     proto: tcp
     comment: "{{ db_firewall_service_name }} from app-server"
+
+- name: "UFW — {{ db_firewall_service_name }} from linux-k3s via Tailscale only"
+  community.general.ufw:
+    rule: allow
+    interface: tailscale0
+    direction: in
+    from_ip: "{{ k3s_tailscale_ip }}"
+    to_port: "{{ db_firewall_port }}"
+    proto: tcp
+    comment: "{{ db_firewall_service_name }} from linux-k3s"
 
 - name: UFW — enable
   community.general.ufw:
