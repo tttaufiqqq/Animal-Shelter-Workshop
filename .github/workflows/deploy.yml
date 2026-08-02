@@ -182,6 +182,22 @@ jobs:
           git commit -m "chore(k8s): bump asw-app/asw-nginx image tags to ${{ needs.plan.outputs.target_sha }} [skip ci]"
           git push origin HEAD:main
 
+      # linux-gh-runner's root disk is a small 10GB loop device -- every run
+      # of this job builds two fresh images from scratch (new commit SHA tag
+      # each time, never reused as a base layer), and Docker's build cache +
+      # old local image copies otherwise accumulate forever since this is a
+      # persistent self-hosted runner, not a throwaway hosted VM. Left
+      # unpruned, a handful of pushes in a day was enough to trip Alertmanager's
+      # HighDiskUsage warning (>90% full) -- see
+      # proxmox-homelab-taufiq/docs/19-devops-practice for the writeup. Local
+      # copies are safe to drop immediately after push: k8s pulls from Docker
+      # Hub, never from this runner's local image cache.
+      - name: Prune Docker build cache and local images
+        if: always()
+        run: |
+          docker image prune -af || true
+          docker builder prune -f --keep-storage 300MB || true
+
       - name: docker logout
         if: always()
         run: docker logout || true
