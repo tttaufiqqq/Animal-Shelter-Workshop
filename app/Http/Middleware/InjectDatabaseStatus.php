@@ -5,6 +5,7 @@ namespace App\Http\Middleware;
 use App\Services\DatabaseConnectionChecker;
 use Closure;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\View;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -32,7 +33,18 @@ class InjectDatabaseStatus
      */
     public function handle(Request $request, Closure $next): Response
     {
-        $dbStatus = $this->checker->checkAll();
+        // checkAll() probes all 5 DB connections (TCP + PDO connect each)
+        // and deliberately stays live/uncached at the checker level (see
+        // DatabaseConnectionCheckerTest) for callers like the login
+        // pre-check that need an immediate probe. But this middleware runs
+        // on every page in the 'web' group just to render an offline-DB
+        // banner, so it was paying that full ~1.1s cost on every single
+        // request -- most of the 1.5s+ page latency investigated in
+        // plans/09-asw-app-latency-investigation-plan.md (this repo).
+        // Caching here, not in the checker, keeps the banner accurate
+        // within a bounded window without touching the checker's
+        // live-probe guarantee used elsewhere.
+        $dbStatus = Cache::remember('web_db_connection_status', 15, fn () => $this->checker->checkAll());
         $connected = array_filter($dbStatus, fn($db) => $db['connected']);
         $disconnected = array_filter($dbStatus, fn($db) => !$db['connected']);
 
