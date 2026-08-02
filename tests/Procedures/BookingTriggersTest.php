@@ -57,7 +57,7 @@ it('rejects a past appointment date on insert for a Pending booking', function (
 });
 
 it('rejects moving a Pending booking to a past appointment date on update', function () {
-    $booking = Booking::factory()->create(['status' => 'Pending', 'appointment_date' => '2026-08-01']);
+    $booking = Booking::factory()->create(['status' => 'Pending', 'appointment_date' => now()->addDay()->toDateString()]);
 
     expect(fn () => $booking->update(['appointment_date' => now()->subDay()->toDateString()]))
         ->toThrow(QueryException::class, 'Appointment date cannot be in the past');

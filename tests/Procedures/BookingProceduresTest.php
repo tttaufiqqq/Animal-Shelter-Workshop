@@ -53,7 +53,7 @@ function callBookingCancel(int $bookingId, int $userId): object
 // --- sp_booking_create ---
 
 it('creates a booking on the happy path', function () {
-    $result = callBookingCreate(101, '2026-08-01', '10:00:00', 'Pending');
+    $result = callBookingCreate(101, now()->addDay()->toDateString(), '10:00:00', 'Pending');
 
     expect($result->status)->toBe('success');
     expect($result->booking_id)->not->toBeNull();
@@ -65,14 +65,14 @@ it('creates a booking on the happy path', function () {
 });
 
 it('defaults status to Pending when none is given', function () {
-    $result = callBookingCreate(101, '2026-08-01', '10:00:00', null);
+    $result = callBookingCreate(101, now()->addDay()->toDateString(), '10:00:00', null);
 
     expect($result->status)->toBe('success');
     $this->assertDatabaseHas('booking', ['id' => $result->booking_id, 'status' => 'Pending'], 'booking');
 });
 
 it('returns an error status instead of throwing when the user id is null', function () {
-    $result = callBookingCreate(null, '2026-08-01', '10:00:00', 'Pending');
+    $result = callBookingCreate(null, now()->addDay()->toDateString(), '10:00:00', 'Pending');
 
     expect($result->status)->toBe('error');
     expect($result->booking_id)->toBeNull();
@@ -90,10 +90,10 @@ it('does not leak a previous successful booking id into a later failed call', fu
     // @o_* are MariaDB session variables that persist across CALLs on a pooled
     // connection — a procedure that failed to reset them would let PHP read
     // the previous call's booking_id and report success for the wrong booking.
-    $first = callBookingCreate(101, '2026-08-01', '10:00:00', 'Pending');
+    $first = callBookingCreate(101, now()->addDay()->toDateString(), '10:00:00', 'Pending');
     expect($first->status)->toBe('success');
 
-    $second = callBookingCreate(null, '2026-08-01', '10:00:00', 'Pending');
+    $second = callBookingCreate(null, now()->addDay()->toDateString(), '10:00:00', 'Pending');
 
     expect($second->status)->toBe('error');
     expect($second->booking_id)->toBeNull();
@@ -171,7 +171,7 @@ it('refuses to cancel a booking that is already Completed', function () {
 
 it('finds a conflicting animal at the same date and time', function () {
     $booking = Booking::factory()->create([
-        'appointment_date' => '2026-08-01',
+        'appointment_date' => now()->addDay()->toDateString(),
         'appointment_time' => '10:00:00',
         'status' => 'Pending',
     ]);
@@ -179,7 +179,7 @@ it('finds a conflicting animal at the same date and time', function () {
 
     $rows = DB::connection('booking')->select(
         'CALL sp_booking_check_time_conflicts(?, ?, ?, ?)',
-        ['2026-08-01', '10:00:00', '55,56', null]
+        [now()->addDay()->toDateString(), '10:00:00', '55,56', null]
     );
 
     expect(array_map('intval', array_column($rows, 'animalID')))->toBe([55]);
@@ -188,7 +188,7 @@ it('finds a conflicting animal at the same date and time', function () {
 it('returns no conflicts for an empty animal id list', function () {
     // implode(',', []) yields '' — FIND_IN_SET(x, '') must not match everything.
     $booking = Booking::factory()->create([
-        'appointment_date' => '2026-08-01',
+        'appointment_date' => now()->addDay()->toDateString(),
         'appointment_time' => '10:00:00',
         'status' => 'Pending',
     ]);
@@ -196,7 +196,7 @@ it('returns no conflicts for an empty animal id list', function () {
 
     $rows = DB::connection('booking')->select(
         'CALL sp_booking_check_time_conflicts(?, ?, ?, ?)',
-        ['2026-08-01', '10:00:00', '', null]
+        [now()->addDay()->toDateString(), '10:00:00', '', null]
     );
 
     expect($rows)->toBeEmpty();
@@ -204,7 +204,7 @@ it('returns no conflicts for an empty animal id list', function () {
 
 it('excludes the given booking id from its own conflict check', function () {
     $booking = Booking::factory()->create([
-        'appointment_date' => '2026-08-01',
+        'appointment_date' => now()->addDay()->toDateString(),
         'appointment_time' => '10:00:00',
         'status' => 'Pending',
     ]);
@@ -212,7 +212,7 @@ it('excludes the given booking id from its own conflict check', function () {
 
     $rows = DB::connection('booking')->select(
         'CALL sp_booking_check_time_conflicts(?, ?, ?, ?)',
-        ['2026-08-01', '10:00:00', '55', $booking->id]
+        [now()->addDay()->toDateString(), '10:00:00', '55', $booking->id]
     );
 
     expect($rows)->toBeEmpty();
