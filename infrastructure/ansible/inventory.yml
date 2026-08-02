@@ -61,6 +61,21 @@ all:
         linux-k3s:
           ansible_host: linux-k3s
 
+    # plans/07-k3s-production-cutover-plan (monitoring/observability
+    # follow-on) — the 2 nodes plan 06/07 added, brought into the same
+    # fleet-wide node_exporter/Promtail coverage as node 1 always had.
+    linux_k3s_2:
+      hosts:
+        linux-k3s-2:
+          ansible_host: linux-k3s-2
+          ansible_user: root
+
+    linux_k3s_3:
+      hosts:
+        linux-k3s-3:
+          ansible_host: linux-k3s-3
+          ansible_user: root
+
     # Stage 6 — Observability CT (Prometheus/Grafana/Loki/Alertmanager).
     linux_observability:
       hosts:
@@ -74,6 +89,8 @@ all:
         linux_mini_io:
         linux_mongodb:
         linux_k3s:
+        linux_k3s_2:
+        linux_k3s_3:
         linux_observability:
 
     # Every host node_exporter/Promtail get installed on for Stage 6 —
@@ -88,4 +105,6 @@ all:
         linux_mini_io:
         linux_mongodb:
         linux_k3s:
+        linux_k3s_2:
+        linux_k3s_3:
         linux_observability:

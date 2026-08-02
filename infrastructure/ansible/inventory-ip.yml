@@ -80,6 +80,24 @@ all:
           ansible_host: 100.109.241.125
           ansible_user: linux-k3s
 
+    # plans/07-k3s-production-cutover-plan (monitoring/observability
+    # follow-on) — CTs 118/119 were Terraform/cloud-init provisioned with
+    # no matching named user (unlike linux-k3s's own hand-set-up
+    # "linux-k3s" account), so ansible_user is root here, authenticated
+    # with the same asw-cd deploy key added to /root/.ssh/authorized_keys
+    # via `pct exec` (no network SSH available until that key existed).
+    linux_k3s_2:
+      hosts:
+        linux-k3s-2:
+          ansible_host: 100.96.7.52
+          ansible_user: root
+
+    linux_k3s_3:
+      hosts:
+        linux-k3s-3:
+          ansible_host: 100.121.97.61
+          ansible_user: root
+
     # Stage 6 — Observability CT (Prometheus/Grafana/Loki/Alertmanager).
     linux_observability:
       hosts:
@@ -94,6 +112,8 @@ all:
         linux_mini_io:
         linux_mongodb:
         linux_k3s:
+        linux_k3s_2:
+        linux_k3s_3:
         linux_observability:
 
     # Every host node_exporter/Promtail get installed on for Stage 6.
@@ -106,4 +126,6 @@ all:
         linux_mini_io:
         linux_mongodb:
         linux_k3s:
+        linux_k3s_2:
+        linux_k3s_3:
         linux_observability:
