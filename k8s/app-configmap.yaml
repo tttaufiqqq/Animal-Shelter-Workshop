@@ -69,6 +69,14 @@ data:
   MAIL_FROM_ADDRESS: noreply@mail.tttaufiqqq.com
   BROADCAST_CONNECTION: log
   LOG_CHANNEL: stack
+  # docs/19-devops-practice/14-k3s-monitoring-and-log-persistence.md — the
+  # 'stack' channel defaults to LOG_STACK=single (a file inside the pod,
+  # storage/logs/laravel.log), invisible to `kubectl logs` and to any log
+  # collector. stderr instead means every log collector that already
+  # understands "container stdout/stderr" (kubectl logs, the k8s-aware
+  # Promtail DaemonSet) picks it up automatically, no file to lose on pod
+  # restart.
+  LOG_STACK: stderr
   LOG_LEVEL: warning
 
   # ToyyibPay sandbox — config/toyyibpay.php defaults TOYYIBPAY_BASE_URL to
