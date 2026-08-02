@@ -1,3 +1,5 @@
+# Instant-sync webhook test (homelab-taufiq plans/08): trivial comment-only
+# change to time ArgoCD's webhook-triggered sync vs the ~3min poll.
 # k3s multi-node split (plans/06-k3s-multi-node-gitops-automation-plan):
 # app (php-fpm) and nginx are now separate Deployments on separate nodes,
 # each with its own image — no more same-Pod sidecar, no more
