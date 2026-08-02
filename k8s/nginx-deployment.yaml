@@ -23,7 +23,7 @@ spec:
         kubernetes.io/hostname: linux-k3s-2
       containers:
         - name: nginx
-          image: docker.io/tttaufiqqq/animal-shelter-workshop-nginx:06e43b7141460730e20439fab0afcb7d1213e3b9
+          image: docker.io/tttaufiqqq/animal-shelter-workshop-nginx:c1bfc10bfac22b845b22381ee7a44de152dfbe1e
           ports:
             - containerPort: 80
           volumeMounts:
