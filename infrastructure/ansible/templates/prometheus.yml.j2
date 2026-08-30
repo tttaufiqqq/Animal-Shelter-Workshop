@@ -24,3 +24,19 @@ scrape_configs:
         labels:
           instance: "{{ host }}"
 {% endfor %}
+
+  # Kubernetes object state (pod restarts, CrashLoopBackOff, deployment
+  # replica mismatches) — node_exporter above only sees VM-level health,
+  # never what's actually happening inside the cluster. NodePort 30081
+  # works via any k3s node's Tailscale IP, kube-proxy routes it to the
+  # single kube-state-metrics pod regardless of which node it's on.
+  - job_name: kube-state-metrics
+    static_configs:
+      - targets: ["{{ hostvars['linux-k3s']['ansible_host'] }}:30081"]
+
+  # ArgoCD's own sync/health status (argocd_app_info) — a manual kubectl
+  # change to something ArgoCD tracks gets silently reverted by selfHeal;
+  # without this, that revert produced zero signal anywhere in Grafana.
+  - job_name: argocd
+    static_configs:
+      - targets: ["{{ hostvars['linux-k3s']['ansible_host'] }}:30082"]

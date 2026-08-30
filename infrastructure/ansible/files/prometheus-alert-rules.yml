@@ -17,3 +17,45 @@ groups:
           severity: warning
         annotations:
           summary: "{{ $labels.instance }} root filesystem is above 90% full"
+
+      - alert: PodCrashLooping
+        # Not kube_pod_container_status_waiting_reason{reason="CrashLoopBackOff"}
+        # with `for:` — that gauge briefly disappears every time the container
+        # flips through Terminated/Running between backoff cycles, resetting
+        # `for`'s continuity clock before it ever reaches the threshold
+        # (confirmed live: flapped pending/inactive for 10+ minutes, never
+        # fired). increase() over the restart counter is immune to that,
+        # since it just needs the counter's value at two points, not an
+        # unbroken run of true evaluations.
+        expr: increase(kube_pod_container_status_restarts_total[15m]) > 3
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $labels.namespace }}/{{ $labels.pod }} container {{ $labels.container }} restarted more than 3 times in 15m"
+
+      - alert: KubeStateMetricsDown
+        # InstanceDown above only watches job="node" (node_exporter, a
+        # separate systemd service from k3s itself) — if k3s breaks while
+        # the VM stays up, InstanceDown never fires. This covers that:
+        # kube-state-metrics needs a working k8s API to report anything,
+        # so this going down is itself a control-plane health signal.
+        expr: up{job="kube-state-metrics"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "kube-state-metrics scrape is down — possible k3s control-plane problem"
+
+      - alert: ArgoCDAppOutOfSync
+        # Catches manual kubectl changes to anything ArgoCD tracks: selfHeal
+        # reverts drift on its own ~3m reconcile loop, but silently — this
+        # is the only place that revert (or an unresolved drift) is visible
+        # outside ArgoCD's own UI. 10m, not 2m: give selfHeal's normal
+        # reconcile cycle room to resolve it first.
+        expr: argocd_app_info{sync_status!="Synced"} == 1
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "ArgoCD app {{ $labels.name }} has been OutOfSync for 10m+"

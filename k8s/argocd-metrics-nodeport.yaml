@@ -1,0 +1,48 @@
+# docs/19-devops-practice — closes a second gap found while proving out
+# the monitoring stack: manual `kubectl` changes to an ArgoCD-tracked
+# resource get silently reverted by selfHeal, but nothing in Prometheus/
+# Grafana ever saw that a revert happened. ArgoCD already exposes this as
+# argocd_app_info{sync_status,health_status} on its own argocd-metrics
+# Service (ClusterIP, :8082) — that Service just isn't reachable from
+# Prometheus outside the cluster. Same NodePort pattern as
+# kube-state-metrics.yaml: a second Service, same selector, exposed as
+# NodePort instead of touching ArgoCD's own (upstream-managed) Service.
+apiVersion: v1
+kind: Service
+metadata:
+  name: argocd-metrics-nodeport
+  namespace: argocd
+spec:
+  type: NodePort
+  selector:
+    app.kubernetes.io/name: argocd-application-controller
+  ports:
+    - port: 8082
+      targetPort: 8082
+      nodePort: 30082
+      name: metrics
+---
+# ArgoCD's own argocd-application-controller-network-policy only allows
+# ingress on :8082 from other pods (namespaceSelector: {}) — NodePort-
+# sourced traffic arrives looking like it's from the node, not a pod, and
+# gets dropped by that policy's implicit default-deny. Confirmed live:
+# argocd-server's NodePort worked (its own policy is ingress: [{}], fully
+# open) while this one returned connection refused, including pod-IP-
+# direct and even from another node on the same cluster.
+# NetworkPolicies are additive — this doesn't edit ArgoCD's own policy,
+# just adds a second one scoped to the metrics port only.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: argocd-metrics-external-access
+  namespace: argocd
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: argocd-application-controller
+  policyTypes:
+    - Ingress
+  ingress:
+    - ports:
+        - port: 8082
+          protocol: TCP
