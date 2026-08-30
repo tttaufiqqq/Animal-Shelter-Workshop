@@ -4,6 +4,7 @@ admin_machine_tailscale_ip: "100.68.235.121"
 gh_runner_tailscale_ip: "100.72.6.40"
 app_server_tailscale_ip: "100.100.123.90"
 k3s_tailscale_ip: "100.109.241.125"
+observability_tailscale_ip: "100.77.185.81"
 
 # Set per-playbook: the DB port to open from app-server, and a label for the
 # UFW rule comment (e.g. 3306/MySQL, 3306/MariaDB, 5432/PostgreSQL).

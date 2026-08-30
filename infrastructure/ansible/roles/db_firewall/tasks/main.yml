@@ -78,6 +78,20 @@
     proto: tcp
     comment: "{{ db_firewall_service_name }} from linux-gh-runner (CI tests)"
 
+# docs/19-devops-practice — linux-observability's blackbox_exporter needs
+# to TCP-probe this port to show real DB connectivity in Grafana (not just
+# "is the VM up", which node_exporter already covers). Same explicit-
+# allowlist pattern as every other rule here.
+- name: "UFW — {{ db_firewall_service_name }} from linux-observability (connectivity probe) via Tailscale only"
+  community.general.ufw:
+    rule: allow
+    interface: tailscale0
+    direction: in
+    from_ip: "{{ observability_tailscale_ip }}"
+    to_port: "{{ db_firewall_port }}"
+    proto: tcp
+    comment: "{{ db_firewall_service_name }} from linux-observability (probe)"
+
 - name: UFW — enable
   community.general.ufw:
     state: enabled

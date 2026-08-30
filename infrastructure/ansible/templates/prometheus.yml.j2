@@ -40,3 +40,34 @@ scrape_configs:
   - job_name: argocd
     static_configs:
       - targets: ["{{ hostvars['linux-k3s']['ansible_host'] }}:30082"]
+
+  # Real database connectivity (TCP connect to the actual DB port), not
+  # just "is the VM up" — node_exporter can't tell you mysqld itself
+  # crashed while the host stays healthy. blackbox_exporter runs on this
+  # same host; Prometheus always scrapes IT (127.0.0.1:9115), and the
+  # relabeling below is what tells blackbox which real target to probe.
+  # Scoped to the app's actual 5 connections (docs/03-db-architecture.md) —
+  # linux-mongodb was removed, it's an unrelated homelab instance for a
+  # different learning project, asw-app never connects to it.
+  - job_name: blackbox_db
+    metrics_path: /probe
+    params:
+      module: [tcp_connect]
+    static_configs:
+      - targets: ["100.78.80.42:3306"]
+        labels: { dbname: "linux-mysql" }
+      - targets: ["100.123.221.89:3306"]
+        labels: { dbname: "linux-mysql-2" }
+      - targets: ["100.112.107.1:3306"]
+        labels: { dbname: "linux-mariadb" }
+      - targets: ["100.97.35.29:3306"]
+        labels: { dbname: "linux-mariadb-2" }
+      - targets: ["100.72.187.124:5432"]
+        labels: { dbname: "linux-postgres" }
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: 127.0.0.1:9115

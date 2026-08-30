@@ -59,3 +59,28 @@ groups:
           severity: warning
         annotations:
           summary: "ArgoCD app {{ $labels.name }} has been OutOfSync for 10m+"
+
+      - alert: PodStuckWaiting
+        # PodCrashLooping (restart-count based) misses a real failure mode:
+        # a bad image tag never gets a container started at all, so the
+        # restart counter never increments — kubectl shows ImagePullBackOff
+        # forever, but increase(...restarts_total...) stays flat. This
+        # catches any bad waiting reason directly, not just CrashLoopBackOff.
+        # Safe with `for:` here (unlike CrashLoopBackOff's own flicker
+        # problem) because a stuck-waiting pod never cycles through
+        # Terminated/Running the way a genuine crash loop does — it just
+        # sits in one Waiting reason continuously.
+        expr: kube_pod_container_status_waiting_reason == 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $labels.namespace }}/{{ $labels.pod }} container {{ $labels.container }} stuck waiting: {{ $labels.reason }}"
+
+      - alert: DatabaseUnreachable
+        expr: probe_success{job="blackbox_db"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "{{ $labels.dbname }} isn't accepting connections on its DB port (TCP connect failed)"
